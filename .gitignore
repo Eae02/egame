@@ -1,0 +1,9 @@
+.build
+.directory
+.vs
+.vscode
+.idea
+Install
+CMake
+Bin
+*.gch
