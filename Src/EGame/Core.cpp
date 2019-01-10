@@ -273,4 +273,17 @@ namespace eg
 		
 		return 0;
 	}
+	
+	std::string GetClipboardText()
+	{
+		char* sdlClipboardText = SDL_GetClipboardText();
+		std::string ret = sdlClipboardText;
+		SDL_free(sdlClipboardText);
+		return ret;
+	}
+	
+	void SetClipboardText(const char* text)
+	{
+		SDL_SetClipboardText(text);
+	}
 }

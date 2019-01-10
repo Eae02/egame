@@ -44,4 +44,7 @@ namespace eg
 	{
 		return detail::Run(runConfig, [] () -> std::unique_ptr<IGame> { return std::make_unique<Game>(); });
 	}
+	
+	EG_API std::string GetClipboardText();
+	EG_API void SetClipboardText(const char* text);
 }
