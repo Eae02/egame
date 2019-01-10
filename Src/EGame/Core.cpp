@@ -17,6 +17,9 @@ namespace eg
 	
 	bool detail::shouldClose;
 	std::string detail::gameName;
+	std::string_view detail::exeDirPath;
+	
+	static const char* exeDirPathPtr;
 	
 	static Button TranslateSDLKey(SDL_Scancode scancode)
 	{
@@ -125,6 +128,12 @@ namespace eg
 		{
 			std::cerr << "SDL failed to initialize: " << SDL_GetError() << std::endl;
 			return 1;
+		}
+		
+		if (exeDirPathPtr == nullptr)
+		{
+			exeDirPathPtr = SDL_GetBasePath();
+			exeDirPath = exeDirPathPtr;
 		}
 		
 		eg::DefineEventType<ResolutionChangedEvent>();
