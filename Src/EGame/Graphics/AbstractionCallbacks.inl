@@ -11,9 +11,11 @@ XM_ABSCALLBACK(MapBuffer, void*, (BufferHandle handle, uint64_t offset, uint64_t
 XM_ABSCALLBACK(UnmapBuffer, void, (BufferHandle handle, uint64_t modOffset, uint64_t modRange))
 XM_ABSCALLBACK(UpdateBuffer, void, (BufferHandle handle, uint64_t offset, uint64_t size, const void* data))
 
-XM_ABSCALLBACK(CreateTexture2D, TextureHandle, (const Texture2DCreateInfo& createInfo, const void* initialData))
+XM_ABSCALLBACK(CreateTexture2D, TextureHandle, (const Texture2DCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyTexture, void, (TextureHandle handle))
-XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle, TextureHandle texture, uint32_t binding))
+XM_ABSCALLBACK(SetTextureData, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, const void* data))
+XM_ABSCALLBACK(SetTextureDataBuffer, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset))
+XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t binding))
 
 XM_ABSCALLBACK(CreateShaderProgram, ShaderProgramHandle, (Span<const ShaderStageDesc> stages))
 XM_ABSCALLBACK(DestroyShaderProgram, void, (ShaderProgramHandle handle))

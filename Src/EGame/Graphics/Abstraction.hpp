@@ -205,6 +205,17 @@ namespace eg
 		Mat4
 	};
 	
+	struct TextureRange
+	{
+		uint32_t offsetX;
+		uint32_t offsetY;
+		uint32_t offsetZ;
+		uint32_t sizeX;
+		uint32_t sizeY;
+		uint32_t sizeZ;
+		uint32_t mipLevel;
+	};
+	
 	template <>
 	EG_API std::string LogToString(UniformType type);
 	

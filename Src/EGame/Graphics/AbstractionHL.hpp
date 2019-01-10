@@ -145,9 +145,42 @@ namespace eg
 	public:
 		Texture() = default;
 		
-		static Texture Create2D(const Texture2DCreateInfo& createInfo, const void* initialData)
+		/**
+		 * Calculates the maximum number of mip levels for a given texture resolution.
+		 * @param maxDim The maximum of the texture's dimensions.
+		 * @return The maximum number of mip levels.
+		 */
+		static uint32_t MaxMipLevels(uint32_t maxDim)
 		{
-			return Texture(gal::CreateTexture2D(createInfo, initialData));
+			return (uint32_t)std::log2(maxDim) + 1;
+		}
+		
+		enum class LoadFormat
+		{
+			R_UNorm,
+			RGBA_UNorm,
+			RGBA_sRGB,
+		};
+		
+		/**
+		 * Loads a texture from a stream containing a PNG/JPEG/TGA/BMP/GIF image.
+		 * @param stream The stream to read from.
+		 * @param format The format of the loaded image (not the image in the stream).
+		 * @param mipLevels The number of mip levels to generate, or 0 to generate the maximum number of mip levels.
+		 * @param commandContext The command context to use when uploading the image data, or null to use the direct context.
+		 * @return The loaded texture, or a null texture if loading failed.
+		 */
+		static Texture Load(std::istream& stream, LoadFormat format, uint32_t mipLevels = 0,
+			class CommandContext* commandContext = nullptr);
+		
+		static Texture Create2D(const Texture2DCreateInfo& createInfo)
+		{
+			return Texture(gal::CreateTexture2D(createInfo));
+		}
+		
+		bool IsNull() const
+		{
+			return m_texture == nullptr;
 		}
 		
 		/**
@@ -177,6 +210,16 @@ namespace eg
 	{
 	public:
 		CommandContext() : CommandContext(nullptr) { }
+		
+		void SetTextureData(const Texture& texture, const TextureRange& range, const void* data)
+		{
+			gal::SetTextureData(Handle(), texture.Handle(), range, data);
+		}
+		
+		void SetTextureData(const Texture& texture, const TextureRange& range, const Buffer& buffer, uint64_t bufferOffset)
+		{
+			gal::SetTextureDataBuffer(Handle(), texture.Handle(), range, buffer.Handle(), bufferOffset);
+		}
 		
 		void BindPipeline(const Pipeline& pipeline)
 		{

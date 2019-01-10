@@ -31,7 +31,9 @@ target_include_directories(EGame
 	PUBLIC
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>
 	PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/Inc)
+		${CMAKE_CURRENT_SOURCE_DIR}/Inc
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+)
 
 target_include_directories(EGame SYSTEM
 	PUBLIC

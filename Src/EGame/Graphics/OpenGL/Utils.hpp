@@ -8,7 +8,6 @@ namespace eg::graphics_api::gl
 {
 	GLenum TranslateFormat(Format format);
 	GLenum TranslateDataType(DataType type);
-	GLenum GetTextureFormat(DataType type, uint32_t numChannels);
 	
 	template <GLenum E>
 	inline void SetEnabled(bool enable)

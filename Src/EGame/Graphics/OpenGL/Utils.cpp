@@ -86,21 +86,4 @@ namespace eg::graphics_api::gl
 		
 		EG_UNREACHABLE
 	}
-	
-	GLenum GetTextureFormat(DataType type, uint32_t numChannels)
-	{
-		const GLenum normFormats[] = { GL_RED, GL_RG, GL_RGB, GL_RGBA };
-		const GLenum integerFormats[] = { GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_RGBA_INTEGER };
-		
-		if (type != DataType::Float32 &&
-			type != DataType::UInt8Norm && type != DataType::UInt16Norm && type != DataType::UInt32Norm &&
-			type != DataType::SInt8Norm && type != DataType::SInt16Norm && type != DataType::SInt32Norm)
-		{
-			return integerFormats[numChannels - 1];
-		}
-		else
-		{
-			return normFormats[numChannels - 1];
-		}
-	}
 }
