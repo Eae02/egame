@@ -18,6 +18,7 @@ namespace eg
 	
 	typedef struct _Buffer* BufferHandle;
 	typedef struct _Texture* TextureHandle;
+	typedef struct _Sampler* SamplerHandle;
 	typedef struct _ShaderProgram* ShaderProgramHandle;
 	typedef struct _Pipeline* PipelineHandle;
 	typedef struct _CommandContext* CommandContextHandle;
@@ -183,12 +184,65 @@ namespace eg
 		VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
 	};
 	
+	enum class SwizzleMode
+	{
+		Identity,
+		One,
+		Zero,
+		R,
+		G,
+		B,
+		A
+	};
+	
+	enum class WrapMode
+	{
+		Repeat,
+		MirroredRepeat,
+		ClampToEdge,
+		ClampToBorder
+	};
+	
+	enum class TextureFilter
+	{
+		Linear,
+		Nearest
+	};
+	
+	enum class BorderColor
+	{
+		F0000,
+		I0000,
+		F0001,
+		I0001,
+		F1111,
+		I1111
+	};
+	
+	struct SamplerDescription
+	{
+		WrapMode wrapU = WrapMode::Repeat;
+		WrapMode wrapV = WrapMode::Repeat;
+		WrapMode wrapW = WrapMode::Repeat;
+		TextureFilter minFilter = TextureFilter::Linear;
+		TextureFilter magFilter = TextureFilter::Linear;
+		TextureFilter mipFilter = TextureFilter::Linear;
+		float mipLodBias = 0;
+		int maxAnistropy = 0;
+		BorderColor borderColor = BorderColor::F0000;
+	};
+	
 	struct Texture2DCreateInfo
 	{
 		uint32_t width;
 		uint32_t height;
 		uint32_t mipLevels;
 		Format format;
+		const SamplerDescription* defaultSamplerDescription = nullptr;
+		SwizzleMode swizzleR = SwizzleMode::Identity;
+		SwizzleMode swizzleG = SwizzleMode::Identity;
+		SwizzleMode swizzleB = SwizzleMode::Identity;
+		SwizzleMode swizzleA = SwizzleMode::Identity;
 	};
 	
 	enum class UniformType

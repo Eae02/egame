@@ -13,6 +13,7 @@ namespace eg::graphics_api::gl
 	static GLsync fences[MAX_CONCURRENT_FRAMES];
 	
 	extern bool supportsSpirV;
+	extern int maxAnistropy;
 	
 	enum class GLVendor
 	{
@@ -86,6 +87,10 @@ namespace eg::graphics_api::gl
 		GLuint vao;
 		glCreateVertexArrays(1, &vao);
 		glBindVertexArray(vao);
+		
+		float maxAnistropyF;
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAnistropyF);
+		maxAnistropy = maxAnistropyF;
 		
 		std::string_view vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 		if (vendorName == "Intel Open Source Technology Center")

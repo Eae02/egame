@@ -17,6 +17,9 @@ XM_ABSCALLBACK(SetTextureData, void, (CommandContextHandle ctx, TextureHandle ha
 XM_ABSCALLBACK(SetTextureDataBuffer, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset))
 XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t binding))
 
+XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))
+XM_ABSCALLBACK(DestroySampler, void, (SamplerHandle handle))
+
 XM_ABSCALLBACK(CreateShaderProgram, ShaderProgramHandle, (Span<const ShaderStageDesc> stages))
 XM_ABSCALLBACK(DestroyShaderProgram, void, (ShaderProgramHandle handle))
 XM_ABSCALLBACK(CreatePipeline, PipelineHandle, (ShaderProgramHandle program, const FixedFuncState& fixedFuncState))
