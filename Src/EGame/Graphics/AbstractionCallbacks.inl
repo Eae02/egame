@@ -19,6 +19,7 @@ XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureHandle textu
 
 XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))
 XM_ABSCALLBACK(DestroySampler, void, (SamplerHandle handle))
+XM_ABSCALLBACK(BindSampler, void, (CommandContextHandle, SamplerHandle sampler, uint32_t binding))
 
 XM_ABSCALLBACK(CreateShaderProgram, ShaderProgramHandle, (Span<const ShaderStageDesc> stages))
 XM_ABSCALLBACK(DestroyShaderProgram, void, (ShaderProgramHandle handle))

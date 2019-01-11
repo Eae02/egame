@@ -206,6 +206,33 @@ namespace eg
 		std::unique_ptr<_Texture, TextureDel> m_texture;
 	};
 	
+	class EG_API Sampler
+	{
+	public:
+		Sampler() = default;
+		explicit Sampler(const SamplerDescription& description)
+			: m_sampler(gal::CreateSampler(description)) { }
+		
+		/**
+		 * Gets the GAL handle for this sampler.
+		 */
+		SamplerHandle Handle() const
+		{
+			return m_sampler.get();
+		}
+		
+	private:
+		struct SamplerDel
+		{
+			void operator()(SamplerHandle handle)
+			{
+				gal::DestroySampler(handle);
+			}
+		};
+		
+		std::unique_ptr<_Sampler, SamplerDel> m_sampler;
+	};
+	
 	class EG_API CommandContext
 	{
 	public:
@@ -249,6 +276,11 @@ namespace eg
 		void BindTexture(const Texture& texture, uint32_t binding)
 		{
 			gal::BindTexture(Handle(), texture.Handle(), binding);
+		}
+		
+		void BindSampler(const Sampler& sampler, uint32_t binding)
+		{
+			gal::BindSampler(Handle(), sampler.Handle(), binding);
 		}
 		
 		void SetUniform(std::string_view name, UniformType type, const void* value)
