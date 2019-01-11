@@ -153,7 +153,8 @@ namespace eg::graphics_api::gl
 			
 			if (std::optional<UniformType> type = GetUniformType(uniformType))
 			{
-				program->uniforms.push_back({ HashFNV1a32(nameBuffer), *type, (uint32_t)uniformSize, i });
+				GLuint location = (GLuint)glGetUniformLocation(program->program, nameBuffer);
+				program->uniforms.push_back({ HashFNV1a32(nameBuffer), *type, (uint32_t)uniformSize, location });
 			}
 		}
 		

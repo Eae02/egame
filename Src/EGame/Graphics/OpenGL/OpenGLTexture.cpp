@@ -165,9 +165,9 @@ namespace eg::graphics_api::gl
 		}
 		
 		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_R, TranslateSwizzle(createInfo.swizzleR, GL_RED));
-		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_G, TranslateSwizzle(createInfo.swizzleR, GL_GREEN));
-		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_B, TranslateSwizzle(createInfo.swizzleR, GL_BLUE));
-		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_A, TranslateSwizzle(createInfo.swizzleR, GL_ALPHA));
+		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_G, TranslateSwizzle(createInfo.swizzleG, GL_GREEN));
+		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_B, TranslateSwizzle(createInfo.swizzleB, GL_BLUE));
+		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_A, TranslateSwizzle(createInfo.swizzleA, GL_ALPHA));
 		
 		return reinterpret_cast<TextureHandle>(texture);
 	}
