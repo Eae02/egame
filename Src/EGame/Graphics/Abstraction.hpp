@@ -69,8 +69,8 @@ namespace eg
 	
 	enum class ShaderStage
 	{
-		Vertex,
-		Fragment
+		Vertex = 0,
+		Fragment = 1
 	};
 	
 	struct ShaderStageDesc

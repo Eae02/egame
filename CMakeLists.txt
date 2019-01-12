@@ -1,12 +1,18 @@
 cmake_minimum_required(VERSION 3.13)
 project(EGame)
 
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
+
 find_package(SDL2 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
+find_package(GLSLang REQUIRED)
+
+add_subdirectory(Deps/yaml-cpp)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
+file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
 
 #Adds compile options for warnings
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -16,22 +22,30 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 
 add_library(EGame SHARED ${EGAME_SOURCE_FILES} Deps/gl3w.c)
+add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
 target_link_libraries(EGame
 	PUBLIC
 		Threads::Threads
+		yaml-cpp
 	PRIVATE
 		SDL2::SDL2
 		OpenGL::GL
 		ZLIB::ZLIB
 	)
 
+target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
+
 target_include_directories(EGame
 	PUBLIC
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>
 	PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/Inc
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+)
+
+target_include_directories(EGameAssetGen PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 )
 
@@ -48,7 +62,7 @@ target_compile_options(EGame
 
 set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${CMAKE_BUILD_TYPE})
 
-set_target_properties(EGame EGSandbox PROPERTIES
+set_target_properties(EGame EGSandbox EGameAssetGen PROPERTIES
 	CXX_STANDARD 17
 	ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
 	LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
@@ -56,13 +70,19 @@ set_target_properties(EGame EGSandbox PROPERTIES
 )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-	set_target_properties(EGame PROPERTIES CXX_VISIBILITY_PRESET hidden)
+	target_compile_options(yaml-cpp PRIVATE -fPIC)
+	set_target_properties(EGame EGameAssetGen PROPERTIES
+		CXX_VISIBILITY_PRESET hidden
+		INSTALL_RPATH "$ORIGIN"
+		BUILD_WITH_INSTALL_RPATH TRUE
+	)
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
 endif()
 
 set_target_properties(EGame PROPERTIES DEFINE_SYMBOL "EG_BUILDING_LIB")
 
 add_dependencies(EGSandbox EGame)
+add_dependencies(EGameAssetGen EGame)
 target_link_libraries(EGSandbox EGame)
 
 export(TARGETS EGame FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${CMAKE_BUILD_TYPE}/EGameTargets.cmake)

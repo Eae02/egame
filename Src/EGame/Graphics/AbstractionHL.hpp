@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Abstraction.hpp"
+#include "../Assets/ShaderModule.hpp"
+#include "../Assets/Asset.hpp"
 
 namespace eg
 {
@@ -38,6 +40,12 @@ namespace eg
 	{
 	public:
 		ShaderProgram() = default;
+		
+		void AddStageFromAsset(std::string_view name)
+		{
+			ShaderModule& module = GetAsset<ShaderModule>(name);
+			AddStageBorrowedCode(module.stage, module.code);
+		}
 		
 		/**
 		 * Adds a stage to the shader program.

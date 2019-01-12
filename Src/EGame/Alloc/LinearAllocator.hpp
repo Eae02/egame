@@ -42,6 +42,13 @@ namespace eg
 			return memory;
 		}
 		
+		std::string_view MakeStringCopy(std::string_view string)
+		{
+			char* data = AllocateArray<char>(string.size());
+			std::memcpy(data, string.data(), string.size());
+			return std::string_view(data, string.size());
+		}
+		
 		void Reset();
 		
 		static constexpr size_t STD_POOL_SIZE = 16 * 1024 * 1024; //16 MiB

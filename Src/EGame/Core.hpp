@@ -18,7 +18,9 @@ namespace eg
 	{
 		const char* gameName = nullptr;
 		GraphicsAPI graphicsAPI = GraphicsAPI::Preferred;
+		void (*initialize)() = nullptr;
 		bool debug = true;
+		bool createAssetPackage = false;
 	};
 	
 	namespace detail

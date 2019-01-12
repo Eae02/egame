@@ -122,6 +122,10 @@ namespace eg
 		}
 	}
 	
+	void LoadAssetGenLibrary();
+	void RegisterAssetLoaders();
+	void RegisterDefaultAssetGenerator();
+	
 	int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
 	{
 		if (SDL_Init(SDL_INIT_VIDEO))
@@ -135,6 +139,10 @@ namespace eg
 			exeDirPathPtr = SDL_GetBasePath();
 			exeDirPath = exeDirPathPtr;
 		}
+		
+		RegisterDefaultAssetGenerator();
+		LoadAssetGenLibrary();
+		RegisterAssetLoaders();
 		
 		eg::DefineEventType<ResolutionChangedEvent>();
 		eg::DefineEventType<ButtonEvent>();
@@ -179,6 +187,9 @@ namespace eg
 				"The selected graphics API could not be initialized.", nullptr);
 			return 1;
 		}
+		
+		if (runConfig.initialize)
+			runConfig.initialize();
 		
 		std::unique_ptr<IGame> game = createGame();
 		

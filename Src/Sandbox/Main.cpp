@@ -1,15 +1,15 @@
 #include "EGame/EG.hpp"
-#include "Main.vert.h"
-#include "Main.frag.h"
 
 class Game : public eg::IGame
 {
 public:
 	Game()
 	{
+		eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/");
+		
 		eg::ShaderProgram program;
-		program.AddStageBorrowedCode(eg::ShaderStage::Vertex, eg::Span<const char>((const char*)SpvVS, sizeof(SpvVS)));
-		program.AddStageBorrowedCode(eg::ShaderStage::Fragment, eg::Span<const char>((const char*)SpvFS, sizeof(SpvFS)));
+		program.AddStageFromAsset("Main.vs.glsl");
+		program.AddStageFromAsset("Main.fs.glsl");
 		eg::FixedFuncState ffs;
 		m_pipeline = program.CreatePipeline(ffs);
 	}

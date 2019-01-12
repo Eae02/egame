@@ -4,6 +4,7 @@
 .vscode
 .idea
 Install
-CMake
+CMake/Debug
+CMake/Release
 Bin
 *.gch
