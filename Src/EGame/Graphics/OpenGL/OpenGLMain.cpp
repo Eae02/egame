@@ -1,4 +1,5 @@
 #include "OpenGL.hpp"
+#include "Utils.hpp"
 #include "../Graphics.hpp"
 #include "../../Log.hpp"
 #include "../../Alloc/ObjectPool.hpp"
@@ -144,18 +145,26 @@ namespace eg::graphics_api::gl
 		glScissor(x, y, w, h);
 	}
 	
+	void InitScissorTest();
+	
 	void ClearFBColor(CommandContextHandle, int buffer, const Color& color)
 	{
+		SetEnabled<GL_SCISSOR_TEST>(false);
 		glClearBufferfv(GL_COLOR, buffer, &color.r);
+		InitScissorTest();
 	}
 	
 	void ClearFBDepth(CommandContextHandle, float depth)
 	{
+		SetEnabled<GL_SCISSOR_TEST>(false);
 		glClearBufferfv(GL_DEPTH, 0, &depth);
+		InitScissorTest();
 	}
 	
 	void ClearFBStencil(CommandContextHandle, uint32_t value)
 	{
+		SetEnabled<GL_SCISSOR_TEST>(false);
 		glClearBufferuiv(GL_STENCIL, 0, &value);
+		InitScissorTest();
 	}
 }

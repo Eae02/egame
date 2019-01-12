@@ -194,7 +194,7 @@ namespace eg::graphics_api::gl
 		GLenum frontFace;
 		GLenum cullFace;
 		GLenum depthFunc;
-		bool enableStencilTest;
+		bool enableScissorTest;
 		bool enableDepthTest;
 		bool enableDepthWrite;
 		BlendState blend[8];
@@ -292,7 +292,7 @@ namespace eg::graphics_api::gl
 			pipeline->maxVertexBinding = i + 1;
 		}
 		
-		pipeline->enableStencilTest = fixedFuncState.enableStencilTest;
+		pipeline->enableScissorTest = fixedFuncState.enableScissorTest;
 		pipeline->enableDepthTest = fixedFuncState.enableDepthTest;
 		pipeline->enableDepthWrite = fixedFuncState.enableDepthWrite;
 		
@@ -365,6 +365,12 @@ namespace eg::graphics_api::gl
 	static bool updateVAOBindings = false;
 	static const Pipeline* currentPipeline;
 	
+	void InitScissorTest()
+	{
+		if (currentPipeline != nullptr)
+			SetEnabled<GL_SCISSOR_TEST>(currentPipeline->enableScissorTest);
+	}
+	
 	void BindPipeline(CommandContextHandle, PipelineHandle handle)
 	{
 		const Pipeline* pipeline = UnwrapPipeline(handle);
@@ -381,8 +387,9 @@ namespace eg::graphics_api::gl
 			glCullFace(curState.cullFace = pipeline->cullFace);
 		
 		SetEnabled<GL_CULL_FACE>(pipeline->enableFaceCull);
-		SetEnabled<GL_STENCIL_TEST>(pipeline->enableStencilTest);
 		SetEnabled<GL_DEPTH_TEST>(pipeline->enableDepthTest);
+		
+		InitScissorTest();
 		
 		if (curState.enableDepthWrite != pipeline->enableDepthWrite)
 		{

@@ -172,7 +172,7 @@ namespace eg
 	
 	struct FixedFuncState
 	{
-		bool enableStencilTest = false;
+		bool enableScissorTest = false;
 		bool enableDepthTest = false;
 		bool enableDepthWrite = false;
 		CompareOp depthCompare = CompareOp::Less;
