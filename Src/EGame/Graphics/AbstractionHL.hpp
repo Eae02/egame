@@ -186,6 +186,11 @@ namespace eg
 			return Texture(gal::CreateTexture2D(createInfo));
 		}
 		
+		static Texture Create2DArray(const Texture2DArrayCreateInfo& createInfo)
+		{
+			return Texture(gal::CreateTexture2DArray(createInfo));
+		}
+		
 		bool IsNull() const
 		{
 			return m_texture == nullptr;

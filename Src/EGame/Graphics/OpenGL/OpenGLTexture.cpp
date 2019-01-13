@@ -135,6 +135,32 @@ namespace eg::graphics_api::gl
 		EG_UNREACHABLE
 	}
 	
+	static void InitTexture(GLuint texture, const TextureCreateInfo& createInfo)
+	{
+		glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
+		
+		if (createInfo.defaultSamplerDescription != nullptr)
+		{
+			const SamplerDescription& samplerDesc = *createInfo.defaultSamplerDescription;
+			
+			auto borderColor = TranslateBorderColor(samplerDesc.borderColor);
+			
+			glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GetMinFilter(samplerDesc));
+			glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GetMagFilter(samplerDesc.magFilter));
+			glTextureParameteri(texture, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
+			glTextureParameteri(texture, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
+			glTextureParameteri(texture, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
+			glTextureParameterf(texture, GL_TEXTURE_MAX_ANISOTROPY, ClampMaxAnistropy(samplerDesc.maxAnistropy));
+			glTextureParameterf(texture, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
+			glTextureParameterfv(texture, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+		}
+		
+		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_R, TranslateSwizzle(createInfo.swizzleR, GL_RED));
+		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_G, TranslateSwizzle(createInfo.swizzleG, GL_GREEN));
+		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_B, TranslateSwizzle(createInfo.swizzleB, GL_BLUE));
+		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_A, TranslateSwizzle(createInfo.swizzleA, GL_ALPHA));
+	}
+	
 	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
@@ -146,28 +172,24 @@ namespace eg::graphics_api::gl
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage2D(texture->texture, createInfo.mipLevels, format, createInfo.width, createInfo.height);
 		
-		glTextureParameteri(texture->texture, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
+		InitTexture(texture->texture, createInfo);
 		
-		if (createInfo.defaultSamplerDescription != nullptr)
-		{
-			const SamplerDescription& samplerDesc = *createInfo.defaultSamplerDescription;
-			
-			auto borderColor = TranslateBorderColor(samplerDesc.borderColor);
-			
-			glTextureParameteri(texture->texture, GL_TEXTURE_MIN_FILTER, GetMinFilter(samplerDesc));
-			glTextureParameteri(texture->texture, GL_TEXTURE_MAG_FILTER, GetMagFilter(samplerDesc.magFilter));
-			glTextureParameteri(texture->texture, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
-			glTextureParameteri(texture->texture, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
-			glTextureParameteri(texture->texture, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
-			glTextureParameterf(texture->texture, GL_TEXTURE_MAX_ANISOTROPY, ClampMaxAnistropy(samplerDesc.maxAnistropy));
-			glTextureParameterf(texture->texture, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
-			glTextureParameterfv(texture->texture, GL_TEXTURE_BORDER_COLOR, borderColor.data());
-		}
+		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
+	TextureHandle CreateTexture2DArray(const Texture2DArrayCreateInfo& createInfo)
+	{
+		Texture* texture = texturePool.New();
+		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->texture);
 		
-		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_R, TranslateSwizzle(createInfo.swizzleR, GL_RED));
-		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_G, TranslateSwizzle(createInfo.swizzleG, GL_GREEN));
-		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_B, TranslateSwizzle(createInfo.swizzleB, GL_BLUE));
-		glTextureParameteri(texture->texture, GL_TEXTURE_SWIZZLE_A, TranslateSwizzle(createInfo.swizzleA, GL_ALPHA));
+		texture->format = createInfo.format;
+		texture->dim = 3;
+		
+		GLenum format = TranslateFormat(createInfo.format);
+		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
+			createInfo.width, createInfo.height, createInfo.arrayLayers);
+		
+		InitTexture(texture->texture, createInfo);
 		
 		return reinterpret_cast<TextureHandle>(texture);
 	}
@@ -205,6 +227,10 @@ namespace eg::graphics_api::gl
 		case 2:
 			glTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
 				range.sizeX, range.sizeY, format, type, data);
+			break;
+		case 3:
+			glTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
+				range.sizeX, range.sizeY, range.sizeZ, format, type, data);
 			break;
 		}
 	}

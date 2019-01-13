@@ -12,6 +12,7 @@ XM_ABSCALLBACK(UnmapBuffer, void, (BufferHandle handle, uint64_t modOffset, uint
 XM_ABSCALLBACK(UpdateBuffer, void, (BufferHandle handle, uint64_t offset, uint64_t size, const void* data))
 
 XM_ABSCALLBACK(CreateTexture2D, TextureHandle, (const Texture2DCreateInfo& createInfo))
+XM_ABSCALLBACK(CreateTexture2DArray, TextureHandle, (const Texture2DArrayCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyTexture, void, (TextureHandle handle))
 XM_ABSCALLBACK(SetTextureData, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, const void* data))
 XM_ABSCALLBACK(SetTextureDataBuffer, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset))

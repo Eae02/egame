@@ -232,10 +232,8 @@ namespace eg
 		BorderColor borderColor = BorderColor::F0000;
 	};
 	
-	struct Texture2DCreateInfo
+	struct TextureCreateInfo
 	{
-		uint32_t width;
-		uint32_t height;
 		uint32_t mipLevels;
 		Format format;
 		const SamplerDescription* defaultSamplerDescription = nullptr;
@@ -243,6 +241,17 @@ namespace eg
 		SwizzleMode swizzleG = SwizzleMode::Identity;
 		SwizzleMode swizzleB = SwizzleMode::Identity;
 		SwizzleMode swizzleA = SwizzleMode::Identity;
+	};
+	
+	struct Texture2DCreateInfo : TextureCreateInfo
+	{
+		uint32_t width;
+		uint32_t height;
+	};
+	
+	struct Texture2DArrayCreateInfo : Texture2DCreateInfo
+	{
+		uint32_t arrayLayers;
 	};
 	
 	enum class UniformType
