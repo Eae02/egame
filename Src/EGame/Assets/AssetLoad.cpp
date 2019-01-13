@@ -1,5 +1,6 @@
 #include "AssetLoad.hpp"
 #include "ShaderModule.hpp"
+#include "Texture2DArrayLoader.hpp"
 #include "../Log.hpp"
 
 namespace eg
@@ -50,6 +51,7 @@ namespace eg
 	void RegisterAssetLoaders()
 	{
 		RegisterAssetLoader("Shader", &ShaderModule::AssetLoader, ShaderModule::AssetFormat);
+		RegisterAssetLoader("Texture2DArray", &Texture2DArrayLoader, Texture2DArrayAssetFormat);
 		
 		BindAssetExtension("glsl", "Shader", "Shader");
 	}

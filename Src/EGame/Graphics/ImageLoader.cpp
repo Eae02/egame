@@ -36,7 +36,7 @@ namespace eg
 		m_stream->seekg(m_startPos);
 		
 		int w, h;
-		uint8_t* data = stbi_load_from_callbacks(&ioCallbacks, &m_stream, &w, &h, nullptr, numChannels);
+		uint8_t* data = stbi_load_from_callbacks(&ioCallbacks, m_stream, &w, &h, nullptr, numChannels);
 		if (data == nullptr)
 		{
 			Log(LogLevel::Error, "img", "{0}", stbi_failure_reason());
