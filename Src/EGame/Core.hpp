@@ -30,6 +30,12 @@ namespace eg
 		extern EG_API bool shouldClose;
 		extern EG_API std::string gameName;
 		extern EG_API std::string_view exeDirPath;
+		extern EG_API uint64_t frameIndex;
+	}
+	
+	inline uint64_t FrameIdx()
+	{
+		return detail::frameIndex;
 	}
 	
 	/**

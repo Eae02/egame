@@ -1,5 +1,6 @@
 #include "AbstractionHL.hpp"
 #include "ImageLoader.hpp"
+#include "../Core.hpp"
 #include "../IOUtils.hpp"
 
 #include <fstream>
@@ -62,5 +63,50 @@ namespace eg
 		commandContext->SetTextureData(texture, range, data.get());
 		
 		return texture;
+	}
+	
+	struct UploadBuffer
+	{
+		uint64_t lastUsedFrame;
+		uint64_t size;
+		Buffer buffer;
+		
+		explicit UploadBuffer(uint64_t size)
+			: size(size), buffer(BufferUsage::MapWrite | BufferUsage::CopySrc, size, nullptr) { }
+	};
+	
+	static std::vector<UploadBuffer> uploadBuffers;
+	
+	BufferRef GetTemporaryUploadBuffer(uint64_t size)
+	{
+		UploadBuffer* selected = nullptr;
+		for (UploadBuffer& buffer : uploadBuffers)
+		{
+			if (buffer.size >= size &&
+				(buffer.lastUsedFrame == UINT64_MAX || buffer.lastUsedFrame + MAX_CONCURRENT_FRAMES <= FrameIdx()) &&
+				(selected == nullptr || buffer.size < selected->size))
+			{
+				selected = &buffer;
+			}
+		}
+		
+		if (selected == nullptr)
+		{
+			selected = &uploadBuffers.emplace_back(RoundToNextMultiple<uint64_t>(size, 1024 * 1024));
+		}
+		
+		selected->lastUsedFrame = FrameIdx();
+		return selected->buffer;
+	}
+	
+	void MarkUploadBuffersAvailable()
+	{
+		for (UploadBuffer& buffer : uploadBuffers)
+			buffer.lastUsedFrame = UINT64_MAX;
+	}
+	
+	void DestroyUploadBuffers()
+	{
+		uploadBuffers.clear();
 	}
 }

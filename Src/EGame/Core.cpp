@@ -1,6 +1,6 @@
 #include "Core.hpp"
 #include "MainThreadInvoke.hpp"
-#include "Graphics/Abstraction.hpp"
+#include "Graphics/AbstractionHL.hpp"
 #include "InputState.hpp"
 #include "Event.hpp"
 
@@ -18,6 +18,7 @@ namespace eg
 	bool detail::shouldClose;
 	std::string detail::gameName;
 	std::string_view detail::exeDirPath;
+	uint64_t detail::frameIndex;
 	
 	static const char* exeDirPathPtr;
 	
@@ -219,6 +220,7 @@ namespace eg
 		resolutionX = -1;
 		resolutionY = -1;
 		shouldClose = false;
+		frameIndex = 0;
 		while (!shouldClose)
 		{
 			previousIS = currentIS;
@@ -282,11 +284,13 @@ namespace eg
 			
 			gal::EndFrame();
 			
-			detail::cFrameIdx = (detail::cFrameIdx + 1) % MAX_CONCURRENT_FRAMES;
+			cFrameIdx = (cFrameIdx + 1) % MAX_CONCURRENT_FRAMES;
+			frameIndex++;
 		}
 		
 		game.reset();
 		
+		DestroyUploadBuffers();
 		DestroyGraphicsAPI();
 		SDL_DestroyWindow(window);
 		SDL_Quit();

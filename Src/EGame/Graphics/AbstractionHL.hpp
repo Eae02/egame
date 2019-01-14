@@ -167,6 +167,11 @@ namespace eg
 		BufferHandle handle;
 	};
 	
+	EG_API BufferRef GetTemporaryUploadBuffer(uint64_t size);
+	
+	EG_API void MarkUploadBuffersAvailable();
+	EG_API void DestroyUploadBuffers();
+	
 	class EG_API Buffer : public OwningRef<BufferRef>
 	{
 	public:
