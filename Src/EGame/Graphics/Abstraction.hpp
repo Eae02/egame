@@ -32,7 +32,8 @@ namespace eg
 		CopySrc = 8,
 		CopyDst = 16,
 		VertexBuffer = 32,
-		IndexBuffer = 64
+		IndexBuffer = 64,
+		UniformBuffer = 128
 	};
 	
 	EG_BIT_FIELD(BufferUsage)
@@ -277,6 +278,11 @@ namespace eg
 		uint32_t sizeY;
 		uint32_t sizeZ;
 		uint32_t mipLevel;
+	};
+	
+	struct GraphicsCapabilities
+	{
+		uint32_t uniformBufferAlignment;
 	};
 	
 	template <>

@@ -9,7 +9,9 @@ namespace eg
 {
 	CommandContext DC;
 	
-	BlendState AlphaBlend { BlendFunc::Add, BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha };
+	const BlendState AlphaBlend { BlendFunc::Add, BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha };
+	
+	GraphicsCapabilities detail::graphicsCapabilities;
 	
 	void ShaderProgram::AddStageFromFile(const std::string& path)
 	{

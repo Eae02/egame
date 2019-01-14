@@ -243,6 +243,11 @@ namespace eg::graphics_api::gl
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	}
 	
+	void GenerateMipmaps(CommandContextHandle, TextureHandle handle)
+	{
+		glGenerateTextureMipmap(UnwrapTexture(handle)->texture);
+	}
+	
 	void DestroyTexture(TextureHandle handle)
 	{
 		MainThreadInvoke([texture=UnwrapTexture(handle)]

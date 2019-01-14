@@ -1,6 +1,7 @@
 #define _COMMA ,
 
 XM_ABSCALLBACK(GetDrawableSize, std::tuple<int _COMMA int>, ())
+XM_ABSCALLBACK(GetCapabilities, void, (GraphicsCapabilities& capabilities))
 XM_ABSCALLBACK(BeginFrame, void, ())
 XM_ABSCALLBACK(EndFrame, void, ())
 XM_ABSCALLBACK(Shutdown, void, ())
@@ -11,12 +12,14 @@ XM_ABSCALLBACK(MapBuffer, void*, (BufferHandle handle, uint64_t offset, uint64_t
 XM_ABSCALLBACK(UnmapBuffer, void, (BufferHandle handle, uint64_t modOffset, uint64_t modRange))
 XM_ABSCALLBACK(UpdateBuffer, void, (BufferHandle handle, uint64_t offset, uint64_t size, const void* data))
 XM_ABSCALLBACK(CopyBuffer, void, (CommandContextHandle, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size))
+XM_ABSCALLBACK(BindUniformBuffer, void, (CommandContextHandle, BufferHandle handle, uint32_t binding, uint64_t offset, uint64_t range))
 
 XM_ABSCALLBACK(CreateTexture2D, TextureHandle, (const Texture2DCreateInfo& createInfo))
 XM_ABSCALLBACK(CreateTexture2DArray, TextureHandle, (const Texture2DArrayCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyTexture, void, (TextureHandle handle))
 XM_ABSCALLBACK(SetTextureData, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, const void* data))
 XM_ABSCALLBACK(SetTextureDataBuffer, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset))
+XM_ABSCALLBACK(GenerateMipmaps, void, (CommandContextHandle ctx, TextureHandle handle))
 XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t binding))
 
 XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))

@@ -22,7 +22,7 @@ namespace eg
 		OwningRef(OwningRef<W>&& other) noexcept
 			: W(other.handle)
 		{
-			other.Destroy();
+			other.handle = nullptr;
 		}
 		
 		OwningRef<W>& operator=(OwningRef<W>&& other) noexcept
@@ -285,6 +285,11 @@ namespace eg
 			gal::SetTextureDataBuffer(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 		}
 		
+		void GenerateMipmaps(TextureRef texture)
+		{
+			gal::GenerateMipmaps(Handle(), texture.handle);
+		}
+		
 		void CopyBuffer(BufferRef src, BufferRef dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
 		{
 			gal::CopyBuffer(Handle(), src.handle, dst.handle, srcOffset, dstOffset, size);
@@ -303,6 +308,11 @@ namespace eg
 		void BindIndexBuffer(IndexType type, BufferRef buffer, uint32_t offset)
 		{
 			gal::BindIndexBuffer(Handle(), type, buffer.handle, offset);
+		}
+		
+		void BindUniformBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
+		{
+			gal::BindUniformBuffer(Handle(), buffer.handle, binding, offset, range);
 		}
 		
 		void Draw(uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances)
@@ -399,5 +409,15 @@ namespace eg
 	
 	extern EG_API CommandContext DC;
 	
-	extern EG_API BlendState AlphaBlend;
+	extern EG_API const BlendState AlphaBlend;
+	
+	namespace detail
+	{
+		extern EG_API GraphicsCapabilities graphicsCapabilities;
+	}
+	
+	inline const GraphicsCapabilities& GraphicsCaps()
+	{
+		return detail::graphicsCapabilities;
+	}
 }

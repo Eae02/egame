@@ -189,6 +189,8 @@ namespace eg
 			return 1;
 		}
 		
+		gal::GetCapabilities(detail::graphicsCapabilities);
+		
 		if (runConfig.initialize)
 			runConfig.initialize();
 		

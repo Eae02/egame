@@ -59,6 +59,9 @@ namespace eg::asset_gen
 			
 			int mipLevels = generateContext.YAMLNode()["mipLevels"].as<int>(0);
 			
+			bool linearFiltering = generateContext.YAMLNode()["filtering"].as<std::string>("linear") == "linear";
+			bool anistropy = generateContext.YAMLNode()["enableAnistropy"].as<bool>(true);
+			
 			const YAML::Node& layersNode = generateContext.YAMLNode()["layers"];
 			if (!layersNode.IsDefined())
 			{
@@ -67,9 +70,12 @@ namespace eg::asset_gen
 			}
 			
 			BinWrite(generateContext.outputStream, (uint32_t)layersNode.size());
-			const size_t layerBytes = width * height * numChannels;
+			size_t layerBytes;
 			
 			BinWrite(generateContext.outputStream, (uint32_t)format);
+			
+			BinWrite(generateContext.outputStream, (uint8_t)linearFiltering);
+			BinWrite(generateContext.outputStream, (uint8_t)anistropy);
 			
 			bool hasWrittenSize = false;
 			for (const YAML::Node& layerNode : layersNode)
@@ -94,7 +100,11 @@ namespace eg::asset_gen
 				if (!hasWrittenSize)
 				{
 					if (mipLevels == 0)
-						mipLevels = Texture::MaxMipLevels(std::max(width, height));
+					{
+						mipLevels = Texture::MaxMipLevels((uint32_t)std::max(width, height));
+					}
+					
+					layerBytes = width * height * numChannels;
 					
 					BinWrite(generateContext.outputStream, (uint32_t)mipLevels);
 					BinWrite(generateContext.outputStream, (uint32_t)width);
@@ -103,6 +113,9 @@ namespace eg::asset_gen
 				}
 				
 				std::unique_ptr<uint8_t, FreeDel> data = loader.Load(numChannels);
+				
+				if (data == nullptr)
+					return false;
 				
 				if (width != loader.Width() || height != loader.Height())
 				{

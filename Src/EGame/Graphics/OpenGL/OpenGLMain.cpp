@@ -108,6 +108,13 @@ namespace eg::graphics_api::gl
 		return true;
 	}
 	
+	void GetCapabilities(GraphicsCapabilities& capabilities)
+	{
+		int intRes;
+		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &intRes);
+		capabilities.uniformBufferAlignment = intRes;
+	}
+	
 	void Shutdown()
 	{
 		SDL_GL_DeleteContext(glContext);
