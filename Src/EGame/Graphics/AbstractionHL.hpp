@@ -285,6 +285,11 @@ namespace eg
 			gal::SetTextureDataBuffer(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 		}
 		
+		void CopyBuffer(BufferRef src, BufferRef dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
+		{
+			gal::CopyBuffer(Handle(), src.handle, dst.handle, srcOffset, dstOffset, size);
+		}
+		
 		void BindPipeline(const Pipeline& pipeline)
 		{
 			gal::BindPipeline(Handle(), pipeline.Handle());
