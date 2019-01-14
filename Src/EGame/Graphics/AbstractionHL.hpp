@@ -6,6 +6,34 @@
 
 namespace eg
 {
+	template <typename W>
+	class OwningRef : public W
+	{
+		using HandleT = std::decay_t<decltype(W::handle)>;
+	public:
+		explicit OwningRef(HandleT _handle = nullptr)
+			: W(_handle) { }
+		
+		~OwningRef()
+		{
+			W::Destroy();
+		}
+		
+		OwningRef(OwningRef<W>&& other) noexcept
+			: W(other.handle)
+		{
+			other.Destroy();
+		}
+		
+		OwningRef<W>& operator=(OwningRef<W>&& other) noexcept
+		{
+			W::Destroy();
+			W::handle = other.handle;
+			other.handle = nullptr;
+			return *this;
+		}
+	};
+	
 	class EG_API Pipeline
 	{
 	public:
@@ -111,47 +139,47 @@ namespace eg
 		std::unique_ptr<_ShaderProgram, ShaderProgramDel> m_program;
 	};
 	
-	class EG_API Buffer
+	class EG_API BufferRef
 	{
 	public:
-		Buffer() = default;
-		Buffer(BufferUsage usage, uint64_t size, const void* data)
-			: m_buffer(gal::CreateBuffer(usage, size, data)) { }
+		explicit BufferRef(BufferHandle _handle = nullptr)
+			: handle(_handle) { }
 		
 		void* Map(uint64_t offset, uint64_t range)
 		{
-			return gal::MapBuffer(Handle(), offset, range);
+			return gal::MapBuffer(handle, offset, range);
 		}
 		
 		void Unmap(uint64_t modOffset, uint64_t modRange)
 		{
-			gal::UnmapBuffer(Handle(), modOffset, modRange);
+			gal::UnmapBuffer(handle, modOffset, modRange);
 		}
 		
-		/**
-		 * Gets the GAL handle for this buffer.
-		 */
-		BufferHandle Handle() const
+		void Destroy()
 		{
-			return m_buffer.get();
-		}
-		
-	private:
-		struct BufferDel
-		{
-			void operator()(BufferHandle handle)
+			if (handle)
 			{
 				gal::DestroyBuffer(handle);
+				handle = nullptr;
 			}
-		};
+		}
 		
-		std::unique_ptr<_Buffer, BufferDel> m_buffer;
+		BufferHandle handle;
 	};
 	
-	class EG_API Texture
+	class EG_API Buffer : public OwningRef<BufferRef>
 	{
 	public:
-		Texture() = default;
+		Buffer() = default;
+		Buffer(BufferUsage usage, uint64_t size, const void* data)
+			: OwningRef(gal::CreateBuffer(usage, size, data)) { }
+	};
+	
+	class EG_API TextureRef
+	{
+	public:
+		explicit TextureRef(TextureHandle _handle = nullptr)
+			: handle(_handle) { }
 		
 		/**
 		 * Calculates the maximum number of mip levels for a given texture resolution.
@@ -162,6 +190,24 @@ namespace eg
 		{
 			return (uint32_t)std::log2(maxDim) + 1;
 		}
+		
+		void Destroy()
+		{
+			if (handle != nullptr)
+			{
+				gal::DestroyTexture(handle);
+				handle = nullptr;
+			}
+		}
+		
+		TextureHandle handle;
+	};
+	
+	class EG_API Texture : public OwningRef<TextureRef>
+	{
+	public:
+		explicit Texture(TextureHandle _handle = nullptr)
+			: OwningRef(_handle) { }
 		
 		enum class LoadFormat
 		{
@@ -190,33 +236,6 @@ namespace eg
 		{
 			return Texture(gal::CreateTexture2DArray(createInfo));
 		}
-		
-		bool IsNull() const
-		{
-			return m_texture == nullptr;
-		}
-		
-		/**
-		 * Gets the GAL handle for this texture.
-		 */
-		TextureHandle Handle() const
-		{
-			return m_texture.get();
-		}
-		
-	private:
-		explicit Texture(TextureHandle handle)
-			: m_texture(handle) { }
-		
-		struct TextureDel
-		{
-			void operator()(TextureHandle handle)
-			{
-				gal::DestroyTexture(handle);
-			}
-		};
-		
-		std::unique_ptr<_Texture, TextureDel> m_texture;
 	};
 	
 	class EG_API Sampler
@@ -251,14 +270,14 @@ namespace eg
 	public:
 		CommandContext() : CommandContext(nullptr) { }
 		
-		void SetTextureData(const Texture& texture, const TextureRange& range, const void* data)
+		void SetTextureData(TextureRef texture, const TextureRange& range, const void* data)
 		{
-			gal::SetTextureData(Handle(), texture.Handle(), range, data);
+			gal::SetTextureData(Handle(), texture.handle, range, data);
 		}
 		
-		void SetTextureData(const Texture& texture, const TextureRange& range, const Buffer& buffer, uint64_t bufferOffset)
+		void SetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
 		{
-			gal::SetTextureDataBuffer(Handle(), texture.Handle(), range, buffer.Handle(), bufferOffset);
+			gal::SetTextureDataBuffer(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 		}
 		
 		void BindPipeline(const Pipeline& pipeline)
@@ -266,14 +285,14 @@ namespace eg
 			gal::BindPipeline(Handle(), pipeline.Handle());
 		}
 		
-		void BindVertexBuffer(uint32_t binding, const Buffer& buffer, uint32_t offset)
+		void BindVertexBuffer(uint32_t binding, BufferRef buffer, uint32_t offset)
 		{
-			gal::BindVertexBuffer(Handle(), binding, buffer.Handle(), offset);
+			gal::BindVertexBuffer(Handle(), binding, buffer.handle, offset);
 		}
 		
-		void BindIndexBuffer(IndexType type, const Buffer& buffer, uint32_t offset)
+		void BindIndexBuffer(IndexType type, BufferRef buffer, uint32_t offset)
 		{
-			gal::BindIndexBuffer(Handle(), type, buffer.Handle(), offset);
+			gal::BindIndexBuffer(Handle(), type, buffer.handle, offset);
 		}
 		
 		void Draw(uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances)
@@ -286,9 +305,9 @@ namespace eg
 			gal::DrawIndexed(Handle(), firstIndex, numIndices, firstVertex, numInstances);
 		}
 		
-		void BindTexture(const Texture& texture, uint32_t binding)
+		void BindTexture(TextureRef texture, uint32_t binding)
 		{
-			gal::BindTexture(Handle(), texture.Handle(), binding);
+			gal::BindTexture(Handle(), texture.handle, binding);
 		}
 		
 		void BindSampler(const Sampler& sampler, uint32_t binding)

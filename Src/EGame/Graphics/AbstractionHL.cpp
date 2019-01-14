@@ -33,7 +33,7 @@ namespace eg
 	Texture Texture::Load(std::istream& stream, LoadFormat format, uint32_t mipLevels, CommandContext* commandContext)
 	{
 		if (!stream)
-			return { };
+			return Texture();
 		
 		if (commandContext == nullptr)
 			commandContext = &DC;
@@ -54,7 +54,7 @@ namespace eg
 		
 		auto data = loader.Load(format == LoadFormat::R_UNorm ? 1 : 4);
 		if (data == nullptr)
-			return { };
+			return Texture();
 		
 		const TextureRange range = { 0, 0, 0, createInfo.width, createInfo.height, 1, 0 };
 		
