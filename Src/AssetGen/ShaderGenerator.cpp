@@ -3,6 +3,7 @@
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Log.hpp"
 #include "../EGame/IOUtils.hpp"
+#include "../EGame/Platform/FileSystem.hpp"
 #include "ShaderResource.hpp"
 
 #include <glslang/Public/ShaderLang.h>
@@ -13,6 +14,49 @@ namespace eg::asset_gen
 {
 	static const char* extensionsStr = "#extension GL_GOOGLE_include_directive:enable\n"
 	                                   "#extension GL_GOOGLE_cpp_style_line_directive:enable\n";
+	
+	class Includer : public glslang::TShader::Includer
+	{
+	public:
+		explicit Includer(AssetGenerateContext& generateContext)
+			: m_generateContext(&generateContext) { }
+		
+		struct CustomIncludeResult : IncludeResult
+		{
+			CustomIncludeResult(const std::string& path, std::vector<char> _data)
+				: IncludeResult(path, _data.data(), _data.size(), nullptr), data(std::move(_data)) { }
+			
+			std::vector<char> data;
+		};
+		
+		inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path)
+		{
+			std::ifstream stream(path, std::ios::binary);
+			if (!stream)
+				return nullptr;
+			std::vector<char> data = ReadStreamContents(stream);
+			return new CustomIncludeResult(path, std::move(data));
+		}
+		
+		IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t size) override
+		{
+			std::string path = Concat({ ParentPath(includerName), headerName });
+			if (IncludeResult* iRes = TryCreateIncludeResult(m_generateContext->ResolveRelPath(path)))
+			{
+				m_generateContext->FileDependency(std::move(path));
+				return iRes;
+			}
+			return nullptr;
+		}
+		
+		void releaseInclude(IncludeResult* result) override
+		{
+			delete static_cast<CustomIncludeResult*>(result);
+		}
+		
+	private:
+		AssetGenerateContext* m_generateContext;
+	};
 	
 	class ShaderGenerator : public AssetGenerator
 	{
@@ -82,7 +126,8 @@ namespace eg::asset_gen
 			shader.setEnvClient(glslang::EShClient::EShClientOpenGL, glslang::EShTargetOpenGL_450);
 			shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
 			
-			if (!shader.parse(&DefaultTBuiltInResource, 450, ECoreProfile, true, false, messages))
+			Includer includer(generateContext);
+			if (!shader.parse(&DefaultTBuiltInResource, 450, ECoreProfile, true, false, messages, includer))
 			{
 				Log(LogLevel::Error, "as", "Shader failed to compile: {0}", shader.getInfoLog());
 				return false;
