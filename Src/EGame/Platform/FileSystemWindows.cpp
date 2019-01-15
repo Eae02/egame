@@ -10,28 +10,30 @@
 #include <shlobj.h>
 #include <shlwapi.h>
 
+#undef CreateDirectory
+
 namespace eg
 {
-	bool Exists(const std::string& path)
+	bool FileExists(const char* path)
 	{
-		return PathFileExistsA(path.c_str());
+		return PathFileExistsA(path);
 	}
 	
-	std::string RealPath(const std::string& path)
+	std::string RealPath(const char* path)
 	{
 		TCHAR pathOut[MAX_PATH];
-		GetFullPathNameA(path.c_str(), MAX_PATH, pathOut, nullptr);
+		GetFullPathNameA(path, MAX_PATH, pathOut, nullptr);
 		return pathOut;
 	}
 	
-	void CreateDirectory(const std::string& path)
+	void CreateDirectory(const char* path)
 	{
-		CreateDirectoryA(path.c_str());
+		CreateDirectoryA(path, nullptr);
 	}
 	
-	bool IsRegularFile(const std::string& path)
+	bool IsRegularFile(const char* path)
 	{
-		return GetFileAttributes(path.c_str()) == FILE_ATTRIBUTE_NORMAL;
+		return GetFileAttributes(path) == FILE_ATTRIBUTE_NORMAL;
 	}
 }
 

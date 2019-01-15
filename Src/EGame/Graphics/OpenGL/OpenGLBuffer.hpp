@@ -8,7 +8,6 @@ namespace eg::graphics_api::gl
 	{
 		GLuint buffer;
 		uint64_t size;
-		uint64_t mapOffset;
 		char* persistentMapping;
 	};
 }

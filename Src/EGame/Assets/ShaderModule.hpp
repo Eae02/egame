@@ -13,6 +13,6 @@ namespace eg
 		
 		static bool AssetLoader(const class AssetLoadContext& context);
 		
-		EG_API static const eg::AssetFormat AssetFormat;
+		static const eg::AssetFormat AssetFormat;
 	};
 }

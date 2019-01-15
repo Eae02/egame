@@ -1,12 +1,10 @@
-#define _COMMA ,
-
-XM_ABSCALLBACK(GetDrawableSize, std::tuple<int _COMMA int>, ())
+XM_ABSCALLBACK(GetDrawableSize, void, (int& width, int& height))
 XM_ABSCALLBACK(GetCapabilities, void, (GraphicsCapabilities& capabilities))
 XM_ABSCALLBACK(BeginFrame, void, ())
 XM_ABSCALLBACK(EndFrame, void, ())
 XM_ABSCALLBACK(Shutdown, void, ())
 
-XM_ABSCALLBACK(CreateBuffer, BufferHandle, (BufferUsage usage, uint64_t size, const void* initialData))
+XM_ABSCALLBACK(CreateBuffer, BufferHandle, (BufferUsage usage, MemoryType memType, uint64_t size, const void* initialData))
 XM_ABSCALLBACK(DestroyBuffer, void, (BufferHandle buffer))
 XM_ABSCALLBACK(MapBuffer, void*, (BufferHandle handle, uint64_t offset, uint64_t range))
 XM_ABSCALLBACK(UnmapBuffer, void, (BufferHandle handle, uint64_t modOffset, uint64_t modRange))

@@ -13,7 +13,7 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<Buffer*>(handle);
 	}
 	
-	BufferHandle CreateBuffer(BufferUsage usage, uint64_t size, const void* initialData)
+	BufferHandle CreateBuffer(BufferUsage usage, MemoryType memType, uint64_t size, const void* initialData)
 	{
 		Buffer* buffer = bufferPool.New();
 		buffer->size = size;
@@ -35,6 +35,10 @@ namespace eg::graphics_api::gl
 		if (HasFlag(usage, BufferUsage::Update))
 		{
 			storageFlags |= GL_DYNAMIC_STORAGE_BIT;
+		}
+		if (memType == MemoryType::HostLocal)
+		{
+			storageFlags |= GL_CLIENT_STORAGE_BIT;
 		}
 		
 		glNamedBufferStorage(buffer->buffer, size, initialData, storageFlags);
@@ -61,20 +65,19 @@ namespace eg::graphics_api::gl
 		Buffer* buffer = UnwrapBuffer(handle);
 		if (offset + range > buffer->size)
 			EG_PANIC("MapBuffer out of range!");
-		buffer->mapOffset = offset;
 		return buffer->persistentMapping + offset;
 	}
 	
 	void UnmapBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
-		glFlushMappedNamedBufferRange(buffer->buffer, modOffset + buffer->mapOffset, modRange);
+		glFlushMappedNamedBufferRange(buffer->buffer, modOffset, modRange);
 	}
 	
 	void UpdateBuffer(BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
-		glNamedBufferSubData(buffer->buffer, offset + buffer->mapOffset, size, data);
+		glNamedBufferSubData(buffer->buffer, offset, size, data);
 	}
 	
 	void CopyBuffer(CommandContextHandle, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)

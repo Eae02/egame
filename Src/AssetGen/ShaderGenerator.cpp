@@ -123,8 +123,8 @@ namespace eg::asset_gen
 			glslang::TShader shader(lang);
 			shader.setPreamble(extensionsStr);
 			shader.setStringsWithLengthsAndNames(shaderStrings, shaderStringLengths, shaderStringNames, 1);
-			shader.setEnvClient(glslang::EShClient::EShClientOpenGL, glslang::EShTargetOpenGL_450);
-			shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+			shader.setEnvClient(glslang::EShClient::EShClientOpenGL, 450);
+			//shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
 			
 			Includer includer(generateContext);
 			if (!shader.parse(&DefaultTBuiltInResource, 450, ECoreProfile, true, false, messages, includer))

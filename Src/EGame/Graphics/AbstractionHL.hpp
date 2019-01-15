@@ -176,8 +176,8 @@ namespace eg
 	{
 	public:
 		Buffer() = default;
-		Buffer(BufferUsage usage, uint64_t size, const void* data)
-			: OwningRef(gal::CreateBuffer(usage, size, data)) { }
+		Buffer(BufferUsage usage, MemoryType memoryType, uint64_t size, const void* data)
+			: OwningRef(gal::CreateBuffer(usage, memoryType, size, data)) { }
 	};
 	
 	class EG_API TextureRef

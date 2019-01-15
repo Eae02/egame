@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.12)
 project(EGame)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
@@ -9,6 +9,8 @@ find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 find_package(GLSLang REQUIRED)
 
+option(YAML_CPP_BUILD_TOOLS "" OFF)
+option(YAML_CPP_BUILD_TESTS "" OFF)
 add_subdirectory(Deps/yaml-cpp)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
@@ -77,6 +79,9 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STRE
 		BUILD_WITH_INSTALL_RPATH TRUE
 	)
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/FI ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
+	target_link_libraries(EGame PRIVATE shlwapi.lib)
 endif()
 
 set_target_properties(EGame PROPERTIES DEFINE_SYMBOL "EG_BUILDING_LIB")

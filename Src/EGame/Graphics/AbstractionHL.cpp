@@ -74,7 +74,7 @@ namespace eg
 		Buffer buffer;
 		
 		explicit UploadBuffer(uint64_t _size)
-			: size(_size), buffer(BufferUsage::MapWrite | BufferUsage::CopySrc, _size, nullptr) { }
+			: size(_size), buffer(BufferUsage::MapWrite | BufferUsage::CopySrc, MemoryType::HostLocal, _size, nullptr) { }
 	};
 	
 	static std::vector<UploadBuffer> uploadBuffers;

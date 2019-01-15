@@ -120,11 +120,9 @@ namespace eg::graphics_api::gl
 		SDL_GL_DeleteContext(glContext);
 	}
 	
-	std::tuple<int, int> GetDrawableSize()
+	void GetDrawableSize(int& width, int& height)
 	{
-		int w, h;
-		SDL_GL_GetDrawableSize(glWindow, &w, &h);
-		return std::make_tuple(w, h);
+		SDL_GL_GetDrawableSize(glWindow, &width, &height);
 	}
 	
 	void BeginFrame()

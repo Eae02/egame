@@ -279,7 +279,8 @@ namespace eg
 			
 			gal::BeginFrame();
 			
-			auto [newDrawableW, newDrawableH] = gal::GetDrawableSize();
+			int newDrawableW, newDrawableH;
+			gal::GetDrawableSize(newDrawableW, newDrawableH);
 			if (newDrawableW != resolutionX || newDrawableH != resolutionY)
 			{
 				resolutionX = newDrawableW;

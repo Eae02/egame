@@ -23,17 +23,23 @@ namespace eg
 	typedef struct _Pipeline* PipelineHandle;
 	typedef struct _CommandContext* CommandContextHandle;
 	
+	enum class MemoryType
+	{
+		DeviceLocal,
+		HostLocal
+	};
+	
 	enum class BufferUsage
 	{
 		None = 0,
-		MapWrite = 1,
-		MapRead = 2,
-		Update = 4,
-		CopySrc = 8,
-		CopyDst = 16,
-		VertexBuffer = 32,
-		IndexBuffer = 64,
-		UniformBuffer = 128
+		MapWrite = 1, //The buffer can be mapped for writing
+		MapRead = 2, //The buffer can be mapped for reading
+		Update = 4, //The buffer can be updated
+		CopySrc = 8, //Allows copy operations from the buffer to other buffers and textures.
+		CopyDst = 16, //Allows copy operations to the buffer from other buffers.
+		VertexBuffer = 32, //The buffer can be used as a vertex buffer.
+		IndexBuffer = 64, //The buffer can be used as an index buffer.
+		UniformBuffer = 128 //The buffer can be used as a uniform buffer.
 	};
 	
 	EG_BIT_FIELD(BufferUsage)

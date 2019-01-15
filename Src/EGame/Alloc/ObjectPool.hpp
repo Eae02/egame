@@ -114,7 +114,7 @@ namespace eg
 	private:
 		inline static size_t InUseMask(size_t i)
 		{
-			return 1 << (i % 8);
+			return (size_t)1 << (size_t)(i % 8);
 		}
 		
 		struct Page
