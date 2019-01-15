@@ -6,12 +6,12 @@ namespace eg
 {
 	enum class GraphicsAPI
 	{
-		OpenGL45,
+		OpenGL,
 		
 #if defined(__linux__)
-		Preferred = OpenGL45
+		Preferred = OpenGL
 #elif defined(_WIN32)
-		Preferred = OpenGL45
+		Preferred = OpenGL
 #endif
 	};
 	
