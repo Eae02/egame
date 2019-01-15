@@ -14,12 +14,7 @@ public:
 		m_pipeline = program.CreatePipeline(ffs);
 	}
 	
-	void Update() override
-	{
-		
-	}
-	
-	void Draw() override
+	void RunFrame(float dt) override
 	{
 		eg::DC.SetViewport(0, 0, eg::CurrentResolutionX(), eg::CurrentResolutionY());
 		eg::DC.ClearColor(0, eg::Color(0.2f, 1.0f, 1.0f));

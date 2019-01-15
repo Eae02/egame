@@ -7,6 +7,8 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 
+using namespace std::chrono;
+
 namespace eg
 {
 	std::mutex detail::mutexMTI;
@@ -219,12 +221,17 @@ namespace eg
 			}
 		};
 		
+		bool firstMouseMotionEvent = true;
+		
 		resolutionX = -1;
 		resolutionY = -1;
 		shouldClose = false;
 		frameIndex = 0;
+		float dt = 0.0f;
 		while (!shouldClose)
 		{
+			auto frameBeginTime = high_resolution_clock::now();
+			
 			previousIS = currentIS;
 			
 			SDL_Event event;
@@ -254,6 +261,12 @@ namespace eg
 					ButtonUpEvent(TranslateSDLMouseButton(event.button.button));
 					break;
 				case SDL_MOUSEMOTION:
+					if (firstMouseMotionEvent)
+					{
+						previousIS.cursorX = event.motion.x;
+						previousIS.cursorY = event.motion.y;
+						firstMouseMotionEvent = false;
+					}
 					currentIS.cursorX = event.motion.x;
 					currentIS.cursorY = event.motion.y;
 					break;
@@ -274,9 +287,7 @@ namespace eg
 				RaiseEvent(ResolutionChangedEvent { resolutionX, resolutionY });
 			}
 			
-			game->Update();
-			
-			game->Draw();
+			game->RunFrame(dt);
 			
 			//Processes main thread invokes
 			for (MTIBase* mti = firstMTI; mti != nullptr; mti = mti->next)
@@ -288,6 +299,10 @@ namespace eg
 			
 			cFrameIdx = (cFrameIdx + 1) % MAX_CONCURRENT_FRAMES;
 			frameIndex++;
+			
+			auto frameEndTime = high_resolution_clock::now();
+			uint64_t deltaNS = duration_cast<nanoseconds>(frameEndTime - frameBeginTime).count();
+			dt = deltaNS / 1E9f;
 		}
 		
 		game.reset();

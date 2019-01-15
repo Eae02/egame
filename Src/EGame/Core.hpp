@@ -10,8 +10,7 @@ namespace eg
 	public:
 		virtual ~IGame() = default;
 		
-		virtual void Update() = 0;
-		virtual void Draw() = 0;
+		virtual void RunFrame(float dt) = 0;
 	};
 	
 	struct RunConfig
