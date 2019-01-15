@@ -14,7 +14,7 @@ namespace eg
 	{
 		switch (api)
 		{
-		case GraphicsAPI::OpenGL45:
+		case GraphicsAPI::OpenGL:
 #define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::gl::name;
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK

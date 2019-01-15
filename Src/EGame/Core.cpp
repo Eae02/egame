@@ -152,7 +152,7 @@ namespace eg
 		
 		uint32_t windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN;
 		
-		if (runConfig.graphicsAPI == GraphicsAPI::OpenGL45)
+		if (runConfig.graphicsAPI == GraphicsAPI::OpenGL)
 		{
 			int contextFlags = SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
 			if (runConfig.debug)
