@@ -243,6 +243,14 @@ namespace eg::graphics_api::vk
 		std::vector<const char*> instanceExtensions(sdlNumInstanceExtensions);
 		SDL_Vulkan_GetInstanceExtensions(initArguments.window, &sdlNumInstanceExtensions, instanceExtensions.data());
 		
+		if (!InstanceExtensionSupported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME))
+		{
+			Log(LogLevel::Error, "gfx", "Vulkan failed to initialize because required instance extension "
+				VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME " is not available.");
+			return false;
+		}
+		instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+		
 		ctx.hasDebugUtils = false;
 		if (DevMode() && InstanceExtensionSupported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
 		{
@@ -268,13 +276,20 @@ namespace eg::graphics_api::vk
 			/* enabledExtensionCount   */ (uint32_t)instanceExtensions.size(),
 			/* ppEnabledExtensionNames */ instanceExtensions.data()
 		};
-		if (vkCreateInstance(&instanceCreateInfo, nullptr, &ctx.instance) != VK_SUCCESS)
+		VkResult instanceCreateRes = vkCreateInstance(&instanceCreateInfo, nullptr, &ctx.instance);
+		if (instanceCreateRes != VK_SUCCESS)
+		{
+			Log(LogLevel::Error, "gfx", "Vulkan instance creation failed with status: {0}", instanceCreateRes);
 			return false;
+		}
 		
 		volkLoadInstance(ctx.instance);
 		
 		if (!SDL_Vulkan_CreateSurface(initArguments.window, ctx.instance, &ctx.surface))
+		{
+			Log(LogLevel::Error, "gfx", "Vulkan surface creation failed: {0}", SDL_GetError());
 			return false;
+		}
 		
 		//Enumerates physical devices
 		uint32_t numDevices;
@@ -321,7 +336,11 @@ namespace eg::graphics_api::vk
 			}
 			
 			if (!foundQueueFamily)
+			{
+				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not have a queue family "
+					" that supports graphics, compute and present.", deviceProperties.deviceName);
 				continue;
+			}
 			
 			//Enumerates supported device extensions
 			uint32_t availDevExtensions;
@@ -347,15 +366,32 @@ namespace eg::graphics_api::vk
 					hasExtDedicatedAllocation = true;
 			}
 			
-			if (!hasExtSwapchain || !hasExtPushDescriptor)
+			if (!hasExtSwapchain)
+			{
+				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not support the "
+					VK_KHR_SWAPCHAIN_EXTENSION_NAME " extension", deviceProperties.deviceName);
 				continue;
+			}
+			
+			if (!hasExtPushDescriptor)
+			{
+				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not support the "
+					VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME " extension", deviceProperties.deviceName);
+				continue;
+			}
 			
 			ctx.physDevice = physicalDevice;
+			
+			Log(LogLevel::Info, "gfx", "Using vulkan device: '{0}'", deviceProperties.deviceName);
+			
 			break;
 		}
 		
 		if (ctx.physDevice == VK_NULL_HANDLE)
+		{
+			Log(LogLevel::Error, "gfx", "No compatible vulkan device was found");
 			return false;
+		}
 		
 		vkGetPhysicalDeviceMemoryProperties(ctx.physDevice, &ctx.memoryProperties);
 		

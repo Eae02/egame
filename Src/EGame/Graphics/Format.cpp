@@ -7,7 +7,9 @@ namespace eg
 	{
 		switch (format)
 		{
-		case Format::Undefined: break;
+		case Format::Undefined:
+		case Format::DefaultColor:
+			break;
 		case Format::R8_UNorm:
 		case Format::R8G8_UNorm:
 		case Format::R8G8B8A8_UNorm:
@@ -59,6 +61,7 @@ namespace eg
 		case Format::Depth32:
 		case Format::Depth24Stencil8:
 		case Format::Depth32Stencil8:
+		case Format::DefaultDepthStencil:
 			return FormatTypes::DepthStencil;
 		}
 		
@@ -70,6 +73,8 @@ namespace eg
 		switch (format)
 		{
 		case Format::Undefined:
+		case Format::DefaultColor:
+		case Format::DefaultDepthStencil:
 			return 0;
 		case Format::R8_UNorm:
 		case Format::R8_UInt:
@@ -132,6 +137,8 @@ namespace eg
 		switch (format)
 		{
 		case Format::Undefined: return 0;
+		case Format::DefaultColor: return 0;
+		case Format::DefaultDepthStencil: return 0;
 		case Format::R8_UNorm: return 1;
 		case Format::R8_UInt: return 1;
 		case Format::R8_SInt: return 1;
