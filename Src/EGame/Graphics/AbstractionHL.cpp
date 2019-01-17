@@ -59,10 +59,17 @@ namespace eg
 		if (data == nullptr)
 			return Texture();
 		
+		size_t dataBytes = loader.Width() * loader.Height() * (format == LoadFormat::R_UNorm ? 1 : 4);
+		Buffer uploadBuffer(BufferFlags::HostAllocate | BufferFlags::CopySrc | BufferFlags::MapWrite, dataBytes, nullptr);
+		
+		void* uploadBufferMem = uploadBuffer.Map(0, dataBytes);
+		std::memcpy(uploadBufferMem, data.get(), dataBytes);
+		uploadBuffer.Unmap(0, dataBytes);
+		
 		const TextureRange range = { 0, 0, 0, createInfo.width, createInfo.height, 1, 0 };
 		
 		Texture texture = Create2D(createInfo);
-		commandContext->SetTextureData(texture, range, data.get());
+		commandContext->SetTextureData(texture, range, uploadBuffer, 0);
 		
 		return texture;
 	}
@@ -74,7 +81,7 @@ namespace eg
 		Buffer buffer;
 		
 		explicit UploadBuffer(uint64_t _size)
-			: size(_size), buffer(BufferUsage::MapWrite | BufferUsage::CopySrc, MemoryType::HostLocal, _size, nullptr) { }
+			: size(_size), buffer(BufferFlags::MapWrite | BufferFlags::CopySrc | BufferFlags::HostAllocate, _size, nullptr) { }
 	};
 	
 	static std::vector<UploadBuffer> uploadBuffers;

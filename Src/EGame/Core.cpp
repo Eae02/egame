@@ -131,6 +131,8 @@ namespace eg
 	
 	int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
 	{
+		devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
+		
 		if (SDL_Init(SDL_INIT_VIDEO))
 		{
 			std::cerr << "SDL failed to initialize: " << SDL_GetError() << std::endl;
@@ -155,19 +157,22 @@ namespace eg
 		if (runConfig.graphicsAPI == GraphicsAPI::OpenGL)
 		{
 			int contextFlags = SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
-			if (runConfig.debug)
+			if (devMode)
 				contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
 			
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
-			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
 			SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+			SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,
+				(int)HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB));
 			
 			windowFlags |= SDL_WINDOW_OPENGL;
+		}
+		else if (runConfig.graphicsAPI == GraphicsAPI::Vulkan)
+		{
+			windowFlags |= SDL_WINDOW_VULKAN;
 		}
 		
 		if (runConfig.gameName != nullptr)
@@ -184,7 +189,13 @@ namespace eg
 			return 1;
 		}
 		
-		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, window))
+		GraphicsAPIInitArguments apiInitArguments;
+		apiInitArguments.window = window;
+		apiInitArguments.enableVSync = true;
+		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
+		apiInitArguments.defaultDepthStencilFormat = eg::Format::Depth16;
+		
+		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))
 		{
 			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error initializing graphics",
 				"The selected graphics API could not be initialized.", nullptr);
@@ -220,6 +231,10 @@ namespace eg
 				RaiseEvent<ButtonEvent>({ button, false });
 			}
 		};
+		
+		gal::EndLoading();
+		while (!gal::IsLoadingComplete())
+			SDL_Delay(100);
 		
 		bool firstMouseMotionEvent = true;
 		

@@ -7,3 +7,15 @@
 [submodule "Deps/yaml-cpp"]
 	path = Deps/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp.git
+[submodule "Deps/vulkan-headers"]
+	path = Deps/vulkan-headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "Deps/volk"]
+	path = Deps/volk
+	url = https://github.com/zeux/volk.git
+[submodule "Deps/vma"]
+	path = Deps/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "Deps/spirv_cross"]
+	path = Deps/spirv_cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross.git

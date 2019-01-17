@@ -2,7 +2,7 @@
 
 #include "../Abstraction.hpp"
 
-namespace eg::graphics_api::gl
+namespace eg::graphics_api::vk
 {
 	bool Initialize(const GraphicsAPIInitArguments& initArguments);
 	

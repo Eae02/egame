@@ -1,5 +1,24 @@
 #include "Abstraction.hpp"
 #include "OpenGL/OpenGL.hpp"
+#include "Vulkan/VulkanMain.hpp"
+
+bool eg::SamplerDescription::operator==(const eg::SamplerDescription& rhs) const
+{
+	return wrapU == rhs.wrapU &&
+		wrapV == rhs.wrapV &&
+		wrapW == rhs.wrapW &&
+		minFilter == rhs.minFilter &&
+		magFilter == rhs.magFilter &&
+		mipFilter == rhs.mipFilter &&
+		mipLodBias == rhs.mipLodBias &&
+		maxAnistropy == rhs.maxAnistropy &&
+		borderColor == rhs.borderColor;
+}
+
+bool eg::SamplerDescription::operator!=(const eg::SamplerDescription& rhs) const
+{
+	return !(rhs == *this);
+}
 
 namespace eg
 {
@@ -10,7 +29,7 @@ namespace eg
 #undef XM_ABSCALLBACK
 	}
 	
-	bool InitializeGraphicsAPI(GraphicsAPI api, SDL_Window* window)
+	bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments)
 	{
 		switch (api)
 		{
@@ -18,7 +37,12 @@ namespace eg
 #define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::gl::name;
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
-			return eg::graphics_api::gl::Initialize(window);
+			return eg::graphics_api::gl::Initialize(initArguments);
+		case GraphicsAPI::Vulkan:
+#define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::vk::name;
+#include "AbstractionCallbacks.inl"
+#undef XM_ABSCALLBACK
+			return eg::graphics_api::vk::Initialize(initArguments);
 		}
 		
 		return false;

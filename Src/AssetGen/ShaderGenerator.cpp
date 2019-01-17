@@ -113,7 +113,7 @@ namespace eg::asset_gen
 				}
 			}
 			
-			const EShMessages messages = EShMsgSpvRules;
+			const EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 			
 			//Sets up parameters for the shader
 			const char* shaderStrings[] = { source.data() };
@@ -123,7 +123,7 @@ namespace eg::asset_gen
 			glslang::TShader shader(lang);
 			shader.setPreamble(extensionsStr);
 			shader.setStringsWithLengthsAndNames(shaderStrings, shaderStringLengths, shaderStringNames, 1);
-			shader.setEnvClient(glslang::EShClient::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+			shader.setEnvClient(glslang::EShClient::EShClientOpenGL, glslang::EShTargetVulkan_1_0);
 			shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
 			
 			Includer includer(generateContext);

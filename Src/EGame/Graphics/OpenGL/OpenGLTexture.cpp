@@ -217,8 +217,11 @@ namespace eg::graphics_api::gl
 		EG_UNREACHABLE
 	}
 	
-	void SetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range, const void* data)
+	void SetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
+		BufferHandle buffer, uint64_t offset)
 	{
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, reinterpret_cast<const Buffer*>(buffer)->buffer);
+		
 		Texture* texture = UnwrapTexture(handle);
 		auto [format, type] = GetUploadFormat(texture->format);
 		
@@ -226,20 +229,14 @@ namespace eg::graphics_api::gl
 		{
 		case 2:
 			glTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
-				range.sizeX, range.sizeY, format, type, data);
+				range.sizeX, range.sizeY, format, type, (void*)(uintptr_t)offset);
 			break;
 		case 3:
 			glTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
-				range.sizeX, range.sizeY, range.sizeZ, format, type, data);
+				range.sizeX, range.sizeY, range.sizeZ, format, type, (void*)(uintptr_t)offset);
 			break;
 		}
-	}
-	
-	void SetTextureDataBuffer(CommandContextHandle, TextureHandle handle, const TextureRange& range,
-		BufferHandle buffer, uint64_t offset)
-	{
-		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, reinterpret_cast<const Buffer*>(buffer)->buffer);
-		SetTextureData(nullptr, handle, range, reinterpret_cast<void*>(offset));
+		
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	}
 	
@@ -257,13 +254,9 @@ namespace eg::graphics_api::gl
 		});
 	}
 	
-	void BindTexture(CommandContextHandle, TextureHandle texture, uint32_t binding)
-	{
-		glBindTextureUnit(binding, UnwrapTexture(texture)->texture);
-	}
-	
-	void BindSampler(CommandContextHandle, SamplerHandle sampler, uint32_t binding)
+	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t binding)
 	{
 		glBindSampler(binding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
+		glBindTextureUnit(binding, UnwrapTexture(texture)->texture);
 	}
 }

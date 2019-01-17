@@ -13,8 +13,10 @@ namespace eg
 		case Format::R8G8B8A8_UNorm:
 		case Format::R8G8B8A8_sRGB:
 		case Format::R8G8B8_sRGB:
-		case Format::BC1_UNorm:
-		case Format::BC1_sRGB:
+		case Format::BC1_RGBA_UNorm:
+		case Format::BC1_RGBA_sRGB:
+		case Format::BC1_RGB_UNorm:
+		case Format::BC1_RGB_sRGB:
 		case Format::BC3_UNorm:
 		case Format::BC3_sRGB:
 		case Format::BC4_UNorm:
@@ -102,8 +104,8 @@ namespace eg
 		case Format::R32G32B32_UInt:
 		case Format::R32G32B32_SInt:
 		case Format::R32G32B32_Float:
-		case Format::BC1_UNorm:
-		case Format::BC1_sRGB:
+		case Format::BC1_RGB_UNorm:
+		case Format::BC1_RGB_sRGB:
 			return 3;
 		case Format::R8G8B8A8_sRGB:
 		case Format::R8G8B8A8_UNorm:
@@ -115,6 +117,8 @@ namespace eg
 		case Format::R32G32B32A32_UInt:
 		case Format::R32G32B32A32_SInt:
 		case Format::R32G32B32A32_Float:
+		case Format::BC1_RGBA_UNorm:
+		case Format::BC1_RGBA_sRGB:
 		case Format::BC3_UNorm:
 		case Format::BC3_sRGB:
 			return 4;
@@ -159,8 +163,10 @@ namespace eg
 		case Format::R32G32B32_UInt: return 12;
 		case Format::R32G32B32_SInt: return 12;
 		case Format::R32G32B32_Float: return 12;
-		case Format::BC1_UNorm: return 0; //TODO
-		case Format::BC1_sRGB: return 0; //TODO
+		case Format::BC1_RGBA_UNorm: return 0; //TODO
+		case Format::BC1_RGBA_sRGB: return 0; //TODO
+		case Format::BC1_RGB_UNorm: return 0; //TODO
+		case Format::BC1_RGB_sRGB: return 0; //TODO
 		case Format::R8G8B8A8_sRGB: return 4;
 		case Format::R8G8B8A8_UNorm: return 4;
 		case Format::R8G8B8A8_UInt: return 4;

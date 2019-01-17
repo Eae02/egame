@@ -7,6 +7,7 @@ namespace eg
 	enum class GraphicsAPI
 	{
 		OpenGL,
+		Vulkan,
 		
 #if defined(__linux__)
 		Preferred = OpenGL
@@ -37,5 +38,7 @@ namespace eg
 		return detail::resolutionY;
 	}
 	
+	constexpr uint32_t MAX_COLOR_ATTACHMENTS = 8;
+	constexpr uint32_t MAX_DESCRIPTOR_SETS = 4;
 	constexpr uint32_t MAX_CONCURRENT_FRAMES = 3;
 }

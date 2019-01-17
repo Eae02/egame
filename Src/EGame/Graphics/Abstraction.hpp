@@ -19,30 +19,56 @@ namespace eg
 	typedef struct _Buffer* BufferHandle;
 	typedef struct _Texture* TextureHandle;
 	typedef struct _Sampler* SamplerHandle;
+	typedef struct _Framebuffer* FramebufferHandle;
 	typedef struct _ShaderProgram* ShaderProgramHandle;
 	typedef struct _Pipeline* PipelineHandle;
 	typedef struct _CommandContext* CommandContextHandle;
 	
-	enum class MemoryType
+	enum class ShaderAccessFlags
 	{
-		DeviceLocal,
-		HostLocal
+		None = 0,
+		Vertex = 1,
+		Fragment = 2
 	};
+	
+	EG_BIT_FIELD(ShaderAccessFlags)
+	
+	enum class BufferFlags
+	{
+		None          = 0,
+		HostAllocate  = 1,   //Allocate the buffer in host memory, if not included the buffer is allocated in device memory.
+		ManualBarrier = 2,   //Barriers will be inserted manually (also disables automatic barriers).
+		MapWrite      = 4,   //The buffer can be mapped for writing.
+		MapRead       = 8,   //The buffer can be mapped for reading.
+		Update        = 16,  //The buffer can be updated.
+		CopySrc       = 32,  //Allows copy operations from the buffer to other buffers and textures.
+		CopyDst       = 64,  //Allows copy operations to the buffer from other buffers.
+		VertexBuffer  = 128, //The buffer can be used as a vertex buffer.
+		IndexBuffer   = 256, //The buffer can be used as an index buffer.
+		UniformBuffer = 512  //The buffer can be used as a uniform buffer.
+	};
+	
+	EG_BIT_FIELD(BufferFlags)
 	
 	enum class BufferUsage
 	{
-		None = 0,
-		MapWrite = 1, //The buffer can be mapped for writing
-		MapRead = 2, //The buffer can be mapped for reading
-		Update = 4, //The buffer can be updated
-		CopySrc = 8, //Allows copy operations from the buffer to other buffers and textures.
-		CopyDst = 16, //Allows copy operations to the buffer from other buffers.
-		VertexBuffer = 32, //The buffer can be used as a vertex buffer.
-		IndexBuffer = 64, //The buffer can be used as an index buffer.
-		UniformBuffer = 128 //The buffer can be used as a uniform buffer.
+		Undefined,
+		CopySrc,
+		CopyDst,
+		VertexBuffer,
+		IndexBuffer,
+		UniformBuffer
 	};
 	
-	EG_BIT_FIELD(BufferUsage)
+	struct BufferBarrier
+	{
+		BufferUsage oldUsage;
+		BufferUsage newUsage;
+		ShaderAccessFlags oldAccess = ShaderAccessFlags::None;
+		ShaderAccessFlags newAccess = ShaderAccessFlags::None;
+		uint64_t offset;
+		uint64_t range;
+	};
 	
 	enum class CullMode
 	{
@@ -58,7 +84,6 @@ namespace eg
 		TriangleFan,
 		LineList,
 		LineStrip,
-		LineLoop,
 		Points
 	};
 	
@@ -127,7 +152,8 @@ namespace eg
 		BlendFactor dstAlphaFactor;
 		
 		BlendState()
-			: enabled(false)
+			: enabled(false), colorFunc(BlendFunc::Add), alphaFunc(BlendFunc::Add), srcColorFactor(BlendFactor::One),
+			  srcAlphaFactor(BlendFactor::One), dstColorFactor(BlendFactor::One), dstAlphaFactor(BlendFactor::One)
 		{}
 		
 		BlendState(BlendFunc func, BlendFactor srcFactor, BlendFactor dstFactor)
@@ -169,12 +195,12 @@ namespace eg
 	{
 		uint32_t binding = UINT32_MAX; //If binding is UINT32_MAX, the attribute is disabled
 		DataType type = (DataType)0;
-		uint32_t size = 0;
+		uint32_t components = 0;
 		uint32_t offset = 0;
 		
 		VertexAttribute() = default;
-		VertexAttribute(uint32_t _binding, DataType _type, uint32_t _size, uint32_t _offset)
-			: binding(_binding), type(_type), size(_size), offset(_offset) { }
+		VertexAttribute(uint32_t _binding, DataType _type, uint32_t _components, uint32_t _offset)
+			: binding(_binding), type(_type), components(_components), offset(_offset) { }
 	};
 	
 	struct FixedFuncState
@@ -182,11 +208,15 @@ namespace eg
 		bool enableScissorTest = false;
 		bool enableDepthTest = false;
 		bool enableDepthWrite = false;
+		bool enableDepthClamp = false;
+		bool wireframe = false;
 		CompareOp depthCompare = CompareOp::Less;
 		CullMode cullMode = CullMode::None;
 		bool frontFaceCCW = false;
 		Topology topology = Topology::TriangleList;
-		AttachmentState attachments[8];
+		Format depthFormat = Format::Undefined;
+		uint32_t depthSamples = 1;
+		AttachmentState attachments[MAX_COLOR_ATTACHMENTS];
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
 	};
@@ -237,12 +267,39 @@ namespace eg
 		float mipLodBias = 0;
 		int maxAnistropy = 0;
 		BorderColor borderColor = BorderColor::F0000;
+		
+		bool operator==(const SamplerDescription& rhs) const;
+		
+		bool operator!=(const SamplerDescription& rhs) const;
 	};
+	
+	enum class TextureUsage
+	{
+		Undefined,
+		CopySrc,
+		CopyDst,
+		ShaderSample,
+		FramebufferAttachment
+	};
+	
+	enum class TextureFlags
+	{
+		None                  = 0,
+		ManualBarrier         = 1,  //Barriers will be inserted manually (also disables automatic barriers).
+		CopySrc               = 2,  //Allows copy operations from the texture to other textures and buffers.
+		CopyDst               = 4,  //Allows copy operations to the texture from other textures and buffers.
+		GenerateMipmaps       = 8,  //Allows automatic mipmap generation for this texture.
+		ShaderSample          = 16, //The texture can be sampled in a shader.
+		FramebufferAttachment = 32, //The texture can be used as a framebuffer attachment.
+	};
+	
+	EG_BIT_FIELD(TextureFlags)
 	
 	struct TextureCreateInfo
 	{
-		uint32_t mipLevels;
-		Format format;
+		TextureFlags flags = TextureFlags::None;
+		uint32_t mipLevels = 0;
+		Format format = Format::Undefined;
 		const SamplerDescription* defaultSamplerDescription = nullptr;
 		SwizzleMode swizzleR = SwizzleMode::Identity;
 		SwizzleMode swizzleG = SwizzleMode::Identity;
@@ -252,13 +309,13 @@ namespace eg
 	
 	struct Texture2DCreateInfo : TextureCreateInfo
 	{
-		uint32_t width;
-		uint32_t height;
+		uint32_t width = 0;
+		uint32_t height = 0;
 	};
 	
 	struct Texture2DArrayCreateInfo : Texture2DCreateInfo
 	{
-		uint32_t arrayLayers;
+		uint32_t arrayLayers = 0;
 	};
 	
 	enum class UniformType
@@ -286,6 +343,32 @@ namespace eg
 		uint32_t mipLevel;
 	};
 	
+	enum class AttachmentLoadOp
+	{
+		Load,
+		Clear,
+		Discard
+	};
+	
+	struct RenderPassColorAttachment
+	{
+		AttachmentLoadOp loadOp = AttachmentLoadOp::Discard;
+		Color clearValue;
+	};
+	
+	struct RenderPassBeginInfo
+	{
+		FramebufferHandle framebuffer;
+		AttachmentLoadOp depthLoadOp = AttachmentLoadOp::Discard;
+		AttachmentLoadOp stencilLoadOp = AttachmentLoadOp::Discard;
+		float depthClearValue = 1.0f;
+		uint8_t stencilClearValue = 0;
+		RenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
+		
+		explicit RenderPassBeginInfo(FramebufferHandle _framebuffer = nullptr) 
+			: framebuffer(_framebuffer) { }
+	};
+	
 	struct GraphicsCapabilities
 	{
 		uint32_t uniformBufferAlignment;
@@ -294,7 +377,15 @@ namespace eg
 	template <>
 	EG_API std::string LogToString(UniformType type);
 	
-	bool InitializeGraphicsAPI(GraphicsAPI api, SDL_Window* window);
+	struct GraphicsAPIInitArguments
+	{
+		SDL_Window* window;
+		Format defaultDepthStencilFormat;
+		bool defaultFramebufferSRGB;
+		bool enableVSync;
+	};
+	
+	bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments);
 	
 	void DestroyGraphicsAPI();
 	

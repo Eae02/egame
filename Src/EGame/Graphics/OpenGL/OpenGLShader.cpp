@@ -262,8 +262,7 @@ namespace eg::graphics_api::gl
 			};
 			
 			const static DataType normDataTypes[] = {
-				DataType::UInt8Norm, DataType::UInt16Norm, DataType::UInt32Norm,
-				DataType::SInt8Norm, DataType::SInt16Norm, DataType::SInt32Norm
+				DataType::UInt8Norm, DataType::UInt16Norm, DataType::SInt8Norm, DataType::SInt16Norm
 			};
 			
 			DataType type = fixedFuncState.vertexAttributes[i].type;
@@ -271,13 +270,13 @@ namespace eg::graphics_api::gl
 			
 			if (eg::Contains(intDataTypes, type))
 			{
-				glVertexArrayAttribIFormat(pipeline->vertexArray, i, fixedFuncState.vertexAttributes[i].size,
+				glVertexArrayAttribIFormat(pipeline->vertexArray, i, fixedFuncState.vertexAttributes[i].components,
 					glType, fixedFuncState.vertexAttributes[i].offset);
 			}
 			else
 			{
 				auto normalized = static_cast<GLboolean>(eg::Contains(normDataTypes, type));
-				glVertexArrayAttribFormat(pipeline->vertexArray, i, fixedFuncState.vertexAttributes[i].size,
+				glVertexArrayAttribFormat(pipeline->vertexArray, i, fixedFuncState.vertexAttributes[i].components,
 					glType, normalized, fixedFuncState.vertexAttributes[i].offset);
 			}
 		}

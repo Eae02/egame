@@ -13,7 +13,7 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<Buffer*>(handle);
 	}
 	
-	BufferHandle CreateBuffer(BufferUsage usage, MemoryType memType, uint64_t size, const void* initialData)
+	BufferHandle CreateBuffer(BufferFlags flags, uint64_t size, const void* initialData)
 	{
 		Buffer* buffer = bufferPool.New();
 		buffer->size = size;
@@ -22,21 +22,21 @@ namespace eg::graphics_api::gl
 		
 		GLenum mapFlags = 0;
 		GLenum storageFlags = 0;
-		if (HasFlag(usage, BufferUsage::MapWrite))
+		if (HasFlag(flags, BufferFlags::MapWrite))
 		{
 			storageFlags |= GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
 			mapFlags |= GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT;
 		}
-		if (HasFlag(usage, BufferUsage::MapRead))
+		if (HasFlag(flags, BufferFlags::MapRead))
 		{
 			storageFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT;
 			mapFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT;
 		}
-		if (HasFlag(usage, BufferUsage::Update))
+		if (HasFlag(flags, BufferFlags::Update))
 		{
 			storageFlags |= GL_DYNAMIC_STORAGE_BIT;
 		}
-		if (memType == MemoryType::HostLocal)
+		if (HasFlag(flags, BufferFlags::HostAllocate))
 		{
 			storageFlags |= GL_CLIENT_STORAGE_BIT;
 		}
@@ -74,7 +74,7 @@ namespace eg::graphics_api::gl
 		glFlushMappedNamedBufferRange(buffer->buffer, modOffset, modRange);
 	}
 	
-	void UpdateBuffer(BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
+	void UpdateBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
 		glNamedBufferSubData(buffer->buffer, offset, size, data);
@@ -90,4 +90,7 @@ namespace eg::graphics_api::gl
 		Buffer* buffer = UnwrapBuffer(handle);
 		glBindBufferRange(GL_UNIFORM_BUFFER, binding, buffer->buffer, offset, range);
 	}
+	
+	void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags) { }
+	void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier) { }
 }

@@ -9,6 +9,8 @@ namespace eg::graphics_api::gl
 	{
 		switch (format)
 		{
+		case Format::DefaultColor: return GL_RGBA8;
+		case Format::DefaultDepthStencil: return GL_DEPTH_COMPONENT32F;
 		case Format::R8_UNorm: return GL_R8;
 		case Format::R8_UInt: return GL_R8UI;
 		case Format::R8_SInt: return GL_R8I;
@@ -44,8 +46,10 @@ namespace eg::graphics_api::gl
 		case Format::R32G32B32A32_UInt: return GL_RGBA32UI;
 		case Format::R32G32B32A32_SInt: return GL_RGBA32I;
 		case Format::R32G32B32A32_Float: return GL_RGBA32F;
-		case Format::BC1_UNorm: return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
-		case Format::BC1_sRGB: return GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
+		case Format::BC1_RGBA_UNorm: return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+		case Format::BC1_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
+		case Format::BC1_RGB_UNorm: return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+		case Format::BC1_RGB_sRGB: return GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
 		case Format::BC3_UNorm: return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 		case Format::BC3_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
 		case Format::BC4_UNorm: return GL_COMPRESSED_RED_RGTC1;
@@ -71,7 +75,6 @@ namespace eg::graphics_api::gl
 		case DataType::UInt16Norm:
 			return GL_UNSIGNED_SHORT;
 		case DataType::UInt32:
-		case DataType::UInt32Norm:
 			return GL_UNSIGNED_INT;
 		case DataType::SInt8:
 		case DataType::SInt8Norm:
@@ -80,7 +83,6 @@ namespace eg::graphics_api::gl
 		case DataType::SInt16Norm:
 			return GL_SHORT;
 		case DataType::SInt32:
-		case DataType::SInt32Norm:
 			return GL_INT;
 		}
 		

@@ -29,6 +29,7 @@ namespace eg
 		sampler.minFilter = sampler.magFilter = filter;
 		
 		Texture2DArrayCreateInfo createInfo;
+		createInfo.flags = TextureFlags::GenerateMipmaps | TextureFlags::CopyDst | TextureFlags::ShaderSample;
 		createInfo.defaultSamplerDescription = &sampler;
 		createInfo.width = header->width;
 		createInfo.height = header->height;
@@ -38,25 +39,26 @@ namespace eg
 		
 		Texture& texture = loadContext.CreateResult<Texture>(Texture::Create2DArray(createInfo));
 		
-		const char* dataIn = loadContext.Data().data() + sizeof(Header);
-		size_t layerBytes = header->width * header->height * GetFormatSize(createInfo.format);
-		for (uint32_t layer = 0; layer < header->numLayers; layer++)
-		{
-			TextureRange range;
-			range.offsetX = 0;
-			range.offsetY = 0;
-			range.offsetZ = layer;
-			range.sizeX = header->width;
-			range.sizeY = header->height;
-			range.sizeZ = 1;
-			range.mipLevel = 0;
-			
-			eg::DC.SetTextureData(texture, range, dataIn);
-			dataIn += layerBytes;
-		}
+		const size_t layerBytes = header->width * header->height * GetFormatSize(createInfo.format);
+		const size_t uploadBufferSize = layerBytes * header->numLayers;
+		Buffer uploadBuffer(BufferFlags::HostAllocate | BufferFlags::CopySrc | BufferFlags::MapWrite,
+			uploadBufferSize, nullptr);
+		
+		void* uploadBufferMemory = uploadBuffer.Map(0, uploadBufferSize);
+		std::memcpy(uploadBufferMemory, loadContext.Data().data() + sizeof(Header), uploadBufferSize);
+		uploadBuffer.Unmap(0, uploadBufferSize);
+		
+		TextureRange range = { };
+		range.sizeX = header->width;
+		range.sizeY = header->height;
+		range.sizeZ = header->numLayers;
+		
+		eg::DC.SetTextureData(texture, range, uploadBuffer, 0);
 		
 		if (createInfo.mipLevels > 1)
+		{
 			eg::DC.GenerateMipmaps(texture);
+		}
 		
 		return true;
 	}

@@ -155,6 +155,11 @@ namespace eg
 			gal::UnmapBuffer(handle, modOffset, modRange);
 		}
 		
+		void UsageHint(BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None)
+		{
+			gal::BufferUsageHint(handle, newUsage, shaderAccessFlags);
+		}
+		
 		void Destroy()
 		{
 			if (handle)
@@ -176,8 +181,8 @@ namespace eg
 	{
 	public:
 		Buffer() = default;
-		Buffer(BufferUsage usage, MemoryType memoryType, uint64_t size, const void* data)
-			: OwningRef(gal::CreateBuffer(usage, memoryType, size, data)) { }
+		Buffer(BufferFlags flags, uint64_t size, const void* data)
+			: OwningRef(gal::CreateBuffer(flags, size, data)) { }
 	};
 	
 	class EG_API TextureRef
@@ -275,14 +280,9 @@ namespace eg
 	public:
 		CommandContext() : CommandContext(nullptr) { }
 		
-		void SetTextureData(TextureRef texture, const TextureRange& range, const void* data)
-		{
-			gal::SetTextureData(Handle(), texture.handle, range, data);
-		}
-		
 		void SetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
 		{
-			gal::SetTextureDataBuffer(Handle(), texture.handle, range, buffer.handle, bufferOffset);
+			gal::SetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 		}
 		
 		void GenerateMipmaps(TextureRef texture)
@@ -293,6 +293,11 @@ namespace eg
 		void CopyBuffer(BufferRef src, BufferRef dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
 		{
 			gal::CopyBuffer(Handle(), src.handle, dst.handle, srcOffset, dstOffset, size);
+		}
+		
+		void Barrier(BufferRef buffer, const BufferBarrier& barrier)
+		{
+			gal::BufferBarrier(Handle(), buffer.handle, barrier);
 		}
 		
 		void BindPipeline(const Pipeline& pipeline)
@@ -325,14 +330,9 @@ namespace eg
 			gal::DrawIndexed(Handle(), firstIndex, numIndices, firstVertex, numInstances);
 		}
 		
-		void BindTexture(TextureRef texture, uint32_t binding)
+		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr)
 		{
-			gal::BindTexture(Handle(), texture.handle, binding);
-		}
-		
-		void BindSampler(const Sampler& sampler, uint32_t binding)
-		{
-			gal::BindSampler(Handle(), sampler.Handle(), binding);
+			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, binding);
 		}
 		
 		void SetUniform(std::string_view name, UniformType type, const void* value)
@@ -365,23 +365,14 @@ namespace eg
 			gal::SetScissor(Handle(), x, y, w, h);
 		}
 		
-		/**
-		 * Clears a color attachment from the current framebuffer.
-		 * @param buffer The attachment to clear.
-		 * @param color The color to set all pixels to.
-		 */
-		void ClearColor(int buffer, const Color& color)
+		void BeginRenderPass(const RenderPassBeginInfo& beginInfo)
 		{
-			gal::ClearFBColor(Handle(), buffer, color);
+			gal::BeginRenderPass(Handle(), beginInfo);
 		}
 		
-		/**
-		 * Clears the current framebuffer's depth attachment.
-		 * @param depth The depth value to set all pixels to.
-		 */
-		void ClearDepth(float depth)
+		void EndRenderPass()
 		{
-			gal::ClearFBDepth(Handle(), depth);
+			gal::EndRenderPass(Handle());
 		}
 		
 		/**

@@ -13,13 +13,22 @@ namespace eg
 		virtual void RunFrame(float dt) = 0;
 	};
 	
+	enum class RunFlags
+	{
+		None = 0,
+		DevMode = 1,
+		CreateAssetPackage = 2,
+		DefaultFramebufferSRGB = 4
+	};
+	
+	EG_BIT_FIELD(RunFlags)
+	
 	struct RunConfig
 	{
 		const char* gameName = nullptr;
 		GraphicsAPI graphicsAPI = GraphicsAPI::Preferred;
 		void (*initialize)() = nullptr;
-		bool debug = true;
-		bool createAssetPackage = false;
+		RunFlags flags = RunFlags::None;
 	};
 	
 	namespace detail

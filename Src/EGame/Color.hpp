@@ -15,6 +15,9 @@ namespace eg
 		float b;
 		float a;
 		
+		Color()
+			: r(0), g(0), b(0), a(0) { }
+		
 		Color(float _r, float _g, float _b, float _a = 1.0f)
 			: r(_r), g(_g), b(_b), a(_a) { }
 		
@@ -48,6 +51,8 @@ namespace eg
 	 */
 	struct ColorLin : Color
 	{
+		ColorLin() = default;
+		
 		explicit ColorLin(const Color& c)
 			: Color(c) { }
 		
@@ -66,6 +71,8 @@ namespace eg
 	 */
 	struct ColorSRGB : Color
 	{
+		ColorSRGB() = default;
+		
 		explicit ColorSRGB(const Color& c)
 			: Color(c) { }
 		

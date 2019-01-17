@@ -70,16 +70,16 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	bool Initialize(SDL_Window* window)
+	bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
-		glContext = SDL_GL_CreateContext(window);
+		glContext = SDL_GL_CreateContext(initArguments.window);
 		if (glContext == nullptr)
 			return false;
 		
 		if (gl3wInit() != GL3W_OK)
 			return false;
 		
-		glWindow = window;
+		glWindow = initArguments.window;
 		
 		supportsSpirV = SDL_GL_ExtensionSupported("GL_ARB_gl_spirv");
 		
@@ -120,6 +120,24 @@ namespace eg::graphics_api::gl
 		SDL_GL_DeleteContext(glContext);
 	}
 	
+	static GLsync loadFence;
+	
+	void EndLoading()
+	{
+		loadFence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+	}
+	
+	bool IsLoadingComplete()
+	{
+		GLenum status = glClientWaitSync(loadFence, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
+		if (status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED)
+		{
+			glDeleteSync(loadFence);
+			return true;
+		}
+		return false;
+	}
+	
 	void GetDrawableSize(int& width, int& height)
 	{
 		SDL_GL_GetDrawableSize(glWindow, &width, &height);
@@ -140,9 +158,10 @@ namespace eg::graphics_api::gl
 		SDL_GL_SwapWindow(glWindow);
 	}
 	
-	void SetViewport(CommandContextHandle, int x, int y, int w, int h)
+	void SetViewport(CommandContextHandle, float x, float y, float w, float h)
 	{
-		glViewport(x, y, w, h);
+		float vp[] = { x, y, w, h };
+		glViewportArrayv(0, 1, vp);
 	}
 	
 	void SetScissor(CommandContextHandle, int x, int y, int w, int h)
@@ -152,24 +171,87 @@ namespace eg::graphics_api::gl
 	
 	void InitScissorTest();
 	
-	void ClearFBColor(CommandContextHandle, int buffer, const Color& color)
+	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 	{
+		int numColorAttachments;
+		bool hasDepth;
+		bool hasStencil;
+		if (beginInfo.framebuffer == nullptr)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			numColorAttachments = 1;
+			hasDepth = true;
+			hasStencil = true;
+		}
+		else
+		{
+			EG_UNREACHABLE
+		}
+		
 		SetEnabled<GL_SCISSOR_TEST>(false);
-		glClearBufferfv(GL_COLOR, buffer, &color.r);
+		
+		uint32_t numInvalidateAttachments = 0;
+		GLenum invalidateAttachments[MAX_COLOR_ATTACHMENTS + 2];
+		
+		if (hasDepth)
+		{
+			if (beginInfo.depthLoadOp == beginInfo.stencilLoadOp && hasStencil)
+			{
+				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear)
+				{
+					glClearBufferfi(GL_DEPTH_STENCIL, 0, beginInfo.depthClearValue, beginInfo.stencilClearValue);
+				}
+				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
+				{
+					invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH_STENCIL;
+				}
+			}
+			else
+			{
+				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear)
+				{
+					glClearBufferfv(GL_DEPTH, 0, &beginInfo.depthClearValue);
+				}
+				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
+				{
+					invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
+				}
+				
+				if (hasStencil)
+				{
+					if (beginInfo.stencilLoadOp == AttachmentLoadOp::Clear)
+					{
+						GLuint value = beginInfo.stencilClearValue;
+						glClearBufferuiv(GL_STENCIL, 0, &value);
+					}
+					else if (beginInfo.stencilLoadOp == AttachmentLoadOp::Discard)
+					{
+						invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
+					}
+				}
+			}
+		}
+		
+		for (int i = 0; i < numColorAttachments; i++)
+		{
+			const RenderPassColorAttachment& attachment = beginInfo.colorAttachments[i];
+			if (attachment.loadOp == AttachmentLoadOp::Clear)
+			{
+				glClearBufferfv(GL_COLOR, i, &attachment.clearValue.r);
+			}
+			else if (attachment.loadOp == AttachmentLoadOp::Discard)
+			{
+				invalidateAttachments[numInvalidateAttachments++] = (GLenum)(GL_COLOR_ATTACHMENT0 + i);
+			}
+		}
+		
+		if (numInvalidateAttachments != 0)
+		{
+			glInvalidateFramebuffer(GL_FRAMEBUFFER, numInvalidateAttachments, invalidateAttachments);
+		}
+		
 		InitScissorTest();
 	}
 	
-	void ClearFBDepth(CommandContextHandle, float depth)
-	{
-		SetEnabled<GL_SCISSOR_TEST>(false);
-		glClearBufferfv(GL_DEPTH, 0, &depth);
-		InitScissorTest();
-	}
-	
-	void ClearFBStencil(CommandContextHandle, uint32_t value)
-	{
-		SetEnabled<GL_SCISSOR_TEST>(false);
-		glClearBufferuiv(GL_STENCIL, 0, &value);
-		InitScissorTest();
-	}
+	void EndRenderPass(CommandContextHandle cc) { }
 }

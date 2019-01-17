@@ -16,6 +16,12 @@ add_subdirectory(Deps/yaml-cpp)
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
 
+set(SPIRV_CROSS_SOURCE_FILES
+	Deps/spirv_cross/spirv_cross.cpp
+	Deps/spirv_cross/spirv_parser.cpp
+	Deps/spirv_cross/spirv_cross_parsed_ir.cpp
+	Deps/spirv_cross/spirv_cfg.cpp)
+
 #Adds compile options for warnings
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-Wall -Wextra -Wshadow -pedantic -Wno-unused-parameter -Wno-missing-field-initializers)
@@ -23,7 +29,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   add_compile_options(/wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
 endif()
 
-add_library(EGame SHARED ${EGAME_SOURCE_FILES} Deps/gl3w.c)
+add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c)
 add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
@@ -42,9 +48,6 @@ target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
 target_include_directories(EGame
 	PUBLIC
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>
-	PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/Inc
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 )
 
 target_include_directories(EGameAssetGen PRIVATE
@@ -54,13 +57,20 @@ target_include_directories(EGameAssetGen PRIVATE
 target_include_directories(EGame SYSTEM
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/glm
+	PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/Inc
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/volk
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/src
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vulkan-headers/include
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross
 )
 
 target_compile_options(EGame
 	PUBLIC
 		-DGLM_FORCE_RADIANS -DGLM_FORCE_CTOR_INIT -DGLM_ENABLE_EXPERIMENTAL
 	PRIVATE
-		-DZLIB_CONST)
+		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
 
 set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${CMAKE_BUILD_TYPE})
 
