@@ -154,6 +154,14 @@ namespace eg
 		
 		uint32_t windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN;
 		
+		Format defaultDSFormat = runConfig.defaultDepthStencilFormat;
+		if (GetFormatType(defaultDSFormat) != FormatTypes::DepthStencil &&
+		    defaultDSFormat != Format::Undefined)
+		{
+			Log(LogLevel::Error, "gfx", "Invalid default depth/stencil format");
+			defaultDSFormat = Format::Depth16;
+		}
+		
 		if (runConfig.graphicsAPI == GraphicsAPI::OpenGL)
 		{
 			int contextFlags = SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
@@ -167,7 +175,7 @@ namespace eg
 			SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,
 				(int)HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB));
 			
-			switch (runConfig.defaultDepthFormat)
+			switch (defaultDSFormat)
 			{
 			case Format::Depth16:
 				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
@@ -212,7 +220,7 @@ namespace eg
 		apiInitArguments.window = window;
 		apiInitArguments.enableVSync = true;
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
-		apiInitArguments.defaultDepthStencilFormat = runConfig.defaultDepthFormat;
+		apiInitArguments.defaultDepthStencilFormat = defaultDSFormat;
 		
 		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))
 		{

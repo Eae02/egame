@@ -30,7 +30,7 @@ namespace eg
 		GraphicsAPI graphicsAPI = GraphicsAPI::Preferred;
 		void (*initialize)() = nullptr;
 		RunFlags flags = RunFlags::None;
-		Format defaultDepthFormat = Format::Depth16;
+		Format defaultDepthStencilFormat = Format::Depth16;
 	};
 	
 	namespace detail
