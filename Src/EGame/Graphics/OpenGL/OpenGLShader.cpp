@@ -378,10 +378,59 @@ namespace eg::graphics_api::gl
 	static bool updateVAOBindings = false;
 	static const Pipeline* currentPipeline;
 	
+	static float currentViewport[4];
+	static int currentScissor[4];
+	bool viewportOutOfDate;
+	bool scissorOutOfDate;
+	
+	void SetViewport(CommandContextHandle, float x, float y, float w, float h)
+	{
+		if (!FEqual(currentViewport[0], x) || !FEqual(currentViewport[1], y) ||
+		    !FEqual(currentViewport[2], w) || !FEqual(currentViewport[3], h))
+		{
+			currentViewport[0] = x;
+			currentViewport[1] = y;
+			currentViewport[2] = w;
+			currentViewport[3] = h;
+			viewportOutOfDate = true;
+		}
+	}
+	
+	void SetScissor(CommandContextHandle, int x, int y, int w, int h)
+	{
+		if (currentScissor[0] != x || currentScissor[1] != y ||
+		    currentScissor[2] != w || currentScissor[3] != h)
+		{
+			currentScissor[0] = x;
+			currentScissor[1] = y;
+			currentScissor[2] = w;
+			currentScissor[3] = h;
+			scissorOutOfDate = true;
+		}
+	}
+	
 	void InitScissorTest()
 	{
 		if (currentPipeline != nullptr)
 			SetEnabled<GL_SCISSOR_TEST>(currentPipeline->enableScissorTest);
+	}
+	
+	inline void CommitViewportAndScissor()
+	{
+		if (currentPipeline == nullptr)
+			return;
+		
+		if (viewportOutOfDate)
+		{
+			glViewportArrayv(0, 1, currentViewport);
+			viewportOutOfDate = false;
+		}
+		
+		if (currentPipeline->enableScissorTest && scissorOutOfDate)
+		{
+			glScissorArrayv(0, 1, currentScissor);
+			scissorOutOfDate = false;
+		}
 	}
 	
 	void BindPipeline(CommandContextHandle, PipelineHandle handle)
@@ -556,12 +605,14 @@ namespace eg::graphics_api::gl
 	
 	void Draw(CommandContextHandle, uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances)
 	{
+		CommitViewportAndScissor();
 		MaybeUpdateVAO();
 		glDrawArraysInstanced(curState.topology, firstVertex, numVertices, numInstances);
 	}
 	
 	void DrawIndexed(CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t numInstances)
 	{
+		CommitViewportAndScissor();
 		MaybeUpdateVAO();
 		
 		uintptr_t indexOffset = indexBufferOffset + firstIndex * 2;

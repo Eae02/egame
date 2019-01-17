@@ -23,7 +23,6 @@ public:
 		rpBeginInfo.colorAttachments[0].clearValue = eg::Color(0.2f, 1.0f, 1.0f);
 		eg::DC.BeginRenderPass(rpBeginInfo);
 		
-		eg::DC.SetViewport(0, 0, eg::CurrentResolutionX(), eg::CurrentResolutionY());
 		eg::DC.BindPipeline(m_pipeline);
 		eg::DC.Draw(0, 3, 1);
 		
@@ -40,7 +39,7 @@ int main()
 	eg::RunConfig runConfig;
 	runConfig.gameName = "EGame Sandbox";
 	runConfig.flags = eg::RunFlags::DevMode;
-	runConfig.graphicsAPI = eg::GraphicsAPI::Vulkan;
+	runConfig.graphicsAPI = eg::GraphicsAPI::OpenGL;
 	
 	return eg::Run<Game>(runConfig);
 }

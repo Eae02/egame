@@ -1,3 +1,4 @@
+#include "VulkanMain.hpp"
 #include "Common.hpp"
 #include "RenderPasses.hpp"
 
@@ -77,6 +78,13 @@ namespace eg::graphics_api::vk
 		vkBeginInfo.pClearValues = clearValues;
 		
 		vkCmdBeginRenderPass(cb, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		
+		CommandContextState& ctxState = GetCtxState(cc);
+		ctxState.framebufferW = extent.width;
+		ctxState.framebufferH = extent.height;
+		
+		SetViewport(cc, 0, 0, extent.width, extent.height);
+		SetScissor(cc, 0, 0, extent.width, extent.height);
 	}
 	
 	void EndRenderPass(CommandContextHandle cc)

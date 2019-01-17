@@ -655,6 +655,9 @@ namespace eg::graphics_api::vk
 		vkBeginCommandBuffer(ctx.immediateCommandBuffers[CFrameIdx()], &beginInfo);
 		
 		ctx.defaultFramebufferInPresentMode = true;
+		ctx.immediateCCState.pipeline = nullptr;
+		ctx.immediateCCState.scissorOutOfDate = true;
+		ctx.immediateCCState.viewportOutOfDate = true;
 	}
 	
 	void EndFrame()

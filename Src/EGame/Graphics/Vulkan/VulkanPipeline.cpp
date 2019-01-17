@@ -626,19 +626,67 @@ namespace eg::graphics_api::vk
 		UnwrapPipeline(handle)->UnRef();
 	}
 	
+	inline void CommitDynamicState(CommandContextHandle cc)
+	{
+		CommandContextState& state = GetCtxState(cc);
+		VkCommandBuffer cb = GetCB(cc);
+		
+		if (state.viewportOutOfDate)
+		{
+			const VkViewport viewport = { state.viewportX, state.viewportY + state.viewportH, state.viewportW, -state.viewportH, 0.0f, 1.0f };
+			vkCmdSetViewport(cb, 0, 1, &viewport);
+			state.viewportOutOfDate = false;
+		}
+		
+		if (state.scissorOutOfDate)
+		{
+			vkCmdSetScissor(cb, 0, 1, &state.scissor);
+			state.scissorOutOfDate = false;
+		}
+	}
+	
+	void SetViewport(CommandContextHandle cc, float x, float y, float w, float h)
+	{
+		CommandContextState& state = GetCtxState(cc);
+		if (!FEqual(state.viewportX, x) || !FEqual(state.viewportY, y) ||
+		    !FEqual(state.viewportW, w) || !FEqual(state.viewportH, h))
+		{
+			state.viewportX = x;
+			state.viewportY = y;
+			state.viewportW = w;
+			state.viewportH = h;
+			state.viewportOutOfDate = true;
+		}
+	}
+	
+	void SetScissor(CommandContextHandle cc, int x, int y, int w, int h)
+	{
+		CommandContextState& state = GetCtxState(cc);
+		if (state.scissor.offset.x != x || state.scissor.offset.y != y ||
+		    (int)state.scissor.extent.width != w || (int)state.scissor.extent.height != h)
+		{
+			state.scissor.offset.x = x;
+			state.scissor.offset.y = y;
+			state.scissor.extent.width = w;
+			state.scissor.extent.height = h;
+			state.scissorOutOfDate = true;
+		}
+	}
+	
 	void BindPipeline(CommandContextHandle cc, PipelineHandle handle)
 	{
 		Pipeline* pipeline = UnwrapPipeline(handle);
 		RefResource(cc, *pipeline);
-		SetCurrentPipeline(cc, handle);
+		
+		CommandContextState& ctxState = GetCtxState(cc);
+		ctxState.pipeline = pipeline;
 		
 		VkCommandBuffer cb = GetCB(cc);
 		vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
 		
 		if (!pipeline->enableScissorTest)
 		{
-			VkRect2D scissor = { { }, ctx.surfaceExtent };
-			vkCmdSetScissor(cb, 0, 1, &scissor);
+			SetScissor(cc, 0, 0, ctxState.framebufferW, ctxState.framebufferH);
 		}
 	}
 	
@@ -647,7 +695,7 @@ namespace eg::graphics_api::vk
 		Buffer* buffer = UnwrapBuffer(bufferHandle);
 		RefResource(cc, *buffer);
 		
-		Pipeline* pipeline = UnwrapPipeline(GetCurrentPipeline(cc));
+		Pipeline* pipeline = GetCtxState(cc).pipeline;
 		
 		VkDescriptorBufferInfo bufferInfo;
 		bufferInfo.buffer = buffer->buffer;
@@ -673,7 +721,7 @@ namespace eg::graphics_api::vk
 		if (samplerHandle != VK_NULL_HANDLE)
 			sampler = reinterpret_cast<VkSampler>(samplerHandle);
 		
-		Pipeline* pipeline = UnwrapPipeline(GetCurrentPipeline(cc));
+		Pipeline* pipeline = GetCtxState(cc).pipeline;
 		
 		VkDescriptorImageInfo imageInfo;
 		imageInfo.imageView = texture->imageView;
@@ -716,11 +764,13 @@ namespace eg::graphics_api::vk
 	
 	void Draw(CommandContextHandle cc, uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances)
 	{
+		CommitDynamicState(cc);
 		vkCmdDraw(GetCB(cc), numVertices, numInstances, firstVertex, 0);
 	}
 	
 	void DrawIndexed(CommandContextHandle cc, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t numInstances)
 	{
+		CommitDynamicState(cc);
 		vkCmdDrawIndexed(GetCB(cc), numIndices, numInstances, firstIndex, firstVertex, 0);
 	}
 }

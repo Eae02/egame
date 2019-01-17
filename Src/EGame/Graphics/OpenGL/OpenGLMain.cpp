@@ -19,6 +19,9 @@ namespace eg::graphics_api::gl
 	static bool defaultFramebufferHasDepth;
 	static bool defaultFramebufferHasStencil;
 	
+	static int drawableWidth;
+	static int drawableHeight;
+	
 	enum class GLVendor
 	{
 		Unknown,
@@ -122,6 +125,9 @@ namespace eg::graphics_api::gl
 		glDebugMessageCallback(OpenGLMessageCallback, nullptr);
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 		
+		const char* rendererName = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+		Log(LogLevel::Info, "gfx", "Using OpenGL renderer: '{0}'", rendererName);
+		
 		return true;
 	}
 	
@@ -160,30 +166,27 @@ namespace eg::graphics_api::gl
 		SDL_GL_GetDrawableSize(glWindow, &width, &height);
 	}
 	
+	extern bool viewportOutOfDate;
+	extern bool scissorOutOfDate;
+	
 	void BeginFrame()
 	{
+		SDL_GL_GetDrawableSize(glWindow, &drawableWidth, &drawableHeight);
+		
 		if (fences[CFrameIdx()])
 		{
 			glClientWaitSync(fences[CFrameIdx()], GL_SYNC_FLUSH_COMMANDS_BIT, UINT64_MAX);
 			glDeleteSync(fences[CFrameIdx()]);
 		}
+		
+		viewportOutOfDate = true;
+		scissorOutOfDate = true;
 	}
 	
 	void EndFrame()
 	{
 		fences[CFrameIdx()] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		SDL_GL_SwapWindow(glWindow);
-	}
-	
-	void SetViewport(CommandContextHandle, float x, float y, float w, float h)
-	{
-		float vp[] = { x, y, w, h };
-		glViewportArrayv(0, 1, vp);
-	}
-	
-	void SetScissor(CommandContextHandle, int x, int y, int w, int h)
-	{
-		glScissor(x, y, w, h);
 	}
 	
 	void InitScissorTest();
@@ -199,6 +202,9 @@ namespace eg::graphics_api::gl
 			numColorAttachments = 1;
 			hasDepth = defaultFramebufferHasDepth;
 			hasStencil = defaultFramebufferHasStencil;
+			
+			SetViewport(cc, 0, 0, drawableWidth, drawableHeight);
+			SetScissor(cc, 0, 0, drawableWidth, drawableHeight);
 		}
 		else
 		{

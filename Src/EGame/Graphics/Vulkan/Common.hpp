@@ -48,6 +48,20 @@ namespace eg::graphics_api::vk
 		std::vector<Resource*> m_resources;
 	};
 	
+	struct CommandContextState
+	{
+		float viewportX;
+		float viewportY;
+		float viewportW;
+		float viewportH;
+		VkRect2D scissor;
+		bool viewportOutOfDate;
+		bool scissorOutOfDate;
+		struct Pipeline* pipeline;
+		uint32_t framebufferW;
+		uint32_t framebufferH;
+	};
+	
 	struct Context
 	{
 		bool hasDebugUtils;
@@ -92,7 +106,8 @@ namespace eg::graphics_api::vk
 		VkFence frameQueueFences[MAX_CONCURRENT_FRAMES];
 		VkCommandBuffer immediateCommandBuffers[MAX_CONCURRENT_FRAMES];
 		ReferencedResourceSet referencedResources[MAX_CONCURRENT_FRAMES];
-		PipelineHandle currentImmediatePipeline = nullptr;
+		
+		CommandContextState immediateCCState;
 		
 		uint32_t currentImage;
 	};
@@ -102,6 +117,11 @@ namespace eg::graphics_api::vk
 	inline VkCommandBuffer GetCB(CommandContextHandle handle)
 	{
 		return handle == nullptr ? ctx.immediateCommandBuffers[CFrameIdx()] : reinterpret_cast<VkCommandBuffer>(handle);
+	}
+	
+	inline CommandContextState& GetCtxState(CommandContextHandle handle)
+	{
+		return ctx.immediateCCState;
 	}
 	
 	inline void RefResource(CommandContextHandle handle, Resource& resource)
@@ -114,19 +134,6 @@ namespace eg::graphics_api::vk
 	{
 		return format == VK_FORMAT_D16_UNORM_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT ||
 		       format == VK_FORMAT_D32_SFLOAT_S8_UINT;
-	}
-	
-	inline void SetCurrentPipeline(CommandContextHandle handle, PipelineHandle pipeline)
-	{
-		if (handle == nullptr)
-			ctx.currentImmediatePipeline = pipeline;
-	}
-	
-	inline PipelineHandle GetCurrentPipeline(CommandContextHandle handle)
-	{
-		if (handle == nullptr)
-			return ctx.currentImmediatePipeline;
-		return nullptr;
 	}
 	
 	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
