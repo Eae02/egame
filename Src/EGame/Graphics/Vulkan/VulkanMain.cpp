@@ -352,6 +352,7 @@ namespace eg::graphics_api::vk
 			//Checks which device extensions are supported
 			bool hasExtSwapchain = false;
 			bool hasExtPushDescriptor = false;
+			bool hasExtMaintenance1 = false;
 			hasExtGetMemoryRequirements2 = false;
 			hasExtDedicatedAllocation = false;
 			for (const VkExtensionProperties& extProperties : devExtensionProperties)
@@ -360,6 +361,8 @@ namespace eg::graphics_api::vk
 					hasExtSwapchain = true;
 				else if (std::strcmp(extProperties.extensionName, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME) == 0)
 					hasExtPushDescriptor = true;
+				else if (std::strcmp(extProperties.extensionName, VK_KHR_MAINTENANCE1_EXTENSION_NAME) == 0)
+					hasExtMaintenance1 = true;
 				else if (std::strcmp(extProperties.extensionName, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME) == 0)
 					hasExtGetMemoryRequirements2 = true;
 				else if (std::strcmp(extProperties.extensionName, VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME) == 0)
@@ -377,6 +380,13 @@ namespace eg::graphics_api::vk
 			{
 				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not support the "
 					VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME " extension", deviceProperties.deviceName);
+				continue;
+			}
+			
+			if (!hasExtMaintenance1)
+			{
+				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not support the "
+					VK_KHR_MAINTENANCE1_EXTENSION_NAME " extension", deviceProperties.deviceName);
 				continue;
 			}
 			
@@ -417,6 +427,7 @@ namespace eg::graphics_api::vk
 		const char* enabledDeviceExtensions[16];
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
+		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_MAINTENANCE1_EXTENSION_NAME;
 		
 		const bool hasDedicatedAllocation = hasExtDedicatedAllocation && hasExtGetMemoryRequirements2;
 		if (hasDedicatedAllocation)
