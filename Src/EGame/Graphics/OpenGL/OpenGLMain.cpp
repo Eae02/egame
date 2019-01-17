@@ -16,6 +16,9 @@ namespace eg::graphics_api::gl
 	extern bool supportsSpirV;
 	extern int maxAnistropy;
 	
+	static bool defaultFramebufferHasDepth;
+	static bool defaultFramebufferHasStencil;
+	
 	enum class GLVendor
 	{
 		Unknown,
@@ -78,6 +81,20 @@ namespace eg::graphics_api::gl
 		
 		if (gl3wInit() != GL3W_OK)
 			return false;
+		
+		if (initArguments.defaultDepthStencilFormat == Format::Depth32 ||
+		    initArguments.defaultDepthStencilFormat == Format::Depth16)
+		{
+			defaultFramebufferHasDepth = true;
+			defaultFramebufferHasStencil = false;
+		}
+		
+		if (initArguments.defaultDepthStencilFormat == Format::Depth24Stencil8 ||
+		    initArguments.defaultDepthStencilFormat == Format::Depth32Stencil8)
+		{
+			defaultFramebufferHasDepth = true;
+			defaultFramebufferHasStencil = true;
+		}
 		
 		glWindow = initArguments.window;
 		
@@ -180,8 +197,8 @@ namespace eg::graphics_api::gl
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			numColorAttachments = 1;
-			hasDepth = true;
-			hasStencil = true;
+			hasDepth = defaultFramebufferHasDepth;
+			hasStencil = defaultFramebufferHasStencil;
 		}
 		else
 		{
@@ -203,7 +220,15 @@ namespace eg::graphics_api::gl
 				}
 				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
 				{
-					invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH_STENCIL;
+					if (beginInfo.framebuffer == nullptr)
+					{
+						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
+						invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
+					}
+					else
+					{
+						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH_STENCIL_ATTACHMENT;
+					}
 				}
 			}
 			else
@@ -214,7 +239,14 @@ namespace eg::graphics_api::gl
 				}
 				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
 				{
-					invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
+					if (beginInfo.framebuffer == nullptr)
+					{
+						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
+					}
+					else
+					{
+						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH_ATTACHMENT;
+					}
 				}
 				
 				if (hasStencil)
@@ -226,7 +258,14 @@ namespace eg::graphics_api::gl
 					}
 					else if (beginInfo.stencilLoadOp == AttachmentLoadOp::Discard)
 					{
-						invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
+						if (beginInfo.framebuffer == nullptr)
+						{
+							invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
+						}
+						else
+						{
+							invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL_ATTACHMENT;
+						}
 					}
 				}
 			}
@@ -241,7 +280,14 @@ namespace eg::graphics_api::gl
 			}
 			else if (attachment.loadOp == AttachmentLoadOp::Discard)
 			{
-				invalidateAttachments[numInvalidateAttachments++] = (GLenum)(GL_COLOR_ATTACHMENT0 + i);
+				if (beginInfo.framebuffer == nullptr)
+				{
+					invalidateAttachments[numInvalidateAttachments++] = GL_COLOR;
+				}
+				else
+				{
+					invalidateAttachments[numInvalidateAttachments++] = (GLenum)(GL_COLOR_ATTACHMENT0 + i);
+				}
 			}
 		}
 		

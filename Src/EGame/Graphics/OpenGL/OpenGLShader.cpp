@@ -9,6 +9,8 @@
 
 #include <set>
 #include <GL/gl3w.h>
+#include <spirv_cross.hpp>
+#include <spirv_glsl.hpp>
 
 namespace eg::graphics_api::gl
 {
@@ -88,17 +90,29 @@ namespace eg::graphics_api::gl
 		
 		for (const ShaderStageDesc& stage : stages)
 		{
+			spirv_cross::CompilerGLSL spvCrossCompiler(reinterpret_cast<const uint32_t*>(stage.code), stage.codeBytes / 4);
+			/*
+			const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
+			
+			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
+			{
+				for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
+				{
+					range.
+					//numPushConstantBytes = std::max<uint32_t>(numPushConstantBytes, range.offset + range.range);
+					//pushConstantStages |= stageFlags;
+				}
+			}
+			*/
+			std::string glslCode = spvCrossCompiler.compile();
+			
 			GLuint shader = glCreateShader(GetGLStage(stage.stage));
 			
-			if (supportsSpirV)
-			{
-				glShaderBinary(1, &shader, GL_SHADER_BINARY_FORMAT_SPIR_V, stage.code, stage.codeBytes);
-				glSpecializeShader(shader, "main", 0, nullptr, nullptr);
-			}
-			else
-			{
-				//TODO:
-			}
+			const GLchar* glslCodeC = glslCode.c_str();
+			GLint glslCodeLen = glslCode.size();
+			glShaderSource(shader, 1, &glslCodeC, &glslCodeLen);
+			
+			glCompileShader(shader);
 			
 			//Checks the shader's compile status.
 			GLint compileStatus = GL_FALSE;

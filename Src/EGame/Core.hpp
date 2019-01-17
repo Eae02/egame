@@ -2,6 +2,7 @@
 
 #include "API.hpp"
 #include "Graphics/Graphics.hpp"
+#include "Graphics/Format.hpp"
 
 namespace eg
 {
@@ -29,6 +30,7 @@ namespace eg
 		GraphicsAPI graphicsAPI = GraphicsAPI::Preferred;
 		void (*initialize)() = nullptr;
 		RunFlags flags = RunFlags::None;
+		Format defaultDepthFormat = Format::Depth16;
 	};
 	
 	namespace detail

@@ -164,9 +164,28 @@ namespace eg
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
-			SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
 			SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,
 				(int)HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB));
+			
+			switch (runConfig.defaultDepthFormat)
+			{
+			case Format::Depth16:
+				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
+				break;
+			case Format::Depth32:
+				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
+				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
+				break;
+			case Format::Depth24Stencil8:
+				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+				break;
+			case Format::Depth32Stencil8:
+				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32);
+				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+				break;
+			}
 			
 			windowFlags |= SDL_WINDOW_OPENGL;
 		}
@@ -193,7 +212,7 @@ namespace eg
 		apiInitArguments.window = window;
 		apiInitArguments.enableVSync = true;
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
-		apiInitArguments.defaultDepthStencilFormat = eg::Format::Depth16;
+		apiInitArguments.defaultDepthStencilFormat = runConfig.defaultDepthFormat;
 		
 		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))
 		{

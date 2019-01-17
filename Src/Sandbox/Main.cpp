@@ -40,7 +40,7 @@ int main()
 	eg::RunConfig runConfig;
 	runConfig.gameName = "EGame Sandbox";
 	runConfig.flags = eg::RunFlags::DevMode;
-	runConfig.graphicsAPI = eg::GraphicsAPI::Vulkan;
+	runConfig.graphicsAPI = eg::GraphicsAPI::OpenGL;
 	
 	return eg::Run<Game>(runConfig);
 }

@@ -19,6 +19,7 @@ file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
 set(SPIRV_CROSS_SOURCE_FILES
 	Deps/spirv_cross/spirv_cross.cpp
 	Deps/spirv_cross/spirv_parser.cpp
+	Deps/spirv_cross/spirv_glsl.cpp
 	Deps/spirv_cross/spirv_cross_parsed_ir.cpp
 	Deps/spirv_cross/spirv_cfg.cpp)
 
