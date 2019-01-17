@@ -24,12 +24,22 @@ public:
 		eg::DC.BeginRenderPass(rpBeginInfo);
 		
 		eg::DC.BindPipeline(m_pipeline);
+		
+		const float SIZE = std::min(eg::CurrentResolutionX(), eg::CurrentResolutionY()) * 0.8f;
+		glm::vec2 scale(SIZE / eg::CurrentResolutionX(), SIZE / eg::CurrentResolutionY());
+		
+		glm::mat2 transform = glm::scale(glm::mat3(1.0f), scale) * glm::rotate(glm::mat3(1.0f), m_rotation);
+		eg::DC.PushConstants(0, transform);
+		
 		eg::DC.Draw(0, 3, 1);
 		
 		eg::DC.EndRenderPass();
+		
+		m_rotation += dt;
 	}
 	
 private:
+	float m_rotation = 0.0f;
 	eg::Pipeline m_pipeline;
 	eg::EventListener<eg::ResolutionChangedEvent> m_listener;
 };

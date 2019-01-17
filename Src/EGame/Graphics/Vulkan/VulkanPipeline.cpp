@@ -64,6 +64,7 @@ namespace eg::graphics_api::vk
 	{
 		VkShaderModule fragmentShader;
 		VkShaderModule vertexShader;
+		VkShaderStageFlags pushConstantStages;
 		VkPipelineLayout pipelineLayout;
 		VkPipeline basePipeline;
 		std::atomic_int refCount;
@@ -125,10 +126,10 @@ namespace eg::graphics_api::vk
 		program->vertexShader = VK_NULL_HANDLE;
 		program->fragmentShader = VK_NULL_HANDLE;
 		program->refCount = 1;
+		program->pushConstantStages = 0;
 		
 		std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
 		uint32_t numPushConstantBytes = 0;
-		VkShaderStageFlags pushConstantStages = 0;
 		
 		//Creates shader modules and extracts pipeline layout information
 		for (const ShaderStageDesc& stageDesc : stages)
@@ -199,7 +200,7 @@ namespace eg::graphics_api::vk
 				for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
 				{
 					numPushConstantBytes = std::max<uint32_t>(numPushConstantBytes, range.offset + range.range);
-					pushConstantStages |= stageFlags;
+					program->pushConstantStages |= stageFlags;
 				}
 			}
 		}
@@ -222,7 +223,7 @@ namespace eg::graphics_api::vk
 		VkPushConstantRange pushConstantRange;
 		if (numPushConstantBytes > 0)
 		{
-			pushConstantRange = {pushConstantStages, 0, numPushConstantBytes};
+			pushConstantRange = { program->pushConstantStages, 0, numPushConstantBytes };
 			layoutCreateInfo.pushConstantRangeCount = 1;
 			layoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 		}
@@ -738,10 +739,17 @@ namespace eg::graphics_api::vk
 			0, 1, &writeDS);
 	}
 	
-	void SetUniform(CommandContextHandle, ShaderProgramHandle programHandle, std::string_view name, UniformType type,
-		uint32_t count, const void* value)
+	void PushConstants(CommandContextHandle cc, uint32_t offset, uint32_t range, const void* data)
 	{
+		Pipeline* pipeline = GetCtxState(cc).pipeline;
+		if (pipeline == nullptr)
+		{
+			Log(LogLevel::Error, "gfx", "No pipeline bound when updating push constants.");
+			return;
+		}
 		
+		vkCmdPushConstants(GetCB(cc), pipeline->program->pipelineLayout, pipeline->program->pushConstantStages,
+			offset, range, data);
 	}
 	
 	void BindVertexBuffer(CommandContextHandle cc, uint32_t binding, BufferHandle bufferHandle, uint32_t offset)

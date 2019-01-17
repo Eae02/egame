@@ -335,24 +335,21 @@ namespace eg
 			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, binding);
 		}
 		
-		void SetUniform(std::string_view name, UniformType type, const void* value)
+		void PushConstants(uint32_t offset, uint32_t range, const void* data)
 		{
-			gal::SetUniform(Handle(), nullptr, name, type, 1, value);
+			gal::PushConstants(Handle(), offset, range, data);
 		}
 		
-		void SetUniform(std::string_view name, UniformType type, uint32_t count, const void* value)
+		template <typename T, size_t N>
+		void PushConstants(uint32_t offset, T data[N])
 		{
-			gal::SetUniform(Handle(), nullptr, name, type, count, value);
+			gal::PushConstants(Handle(), offset, sizeof(T) * N, data);
 		}
 		
-		void SetUniform(const ShaderProgram& program, std::string_view name, UniformType type, const void* value)
+		template <typename T>
+		void PushConstants(uint32_t offset, const T& data)
 		{
-			gal::SetUniform(Handle(), program.Handle(), name, type, 1, value);
-		}
-		
-		void SetUniform(const ShaderProgram& program, std::string_view name, UniformType type, uint32_t count, const void* value)
-		{
-			gal::SetUniform(Handle(), program.Handle(), name, type, count, value);
+			gal::PushConstants(Handle(), offset, sizeof(data), &data);
 		}
 		
 		void SetViewport(int x, int y, int w, int h)

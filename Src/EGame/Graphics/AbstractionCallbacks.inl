@@ -31,7 +31,7 @@ XM_ABSCALLBACK(DestroyShaderProgram, void, (ShaderProgramHandle handle))
 XM_ABSCALLBACK(CreatePipeline, PipelineHandle, (ShaderProgramHandle program, const FixedFuncState& fixedFuncState))
 XM_ABSCALLBACK(DestroyPipeline, void, (PipelineHandle handle))
 XM_ABSCALLBACK(BindPipeline, void, (CommandContextHandle ctx, PipelineHandle handle))
-XM_ABSCALLBACK(SetUniform, void, (CommandContextHandle ctx, ShaderProgramHandle programHandle, std::string_view name, UniformType type, uint32_t count, const void* value))
+XM_ABSCALLBACK(PushConstants, void, (CommandContextHandle ctx, uint32_t offset, uint32_t range, const void* data))
 
 XM_ABSCALLBACK(SetViewport, void, (CommandContextHandle ctx, float x, float y, float w, float h))
 XM_ABSCALLBACK(SetScissor, void, (CommandContextHandle, int x, int y, int w, int h))

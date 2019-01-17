@@ -7,19 +7,38 @@
 #include "../../Log.hpp"
 #include "OpenGLBuffer.hpp"
 
-#include <set>
+#include <list>
 #include <GL/gl3w.h>
 #include <spirv_cross.hpp>
 #include <spirv_glsl.hpp>
 
 namespace eg::graphics_api::gl
 {
-	struct Uniform
+	using SPIRType = spirv_cross::SPIRType;
+	
+	static uint32_t PUSH_CONSTANT_MEMBER_SIZES[] =
 	{
-		uint32_t nameHash;
-		UniformType type;
+		/* Int   */ 4,
+		/* Float */ 4,
+		/* Vec2  */ 8,
+		/* Vec3  */ 16,
+		/* Vec4  */ 16,
+		/* IVec2 */ 8,
+		/* IVec3 */ 16,
+		/* IVec4 */ 16,
+		/* Mat2  */ 16,
+		/* Mat3  */ 64,
+		/* Mat4  */ 64
+	};
+	
+	struct PushConstantMember
+	{
+		uint32_t offset;
 		uint32_t arraySize;
-		uint32_t location;
+		uint32_t vectorSize;
+		uint32_t columns;
+		int uniformLocation;
+		SPIRType::BaseType baseType;
 	};
 	
 	struct ShaderProgram
@@ -28,13 +47,10 @@ namespace eg::graphics_api::gl
 		GLuint program;
 		uint32_t numShaders;
 		GLuint shaders[2];
-		std::vector<Uniform> uniforms;
-		std::set<uint32_t> warnedUniformNames;
+		std::vector<PushConstantMember> pushConstants;
 	};
 	
 	static ObjectPool<ShaderProgram> shaderProgramPool;
-	
-	bool supportsSpirV;
 	
 	inline GLenum GetGLStage(ShaderStage stage)
 	{
@@ -88,22 +104,13 @@ namespace eg::graphics_api::gl
 		program->numShaders = 0;
 		program->program = glCreateProgram();
 		
+		std::list<spirv_cross::CompilerGLSL> spvCompilers;
+		
 		for (const ShaderStageDesc& stage : stages)
 		{
-			spirv_cross::CompilerGLSL spvCrossCompiler(reinterpret_cast<const uint32_t*>(stage.code), stage.codeBytes / 4);
-			/*
-			const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
+			spirv_cross::CompilerGLSL& spvCrossCompiler = spvCompilers.emplace_back(
+				reinterpret_cast<const uint32_t*>(stage.code), stage.codeBytes / 4);
 			
-			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
-			{
-				for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
-				{
-					range.
-					//numPushConstantBytes = std::max<uint32_t>(numPushConstantBytes, range.offset + range.range);
-					//pushConstantStages |= stageFlags;
-				}
-			}
-			*/
 			std::string glslCode = spvCrossCompiler.compile();
 			
 			GLuint shader = glCreateShader(GetGLStage(stage.stage));
@@ -150,33 +157,65 @@ namespace eg::graphics_api::gl
 			EG_PANIC("Shader program failed to link: " << infoLog.data());
 		}
 		
-		int numUniforms;
-		glGetProgramiv(program->program, GL_ACTIVE_UNIFORMS, &numUniforms);
-		program->uniforms.reserve((size_t)numUniforms);
-		
-		int uniformMaxLen;
-		glGetProgramiv(program->program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniformMaxLen);
-		char* nameBuffer = reinterpret_cast<char*>(alloca(uniformMaxLen));
-		
-		//Reads uniforms
-		GLint uniformSize;
-		GLenum uniformType;
-		for (GLuint i = 0; i < (GLuint)numUniforms; i++)
+		for (const spirv_cross::CompilerGLSL& spvCrossCompiler : spvCompilers)
 		{
-			glGetActiveUniform(program->program, i, uniformMaxLen, nullptr, &uniformSize, &uniformType, nameBuffer);
+			const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
 			
-			if (std::optional<UniformType> type = GetUniformType(uniformType))
+			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
 			{
-				GLuint location = (GLuint)glGetUniformLocation(program->program, nameBuffer);
-				program->uniforms.push_back({ HashFNV1a32(nameBuffer), *type, (uint32_t)uniformSize, location });
+				const SPIRType& type = spvCrossCompiler.get_type(pcBlock.base_type_id);
+				uint32_t numMembers = type.member_types.size();
+				
+				std::string_view blockName = spvCrossCompiler.get_name(pcBlock.id);
+				if (blockName.empty())
+				{
+					blockName = spvCrossCompiler.get_fallback_name(pcBlock.id);
+				}
+				
+				for (uint32_t i = 0; i < numMembers; i++)
+				{
+					const SPIRType& memberType = spvCrossCompiler.get_type(type.member_types[i]);
+					
+					//Only process supported base types
+					static const SPIRType::BaseType supportedBaseTypes[] = 
+					{
+						SPIRType::Float, SPIRType::Int, SPIRType::UInt, SPIRType::Boolean
+					};
+					if (!Contains(supportedBaseTypes, memberType.basetype))
+						continue;
+					
+					//Gets the name and uniform location of this member
+					const std::string& name = spvCrossCompiler.get_member_name(type.self, i);
+					std::string uniformName = Concat({ blockName, ".", name });
+					int location = glGetUniformLocation(program->program, uniformName.c_str());
+					if (location == -1)
+					{
+						Log(LogLevel::Error, "gl", "Internal OpenGL error, push constant uniform not found: '{0}'", name);
+						continue;
+					}
+					
+					if (memberType.columns != 1 && memberType.columns != memberType.vecsize)
+					{
+						Log(LogLevel::Error, "gl", "Push constant '{0}': non square matrices are not currently "
+							"supported as push constants.", name);
+						continue;
+					}
+					
+					PushConstantMember& pushConstant = program->pushConstants.emplace_back();
+					pushConstant.uniformLocation = location;
+					pushConstant.arraySize = 1;
+					pushConstant.offset = spvCrossCompiler.type_struct_member_offset(type, i);
+					pushConstant.baseType = memberType.basetype;
+					pushConstant.vectorSize = memberType.vecsize;
+					pushConstant.columns = memberType.columns;
+					
+					Log(LogLevel::Info, "gl", "Found push constant '{0}' at offset {1}", name, pushConstant.offset);
+					
+					for (uint32_t arraySize : memberType.array)
+						pushConstant.arraySize *= arraySize;
+				}
 			}
 		}
-		
-		//Sorts uniforms so that they can be binary searched over later
-		std::sort(program->uniforms.begin(), program->uniforms.end(), [&] (const Uniform& a, const Uniform& b)
-		{
-			return a.nameHash < b.nameHash;
-		});
 		
 		return reinterpret_cast<ShaderProgramHandle>(program);
 	}
@@ -480,88 +519,101 @@ namespace eg::graphics_api::gl
 		updateVAOBindings = true;
 	}
 	
-	void SetUniform(CommandContextHandle, ShaderProgramHandle programHandle, std::string_view name, UniformType type,
-		uint32_t count, const void* value)
+	template <typename T>
+	struct SetUniformFunctions
 	{
-		ShaderProgram* program = UnwrapShaderProgram(programHandle);
-		if (program == nullptr)
-			program = currentPipeline->program;
-		
-		const uint32_t nameHash = HashFNV1a32(name);
-		auto it = std::lower_bound(program->uniforms.begin(), program->uniforms.end(), nameHash,
-		                           [&] (const Uniform& a, uint32_t b) { return a.nameHash < b; });
-		
-		auto WarnOnce = [&]
+		void(*Set1)(GLint location, GLsizei count, const T* value);
+		void(*Set2)(GLint location, GLsizei count, const T* value);
+		void(*Set3)(GLint location, GLsizei count, const T* value);
+		void(*Set4)(GLint location, GLsizei count, const T* value);
+		void(*SetMatrix2)(GLint location, GLsizei count, GLboolean transpose, const T* value);
+		void(*SetMatrix3)(GLint location, GLsizei count, GLboolean transpose, const T* value);
+		void(*SetMatrix4)(GLint location, GLsizei count, GLboolean transpose, const T* value);
+	};
+	
+	template <typename T>
+	inline void SetPushConstantUniform(const SetUniformFunctions<T>& func, const PushConstantMember& pushConst,
+		uint32_t offset, uint32_t range, const void* data)
+	{
+		const T* value = reinterpret_cast<const T*>(reinterpret_cast<const char*>(data) + (pushConst.offset - offset));
+		if (pushConst.columns == 1)
 		{
-			if (program->warnedUniformNames.find(nameHash) == program->warnedUniformNames.end())
-				return false;
-			program->warnedUniformNames.insert(nameHash);
-			return true;
-		};
-		
-		if (it == program->uniforms.end() || it->nameHash != nameHash)
-		{
-			if (WarnOnce())
+			if (pushConst.vectorSize == 1)
 			{
-				Log(LogLevel::Error, "gfx", "Uniform not found '{0}'", name);
+				func.Set1(pushConst.uniformLocation, pushConst.arraySize, value);
 			}
-			return;
-		}
-		
-		//Checks that the type is correct
-		if (type != it->type)
-		{
-			if (WarnOnce())
+			else if (pushConst.vectorSize == 2)
 			{
-				Log(LogLevel::Error, "gfx", "Uniform type mismatch for '{0}', expected {1} but got {2}.",
-					name, it->type, type);
+				func.Set2(pushConst.uniformLocation, pushConst.arraySize, value);
 			}
-			return;
-		}
-		
-		//Clamps the count if it is out of range
-		if (count > it->arraySize)
-		{
-			if (WarnOnce())
+			else if (pushConst.vectorSize == 3)
 			{
-				Log(LogLevel::Warning, "gfx", "Uniform size mismatch for '{0}', maximum is {1} but got {2}, "
-					"only the first {1} values will be set.", name, it->arraySize, count);
+				T* packedValues = reinterpret_cast<T*>(alloca(pushConst.arraySize * sizeof(T) * 3));
+				for (uint32_t i = 0; i < pushConst.arraySize; i++)
+				{
+					std::memcpy(packedValues + (i * 3), value + (i * 4), sizeof(T) * 3);
+				}
+				func.Set3(pushConst.uniformLocation, pushConst.arraySize, packedValues);
 			}
-			count = it->arraySize;
+			else if (pushConst.vectorSize == 4)
+			{
+				func.Set4(pushConst.uniformLocation, pushConst.arraySize, value);
+			}
 		}
-		
-		switch (it->type)
+		else if (pushConst.columns == 2)
 		{
-		case UniformType::Float:
-			glProgramUniform1fv(program->program, it->location, count, reinterpret_cast<const float*>(value));
-			break;
-		case UniformType::Vec2:
-			glProgramUniform2fv(program->program, it->location, count, reinterpret_cast<const float*>(value));
-			break;
-		case UniformType::Vec3:
-			glProgramUniform3fv(program->program, it->location, count, reinterpret_cast<const float*>(value));
-			break;
-		case UniformType::Vec4:
-			glProgramUniform4fv(program->program, it->location, count, reinterpret_cast<const float*>(value));
-			break;
-		case UniformType::Int:
-			glProgramUniform1iv(program->program, it->location, count, reinterpret_cast<const int*>(value));
-			break;
-		case UniformType::IVec2:
-			glProgramUniform2iv(program->program, it->location, count, reinterpret_cast<const int*>(value));
-			break;
-		case UniformType::IVec3:
-			glProgramUniform3iv(program->program, it->location, count, reinterpret_cast<const int*>(value));
-			break;
-		case UniformType::IVec4:
-			glProgramUniform4iv(program->program, it->location, count, reinterpret_cast<const int*>(value));
-			break;
-		case UniformType::Mat3:
-			glProgramUniformMatrix3fv(program->program, it->location, count, GL_FALSE, reinterpret_cast<const float*>(value));
-			break;
-		case UniformType::Mat4:
-			glProgramUniformMatrix4fv(program->program, it->location, count, GL_FALSE, reinterpret_cast<const float*>(value));
-			break;
+			func.SetMatrix2(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
+		}
+		else if (pushConst.columns == 3)
+		{
+			T* packedValues = reinterpret_cast<T*>(alloca(pushConst.arraySize * sizeof(T) * 9));
+			for (uint32_t i = 0; i < pushConst.arraySize * 3; i++)
+			{
+				std::memcpy(packedValues + (i * 3), value + (i * 4), sizeof(T) * 3);
+			}
+			func.SetMatrix3(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, packedValues);
+		}
+		else if (pushConst.columns == 4)
+		{
+			func.SetMatrix4(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
+		}
+	}
+	
+	void PushConstants(CommandContextHandle, uint32_t offset, uint32_t range, const void* data)
+	{
+		for (const PushConstantMember& pushConst : currentPipeline->program->pushConstants)
+		{
+			if (pushConst.offset < offset && pushConst.offset >= offset + range)
+				continue;
+			
+			switch (pushConst.baseType)
+			{
+			case SPIRType::Float:
+			{
+				SetUniformFunctions<float> func =
+				{
+					glUniform1fv, glUniform2fv, glUniform3fv, glUniform4fv,
+					glUniformMatrix2fv, glUniformMatrix3fv, glUniformMatrix4fv
+				};
+				SetPushConstantUniform<float>(func, pushConst, offset, range, data);
+				break;
+			}
+			case SPIRType::Boolean:
+			case SPIRType::Int:
+			{
+				SetUniformFunctions<int32_t> func = { glUniform1iv, glUniform2iv, glUniform3iv, glUniform4iv };
+				SetPushConstantUniform<int32_t>(func, pushConst, offset, range, data);
+				break;
+			}
+			case SPIRType::UInt:
+			{
+				SetUniformFunctions<uint32_t> func = { glUniform1uiv, glUniform2uiv, glUniform3uiv, glUniform4uiv };
+				SetPushConstantUniform<uint32_t>(func, pushConst, offset, range, data);
+				break;
+			}
+			default:
+				EG_PANIC("Unknown push constant type.");
+			}
 		}
 	}
 	

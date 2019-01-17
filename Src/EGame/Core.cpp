@@ -193,6 +193,7 @@ namespace eg
 				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32);
 				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 				break;
+			default: break;
 			}
 			
 			windowFlags |= SDL_WINDOW_OPENGL;

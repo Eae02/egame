@@ -13,7 +13,6 @@ namespace eg::graphics_api::gl
 	static SDL_GLContext glContext;
 	static GLsync fences[MAX_CONCURRENT_FRAMES];
 	
-	extern bool supportsSpirV;
 	extern int maxAnistropy;
 	
 	static bool defaultFramebufferHasDepth;
@@ -100,8 +99,6 @@ namespace eg::graphics_api::gl
 		}
 		
 		glWindow = initArguments.window;
-		
-		supportsSpirV = SDL_GL_ExtensionSupported("GL_ARB_gl_spirv");
 		
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		
