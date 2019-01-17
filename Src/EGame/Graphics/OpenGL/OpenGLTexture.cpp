@@ -259,4 +259,6 @@ namespace eg::graphics_api::gl
 		glBindSampler(binding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
 		glBindTextureUnit(binding, UnwrapTexture(texture)->texture);
 	}
+	
+	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags) { }
 }

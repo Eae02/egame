@@ -26,6 +26,8 @@ namespace eg::graphics_api::vk
 		VkExtent2D extent;
 		VkSampleCountFlags numSamples = VK_SAMPLE_COUNT_1_BIT;
 		
+		bool changeLoadToClear = false;
+		
 		if (beginInfo.framebuffer == nullptr)
 		{
 			numColorAttachments = 1;
@@ -33,6 +35,7 @@ namespace eg::graphics_api::vk
 			framebuffer = ctx.defaultFramebuffers[ctx.currentImage];
 			colorFormats[0] = ctx.surfaceFormat.format;
 			depthStencilFormat = ctx.defaultDSFormat;
+			changeLoadToClear = ctx.defaultFramebufferInPresentMode;
 			ctx.defaultFramebufferInPresentMode = false;
 		}
 		else
@@ -50,7 +53,13 @@ namespace eg::graphics_api::vk
 			renderPassDescription.depthAttachment.samples = numSamples;
 			renderPassDescription.depthAttachment.loadOp = TranslateLoadOp(beginInfo.depthLoadOp);
 			
-			if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear)
+			if (beginInfo.depthLoadOp == AttachmentLoadOp::Load && changeLoadToClear)
+			{
+				renderPassDescription.depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				clearValues[0].depthStencil.depth = 1.0f;
+				clearValues[0].depthStencil.stencil = 0;
+			}
+			else if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear)
 			{
 				clearValues[0].depthStencil.depth = beginInfo.depthClearValue;
 				clearValues[0].depthStencil.stencil = beginInfo.stencilClearValue;
@@ -64,7 +73,12 @@ namespace eg::graphics_api::vk
 			renderPassDescription.colorAttachments[i].loadOp = TranslateLoadOp(beginInfo.colorAttachments[i].loadOp);
 			renderPassDescription.colorAttachments[i].format = colorFormats[i];
 			renderPassDescription.colorAttachments[i].samples = numSamples;
-			if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Clear)
+			
+			if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Load && changeLoadToClear)
+			{
+				renderPassDescription.colorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			}
+			else if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Clear)
 			{
 				std::copy_n(&beginInfo.colorAttachments[i].clearValue.r, 4, clearValues[i + clearValueShift].color.float32);
 			}

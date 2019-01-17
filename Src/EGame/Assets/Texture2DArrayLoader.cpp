@@ -60,6 +60,8 @@ namespace eg
 			eg::DC.GenerateMipmaps(texture);
 		}
 		
+		texture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment);
+		
 		return true;
 	}
 }

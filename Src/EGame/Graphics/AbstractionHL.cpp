@@ -74,6 +74,13 @@ namespace eg
 		return texture;
 	}
 	
+	void TextureRef::UsageHint(TextureUsage usage, ShaderAccessFlags shaderAccessFlags)
+	{
+		if (usage == TextureUsage::ShaderSample && shaderAccessFlags == ShaderAccessFlags::None)
+			EG_PANIC("shaderAccessFlags set to None, but not allowed by usage.");
+		gal::TextureUsageHint(handle, usage, shaderAccessFlags);
+	}
+	
 	struct UploadBuffer
 	{
 		uint64_t lastUsedFrame;
@@ -102,6 +109,7 @@ namespace eg
 		if (selected == nullptr)
 		{
 			selected = &uploadBuffers.emplace_back(RoundToNextMultiple<uint64_t>(size, 1024 * 1024));
+			Log(LogLevel::Info, "gfx", "Created upload buffer with size {0}.", ReadableSize(selected->size));
 		}
 		
 		selected->lastUsedFrame = FrameIdx();

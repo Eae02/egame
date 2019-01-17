@@ -264,6 +264,8 @@ namespace eg
 		while (!gal::IsLoadingComplete())
 			SDL_Delay(100);
 		
+		MarkUploadBuffersAvailable();
+		
 		bool firstMouseMotionEvent = true;
 		
 		resolutionX = -1;

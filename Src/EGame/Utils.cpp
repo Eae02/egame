@@ -1,11 +1,28 @@
 #include "Utils.hpp"
 
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 #include <SDL2/SDL.h>
 
 namespace eg
 {
 	bool detail::devMode = false;
+	
+	std::string ReadableSize(uint64_t size)
+	{
+		std::ostringstream stream;
+		stream << std::setprecision(3);
+		if (size < 1024)
+			stream << size << "B";
+		else if (size < 1024 * 1024)
+			stream << (size / (double)1024) << "KiB";
+		else if (size < 1024 * 1024 * 1024)
+			stream << (size / (double)(1024 * 1024)) << "MiB";
+		else
+			stream << (size / (double)(1024 * 1024 * 1024)) << "GiB";
+		return stream.str();
+	}
 	
 	std::string_view TrimString(std::string_view input)
 	{

@@ -74,6 +74,8 @@ namespace eg
 		return detail::devMode;
 	}
 	
+	EG_API std::string ReadableSize(uint64_t size);
+	
 	/***
 	 * Checks the the given bitfield has a specific flag set.
 	 * @tparam T The type of the bitfield enum.

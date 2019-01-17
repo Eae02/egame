@@ -45,6 +45,11 @@ namespace eg::graphics_api::vk
 		else
 			allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		
+		if (wantsMap)
+		{
+			allocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		}
+		
 		VmaAllocationInfo allocationInfo;
 		CheckRes(vmaCreateBuffer(ctx.allocator, &createInfo, &allocationCreateInfo, &buffer->buffer,
 			&buffer->allocation, &allocationInfo));
@@ -113,7 +118,7 @@ namespace eg::graphics_api::vk
 		if (!autoBarrier || currentUsage == newUsage)
 			return;
 		
-		VkBufferMemoryBarrier barrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
+		VkBufferMemoryBarrier barrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
 		barrier.buffer = buffer;
 		barrier.offset = 0;
 		barrier.size = VK_WHOLE_SIZE;

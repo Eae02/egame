@@ -3,6 +3,7 @@
 #include "Sampler.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
+#include "../../Utils.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -16,6 +17,20 @@ namespace eg::graphics_api::vk
 		texturePool.Delete(this);
 	}
 	
+	static VkComponentSwizzle TranslateCompSwizzle(SwizzleMode swizzle)
+	{
+		switch (swizzle)
+		{
+		case SwizzleMode::Identity: return VK_COMPONENT_SWIZZLE_IDENTITY;
+		case SwizzleMode::One: return VK_COMPONENT_SWIZZLE_ONE;
+		case SwizzleMode::Zero: return VK_COMPONENT_SWIZZLE_ZERO;
+		case SwizzleMode::R: return VK_COMPONENT_SWIZZLE_R;
+		case SwizzleMode::G: return VK_COMPONENT_SWIZZLE_G;
+		case SwizzleMode::B: return VK_COMPONENT_SWIZZLE_B;
+		case SwizzleMode::A: return VK_COMPONENT_SWIZZLE_A;
+		}
+	}
+	
 	static void InitializeImage(Texture& texture, const TextureCreateInfo& createInfo, VkImageType imageType,
 		VkImageViewType viewType, const VkExtent3D& extent, uint32_t arrayLayers)
 	{
@@ -23,9 +38,11 @@ namespace eg::graphics_api::vk
 		texture.aspectFlags = GetFormatAspect(createInfo.format);
 		texture.viewType = viewType;
 		texture.numMipLevels = createInfo.mipLevels;
+		texture.numArrayLayers = arrayLayers;
 		texture.autoBarrier = !HasFlag(createInfo.flags, TextureFlags::ManualBarrier);
 		texture.currentUsage = TextureUsage::Undefined;
 		texture.currentStageFlags = 0;
+		texture.extent = extent;
 		
 		//Creates the image
 		VkImageCreateInfo imageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
@@ -60,7 +77,11 @@ namespace eg::graphics_api::vk
 		viewCreateInfo.viewType = viewType;
 		viewCreateInfo.image = texture.image;
 		viewCreateInfo.format = imageCreateInfo.format;
-		viewCreateInfo.subresourceRange = { texture.aspectFlags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
+		viewCreateInfo.subresourceRange = { texture.aspectFlags, 0, createInfo.mipLevels, 0, arrayLayers };
+		viewCreateInfo.components.r = TranslateCompSwizzle(createInfo.swizzleR);
+		viewCreateInfo.components.g = TranslateCompSwizzle(createInfo.swizzleG);
+		viewCreateInfo.components.b = TranslateCompSwizzle(createInfo.swizzleB);
+		viewCreateInfo.components.a = TranslateCompSwizzle(createInfo.swizzleA);
 		CheckRes(vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &texture.imageView));
 		
 		//Creates the default sampler
@@ -230,6 +251,13 @@ namespace eg::graphics_api::vk
 		vkCmdCopyBufferToImage(cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 	}
 	
+	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
+	{
+		Texture* texture = UnwrapTexture(handle);
+		RefResource(nullptr, *texture);
+		texture->AutoBarrier(GetCB(nullptr), newUsage, shaderAccessFlags);
+	}
+	
 	void GenerateMipmaps(CommandContextHandle cc, TextureHandle handle)
 	{
 		Texture* texture = UnwrapTexture(handle);
@@ -247,7 +275,7 @@ namespace eg::graphics_api::vk
 		preBlitBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		preBlitBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		preBlitBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		preBlitBarrier.subresourceRange = { texture->aspectFlags, 0, 1, 0, VK_REMAINING_ARRAY_LAYERS };
+		preBlitBarrier.subresourceRange = { texture->aspectFlags, 0, 1, 0, texture->numArrayLayers };
 		
 		int srcWidth = texture->extent.width;
 		int srcHeight = texture->extent.height;
@@ -259,14 +287,15 @@ namespace eg::graphics_api::vk
 			
 			int dstWidth = srcWidth / 2;
 			int dstHeight = srcHeight / 2;
+			EG_ASSERT(dstWidth > 0 && dstHeight > 0);
 			
 			VkImageBlit blit;
 			blit.srcOffsets[0] = { 0, 0, 0 };
 			blit.srcOffsets[1] = { srcWidth, srcHeight, 1 };
 			blit.dstOffsets[0] = { 0, 0, 0 };
 			blit.dstOffsets[1] = { dstWidth, dstHeight, 1 };
-			blit.srcSubresource = { texture->aspectFlags, i - 1, 0, VK_REMAINING_ARRAY_LAYERS };
-			blit.dstSubresource = { texture->aspectFlags, i    , 0, VK_REMAINING_ARRAY_LAYERS };
+			blit.srcSubresource = { texture->aspectFlags, i - 1, 0, texture->numArrayLayers };
+			blit.dstSubresource = { texture->aspectFlags, i    , 0, texture->numArrayLayers };
 			
 			vkCmdBlitImage(cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 				texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);

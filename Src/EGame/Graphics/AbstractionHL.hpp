@@ -201,6 +201,8 @@ namespace eg
 			return (uint32_t)std::log2(maxDim) + 1;
 		}
 		
+		void UsageHint(TextureUsage usage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
+		
 		void Destroy()
 		{
 			if (handle != nullptr)

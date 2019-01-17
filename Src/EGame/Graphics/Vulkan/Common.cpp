@@ -131,7 +131,11 @@ namespace eg::graphics_api::vk
 		if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-InconsistentSpirv") == 0)
 			return VK_FALSE;
 		
-		std::cerr << "Vk[" << callbackData->messageIdNumber << "]: " << callbackData->pMessage << std::endl;
+		if (std::strstr(callbackData->pMessage, "Mapping an image with layout VK_IMAGE_LAYOUT_UNDEFINED can result in undefined behavior"))
+			return VK_FALSE;
+		
+		std::cerr << "Vk[" << callbackData->messageIdNumber << " " << callbackData->pMessageIdName << "]: \n" <<
+			callbackData->pMessage << std::endl;
 		
 		PrintAffectedObjects(*callbackData, std::cerr);
 		

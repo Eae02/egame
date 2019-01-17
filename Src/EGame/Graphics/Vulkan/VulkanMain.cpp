@@ -429,7 +429,7 @@ namespace eg::graphics_api::vk
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_MAINTENANCE1_EXTENSION_NAME;
 		
-		const bool hasDedicatedAllocation = hasExtDedicatedAllocation && hasExtGetMemoryRequirements2;
+		const bool hasDedicatedAllocation = false;//hasExtDedicatedAllocation && hasExtGetMemoryRequirements2;
 		if (hasDedicatedAllocation)
 		{
 			enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
@@ -475,7 +475,7 @@ namespace eg::graphics_api::vk
 		{
 			/* sType            */ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			/* pNext            */ nullptr,
-			/* flags            */ VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+			/* flags            */ VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
 			/* queueFamilyIndex */ ctx.queueFamily
 		};
 		CheckRes(vkCreateCommandPool(ctx.device, &mainCommandPoolCreateInfo, nullptr, &ctx.mainCommandPool));
@@ -611,10 +611,14 @@ namespace eg::graphics_api::vk
 		return vkGetFenceStatus(ctx.device, ctx.frameQueueFences[0]) == VK_SUCCESS;
 	}
 	
+	static VkSemaphore acquireSemaphore;
+	
 	static void AcquireNextImage()
 	{
+		acquireSemaphore = ctx.acquireSemaphores[ctx.acquireSemaphoreIndex];
+		
 		VkResult result = vkAcquireNextImageKHR(ctx.device, ctx.swapchain, UINT64_MAX,
-			ctx.acquireSemaphores[ctx.acquireSemaphoreIndex], VK_NULL_HANDLE, &ctx.currentImage);
+			acquireSemaphore, VK_NULL_HANDLE, &ctx.currentImage);
 		
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 		{
@@ -652,7 +656,7 @@ namespace eg::graphics_api::vk
 			/* flags            */ VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 			/* pInheritanceInfo */ nullptr
 		};
-		vkBeginCommandBuffer(ctx.immediateCommandBuffers[CFrameIdx()], &beginInfo);
+		CheckRes(vkBeginCommandBuffer(ctx.immediateCommandBuffers[CFrameIdx()], &beginInfo));
 		
 		ctx.defaultFramebufferInPresentMode = true;
 		ctx.immediateCCState.pipeline = nullptr;
@@ -678,8 +682,33 @@ namespace eg::graphics_api::vk
 			vkCmdPipelineBarrier(immediateCB, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
 				0, 0, nullptr, 0, nullptr, 1, &barrier);
 		}
+		else
+		{
+			VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+			barrier.image = ctx.swapchainImages[ctx.currentImage];
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+			
+			vkCmdPipelineBarrier(immediateCB, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+				0, 0, nullptr, 0, nullptr, 1, &barrier);
+			
+			VkClearColorValue clearValue = { };
+			VkImageSubresourceRange clearRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+			vkCmdClearColorImage(immediateCB, barrier.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clearValue, 1, &clearRange);
+			
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = 0;
+			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+			vkCmdPipelineBarrier(immediateCB, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+				0, 0, nullptr, 0, nullptr, 1, &barrier);
+		}
 		
-		vkEndCommandBuffer(immediateCB);
+		CheckRes(vkEndCommandBuffer(immediateCB));
 		
 		const VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
 		
@@ -688,7 +717,7 @@ namespace eg::graphics_api::vk
 			/* sType                */ VK_STRUCTURE_TYPE_SUBMIT_INFO,
 			/* pNext                */ nullptr,
 			/* waitSemaphoreCount   */ 1,
-			/* pWaitSemaphores      */ &ctx.acquireSemaphores[ctx.currentImage],
+			/* pWaitSemaphores      */ &acquireSemaphore,
 			/* pWaitDstStageMask    */ &waitStages,
 			/* commandBufferCount   */ 1,
 			/* pCommandBuffers      */ &immediateCB,

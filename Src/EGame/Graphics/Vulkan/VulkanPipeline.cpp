@@ -127,6 +127,7 @@ namespace eg::graphics_api::vk
 		program->fragmentShader = VK_NULL_HANDLE;
 		program->refCount = 1;
 		program->pushConstantStages = 0;
+		program->basePipeline = VK_NULL_HANDLE;
 		
 		std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
 		uint32_t numPushConstantBytes = 0;
@@ -212,7 +213,7 @@ namespace eg::graphics_api::vk
 		{
 			if (bindings[i].empty())
 				continue;
-			numDescriptorSets = i;
+			numDescriptorSets = i + 1;
 			setLayouts[i] = GetCachedDescriptorSet(bindings[i]);
 		}
 		
@@ -598,7 +599,7 @@ namespace eg::graphics_api::vk
 		{
 			/* sType               */ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			/* pNext               */ nullptr,
-			/* flags               */ VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT,
+			/* flags               */ 0,
 			/* stageCount          */ numStages,
 			/* pStages             */ stageCreateInfos,
 			/* pVertexInputState   */ &vertexInputState,
@@ -613,11 +614,26 @@ namespace eg::graphics_api::vk
 			/* layout              */ program->pipelineLayout,
 			/* renderPass          */ GetRenderPass(renderPassDescription, true),
 			/* subpass             */ 0,
-			/* basePipelineHandle  */ program->basePipeline,
+			/* basePipelineHandle  */ VK_NULL_HANDLE,
 			/* basePipelineIndex   */ -1
 		};
 		
+		if (program->basePipeline == VK_NULL_HANDLE)
+		{
+			createInfo.flags |= VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
+		}
+		else
+		{
+			createInfo.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+			createInfo.basePipelineHandle = program->basePipeline;
+		}
+		
 		CheckRes(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &createInfo, nullptr, &pipeline->pipeline));
+		
+		if (program->basePipeline == VK_NULL_HANDLE)
+		{
+			program->basePipeline = pipeline->pipeline;
+		}
 		
 		return reinterpret_cast<PipelineHandle>(pipeline);
 	}
@@ -667,7 +683,7 @@ namespace eg::graphics_api::vk
 		    (int)state.scissor.extent.width != w || (int)state.scissor.extent.height != h)
 		{
 			state.scissor.offset.x = x;
-			state.scissor.offset.y = y;
+			state.scissor.offset.y = state.framebufferH - (y + h);
 			state.scissor.extent.width = w;
 			state.scissor.extent.height = h;
 			state.scissorOutOfDate = true;
@@ -696,6 +712,8 @@ namespace eg::graphics_api::vk
 		Buffer* buffer = UnwrapBuffer(bufferHandle);
 		RefResource(cc, *buffer);
 		
+		buffer->CheckUsageState(BufferUsage::UniformBuffer, "binding as a uniform buffer");
+		
 		Pipeline* pipeline = GetCtxState(cc).pipeline;
 		
 		VkDescriptorBufferInfo bufferInfo;
@@ -707,6 +725,7 @@ namespace eg::graphics_api::vk
 		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		writeDS.dstBinding = binding;
 		writeDS.dstSet = 0;
+		writeDS.descriptorCount = 1;
 		writeDS.pBufferInfo = &bufferInfo;
 		
 		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->program->pipelineLayout,
@@ -718,9 +737,20 @@ namespace eg::graphics_api::vk
 		Texture* texture = UnwrapTexture(textureHandle);
 		RefResource(cc, *texture);
 		
-		VkSampler sampler = texture->defaultSampler;
-		if (samplerHandle != VK_NULL_HANDLE)
-			sampler = reinterpret_cast<VkSampler>(samplerHandle);
+		if (texture->autoBarrier && texture->currentUsage != TextureUsage::ShaderSample)
+		{
+			EG_PANIC("Texture passed to BindTexture not in the correct usage state, did you forget to call UsageHint?");
+		}
+		
+		VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
+		if (sampler == VK_NULL_HANDLE)
+		{
+			if (texture->defaultSampler == VK_NULL_HANDLE)
+			{
+				EG_PANIC("Attempted to bind texture with no sampler specified.")
+			}
+			sampler = texture->defaultSampler;
+		}
 		
 		Pipeline* pipeline = GetCtxState(cc).pipeline;
 		
@@ -730,9 +760,10 @@ namespace eg::graphics_api::vk
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		
 		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		writeDS.dstBinding = binding;
 		writeDS.dstSet = 0;
+		writeDS.descriptorCount = 1;
 		writeDS.pImageInfo = &imageInfo;
 		
 		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->program->pipelineLayout,
@@ -757,6 +788,8 @@ namespace eg::graphics_api::vk
 		Buffer* buffer = UnwrapBuffer(bufferHandle);
 		RefResource(cc, *buffer);
 		
+		buffer->CheckUsageState(BufferUsage::VertexBuffer, "binding as a vertex buffer");
+		
 		VkDeviceSize offsetDS = offset;
 		vkCmdBindVertexBuffers(GetCB(cc), binding, 1, &buffer->buffer, &offsetDS);
 	}
@@ -765,6 +798,8 @@ namespace eg::graphics_api::vk
 	{
 		Buffer* buffer = UnwrapBuffer(bufferHandle);
 		RefResource(cc, *buffer);
+		
+		buffer->CheckUsageState(BufferUsage::IndexBuffer, "binding as an index buffer");
 		
 		const VkIndexType vkIndexType = type == IndexType::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
 		vkCmdBindIndexBuffer(GetCB(cc), buffer->buffer, offset, vkIndexType);

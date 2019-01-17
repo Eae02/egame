@@ -12,6 +12,7 @@ namespace eg::graphics_api::vk
 		VkImageViewType viewType;
 		VkExtent3D extent;
 		uint32_t numMipLevels;
+		uint32_t numArrayLayers;
 		VkImageAspectFlags aspectFlags;
 		VkSampler defaultSampler;
 		bool autoBarrier;
