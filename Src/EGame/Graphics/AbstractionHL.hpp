@@ -34,30 +34,30 @@ namespace eg
 		}
 	};
 	
-	class EG_API Pipeline
+	class EG_API PipelineRef
 	{
 	public:
-		inline explicit Pipeline(PipelineHandle handle = nullptr)
-			: m_pipeline(handle) { }
+		explicit PipelineRef(PipelineHandle _handle = nullptr)
+			: handle(_handle) { }
 		
-		/**
-		 * Gets the GAL handle for this pipeline.
-		 */
-		PipelineHandle Handle() const
+		void Destroy()
 		{
-			return m_pipeline.get();
-		}
-		
-	private:
-		struct PipelineDel
-		{
-			void operator()(PipelineHandle handle)
+			if (handle)
 			{
 				gal::DestroyPipeline(handle);
+				handle = nullptr;
 			}
-		};
+		}
 		
-		std::unique_ptr<_Pipeline, PipelineDel> m_pipeline;
+		PipelineHandle handle;
+	};
+	
+	class EG_API Pipeline : public OwningRef<PipelineRef>
+	{
+	public:
+		Pipeline() = default;
+		explicit Pipeline(PipelineHandle _handle)
+			: OwningRef(_handle) { }
 	};
 	
 	/**
@@ -302,9 +302,9 @@ namespace eg
 			gal::BufferBarrier(Handle(), buffer.handle, barrier);
 		}
 		
-		void BindPipeline(const Pipeline& pipeline)
+		void BindPipeline(PipelineRef pipeline)
 		{
-			gal::BindPipeline(Handle(), pipeline.Handle());
+			gal::BindPipeline(Handle(), pipeline.handle);
 		}
 		
 		void BindVertexBuffer(uint32_t binding, BufferRef buffer, uint32_t offset)
