@@ -242,4 +242,23 @@ namespace eg
 		
 		return nullptr;
 	}
+	
+	static void UnloadAssetsR(AssetDirectory* dir)
+	{
+		for (Asset* asset = dir->firstAsset; asset != nullptr; asset = asset->next)
+		{
+			asset->DestroyInstance();
+		}
+		
+		for (AssetDirectory* subDir = dir->firstChildDir; subDir != nullptr; subDir = subDir->nextSiblingDir)
+		{
+			UnloadAssetsR(subDir);
+		}
+	}
+	
+	void UnloadAssets()
+	{
+		UnloadAssetsR(&assetRootDir);
+		detail::assetAllocator.Reset();
+	}
 }

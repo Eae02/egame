@@ -150,6 +150,19 @@ namespace eg::graphics_api::vk
 		return VK_FALSE;
 	}
 	
+	void SetObjectName(uint64_t objectHandle, VkObjectType objectType, const char* name)
+	{
+		if (!ctx.hasDebugUtils)
+			return;
+		
+		VkDebugUtilsObjectNameInfoEXT nameInfo = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
+		nameInfo.objectHandle = objectHandle;
+		nameInfo.objectType = objectType;
+		nameInfo.pObjectName = name;
+		
+		vkSetDebugUtilsObjectNameEXT(ctx.device, &nameInfo);
+	}
+	
 	void CheckRes(VkResult result)
 	{
 		switch (result)

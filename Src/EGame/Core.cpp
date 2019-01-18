@@ -353,6 +353,7 @@ namespace eg
 		
 		game.reset();
 		
+		UnloadAssets();
 		DestroyUploadBuffers();
 		DestroyGraphicsAPI();
 		SDL_DestroyWindow(window);

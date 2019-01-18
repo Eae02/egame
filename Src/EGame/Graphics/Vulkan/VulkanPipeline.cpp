@@ -96,7 +96,7 @@ namespace eg::graphics_api::vk
 	
 	void ShaderProgram::UnRef()
 	{
-		if (refCount-- <= 0)
+		if (--refCount <= 0)
 		{
 			if (basePipeline != VK_NULL_HANDLE)
 				vkDestroyPipeline(ctx.device, basePipeline, nullptr);

@@ -57,6 +57,8 @@ namespace eg
 	
 	EG_API void LoadAssets(const std::string& path, std::string_view mountPath);
 	
+	EG_API void UnloadAssets();
+	
 	namespace detail
 	{
 		EG_API const Asset* FindAsset(std::string_view name);

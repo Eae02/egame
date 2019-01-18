@@ -23,7 +23,7 @@ namespace eg::graphics_api::vk
 		
 		void UnRef()
 		{
-			if (refCount-- <= 0)
+			if (--refCount <= 0)
 				Free();
 		}
 		
@@ -138,6 +138,8 @@ namespace eg::graphics_api::vk
 	
 	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*);
+	
+	void SetObjectName(uint64_t objectHandle, VkObjectType objectType, const char* name);
 	
 	void CheckRes(VkResult result);
 	

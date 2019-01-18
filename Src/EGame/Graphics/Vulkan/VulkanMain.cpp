@@ -77,7 +77,7 @@ namespace eg::graphics_api::vk
 		return VK_PRESENT_MODE_FIFO_KHR;
 	}
 	
-	inline void FreeDefaultFramebuffer()
+	inline void DestroyDefaultFramebuffer()
 	{
 		if (ctx.defaultDSImage != VK_NULL_HANDLE)
 		{
@@ -157,7 +157,7 @@ namespace eg::graphics_api::vk
 			ctx.acquireSemaphores[i] = CreateSemaphore(ctx.device);
 		}
 		
-		FreeDefaultFramebuffer();
+		DestroyDefaultFramebuffer();
 		
 		RenderPassDescription defaultFBRenderPassDesc;
 		defaultFBRenderPassDesc.colorAttachments[0].format = ctx.surfaceFormat.format;
@@ -183,7 +183,6 @@ namespace eg::graphics_api::vk
 			dsImageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 			dsImageCreateInfo.mipLevels = 1;
 			dsImageCreateInfo.arrayLayers = 1;
-			CheckRes(vkCreateImage(ctx.device, &dsImageCreateInfo, nullptr, &ctx.defaultDSImage));
 			
 			VmaAllocationCreateInfo allocationCreateInfo = { };
 			allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -200,6 +199,9 @@ namespace eg::graphics_api::vk
 			if (HasStencil(ctx.defaultDSFormat))
 				dsImageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 			
+			SetObjectName((uint64_t)ctx.defaultDSImage, VK_OBJECT_TYPE_IMAGE, "Default DepthStencil");
+			SetObjectName((uint64_t)ctx.defaultDSImageView, VK_OBJECT_TYPE_IMAGE_VIEW, "Default DepthStencil View");
+			
 			defaultFBRenderPassDesc.depthAttachment.format = ctx.defaultDSFormat;
 			framebufferCreateInfo.attachmentCount = 2;
 			attachments[0] = ctx.defaultDSImageView;
@@ -211,6 +213,7 @@ namespace eg::graphics_api::vk
 		{
 			attachments[framebufferCreateInfo.attachmentCount - 1] = ctx.swapchainImageViews[i];
 			CheckRes(vkCreateFramebuffer(ctx.device, &framebufferCreateInfo, nullptr, &ctx.defaultFramebuffers[i]));
+			SetObjectName((uint64_t)ctx.defaultFramebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "Default Framebuffer");
 		}
 		
 		ctx.acquireSemaphoreIndex = 0;
@@ -584,6 +587,7 @@ namespace eg::graphics_api::vk
 		DestroyCachedDescriptorSets();
 		DestroySamplers();
 		DestroyRenderPasses();
+		DestroyDefaultFramebuffer();
 		
 		for (uint32_t i = 0; i < MAX_CONCURRENT_FRAMES; i++)
 		{
@@ -593,6 +597,31 @@ namespace eg::graphics_api::vk
 		}
 		
 		vkDestroyCommandPool(ctx.device, ctx.mainCommandPool, nullptr);
+		
+		for (VkSemaphore aquireSemaphore : ctx.acquireSemaphores)
+		{
+			if (aquireSemaphore != VK_NULL_HANDLE)
+				vkDestroySemaphore(ctx.device, aquireSemaphore, nullptr);
+		}
+		
+		for (VkImageView swView : ctx.swapchainImageViews)
+		{
+			if (swView != VK_NULL_HANDLE)
+				vkDestroyImageView(ctx.device, swView, nullptr);
+		}
+		
+		vkDestroySwapchainKHR(ctx.device, ctx.swapchain, nullptr);
+		
+		vmaDestroyAllocator(ctx.allocator);
+		
+		vkDestroyDevice(ctx.device, nullptr);
+		
+		vkDestroySurfaceKHR(ctx.instance, ctx.surface, nullptr);
+		
+		if (ctx.debugMessenger)
+			vkDestroyDebugUtilsMessengerEXT(ctx.instance, ctx.debugMessenger, nullptr);
+		
+		vkDestroyInstance(ctx.instance, nullptr);
 	}
 	
 	void EndLoading()
