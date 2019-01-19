@@ -172,7 +172,24 @@ namespace eg
 		BufferHandle handle;
 	};
 	
-	EG_API BufferRef GetTemporaryUploadBuffer(uint64_t size);
+	struct UploadBuffer
+	{
+		BufferRef buffer;
+		uint64_t offset;
+		uint64_t range;
+		
+		void* Map()
+		{
+			return buffer.Map(offset, range);
+		}
+		
+		void Unmap()
+		{
+			buffer.Unmap(offset, range);
+		}
+	};
+	
+	EG_API UploadBuffer GetTemporaryUploadBuffer(uint64_t size);
 	
 	EG_API void MarkUploadBuffersAvailable();
 	EG_API void DestroyUploadBuffers();

@@ -1,5 +1,6 @@
 #include "AbstractionHL.hpp"
 #include "ImageLoader.hpp"
+#include "../Alloc/PoolAllocator.hpp"
 #include "../Core.hpp"
 #include "../IOUtils.hpp"
 
@@ -81,44 +82,65 @@ namespace eg
 		gal::TextureUsageHint(handle, usage, shaderAccessFlags);
 	}
 	
-	struct UploadBuffer
+	static constexpr uint64_t MIN_BUFFER_SIZE = 4 * 1024 * 1024; //4MiB
+	
+	struct UploadBufferEntry
 	{
 		uint64_t lastUsedFrame;
 		uint64_t size;
+		uint64_t offset;
 		Buffer buffer;
 		
-		explicit UploadBuffer(uint64_t _size)
-			: size(_size), buffer(BufferFlags::MapWrite | BufferFlags::CopySrc | BufferFlags::HostAllocate, _size, nullptr) { }
+		explicit UploadBufferEntry(uint64_t _size)
+			: size(_size), offset(0),
+			  buffer(BufferFlags::MapWrite | BufferFlags::CopySrc | BufferFlags::HostAllocate, _size, nullptr) { }
 	};
 	
-	static std::vector<UploadBuffer> uploadBuffers;
+	static std::vector<UploadBufferEntry> uploadBuffers;
 	
-	BufferRef GetTemporaryUploadBuffer(uint64_t size)
+	UploadBuffer GetTemporaryUploadBuffer(uint64_t size)
 	{
-		UploadBuffer* selected = nullptr;
-		for (UploadBuffer& buffer : uploadBuffers)
+		UploadBufferEntry* selected = nullptr;
+		for (UploadBufferEntry& buffer : uploadBuffers)
 		{
-			if (buffer.size >= size &&
-				(buffer.lastUsedFrame == UINT64_MAX || buffer.lastUsedFrame + MAX_CONCURRENT_FRAMES <= FrameIdx()) &&
-				(selected == nullptr || buffer.size < selected->size))
+			if (buffer.lastUsedFrame == UINT64_MAX || buffer.lastUsedFrame == FrameIdx() ||
+			    buffer.lastUsedFrame + MAX_CONCURRENT_FRAMES <= FrameIdx())
 			{
-				selected = &buffer;
+				uint64_t newOffset = buffer.offset + size;
+				if (newOffset <= buffer.size)
+				{
+					selected = &buffer;
+					break;
+				}
 			}
 		}
 		
 		if (selected == nullptr)
 		{
-			selected = &uploadBuffers.emplace_back(RoundToNextMultiple<uint64_t>(size, 1024 * 1024));
-			Log(LogLevel::Info, "gfx", "Created upload buffer with size {0}.", ReadableSize(selected->size));
+			uint64_t allocSize = std::max(RoundToNextMultiple<uint64_t>(size, 1024 * 1024), MIN_BUFFER_SIZE);
+			selected = &uploadBuffers.emplace_back(allocSize);
+			
+			Log(LogLevel::Info, "gfx", "Created upload buffer with size {0}.", ReadableSize(allocSize));
+		}
+		else if (selected->lastUsedFrame != FrameIdx())
+		{
+			selected->offset = 0;
 		}
 		
+		UploadBuffer ret;
+		ret.buffer = selected->buffer;
+		ret.offset = selected->offset;
+		ret.range = size;
+		
+		selected->offset += size;
 		selected->lastUsedFrame = FrameIdx();
-		return selected->buffer;
+		
+		return ret;
 	}
 	
 	void MarkUploadBuffersAvailable()
 	{
-		for (UploadBuffer& buffer : uploadBuffers)
+		for (UploadBufferEntry& buffer : uploadBuffers)
 			buffer.lastUsedFrame = UINT64_MAX;
 	}
 	
