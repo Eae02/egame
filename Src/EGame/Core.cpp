@@ -219,7 +219,7 @@ namespace eg
 		
 		GraphicsAPIInitArguments apiInitArguments;
 		apiInitArguments.window = window;
-		apiInitArguments.enableVSync = true;
+		apiInitArguments.enableVSync = HasFlag(runConfig.flags, RunFlags::VSync);
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
 		apiInitArguments.defaultDepthStencilFormat = defaultDSFormat;
 		

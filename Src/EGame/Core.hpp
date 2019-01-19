@@ -19,7 +19,8 @@ namespace eg
 		None = 0,
 		DevMode = 1,
 		CreateAssetPackage = 2,
-		DefaultFramebufferSRGB = 4
+		DefaultFramebufferSRGB = 4,
+		VSync = 8
 	};
 	
 	EG_BIT_FIELD(RunFlags)

@@ -54,6 +54,8 @@ namespace eg::graphics_api::vk
 		samplerCreateInfo.mipLodBias = description.mipLodBias;
 		samplerCreateInfo.maxAnisotropy = glm::clamp((float)description.maxAnistropy, 1.0f, ctx.deviceLimits.maxSamplerAnisotropy);
 		samplerCreateInfo.borderColor = TranslateBorderColor(description.borderColor);
+		samplerCreateInfo.minLod = -1000;
+		samplerCreateInfo.maxLod = 1000;
 		samplerCreateInfo.minFilter = description.minFilter == TextureFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
 		samplerCreateInfo.magFilter = description.magFilter == TextureFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
 		samplerCreateInfo.mipmapMode = description.mipFilter == TextureFilter::Linear ?

@@ -535,8 +535,7 @@ namespace eg::graphics_api::vk
 		if (ctx.surfaceFormat.format == VK_FORMAT_UNDEFINED)
 			return false;
 		
-		bool vSync = true;
-		ctx.presentMode = SelectPresentMode(vSync);
+		ctx.presentMode = SelectPresentMode(initArguments.enableVSync);
 		ctx.defaultDSFormat = TranslateFormat(initArguments.defaultDepthStencilFormat);
 		CreateSwapchain();
 		
