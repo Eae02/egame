@@ -42,5 +42,5 @@ XM_ABSCALLBACK(EndRenderPass, void, (CommandContextHandle ctx))
 XM_ABSCALLBACK(BindIndexBuffer, void, (CommandContextHandle, IndexType type, BufferHandle buffer, uint32_t offset))
 XM_ABSCALLBACK(BindVertexBuffer, void, (CommandContextHandle, uint32_t binding, BufferHandle buffer, uint32_t offset))
 
-XM_ABSCALLBACK(Draw, void, (CommandContextHandle ctx, uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances))
-XM_ABSCALLBACK(DrawIndexed, void, (CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t numInstances))
+XM_ABSCALLBACK(Draw, void, (CommandContextHandle ctx, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances))
+XM_ABSCALLBACK(DrawIndexed, void, (CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance, uint32_t numInstances))

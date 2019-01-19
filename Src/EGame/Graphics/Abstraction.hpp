@@ -118,6 +118,15 @@ namespace eg
 		UInt16
 	};
 	
+	template <typename T>
+	inline IndexType GetIndexType();
+	
+	template <uint32_t>
+	inline IndexType GetIndexType() { return IndexType::UInt32; }
+	
+	template <uint16_t>
+	inline IndexType GetIndexType() { return IndexType::UInt16; }
+	
 	enum class BlendFunc
 	{
 		Add,

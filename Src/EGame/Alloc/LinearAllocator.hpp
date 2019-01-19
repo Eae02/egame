@@ -1,9 +1,10 @@
 #pragma once
 
+#include "../API.hpp"
 
 namespace eg
 {
-	class LinearAllocator
+	class EG_API LinearAllocator
 	{
 	public:
 		inline explicit LinearAllocator(size_t poolSize = STD_POOL_SIZE) noexcept

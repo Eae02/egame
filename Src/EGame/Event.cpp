@@ -6,6 +6,16 @@
 
 namespace eg
 {
+	detail::CallbackNode* detail::onInit;
+	detail::CallbackNode* detail::onShutdown;
+	
+	detail::CallbackNodeSetter::CallbackNodeSetter(void (*callback)(), detail::CallbackNode** firstNode)
+	{
+		node.callback = callback;
+		node.next = *firstNode;
+		*firstNode = &node;
+	}
+	
 	static std::vector<EventPage*> pages;
 	
 	inline bool EventPageTypeLess(const EventPage* a, const std::type_index& b)

@@ -655,14 +655,14 @@ namespace eg::graphics_api::gl
 		updateVAOBindings = true;
 	}
 	
-	void Draw(CommandContextHandle, uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances)
+	void Draw(CommandContextHandle, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
 	{
 		CommitViewportAndScissor();
 		MaybeUpdateVAO();
-		glDrawArraysInstanced(curState.topology, firstVertex, numVertices, numInstances);
+		glDrawArraysInstancedBaseInstance(curState.topology, firstVertex, numVertices, numInstances, firstInstance);
 	}
 	
-	void DrawIndexed(CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t numInstances)
+	void DrawIndexed(CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance, uint32_t numInstances)
 	{
 		CommitViewportAndScissor();
 		MaybeUpdateVAO();
@@ -676,7 +676,7 @@ namespace eg::graphics_api::gl
 			indexOffset += firstIndex * 2;
 		}
 		
-		glDrawElementsInstancedBaseVertex(curState.topology, numIndices, indexType,
-			(void*)indexOffset, numInstances, firstVertex);
+		glDrawElementsInstancedBaseVertexBaseInstance(curState.topology, numIndices, indexType,
+			(void*)indexOffset, numInstances, firstVertex, firstInstance);
 	}
 }

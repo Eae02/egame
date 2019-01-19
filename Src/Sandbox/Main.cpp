@@ -31,7 +31,7 @@ public:
 		glm::mat2 transform = glm::scale(glm::mat3(1.0f), scale) * glm::rotate(glm::mat3(1.0f), m_rotation);
 		eg::DC.PushConstants(0, transform);
 		
-		eg::DC.Draw(0, 3, 1);
+		eg::DC.Draw(0, 3, 0, 1);
 		
 		eg::DC.EndRenderPass();
 		

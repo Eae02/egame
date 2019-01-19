@@ -5,9 +5,32 @@
 #include <typeindex>
 
 #include "InputState.hpp"
+#include "Utils.hpp"
+#include "API.hpp"
+
+#define EG_ON_INIT(callback) static eg::detail::CallbackNodeSetter EG_CONCAT(_onInit, __LINE__) { &callback, &eg::detail::onInit };
+#define EG_ON_SHUTDOWN(callback) static eg::detail::CallbackNodeSetter EG_CONCAT(_onShutdown, __LINE__) { &callback, &eg::detail::onShutdown };
 
 namespace eg
 {
+	namespace detail
+	{
+		struct CallbackNode
+		{
+			void (*callback)();
+			CallbackNode* next;
+		};
+		
+		EG_API extern CallbackNode* onInit;
+		EG_API extern CallbackNode* onShutdown;
+		
+		struct CallbackNodeSetter
+		{
+			CallbackNode node;
+			EG_API CallbackNodeSetter(void (*callback)(), CallbackNode** firstNode);
+		};
+	}
+	
 	struct ResolutionChangedEvent
 	{
 		int newWidth;

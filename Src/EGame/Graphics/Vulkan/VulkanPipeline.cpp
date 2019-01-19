@@ -805,15 +805,15 @@ namespace eg::graphics_api::vk
 		vkCmdBindIndexBuffer(GetCB(cc), buffer->buffer, offset, vkIndexType);
 	}
 	
-	void Draw(CommandContextHandle cc, uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances)
+	void Draw(CommandContextHandle cc, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
 	{
 		CommitDynamicState(cc);
-		vkCmdDraw(GetCB(cc), numVertices, numInstances, firstVertex, 0);
+		vkCmdDraw(GetCB(cc), numVertices, numInstances, firstVertex, firstInstance);
 	}
 	
-	void DrawIndexed(CommandContextHandle cc, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t numInstances)
+	void DrawIndexed(CommandContextHandle cc, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance, uint32_t numInstances)
 	{
 		CommitDynamicState(cc);
-		vkCmdDrawIndexed(GetCB(cc), numIndices, numInstances, firstIndex, firstVertex, 0);
+		vkCmdDrawIndexed(GetCB(cc), numIndices, numInstances, firstIndex, firstVertex, firstInstance);
 	}
 }

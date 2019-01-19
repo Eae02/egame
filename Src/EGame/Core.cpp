@@ -235,6 +235,11 @@ namespace eg
 		if (runConfig.initialize)
 			runConfig.initialize();
 		
+		for (CallbackNode* node = onInit; node != nullptr; node = node->next)
+		{
+			node->callback();
+		}
+		
 		std::unique_ptr<IGame> game = createGame();
 		
 		InputState currentIS;
@@ -349,6 +354,11 @@ namespace eg
 			auto frameEndTime = high_resolution_clock::now();
 			uint64_t deltaNS = duration_cast<nanoseconds>(frameEndTime - frameBeginTime).count();
 			dt = deltaNS / 1E9f;
+		}
+		
+		for (CallbackNode* node = onShutdown; node != nullptr; node = node->next)
+		{
+			node->callback();
 		}
 		
 		game.reset();

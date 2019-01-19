@@ -322,14 +322,14 @@ namespace eg
 			gal::BindUniformBuffer(Handle(), buffer.handle, binding, offset, range);
 		}
 		
-		void Draw(uint32_t firstVertex, uint32_t numVertices, uint32_t numInstances)
+		void Draw(uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
 		{
-			gal::Draw(Handle(), firstVertex, numVertices, numInstances);
+			gal::Draw(Handle(), firstVertex, numVertices, firstInstance, numInstances);
 		}
 		
-		void DrawIndexed(uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t numInstances)
+		void DrawIndexed(uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance, uint32_t numInstances)
 		{
-			gal::DrawIndexed(Handle(), firstIndex, numIndices, firstVertex, numInstances);
+			gal::DrawIndexed(Handle(), firstIndex, numIndices, firstVertex, firstInstance, numInstances);
 		}
 		
 		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr)

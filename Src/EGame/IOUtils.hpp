@@ -1,6 +1,6 @@
 #pragma once
 
-
+#include "Span.hpp"
 #include "API.hpp"
 
 namespace eg
@@ -10,6 +10,28 @@ namespace eg
 	EG_API void WriteCompressedSection(std::ostream& output, const void* data, size_t dataSize);
 	
 	EG_API std::vector<char> ReadStreamContents(std::istream& stream);
+	
+	class MemoryStreambuf : public std::streambuf
+	{
+	public:
+		MemoryStreambuf(const char* begin, const char* end)
+			: m_begin(const_cast<char*>(begin)), m_end(const_cast<char*>(end))
+		{
+			setg(m_begin, m_begin, m_end);
+		}
+		
+		inline explicit MemoryStreambuf(Span<const char> data)
+			: MemoryStreambuf(data.data(), data.data() + data.size()) { }
+		
+		virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+			std::ios_base::openmode which = std::ios_base::in) override;
+		
+		virtual pos_type seekpos(std::streampos pos, std::ios_base::openmode mode) override;
+		
+	private:
+		char* m_begin;
+		char* m_end;
+	};
 	
 	template <typename T, typename StreamTp, typename = std::enable_if_t<std::is_fundamental_v<T> || std::is_enum_v<T>>>
 	inline void BinWrite(StreamTp& stream, T value)

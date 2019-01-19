@@ -47,6 +47,9 @@ inline constexpr T& operator|=(T& a, T b) noexcept \
 #define EG_ASSERT(condition) if (!(condition)) { std::cerr << "ASSERT@" << __FILE__ << ":" << __LINE__ << " " #condition << std::endl; EG_DEBUG_BREAK; std::abort(); }
 #endif
 
+#define EG_CONCAT_IMPL(x, y) x##y
+#define EG_CONCAT(x, y) EG_CONCAT_IMPL(x, y)
+
 namespace eg
 {
 	constexpr float PI = 3.141592653589793f;
@@ -93,6 +96,11 @@ namespace eg
 	constexpr inline size_t ArrayLen(T (& array)[I])
 	{
 		return I;
+	}
+	
+	inline int8_t FloatToSNorm(float x)
+	{
+		return (int8_t)(glm::clamp(x, -1.0f, 1.0f) * 127.0f);
 	}
 	
 	template <class T>
@@ -216,6 +224,8 @@ namespace eg
 			pos = end;
 		}
 	}
+	
+	EG_API void SplitString(std::string_view string, char delimiter, std::vector<std::string_view>& partsOut);
 	
 	template <typename CollectionTp, typename ItemTp>
 	inline bool Contains(const CollectionTp& collection, const ItemTp& item)

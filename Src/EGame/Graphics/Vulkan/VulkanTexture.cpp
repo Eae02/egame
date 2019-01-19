@@ -29,6 +29,7 @@ namespace eg::graphics_api::vk
 		case SwizzleMode::B: return VK_COMPONENT_SWIZZLE_B;
 		case SwizzleMode::A: return VK_COMPONENT_SWIZZLE_A;
 		}
+		EG_UNREACHABLE;
 	}
 	
 	static void InitializeImage(Texture& texture, const TextureCreateInfo& createInfo, VkImageType imageType,

@@ -432,7 +432,7 @@ namespace eg::graphics_api::vk
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_MAINTENANCE1_EXTENSION_NAME;
 		
-		const bool hasDedicatedAllocation = false;//hasExtDedicatedAllocation && hasExtGetMemoryRequirements2;
+		const bool hasDedicatedAllocation = hasExtDedicatedAllocation && hasExtGetMemoryRequirements2;
 		if (hasDedicatedAllocation)
 		{
 			enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;

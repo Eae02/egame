@@ -64,6 +64,14 @@ namespace eg
 		return result;
 	}
 	
+	void SplitString(std::string_view string, char delimiter, std::vector<std::string_view>& partsOut)
+	{
+		IterateStringParts(string, delimiter, [&] (std::string_view part)
+		{
+			partsOut.push_back(part);
+		});
+	}
+	
 	void ReleasePanic(const std::string& message)
 	{
 		std::cerr << message << std::endl;

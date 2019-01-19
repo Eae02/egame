@@ -1,8 +1,10 @@
 #pragma once
 
+#include "../API.hpp"
+
 namespace eg
 {
-	class PoolAllocator
+	class EG_API PoolAllocator
 	{
 	private:
 		struct AvailableBlock
