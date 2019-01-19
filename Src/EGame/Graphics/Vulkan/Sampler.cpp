@@ -52,6 +52,7 @@ namespace eg::graphics_api::vk
 		samplerCreateInfo.addressModeV = TranslateAddressMode(description.wrapV);
 		samplerCreateInfo.addressModeW = TranslateAddressMode(description.wrapW);
 		samplerCreateInfo.mipLodBias = description.mipLodBias;
+		samplerCreateInfo.anisotropyEnable = description.maxAnistropy > 1;
 		samplerCreateInfo.maxAnisotropy = glm::clamp((float)description.maxAnistropy, 1.0f, ctx.deviceLimits.maxSamplerAnisotropy);
 		samplerCreateInfo.borderColor = TranslateBorderColor(description.borderColor);
 		samplerCreateInfo.minLod = -1000;
