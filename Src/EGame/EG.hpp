@@ -7,6 +7,7 @@
 #include "Graphics/AbstractionHL.hpp"
 #include "Graphics/Model.hpp"
 #include "Graphics/StdVertex.hpp"
+#include "Graphics/PerspectiveProjection.hpp"
 #include "Alloc/LinearAllocator.hpp"
 #include "Alloc/DirectAllocator.hpp"
 #include "Alloc/ObjectPool.hpp"

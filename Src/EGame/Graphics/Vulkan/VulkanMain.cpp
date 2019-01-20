@@ -575,6 +575,7 @@ namespace eg::graphics_api::vk
 	void GetCapabilities(GraphicsCapabilities& capabilities)
 	{
 		capabilities.uniformBufferAlignment = ctx.deviceLimits.minUniformBufferOffsetAlignment;
+		capabilities.depthRange = DepthRange::ZeroToOne;
 	}
 	
 	void DestroyCachedDescriptorSets();

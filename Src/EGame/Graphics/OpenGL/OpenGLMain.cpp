@@ -135,6 +135,8 @@ namespace eg::graphics_api::gl
 		int intRes;
 		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &intRes);
 		capabilities.uniformBufferAlignment = intRes;
+		
+		capabilities.depthRange = DepthRange::NegOneToOne;
 	}
 	
 	void Shutdown()

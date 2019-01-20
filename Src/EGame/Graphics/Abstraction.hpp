@@ -378,9 +378,16 @@ namespace eg
 			: framebuffer(_framebuffer) { }
 	};
 	
+	enum class DepthRange
+	{
+		NegOneToOne,
+		ZeroToOne
+	};
+	
 	struct GraphicsCapabilities
 	{
 		uint32_t uniformBufferAlignment;
+		DepthRange depthRange;
 	};
 	
 	template <>
@@ -393,6 +400,16 @@ namespace eg
 		bool defaultFramebufferSRGB;
 		bool enableVSync;
 	};
+	
+	namespace detail
+	{
+		EG_API extern GraphicsAPI graphicsAPI;
+	}
+	
+	inline GraphicsAPI CurrentGraphicsAPI()
+	{
+		return detail::graphicsAPI;
+	}
 	
 	bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments);
 	

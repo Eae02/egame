@@ -12,6 +12,7 @@ namespace eg
 		virtual ~IGame() = default;
 		
 		virtual void RunFrame(float dt) = 0;
+		virtual void ResolutionChanged(int newWidth, int newHeight) { }
 	};
 	
 	enum class RunFlags

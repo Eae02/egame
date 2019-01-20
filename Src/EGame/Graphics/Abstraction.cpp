@@ -29,8 +29,12 @@ namespace eg
 #undef XM_ABSCALLBACK
 	}
 	
+	GraphicsAPI detail::graphicsAPI;
+	
 	bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments)
 	{
+		detail::graphicsAPI = api;
+		
 		switch (api)
 		{
 		case GraphicsAPI::OpenGL:

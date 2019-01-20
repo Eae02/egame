@@ -335,6 +335,7 @@ namespace eg
 			{
 				resolutionX = newDrawableW;
 				resolutionY = newDrawableH;
+				game->ResolutionChanged(resolutionX, resolutionY);
 				RaiseEvent(ResolutionChangedEvent { resolutionX, resolutionY });
 			}
 			
