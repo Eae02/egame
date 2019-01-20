@@ -1,6 +1,8 @@
 #include "InputState.hpp"
 #include "Utils.hpp"
 
+#include <SDL2/SDL.h>
+
 namespace eg
 {
 	InputState* detail::currentIS;
@@ -204,5 +206,18 @@ namespace eg
 		if ((size_t)button >= ArrayLen(buttonNames))
 			return buttonNames[0];
 		return buttonNames[(int)button];
+	}
+	
+	static bool g_relMouseMode = false;
+	
+	void SetRelativeMouseMode(bool relMouseMode)
+	{
+		g_relMouseMode = relMouseMode;
+		SDL_SetRelativeMouseMode((SDL_bool)relMouseMode);
+	}
+	
+	bool RelativeMouseModeActive()
+	{
+		return g_relMouseMode;
 	}
 }

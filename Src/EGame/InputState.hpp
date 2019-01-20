@@ -145,6 +145,11 @@ namespace eg
 			return { cursorX, cursorY };
 		}
 		
+		glm::ivec2 CursorPosDelta() const
+		{
+			return { cursorDeltaX, cursorDeltaY };
+		}
+		
 		glm::ivec2 ScrollPos() const
 		{
 			return { scrollX, scrollY };
@@ -164,13 +169,18 @@ namespace eg
 		int32_t scrollY = 0;
 		int32_t cursorX = 0;
 		int32_t cursorY = 0;
+		int32_t cursorDeltaX = 0;
+		int32_t cursorDeltaY = 0;
 		
 	private:
 		Button m_pressed = Button::Unknown;
-		char m_isButtonDown[12]; //Space for 96 buttons
+		char m_isButtonDown[12];
 		
 		static_assert(sizeof(m_isButtonDown) * 8 >= NUM_BUTTONS);
 	};
+	
+	EG_API void SetRelativeMouseMode(bool relMouseMode);
+	EG_API bool RelativeMouseModeActive();
 	
 	inline Button PressedButton()
 	{
@@ -200,6 +210,21 @@ namespace eg
 	inline int32_t CursorY()
 	{
 		return detail::currentIS->cursorY;
+	}
+	
+	inline int32_t CursorDeltaX()
+	{
+		return detail::currentIS->cursorDeltaX;
+	}
+	
+	inline int32_t CursorDeltaY()
+	{
+		return detail::currentIS->cursorDeltaY;
+	}
+	
+	inline glm::ivec2 CursorPosDelta()
+	{
+		return detail::currentIS->CursorPosDelta();
 	}
 	
 	inline glm::ivec2 PrevCursorPos()

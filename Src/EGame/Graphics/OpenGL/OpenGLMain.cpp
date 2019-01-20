@@ -81,7 +81,10 @@ namespace eg::graphics_api::gl
 		if (glContext == nullptr)
 			return false;
 		
-		SDL_GL_SetSwapInterval((int)initArguments.enableVSync);
+		if (!initArguments.enableVSync)
+			SDL_GL_SetSwapInterval(0);
+		else if (SDL_GL_SetSwapInterval(-1) == -1)
+			SDL_GL_SetSwapInterval(1);
 		
 		if (gl3wInit() != GL3W_OK)
 			return false;

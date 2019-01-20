@@ -283,6 +283,8 @@ namespace eg
 			auto frameBeginTime = high_resolution_clock::now();
 			
 			previousIS = currentIS;
+			currentIS.cursorDeltaX = 0;
+			currentIS.cursorDeltaY = 0;
 			
 			SDL_Event event;
 			while (SDL_PollEvent(&event))
@@ -296,6 +298,11 @@ namespace eg
 					if (!event.key.repeat)
 					{
 						ButtonDownEvent(TranslateSDLKey(event.key.keysym.scancode));
+						if (RelativeMouseModeActive() && DevMode() && event.key.keysym.scancode == SDL_SCANCODE_F10)
+						{
+							bool rel = SDL_GetRelativeMouseMode();
+							SDL_SetRelativeMouseMode((SDL_bool)(!rel));
+						}
 					}
 					break;
 				case SDL_KEYUP:
@@ -319,6 +326,8 @@ namespace eg
 					}
 					currentIS.cursorX = event.motion.x;
 					currentIS.cursorY = event.motion.y;
+					currentIS.cursorDeltaX += event.motion.xrel;
+					currentIS.cursorDeltaY += event.motion.yrel;
 					break;
 				case SDL_MOUSEWHEEL:
 					currentIS.scrollX += event.wheel.x;
