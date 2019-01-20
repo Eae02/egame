@@ -682,10 +682,10 @@ namespace eg::graphics_api::vk
 		if (state.scissor.offset.x != x || state.scissor.offset.y != y ||
 		    (int)state.scissor.extent.width != w || (int)state.scissor.extent.height != h)
 		{
-			state.scissor.offset.x = x;
-			state.scissor.offset.y = state.framebufferH - (y + h);
-			state.scissor.extent.width = w;
-			state.scissor.extent.height = h;
+			state.scissor.offset.x = std::max<int>(x, 0);
+			state.scissor.offset.y = std::max<int>(state.framebufferH - (y + h), 0);
+			state.scissor.extent.width = std::min<int>(w, state.framebufferW - x);
+			state.scissor.extent.height = std::min<int>(h, state.framebufferH - y);
 			state.scissorOutOfDate = true;
 		}
 	}

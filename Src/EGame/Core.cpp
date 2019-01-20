@@ -175,27 +175,6 @@ namespace eg
 			SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,
 				(int)HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB));
 			
-			switch (defaultDSFormat)
-			{
-			case Format::Depth16:
-				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
-				break;
-			case Format::Depth32:
-				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
-				break;
-			case Format::Depth24Stencil8:
-				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-				break;
-			case Format::Depth32Stencil8:
-				SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32);
-				SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-				break;
-			default: break;
-			}
-			
 			windowFlags |= SDL_WINDOW_OPENGL;
 		}
 		else if (runConfig.graphicsAPI == GraphicsAPI::Vulkan)

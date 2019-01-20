@@ -194,6 +194,7 @@ namespace eg::graphics_api::gl
 	}
 	
 	void InitScissorTest();
+	bool IsDepthWriteEnabled();
 	
 	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 	{
@@ -216,6 +217,8 @@ namespace eg::graphics_api::gl
 		}
 		
 		SetEnabled<GL_SCISSOR_TEST>(false);
+		if (!IsDepthWriteEnabled())
+			glDepthMask(GL_TRUE);
 		
 		uint32_t numInvalidateAttachments = 0;
 		GLenum invalidateAttachments[MAX_COLOR_ATTACHMENTS + 2];
@@ -292,7 +295,7 @@ namespace eg::graphics_api::gl
 			{
 				if (beginInfo.framebuffer == nullptr)
 				{
-					invalidateAttachments[numInvalidateAttachments++] = GL_COLOR;
+					invalidateAttachments[numInvalidateAttachments++] = GL_BACK_LEFT;
 				}
 				else
 				{
@@ -307,6 +310,8 @@ namespace eg::graphics_api::gl
 		}
 		
 		InitScissorTest();
+		if (!IsDepthWriteEnabled())
+			glDepthMask(GL_FALSE);
 	}
 	
 	void EndRenderPass(CommandContextHandle cc) { }

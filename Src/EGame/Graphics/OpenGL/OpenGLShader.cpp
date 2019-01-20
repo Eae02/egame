@@ -422,6 +422,11 @@ namespace eg::graphics_api::gl
 	bool viewportOutOfDate;
 	bool scissorOutOfDate;
 	
+	bool IsDepthWriteEnabled()
+	{
+		return curState.enableDepthWrite;
+	}
+	
 	void SetViewport(CommandContextHandle, float x, float y, float w, float h)
 	{
 		if (!FEqual(currentViewport[0], x) || !FEqual(currentViewport[1], y) ||

@@ -174,7 +174,7 @@ namespace eg
 		
 	private:
 		Button m_pressed = Button::Unknown;
-		char m_isButtonDown[12];
+		char m_isButtonDown[12] = { };
 		
 		static_assert(sizeof(m_isButtonDown) * 8 >= NUM_BUTTONS);
 	};
