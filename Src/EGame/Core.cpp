@@ -1,8 +1,12 @@
 #include "Core.hpp"
 #include "MainThreadInvoke.hpp"
+#include "Platform/FontConfig.hpp"
 #include "Graphics/AbstractionHL.hpp"
+#include "Graphics/SpriteBatch.hpp"
+#include "Graphics/SpriteFont.hpp"
 #include "InputState.hpp"
 #include "Event.hpp"
+#include "Console.hpp"
 
 #include <SDL2/SDL.h>
 #include <iostream>
@@ -43,6 +47,7 @@ namespace eg
 		case SDL_SCANCODE_UP: return Button::UpArrow;
 		case SDL_SCANCODE_RIGHT: return Button::RightArrow;
 		case SDL_SCANCODE_DOWN: return Button::DownArrow;
+		case SDL_SCANCODE_GRAVE: return Button::Grave;
 		case SDL_SCANCODE_PAGEUP: return Button::PageUp;
 		case SDL_SCANCODE_PAGEDOWN: return Button::PageDown;
 		case SDL_SCANCODE_HOME: return Button::Home;
@@ -145,12 +150,18 @@ namespace eg
 			exeDirPath = exeDirPathPtr;
 		}
 		
+		eg::DefineEventType<ResolutionChangedEvent>();
+		eg::DefineEventType<ButtonEvent>();
+		
+		if (devMode)
+		{
+			console::Init();
+		}
+		
+		InitPlatformFontConfig();
 		RegisterDefaultAssetGenerator();
 		LoadAssetGenLibrary();
 		RegisterAssetLoaders();
-		
-		eg::DefineEventType<ResolutionChangedEvent>();
-		eg::DefineEventType<ButtonEvent>();
 		
 		uint32_t windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN;
 		
@@ -211,6 +222,12 @@ namespace eg
 		
 		gal::GetCapabilities(detail::graphicsCapabilities);
 		
+		SpriteBatch::InitStatic();
+		if (DevMode())
+		{
+			SpriteFont::LoadDevFont();
+		}
+		
 		if (runConfig.initialize)
 			runConfig.initialize();
 		
@@ -226,22 +243,18 @@ namespace eg
 		detail::currentIS = &currentIS;
 		detail::previousIS = &previousIS;
 		
-		auto ButtonDownEvent = [&] (Button button)
+		auto ButtonDownEvent = [&] (Button button, bool isRepeat)
 		{
-			if (button != Button::Unknown && !currentIS.IsButtonDown(button))
-			{
+			if (!isRepeat && button != Button::Unknown && !currentIS.IsButtonDown(button))
 				currentIS.OnButtonDown(button);
-				RaiseEvent<ButtonEvent>({ button, true });
-			}
+			RaiseEvent<ButtonEvent>({ button, true, isRepeat });
 		};
 		
-		auto ButtonUpEvent = [&] (Button button)
+		auto ButtonUpEvent = [&] (Button button, bool isRepeat)
 		{
-			if (button != Button::Unknown && currentIS.IsButtonDown(button))
-			{
+			if (!isRepeat && button != Button::Unknown && currentIS.IsButtonDown(button))
 				currentIS.OnButtonUp(button);
-				RaiseEvent<ButtonEvent>({ button, false });
-			}
+			RaiseEvent<ButtonEvent>({ button, false, isRepeat });
 		};
 		
 		gal::EndLoading();
@@ -264,6 +277,7 @@ namespace eg
 			previousIS = currentIS;
 			currentIS.cursorDeltaX = 0;
 			currentIS.cursorDeltaY = 0;
+			inputtedText.clear();
 			
 			SDL_Event event;
 			while (SDL_PollEvent(&event))
@@ -274,27 +288,23 @@ namespace eg
 					shouldClose = true;
 					break;
 				case SDL_KEYDOWN:
-					if (!event.key.repeat)
+					ButtonDownEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
+					
+					if (RelativeMouseModeActive() && DevMode() && !event.key.repeat &&
+					    event.key.keysym.scancode == SDL_SCANCODE_F10)
 					{
-						ButtonDownEvent(TranslateSDLKey(event.key.keysym.scancode));
-						if (RelativeMouseModeActive() && DevMode() && event.key.keysym.scancode == SDL_SCANCODE_F10)
-						{
-							bool rel = SDL_GetRelativeMouseMode();
-							SDL_SetRelativeMouseMode((SDL_bool)(!rel));
-						}
+						bool rel = SDL_GetRelativeMouseMode();
+						SDL_SetRelativeMouseMode((SDL_bool)(!rel));
 					}
 					break;
 				case SDL_KEYUP:
-					if (!event.key.repeat)
-					{
-						ButtonUpEvent(TranslateSDLKey(event.key.keysym.scancode));
-					}
+					ButtonUpEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
 					break;
 				case SDL_MOUSEBUTTONDOWN:
-					ButtonDownEvent(TranslateSDLMouseButton(event.button.button));
+					ButtonDownEvent(TranslateSDLMouseButton(event.button.button), false);
 					break;
 				case SDL_MOUSEBUTTONUP:
-					ButtonUpEvent(TranslateSDLMouseButton(event.button.button));
+					ButtonUpEvent(TranslateSDLMouseButton(event.button.button), false);
 					break;
 				case SDL_MOUSEMOTION:
 					if (firstMouseMotionEvent)
@@ -312,6 +322,9 @@ namespace eg
 					currentIS.scrollX += event.wheel.x;
 					currentIS.scrollY += event.wheel.y;
 					break;
+				case SDL_TEXTINPUT:
+					inputtedText.append(event.text.text);
+					break;
 				}
 			}
 			
@@ -327,13 +340,23 @@ namespace eg
 				RaiseEvent(ResolutionChangedEvent { resolutionX, resolutionY });
 			}
 			
+			SpriteBatch::overlay.Begin();
+			
 			game->RunFrame(dt);
+			
+			console::Update(dt);
+			console::Draw(SpriteBatch::overlay, resolutionX, resolutionY);
 			
 			//Processes main thread invokes
 			for (MTIBase* mti = firstMTI; mti != nullptr; mti = mti->next)
 				mti->Invoke();
 			firstMTI = lastMTI = nullptr;
 			allocMTI.Reset();
+			
+			eg::RenderPassBeginInfo rpBeginInfo;
+			rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Load;
+			rpBeginInfo.depthLoadOp = AttachmentLoadOp::Load;
+			SpriteBatch::overlay.End(resolutionX, resolutionY, rpBeginInfo);
 			
 			gal::EndFrame();
 			
@@ -352,9 +375,14 @@ namespace eg
 		
 		game.reset();
 		
+		console::Destroy();
+		SpriteBatch::overlay = {};
+		SpriteFont::UnloadDevFont();
+		SpriteBatch::DestroyStatic();
 		UnloadAssets();
 		DestroyUploadBuffers();
 		DestroyGraphicsAPI();
+		DestroyPlatformFontConfig();
 		SDL_DestroyWindow(window);
 		SDL_Quit();
 		

@@ -41,7 +41,6 @@ public:
 private:
 	float m_rotation = 0.0f;
 	eg::Pipeline m_pipeline;
-	eg::EventListener<eg::ResolutionChangedEvent> m_listener;
 };
 
 int main(int argc, char** argv)

@@ -235,15 +235,14 @@ namespace eg
 	class EG_API Texture : public OwningRef<TextureRef>
 	{
 	public:
-		explicit Texture(TextureHandle _handle = nullptr)
-			: OwningRef(_handle) { }
-		
 		enum class LoadFormat
 		{
 			R_UNorm,
 			RGBA_UNorm,
 			RGBA_sRGB,
 		};
+		
+		Texture() = default;
 		
 		/**
 		 * Loads a texture from a stream containing a PNG/JPEG/TGA/BMP/GIF image.
@@ -258,13 +257,68 @@ namespace eg
 		
 		static Texture Create2D(const Texture2DCreateInfo& createInfo)
 		{
-			return Texture(gal::CreateTexture2D(createInfo));
+			Texture texture(gal::CreateTexture2D(createInfo));
+			texture.m_width = createInfo.width;
+			texture.m_height = createInfo.height;
+			texture.m_depth = 1;
+			texture.m_mipLevels = createInfo.mipLevels;
+			texture.m_arrayLayers = 1;
+			texture.m_format = createInfo.format;
+			return texture;
 		}
 		
 		static Texture Create2DArray(const Texture2DArrayCreateInfo& createInfo)
 		{
-			return Texture(gal::CreateTexture2DArray(createInfo));
+			Texture texture(gal::CreateTexture2DArray(createInfo));
+			texture.m_width = createInfo.width;
+			texture.m_height = createInfo.height;
+			texture.m_depth = 1;
+			texture.m_mipLevels = createInfo.mipLevels;
+			texture.m_arrayLayers = createInfo.arrayLayers;
+			texture.m_format = createInfo.format;
+			return texture;
 		}
+		
+		uint32_t Width() const
+		{
+			return m_width;
+		}
+		
+		uint32_t Height() const
+		{
+			return m_height;
+		}
+		
+		uint32_t Depth() const
+		{
+			return m_depth;
+		}
+		
+		uint32_t MipLevels() const
+		{
+			return m_mipLevels;
+		}
+		
+		uint32_t ArrayLayers() const
+		{
+			return m_arrayLayers;
+		}
+		
+		eg::Format Format() const
+		{
+			return m_format;
+		}
+		
+	private:
+		explicit Texture(TextureHandle _handle)
+			: OwningRef(_handle) { }
+		
+		uint32_t m_width;
+		uint32_t m_height;
+		uint32_t m_depth;
+		uint32_t m_mipLevels;
+		uint32_t m_arrayLayers;
+		eg::Format m_format;
 	};
 	
 	class EG_API Sampler

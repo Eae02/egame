@@ -6,5 +6,6 @@
 Install
 CMake/Debug
 CMake/Release
+Src/Shaders/*.h
 Bin
 *.gch

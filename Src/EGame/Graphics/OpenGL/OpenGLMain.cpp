@@ -128,7 +128,7 @@ namespace eg::graphics_api::gl
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 		
 		const char* rendererName = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
-		Log(LogLevel::Info, "gfx", "Using OpenGL renderer: '{0}'", rendererName);
+		Log(LogLevel::Info, "gl", "Using OpenGL renderer: '{0}'", rendererName);
 		
 		return true;
 	}

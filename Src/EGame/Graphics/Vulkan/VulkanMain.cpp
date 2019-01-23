@@ -62,18 +62,21 @@ namespace eg::graphics_api::vk
 			//Try to use immediate present mode if vsync is disabled.
 			if (CanUsePresentMode(VK_PRESENT_MODE_IMMEDIATE_KHR))
 			{
+				Log(LogLevel::Info, "vk", "Selected present mode: immediate");
 				return VK_PRESENT_MODE_IMMEDIATE_KHR;
 			}
 			
-			Log(LogLevel::Warning, "gfx", "Disabling V-Sync is not supported by this driver "
+			Log(LogLevel::Warning, "vk", "Disabling V-Sync is not supported by this driver "
 				"(it does not support immediate present mode).");
 		}
 		
 		if (CanUsePresentMode(VK_PRESENT_MODE_MAILBOX_KHR))
 		{
+			Log(LogLevel::Info, "vk", "Selected present mode: mailbox");
 			return VK_PRESENT_MODE_MAILBOX_KHR;
 		}
 		
+		Log(LogLevel::Info, "vk", "Selected present mode: fifo");
 		return VK_PRESENT_MODE_FIFO_KHR;
 	}
 	
@@ -248,7 +251,7 @@ namespace eg::graphics_api::vk
 		
 		if (!InstanceExtensionSupported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME))
 		{
-			Log(LogLevel::Error, "gfx", "Vulkan failed to initialize because required instance extension "
+			Log(LogLevel::Error, "vk", "Vulkan failed to initialize because required instance extension "
 				VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME " is not available.");
 			return false;
 		}
@@ -282,7 +285,7 @@ namespace eg::graphics_api::vk
 		VkResult instanceCreateRes = vkCreateInstance(&instanceCreateInfo, nullptr, &ctx.instance);
 		if (instanceCreateRes != VK_SUCCESS)
 		{
-			Log(LogLevel::Error, "gfx", "Vulkan instance creation failed with status: {0}", instanceCreateRes);
+			Log(LogLevel::Error, "vk", "Vulkan instance creation failed with status: {0}", instanceCreateRes);
 			return false;
 		}
 		
@@ -340,7 +343,7 @@ namespace eg::graphics_api::vk
 			
 			if (!foundQueueFamily)
 			{
-				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not have a queue family "
+				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not have a queue family "
 					" that supports graphics, compute and present.", deviceProperties.deviceName);
 				continue;
 			}
@@ -374,35 +377,35 @@ namespace eg::graphics_api::vk
 			
 			if (!hasExtSwapchain)
 			{
-				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not support the "
+				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the "
 					VK_KHR_SWAPCHAIN_EXTENSION_NAME " extension", deviceProperties.deviceName);
 				continue;
 			}
 			
 			if (!hasExtPushDescriptor)
 			{
-				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not support the "
+				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the "
 					VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME " extension", deviceProperties.deviceName);
 				continue;
 			}
 			
 			if (!hasExtMaintenance1)
 			{
-				Log(LogLevel::Info, "gfx", "Cannot use vulkan device '{0}' because it does not support the "
+				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the "
 					VK_KHR_MAINTENANCE1_EXTENSION_NAME " extension", deviceProperties.deviceName);
 				continue;
 			}
 			
 			ctx.physDevice = physicalDevice;
 			
-			Log(LogLevel::Info, "gfx", "Using vulkan device: '{0}'", deviceProperties.deviceName);
+			Log(LogLevel::Info, "vk", "Using vulkan device: '{0}'", deviceProperties.deviceName);
 			
 			break;
 		}
 		
 		if (ctx.physDevice == VK_NULL_HANDLE)
 		{
-			Log(LogLevel::Error, "gfx", "No compatible vulkan device was found");
+			Log(LogLevel::Error, "vk", "No compatible vulkan device was found");
 			return false;
 		}
 		
@@ -456,7 +459,7 @@ namespace eg::graphics_api::vk
 		VkResult createDeviceRes = vkCreateDevice(ctx.physDevice, &deviceCreateInfo, nullptr, &ctx.device);
 		if (createDeviceRes != VK_SUCCESS)
 		{
-			Log(LogLevel::Error, "gfx", "Vulkan device creation failed with status: {0}", createDeviceRes);
+			Log(LogLevel::Error, "vk", "Vulkan device creation failed with status: {0}", createDeviceRes);
 			return false;
 		}
 		

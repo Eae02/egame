@@ -16,21 +16,6 @@ namespace eg::graphics_api::gl
 {
 	using SPIRType = spirv_cross::SPIRType;
 	
-	static uint32_t PUSH_CONSTANT_MEMBER_SIZES[] =
-	{
-		/* Int   */ 4,
-		/* Float */ 4,
-		/* Vec2  */ 8,
-		/* Vec3  */ 16,
-		/* Vec4  */ 16,
-		/* IVec2 */ 8,
-		/* IVec3 */ 16,
-		/* IVec4 */ 16,
-		/* Mat2  */ 16,
-		/* Mat3  */ 64,
-		/* Mat4  */ 64
-	};
-	
 	struct PushConstantMember
 	{
 		uint32_t offset;

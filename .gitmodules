@@ -19,3 +19,6 @@
 [submodule "Deps/spirv_cross"]
 	path = Deps/spirv_cross
 	url = https://github.com/KhronosGroup/SPIRV-Cross.git
+[submodule "Deps/utfcpp"]
+	path = Deps/utfcpp
+	url = https://github.com/ledger/utfcpp.git

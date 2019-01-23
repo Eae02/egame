@@ -2,18 +2,23 @@
 
 #include <cmath>
 
+#include "API.hpp"
+
 namespace eg
 {
 #pragma pack(push, 1)
 	/**
 	 * Represents a color in an undefined color space
 	 */
-	struct Color
+	struct EG_API Color
 	{
 		float r;
 		float g;
 		float b;
 		float a;
+		
+		static const Color White;
+		static const Color Black;
 		
 		Color()
 			: r(0), g(0), b(0), a(0) { }
@@ -79,6 +84,26 @@ namespace eg
 		inline explicit ColorSRGB(const struct ColorLin& c);
 		
 		ColorSRGB(float _r, float _g, float _b, float _a = 1.0f) : Color(_r, _g, _b, _a) { }
+		
+		static ColorSRGB FromHex(uint32_t hex)
+		{
+			ColorSRGB color;
+			color.r = ((hex & 0xFF0000) >> (8 * 2)) / 255.0f;
+			color.g = ((hex & 0x00FF00) >> (8 * 1)) / 255.0f;
+			color.b = ((hex & 0x0000FF) >> (8 * 0)) / 255.0f;
+			color.a = 1;
+			return color;
+		}
+		
+		static ColorSRGB FromRGBAHex(uint32_t hex)
+		{
+			ColorSRGB color;
+			color.r = ((hex & 0xFF000000) >> (8 * 3)) / 255.0f;
+			color.g = ((hex & 0x00FF0000) >> (8 * 2)) / 255.0f;
+			color.b = ((hex & 0x0000FF00) >> (8 * 1)) / 255.0f;
+			color.a = ((hex & 0x000000FF) >> (8 * 0)) / 255.0f;
+			return color;
+		}
 	};
 	
 	inline ColorSRGB::ColorSRGB(const ColorLin& c)

@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "Utils.hpp"
-//#include "Console.hpp"
+#include "Console.hpp"
 
 #include <iomanip>
 #include <ctime>
@@ -8,9 +8,9 @@
 
 namespace eg
 {
-	const char* levelMessages[] = { "I", "W", "E" };
-	const char* levelColorStrings[] = { "", "\x1b[33m", "\x1b[31m" };
-	//const glm::vec4 levelColors[] = { Console::InfoColor, Console::WarnColor, Console::ErrorColor };
+	static const char* levelMessages[] = { "I", "W", "E" };
+	static const char* levelColorStrings[] = { "", "\x1b[33m", "\x1b[31m" };
+	static const ColorLin levelColors[] = { console::InfoColor, console::WarnColor, console::ErrorColor };
 	
 	static std::mutex stdoutLogMutex;
 	
@@ -76,12 +76,9 @@ namespace eg
 		
 		std::string messageStr = stream.str();
 		
-		//if (Console::instance)
-		//{
-		//	Console::instance->Write(levelColors[(int)level], messageStr);
-		//}
+		console::Write(levelColors[(int)level], messageStr);
 		
-		//if (level != LogLevel::Info)
+		if (level != LogLevel::Info)
 		{
 			std::lock_guard<std::mutex> lock(stdoutLogMutex);
 			std::cout << levelColorStrings[(int)level] << messageStr << "\x1b[0m" << std::endl;

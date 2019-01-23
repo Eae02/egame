@@ -3,3 +3,6 @@
 #define STBI_NO_PIC
 #define STBI_NO_PNM
 #include <stb_image.h>
+
+#define STB_RECT_PACK_IMPLEMENTATION
+#include <stb_rect_pack.h>

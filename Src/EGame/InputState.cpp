@@ -8,6 +8,8 @@ namespace eg
 	InputState* detail::currentIS;
 	InputState* detail::previousIS;
 	
+	std::string detail::inputtedText;
+	
 	std::string_view ButtonDisplayName(Button button)
 	{
 		switch (button)
@@ -32,6 +34,7 @@ namespace eg
 		case Button::UpArrow: return "Up Arrow Key";
 		case Button::RightArrow: return "Right Arrow Key";
 		case Button::DownArrow: return "Down Arrow Key";
+		case Button::Grave: return "Grave";
 		case Button::PageUp: return "Page Up";
 		case Button::PageDown: return "Page Down";
 		case Button::Home: return "Home";
@@ -124,6 +127,7 @@ namespace eg
 		"UpArrow",
 		"RightArrow",
 		"DownArrow",
+		"Grave",
 		"PageUp",
 		"PageDown",
 		"Home",

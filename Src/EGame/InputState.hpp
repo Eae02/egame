@@ -3,6 +3,7 @@
 #include <atomic>
 #include <bitset>
 
+#include "Utils.hpp"
 #include "API.hpp"
 
 namespace eg
@@ -30,6 +31,7 @@ namespace eg
 		UpArrow,
 		RightArrow,
 		DownArrow,
+		Grave,
 		PageUp,
 		PageDown,
 		Home,
@@ -110,6 +112,7 @@ namespace eg
 	{
 		extern EG_API InputState* currentIS;
 		extern EG_API InputState* previousIS;
+		extern EG_API std::string inputtedText;
 	}
 	
 	class EG_API InputState
@@ -125,6 +128,21 @@ namespace eg
 		bool IsButtonDown(Button button) const
 		{
 			return (m_isButtonDown[(int)button / 8] & (1 << ((int)button % 8))) != 0;
+		}
+		
+		bool IsCtrlDown() const
+		{
+			return IsButtonDown(Button::LeftControl) || IsButtonDown(Button::RightControl);
+		}
+		
+		bool IsShiftDown() const
+		{
+			return IsButtonDown(Button::LeftShift) || IsButtonDown(Button::RightShift);
+		}
+		
+		bool IsAltDown() const
+		{
+			return IsButtonDown(Button::LeftAlt) || IsButtonDown(Button::RightAlt);
 		}
 		
 		void OnButtonDown(Button button)
@@ -181,6 +199,11 @@ namespace eg
 	
 	EG_API void SetRelativeMouseMode(bool relMouseMode);
 	EG_API bool RelativeMouseModeActive();
+	
+	inline const std::string& InputtedText()
+	{
+		return detail::inputtedText;
+	}
 	
 	inline Button PressedButton()
 	{

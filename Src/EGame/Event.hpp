@@ -41,6 +41,7 @@ namespace eg
 	{
 		Button button;
 		bool newState;
+		bool isRepeat;
 	};
 	
 	constexpr size_t EVENT_PAGE_SIZE = 512;

@@ -7,6 +7,7 @@ find_package(SDL2 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
+find_package(Freetype REQUIRED)
 find_package(GLSLang REQUIRED)
 
 option(YAML_CPP_BUILD_TOOLS "" OFF)
@@ -42,6 +43,7 @@ target_link_libraries(EGame
 		SDL2::SDL2
 		OpenGL::GL
 		ZLIB::ZLIB
+		Freetype::Freetype
 	)
 
 target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
@@ -63,6 +65,7 @@ target_include_directories(EGame SYSTEM
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/volk
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/src
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/utfcpp/source
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vulkan-headers/include
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross
 )
@@ -84,6 +87,7 @@ set_target_properties(EGame EGSandbox EGameAssetGen PROPERTIES
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 	target_compile_options(yaml-cpp PRIVATE -fPIC)
+	target_link_libraries(EGame PRIVATE dl)
 	set_target_properties(EGame EGameAssetGen PROPERTIES
 		CXX_VISIBILITY_PRESET hidden
 		INSTALL_RPATH "$ORIGIN"
