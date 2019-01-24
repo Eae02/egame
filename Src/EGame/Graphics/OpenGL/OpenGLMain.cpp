@@ -21,6 +21,8 @@ namespace eg::graphics_api::gl
 	static int drawableWidth;
 	static int drawableHeight;
 	
+	static bool hasWrittenToBackBuffer;
+	
 	enum class GLVendor
 	{
 		Unknown,
@@ -185,6 +187,7 @@ namespace eg::graphics_api::gl
 		
 		viewportOutOfDate = true;
 		scissorOutOfDate = true;
+		hasWrittenToBackBuffer = false;
 	}
 	
 	void EndFrame()
@@ -201,12 +204,14 @@ namespace eg::graphics_api::gl
 		int numColorAttachments;
 		bool hasDepth;
 		bool hasStencil;
+		bool forceClear;
 		if (beginInfo.framebuffer == nullptr)
 		{
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			numColorAttachments = 1;
 			hasDepth = defaultFramebufferHasDepth;
 			hasStencil = defaultFramebufferHasStencil;
+			forceClear = !hasWrittenToBackBuffer;
 			
 			SetViewport(cc, 0, 0, drawableWidth, drawableHeight);
 			SetScissor(cc, 0, 0, drawableWidth, drawableHeight);
@@ -227,7 +232,7 @@ namespace eg::graphics_api::gl
 		{
 			if (beginInfo.depthLoadOp == beginInfo.stencilLoadOp && hasStencil)
 			{
-				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear)
+				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear || forceClear)
 				{
 					glClearBufferfi(GL_DEPTH_STENCIL, 0, beginInfo.depthClearValue, beginInfo.stencilClearValue);
 				}
@@ -246,7 +251,7 @@ namespace eg::graphics_api::gl
 			}
 			else
 			{
-				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear)
+				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear || forceClear)
 				{
 					glClearBufferfv(GL_DEPTH, 0, &beginInfo.depthClearValue);
 				}
@@ -264,7 +269,7 @@ namespace eg::graphics_api::gl
 				
 				if (hasStencil)
 				{
-					if (beginInfo.stencilLoadOp == AttachmentLoadOp::Clear)
+					if (beginInfo.stencilLoadOp == AttachmentLoadOp::Clear || forceClear)
 					{
 						GLuint value = beginInfo.stencilClearValue;
 						glClearBufferuiv(GL_STENCIL, 0, &value);
@@ -287,7 +292,7 @@ namespace eg::graphics_api::gl
 		for (int i = 0; i < numColorAttachments; i++)
 		{
 			const RenderPassColorAttachment& attachment = beginInfo.colorAttachments[i];
-			if (attachment.loadOp == AttachmentLoadOp::Clear)
+			if (attachment.loadOp == AttachmentLoadOp::Clear || forceClear)
 			{
 				glClearBufferfv(GL_COLOR, i, &attachment.clearValue.r);
 			}
@@ -312,6 +317,8 @@ namespace eg::graphics_api::gl
 		InitScissorTest();
 		if (!IsDepthWriteEnabled())
 			glDepthMask(GL_FALSE);
+		
+		hasWrittenToBackBuffer = true;
 	}
 	
 	void EndRenderPass(CommandContextHandle cc) { }
