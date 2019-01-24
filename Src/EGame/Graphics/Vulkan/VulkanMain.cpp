@@ -772,7 +772,7 @@ namespace eg::graphics_api::vk
 		
 		CheckRes(vkQueueSubmit(ctx.mainQueue, 1, &submitInfo, ctx.frameQueueFences[CFrameIdx()]));
 		
-		CheckRes(vkQueuePresentKHR(ctx.mainQueue, &presentInfo));
+		vkQueuePresentKHR(ctx.mainQueue, &presentInfo);
 		
 		if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
 		{
