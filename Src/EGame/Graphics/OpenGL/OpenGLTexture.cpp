@@ -34,10 +34,14 @@ namespace eg::graphics_api::gl
 	{
 		switch (wrapMode)
 		{
-		case WrapMode::Repeat: return GL_REPEAT;
-		case WrapMode::MirroredRepeat: return GL_MIRRORED_REPEAT;
-		case WrapMode::ClampToEdge: return GL_CLAMP_TO_EDGE;
-		case WrapMode::ClampToBorder: return GL_CLAMP_TO_BORDER;
+		case WrapMode::Repeat:
+			return GL_REPEAT;
+		case WrapMode::MirroredRepeat:
+			return GL_MIRRORED_REPEAT;
+		case WrapMode::ClampToEdge:
+			return GL_CLAMP_TO_EDGE;
+		case WrapMode::ClampToBorder:
+			return GL_CLAMP_TO_BORDER;
 		}
 		
 		EG_UNREACHABLE
@@ -75,13 +79,13 @@ namespace eg::graphics_api::gl
 		{
 		case BorderColor::F0000:
 		case BorderColor::I0000:
-			return { 0.0f, 0.0f, 0.0f, 0.0f };
+			return {0.0f, 0.0f, 0.0f, 0.0f};
 		case BorderColor::F0001:
 		case BorderColor::I0001:
-			return { 0.0f, 0.0f, 0.0f, 1.0f };
+			return {0.0f, 0.0f, 0.0f, 1.0f};
 		case BorderColor::F1111:
 		case BorderColor::I1111:
-			return { 1.0f, 1.0f, 1.0f, 1.0f };
+			return {1.0f, 1.0f, 1.0f, 1.0f};
 		}
 		
 		EG_UNREACHABLE
@@ -114,22 +118,29 @@ namespace eg::graphics_api::gl
 	void DestroySampler(SamplerHandle handle)
 	{
 		MainThreadInvoke([sampler = static_cast<GLuint>(reinterpret_cast<uintptr_t>(handle))]
-		{
-			glDeleteSamplers(1, &sampler);
-		});
+		                 {
+			                 glDeleteSamplers(1, &sampler);
+		                 });
 	}
 	
 	static GLenum TranslateSwizzle(SwizzleMode mode, GLenum identity)
 	{
 		switch (mode)
 		{
-		case SwizzleMode::Identity: return identity;
-		case SwizzleMode::One: return GL_ONE;
-		case SwizzleMode::Zero: return GL_ZERO;
-		case SwizzleMode::R: return GL_RED;
-		case SwizzleMode::G: return GL_GREEN;
-		case SwizzleMode::B: return GL_BLUE;
-		case SwizzleMode::A: return GL_ALPHA;
+		case SwizzleMode::Identity:
+			return identity;
+		case SwizzleMode::One:
+			return GL_ONE;
+		case SwizzleMode::Zero:
+			return GL_ZERO;
+		case SwizzleMode::R:
+			return GL_RED;
+		case SwizzleMode::G:
+			return GL_GREEN;
+		case SwizzleMode::B:
+			return GL_BLUE;
+		case SwizzleMode::A:
+			return GL_ALPHA;
 		}
 		
 		EG_UNREACHABLE
@@ -187,7 +198,7 @@ namespace eg::graphics_api::gl
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
-			createInfo.width, createInfo.height, createInfo.arrayLayers);
+		                   createInfo.width, createInfo.height, createInfo.arrayLayers);
 		
 		InitTexture(texture->texture, createInfo);
 		
@@ -199,19 +210,24 @@ namespace eg::graphics_api::gl
 		int componentCount = GetFormatComponentCount(format);
 		int componentSize = GetFormatSize(format) / componentCount;
 		
-		const GLenum floatFormats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
-		const GLenum integerFormats[] = { 0, GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_RGBA_INTEGER };
+		const GLenum floatFormats[] = {0, GL_RED, GL_RG, GL_RGB, GL_RGBA};
+		const GLenum integerFormats[] = {0, GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_RGBA_INTEGER};
 		
-		const GLenum uTypes[] = { 0, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, 0, GL_UNSIGNED_INT };
-		const GLenum sTypes[] = { 0, GL_BYTE, GL_SHORT, 0, GL_INT };
+		const GLenum uTypes[] = {0, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, 0, GL_UNSIGNED_INT};
+		const GLenum sTypes[] = {0, GL_BYTE, GL_SHORT, 0, GL_INT};
 		
 		switch (GetFormatType(format))
 		{
-		case FormatTypes::UNorm: return std::make_tuple(floatFormats[componentCount], uTypes[componentSize]);
-		case FormatTypes::UInt: return std::make_tuple(integerFormats[componentCount], uTypes[componentSize]);
-		case FormatTypes::SInt: return std::make_tuple(integerFormats[componentCount], sTypes[componentSize]);
-		case FormatTypes::Float: return std::make_tuple(floatFormats[componentCount], GL_FLOAT);
-		case FormatTypes::DepthStencil: EG_PANIC("Attempted to set the texture data for a depth/stencil texture.");
+		case FormatTypes::UNorm:
+			return std::make_tuple(floatFormats[componentCount], uTypes[componentSize]);
+		case FormatTypes::UInt:
+			return std::make_tuple(integerFormats[componentCount], uTypes[componentSize]);
+		case FormatTypes::SInt:
+			return std::make_tuple(integerFormats[componentCount], sTypes[componentSize]);
+		case FormatTypes::Float:
+			return std::make_tuple(floatFormats[componentCount], GL_FLOAT);
+		case FormatTypes::DepthStencil:
+		EG_PANIC("Attempted to set the texture data for a depth/stencil texture.");
 		}
 		
 		EG_UNREACHABLE
@@ -223,17 +239,17 @@ namespace eg::graphics_api::gl
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, reinterpret_cast<const Buffer*>(buffer)->buffer);
 		
 		Texture* texture = UnwrapTexture(handle);
-		auto [format, type] = GetUploadFormat(texture->format);
+		auto[format, type] = GetUploadFormat(texture->format);
 		
 		switch (texture->dim)
 		{
 		case 2:
 			glTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
-				range.sizeX, range.sizeY, format, type, (void*)(uintptr_t)offset);
+			                    range.sizeX, range.sizeY, format, type, (void*)(uintptr_t)offset);
 			break;
 		case 3:
 			glTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
-				range.sizeX, range.sizeY, range.sizeZ, format, type, (void*)(uintptr_t)offset);
+			                    range.sizeX, range.sizeY, range.sizeZ, format, type, (void*)(uintptr_t)offset);
 			break;
 		}
 		
@@ -247,17 +263,23 @@ namespace eg::graphics_api::gl
 	
 	void DestroyTexture(TextureHandle handle)
 	{
-		MainThreadInvoke([texture=UnwrapTexture(handle)]
-		{
-			glDeleteTextures(1, &texture->texture);
-			texturePool.Free(texture);
-		});
+		MainThreadInvoke([texture = UnwrapTexture(handle)]
+		                 {
+			                 glDeleteTextures(1, &texture->texture);
+			                 texturePool.Free(texture);
+		                 });
 	}
 	
 	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t binding)
 	{
 		glBindSampler(binding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
 		glBindTextureUnit(binding, UnwrapTexture(texture)->texture);
+	}
+	
+	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const Color& color)
+	{
+		const Texture* texture = UnwrapTexture(handle);
+		glClearTexImage(texture->texture, mipLevel, GL_RGBA, GL_FLOAT, &color.r);
 	}
 	
 	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags) { }

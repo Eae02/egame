@@ -23,6 +23,7 @@ XM_ABSCALLBACK(TextureUsageHint, void, (TextureHandle handle, TextureUsage newUs
 XM_ABSCALLBACK(SetTextureData, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset))
 XM_ABSCALLBACK(GenerateMipmaps, void, (CommandContextHandle ctx, TextureHandle handle))
 XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureHandle texture, SamplerHandle sampler, uint32_t binding))
+XM_ABSCALLBACK(ClearColorTexture, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t mipLevel, const Color& color))
 
 XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))
 XM_ABSCALLBACK(DestroySampler, void, (SamplerHandle handle))

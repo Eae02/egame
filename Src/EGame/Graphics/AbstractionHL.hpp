@@ -358,6 +358,11 @@ namespace eg
 			gal::SetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 		}
 		
+		void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const Color& color)
+		{
+			gal::ClearColorTexture(Handle(), texture.handle, mipLevel, color);
+		}
+		
 		void GenerateMipmaps(TextureRef texture)
 		{
 			gal::GenerateMipmaps(Handle(), texture.handle);

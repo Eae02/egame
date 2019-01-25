@@ -252,6 +252,26 @@ namespace eg::graphics_api::vk
 		vkCmdCopyBufferToImage(cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 	}
 	
+	void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t mipLevel, const Color& color)
+	{
+		Texture* texture = UnwrapTexture(handle);
+		RefResource(cc, *texture);
+		
+		VkCommandBuffer cb = GetCB(cc);
+		
+		texture->AutoBarrier(cb, TextureUsage::CopyDst);
+		
+		VkImageSubresourceRange subresourceRange;
+		subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		subresourceRange.baseMipLevel = mipLevel;
+		subresourceRange.levelCount = 1;
+		subresourceRange.baseArrayLayer = 0;
+		subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+		
+		vkCmdClearColorImage(cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		                     reinterpret_cast<const VkClearColorValue*>(&color.r), 1, &subresourceRange);
+	}
+	
 	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 	{
 		Texture* texture = UnwrapTexture(handle);
