@@ -138,6 +138,19 @@ namespace eg
 	{
 		devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
 		
+		if (const char* devEnv = getenv("EG_DEV"))
+		{
+			if (std::strcmp(devEnv, "true") == 0)
+				devMode = true;
+			else if (std::strcmp(devEnv, "false") == 0)
+				devMode = false;
+			else
+			{
+				Log(LogLevel::Warning, "misc",
+				    R"(Could not parse EG_DEV environment variable, should be either "true" or "false".)");
+			}
+		}
+		
 		if (SDL_Init(SDL_INIT_VIDEO))
 		{
 			std::cerr << "SDL failed to initialize: " << SDL_GetError() << std::endl;
