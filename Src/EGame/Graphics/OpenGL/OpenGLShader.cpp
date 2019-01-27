@@ -404,6 +404,7 @@ namespace eg::graphics_api::gl
 		GLenum frontFace = GL_CCW;
 		GLenum cullFace = GL_BACK;
 		GLenum topology = GL_TRIANGLES;
+		GLenum depthFunc = GL_LESS;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
 	} curState;
@@ -485,6 +486,8 @@ namespace eg::graphics_api::gl
 			glFrontFace(curState.frontFace = pipeline->frontFace);
 		if (curState.cullFace != pipeline->cullFace)
 			glCullFace(curState.cullFace = pipeline->cullFace);
+		if (pipeline->enableDepthTest && curState.depthFunc != pipeline->depthFunc)
+			glDepthFunc(curState.depthFunc = pipeline->depthFunc);
 		
 		SetEnabled<GL_CULL_FACE>(pipeline->enableFaceCull);
 		SetEnabled<GL_DEPTH_TEST>(pipeline->enableDepthTest);
