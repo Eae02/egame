@@ -20,7 +20,7 @@ public:
 	{
 		eg::RenderPassBeginInfo rpBeginInfo;
 		rpBeginInfo.colorAttachments[0].loadOp = eg::AttachmentLoadOp::Clear;
-		rpBeginInfo.colorAttachments[0].clearValue = eg::Color(0.2f, 1.0f, 1.0f);
+		rpBeginInfo.colorAttachments[0].clearValue = eg::ColorLin(eg::ColorSRGB(0.2f, 1.0f, 1.0f));
 		eg::DC.BeginRenderPass(rpBeginInfo);
 		
 		eg::DC.BindPipeline(m_pipeline);
@@ -47,7 +47,7 @@ int main(int argc, char** argv)
 {
 	eg::RunConfig runConfig;
 	runConfig.gameName = "EGame Sandbox";
-	runConfig.flags = eg::RunFlags::DevMode;
+	runConfig.flags = eg::RunFlags::DevMode | eg::RunFlags::DefaultFramebufferSRGB;
 	
 	for (int i = 1; i < argc; i++)
 	{

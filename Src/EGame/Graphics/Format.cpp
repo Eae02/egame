@@ -187,5 +187,12 @@ namespace eg
 		case Format::BC3_UNorm: return 0; //TODO
 		case Format::BC3_sRGB: return 0; //TODO
 		}
+		EG_UNREACHABLE
+	}
+	
+	bool IsSRGBFormat(Format format)
+	{
+		return format == Format::R8G8B8A8_sRGB || format == Format::R8G8B8_sRGB ||
+			format == Format::BC1_RGB_sRGB || format == Format::BC1_RGBA_sRGB || format == Format::BC3_sRGB;
 	}
 }

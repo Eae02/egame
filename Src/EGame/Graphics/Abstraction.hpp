@@ -362,7 +362,7 @@ namespace eg
 	struct RenderPassColorAttachment
 	{
 		AttachmentLoadOp loadOp = AttachmentLoadOp::Discard;
-		Color clearValue;
+		ColorLin clearValue;
 	};
 	
 	struct RenderPassBeginInfo

@@ -5,6 +5,7 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "OpenGLTexture.hpp"
 
+#include <bitset>
 #include <SDL2/SDL.h>
 #include <GL/gl3w.h>
 
@@ -22,6 +23,7 @@ namespace eg::graphics_api::gl
 	static int drawableWidth;
 	static int drawableHeight;
 	
+	static bool srgbBackBuffer;
 	static bool hasWrittenToBackBuffer;
 	
 	enum class GLVendor
@@ -88,6 +90,8 @@ namespace eg::graphics_api::gl
 			SDL_GL_SetSwapInterval(0);
 		else if (SDL_GL_SetSwapInterval(-1) == -1)
 			SDL_GL_SetSwapInterval(1);
+		
+		srgbBackBuffer = initArguments.defaultFramebufferSRGB;
 		
 		if (gl3wInit() != GL3W_OK)
 			return false;
@@ -204,6 +208,7 @@ namespace eg::graphics_api::gl
 	{
 		GLuint framebuffer;
 		uint32_t numColorAttachments;
+		bool hasSRGB;
 		bool hasDepth;
 		bool hasStencil;
 		uint32_t width;
@@ -225,6 +230,7 @@ namespace eg::graphics_api::gl
 		framebuffer->numColorAttachments = colorAttachments.size();
 		framebuffer->hasDepth = false;
 		framebuffer->hasStencil = false;
+		framebuffer->hasSRGB = false;
 		
 		bool hasSetSize = false;
 		auto SetSize = [&] (uint32_t w, uint32_t h)
@@ -248,6 +254,8 @@ namespace eg::graphics_api::gl
 			glNamedFramebufferTexture(framebuffer->framebuffer, GL_COLOR_ATTACHMENT0 + i, texture->texture, 0);
 			drawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
 			SetSize(texture->width, texture->height);
+			if (IsSRGBFormat(texture->format))
+				framebuffer->hasSRGB = true;
 		}
 		
 		if (dsAttachment != nullptr)
@@ -302,6 +310,8 @@ namespace eg::graphics_api::gl
 			hasStencil = defaultFramebufferHasStencil;
 			forceClear = !hasWrittenToBackBuffer;
 			
+			SetEnabled<GL_FRAMEBUFFER_SRGB>(srgbBackBuffer);
+			
 			SetViewport(cc, 0, 0, drawableWidth, drawableHeight);
 			SetScissor(cc, 0, 0, drawableWidth, drawableHeight);
 		}
@@ -314,6 +324,8 @@ namespace eg::graphics_api::gl
 			hasDepth = framebuffer->hasDepth;
 			hasStencil = framebuffer->hasStencil;
 			forceClear = false;
+			
+			SetEnabled<GL_FRAMEBUFFER_SRGB>(true);
 			
 			SetViewport(cc, 0, 0, framebuffer->width, framebuffer->height);
 			SetScissor(cc, 0, 0, framebuffer->width, framebuffer->height);

@@ -70,6 +70,7 @@ namespace eg
 	EG_API FormatTypes GetFormatType(Format format);
 	EG_API int GetFormatComponentCount(Format format);
 	EG_API int GetFormatSize(Format format);
+	EG_API bool IsSRGBFormat(Format format);
 	
 	enum class DataType
 	{
