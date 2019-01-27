@@ -44,11 +44,12 @@ namespace eg::graphics_api::vk
 		texture.currentUsage = TextureUsage::Undefined;
 		texture.currentStageFlags = 0;
 		texture.extent = extent;
+		texture.format = TranslateFormat(createInfo.format);
 		
 		//Creates the image
 		VkImageCreateInfo imageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 		imageCreateInfo.extent = extent;
-		imageCreateInfo.format = TranslateFormat(createInfo.format);
+		imageCreateInfo.format = texture.format;
 		imageCreateInfo.imageType = imageType;
 		imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageCreateInfo.mipLevels = createInfo.mipLevels;
@@ -77,7 +78,7 @@ namespace eg::graphics_api::vk
 		VkImageViewCreateInfo viewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		viewCreateInfo.viewType = viewType;
 		viewCreateInfo.image = texture.image;
-		viewCreateInfo.format = imageCreateInfo.format;
+		viewCreateInfo.format = texture.format;
 		viewCreateInfo.subresourceRange = { texture.aspectFlags, 0, createInfo.mipLevels, 0, arrayLayers };
 		viewCreateInfo.components.r = TranslateCompSwizzle(createInfo.swizzleR);
 		viewCreateInfo.components.g = TranslateCompSwizzle(createInfo.swizzleG);
@@ -138,7 +139,7 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
-	inline VkImageLayout GetBarrierLayout(TextureUsage usage, VkImageAspectFlags aspectFlags)
+	VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspectFlags)
 	{
 		switch (usage)
 		{
@@ -192,8 +193,8 @@ namespace eg::graphics_api::vk
 		barrier.image = image;
 		barrier.srcAccessMask = GetBarrierAccess(currentUsage, aspectFlags);
 		barrier.dstAccessMask = GetBarrierAccess(newUsage, aspectFlags);
-		barrier.oldLayout = GetBarrierLayout(currentUsage, aspectFlags);
-		barrier.newLayout = GetBarrierLayout(newUsage, aspectFlags);
+		barrier.oldLayout = ImageLayoutFromUsage(currentUsage, aspectFlags);
+		barrier.newLayout = ImageLayoutFromUsage(newUsage, aspectFlags);
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.subresourceRange = { aspectFlags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };

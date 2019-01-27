@@ -96,6 +96,15 @@ namespace eg::graphics_api::gl
 			spirv_cross::CompilerGLSL& spvCrossCompiler = spvCompilers.emplace_back(
 				reinterpret_cast<const uint32_t*>(stage.code), stage.codeBytes / 4);
 			
+			for (spirv_cross::SpecializationConstant& specConst : spvCrossCompiler.get_specialization_constants())
+			{
+				spirv_cross::SPIRConstant& spirConst = spvCrossCompiler.get_constant(specConst.id);
+				if (specConst.constant_id == 500)
+				{
+					spirConst.m.c[0].r[0].u32 = 1;
+				}
+			}
+			
 			std::string glslCode = spvCrossCompiler.compile();
 			
 			GLuint shader = glCreateShader(GetGLStage(stage.stage));

@@ -1,4 +1,5 @@
 #include "OpenGL.hpp"
+#include "OpenGLTexture.hpp"
 #include "OpenGLBuffer.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
@@ -11,24 +12,7 @@ namespace eg::graphics_api::gl
 {
 	int maxAnistropy;
 	
-	struct Texture
-	{
-		GLuint texture;
-		Format format;
-		int dim;
-	};
-	
-	struct Sampler
-	{
-		GLuint sampler;
-	};
-	
 	static ObjectPool<Texture> texturePool;
-	
-	Texture* UnwrapTexture(TextureHandle handle)
-	{
-		return reinterpret_cast<Texture*>(handle);
-	}
 	
 	inline GLenum TranslateWrapMode(WrapMode wrapMode)
 	{
@@ -179,6 +163,8 @@ namespace eg::graphics_api::gl
 		
 		texture->format = createInfo.format;
 		texture->dim = 2;
+		texture->width = createInfo.width;
+		texture->height = createInfo.height;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage2D(texture->texture, createInfo.mipLevels, format, createInfo.width, createInfo.height);
@@ -195,6 +181,8 @@ namespace eg::graphics_api::gl
 		
 		texture->format = createInfo.format;
 		texture->dim = 3;
+		texture->width = createInfo.width;
+		texture->height = createInfo.height;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,

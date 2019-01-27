@@ -25,6 +25,9 @@ XM_ABSCALLBACK(GenerateMipmaps, void, (CommandContextHandle ctx, TextureHandle h
 XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureHandle texture, SamplerHandle sampler, uint32_t binding))
 XM_ABSCALLBACK(ClearColorTexture, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t mipLevel, const Color& color))
 
+XM_ABSCALLBACK(CreateFramebuffer, FramebufferHandle, (Span<const TextureHandle> colorAttachments, TextureHandle dsAttachment))
+XM_ABSCALLBACK(DestroyFramebuffer, void, (FramebufferHandle framebuffer))
+
 XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))
 XM_ABSCALLBACK(DestroySampler, void, (SamplerHandle handle))
 

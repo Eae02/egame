@@ -148,4 +148,12 @@ namespace eg
 	{
 		uploadBuffers.clear();
 	}
+	
+	Framebuffer::Framebuffer(Span<const TextureRef> colorAttachments, TextureRef depthStencilAttachment)
+	{
+		TextureHandle colorAttachmentHandles[MAX_COLOR_ATTACHMENTS];
+		for (uint32_t i = 0; i < colorAttachments.size(); i++)
+			colorAttachmentHandles[i] = colorAttachments[i].handle;
+		handle = gal::CreateFramebuffer({ colorAttachmentHandles, colorAttachments.size() }, depthStencilAttachment.handle);
+	}
 }

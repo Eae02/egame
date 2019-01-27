@@ -10,6 +10,8 @@ namespace eg::graphics_api::vk
 			return true;
 		if (!checkCompatible && loadOp != other.loadOp)
 			return false;
+		if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD && initialLayout != other.initialLayout)
+			return false;
 		return format == other.format && samples == other.samples;
 	}
 	
@@ -55,7 +57,7 @@ namespace eg::graphics_api::vk
 		createInfo.subpassCount = 1;
 		createInfo.pSubpasses = &subpassDescription;
 		
-		auto AddAttachment = [&] (const RenderPassAttachment& attachment, VkImageLayout layout)
+		auto AddAttachment = [&] (const RenderPassAttachment& attachment, VkImageLayout initialLayout, VkImageLayout finalLayout)
 		{
 			VkAttachmentDescription& attachmentDesc = attachments[createInfo.attachmentCount++];
 			attachmentDesc.flags = 0;
@@ -65,8 +67,8 @@ namespace eg::graphics_api::vk
 			attachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			attachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			attachmentDesc.initialLayout = attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ? layout : VK_IMAGE_LAYOUT_UNDEFINED;
-			attachmentDesc.finalLayout = layout;
+			attachmentDesc.initialLayout = attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ? initialLayout : VK_IMAGE_LAYOUT_UNDEFINED;
+			attachmentDesc.finalLayout = finalLayout;
 		};
 		
 		//Adds the depth attachment if one exists
@@ -76,7 +78,8 @@ namespace eg::graphics_api::vk
 			depthStencilAttachmentRef.attachment = createInfo.attachmentCount;
 			depthStencilAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			subpassDescription.pDepthStencilAttachment = &depthStencilAttachmentRef;
-			AddAttachment(description.depthAttachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+			AddAttachment(description.depthAttachment, description.depthAttachment.initialLayout,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 		}
 		
 		//Adds color attachments
@@ -92,7 +95,7 @@ namespace eg::graphics_api::vk
 			colorAttachmentRefs[idx].attachment = createInfo.attachmentCount;
 			colorAttachmentRefs[idx].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			
-			AddAttachment(attachment, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+			AddAttachment(attachment, attachment.initialLayout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		}
 		
 		RenderPass& renderPass = renderPasses.emplace_back();

@@ -321,6 +321,34 @@ namespace eg
 		eg::Format m_format;
 	};
 	
+	class EG_API FramebufferRef
+	{
+	public:
+		explicit FramebufferRef(FramebufferHandle _handle = nullptr)
+			: handle(_handle) { }
+		
+		void Destroy()
+		{
+			if (handle != nullptr)
+			{
+				gal::DestroyFramebuffer(handle);
+				handle = nullptr;
+			}
+		}
+		
+		FramebufferHandle handle;
+	};
+	
+	class EG_API Framebuffer : public OwningRef<FramebufferRef>
+	{
+	public:
+		Framebuffer() = default;
+		
+		explicit Framebuffer(Span<const TextureRef> colorAttachments)
+			: Framebuffer(colorAttachments, TextureRef(nullptr)) { }
+		Framebuffer(Span<const TextureRef> colorAttachments, TextureRef depthStencilAttachment);
+	};
+	
 	class EG_API Sampler
 	{
 	public:

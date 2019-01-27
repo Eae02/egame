@@ -3,6 +3,7 @@
 #include "../Graphics.hpp"
 #include "../../Log.hpp"
 #include "../../Alloc/ObjectPool.hpp"
+#include "OpenGLTexture.hpp"
 
 #include <SDL2/SDL.h>
 #include <GL/gl3w.h>
@@ -199,9 +200,97 @@ namespace eg::graphics_api::gl
 	void InitScissorTest();
 	bool IsDepthWriteEnabled();
 	
+	struct Framebuffer
+	{
+		GLuint framebuffer;
+		uint32_t numColorAttachments;
+		bool hasDepth;
+		bool hasStencil;
+		uint32_t width;
+		uint32_t height;
+	};
+	
+	static ObjectPool<Framebuffer> framebuffers;
+	
+	inline Framebuffer* UnwrapFramebuffer(FramebufferHandle handle)
+	{
+		return reinterpret_cast<Framebuffer*>(handle);
+	}
+	
+	FramebufferHandle CreateFramebuffer(Span<const TextureHandle> colorAttachments, TextureHandle dsAttachment)
+	{
+		Framebuffer* framebuffer = framebuffers.New();
+		glCreateFramebuffers(1, &framebuffer->framebuffer);
+		
+		framebuffer->numColorAttachments = colorAttachments.size();
+		framebuffer->hasDepth = false;
+		framebuffer->hasStencil = false;
+		
+		bool hasSetSize = false;
+		auto SetSize = [&] (uint32_t w, uint32_t h)
+		{
+			if (!hasSetSize)
+			{
+				framebuffer->width = w;
+				framebuffer->height = h;
+			}
+			else if (framebuffer->width != w || framebuffer->height != h)
+			{
+				EG_PANIC("Inconsistent framebuffer attachment resolution");
+			}
+		};
+		
+		GLenum drawBuffers[MAX_COLOR_ATTACHMENTS];
+		
+		for (uint32_t i = 0; i < colorAttachments.size(); i++)
+		{
+			Texture* texture = UnwrapTexture(colorAttachments[i]);
+			glNamedFramebufferTexture(framebuffer->framebuffer, GL_COLOR_ATTACHMENT0 + i, texture->texture, 0);
+			drawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
+			SetSize(texture->width, texture->height);
+		}
+		
+		if (dsAttachment != nullptr)
+		{
+			Texture* dsTexture = UnwrapTexture(dsAttachment);
+			
+			SetSize(dsTexture->width, dsTexture->height);
+			framebuffer->hasDepth = true;
+			
+			GLenum attachment;
+			if (dsTexture->format == Format::Depth32 || dsTexture->format == Format::Depth16)
+			{
+				attachment = GL_DEPTH_ATTACHMENT;
+			}
+			else if (dsTexture->format == Format::Depth24Stencil8 || dsTexture->format == Format::Depth32Stencil8)
+			{
+				attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+				framebuffer->hasStencil = true;
+			}
+			else
+			{
+				EG_PANIC("Invalid depth stencil attachment format");
+			}
+			
+			glNamedFramebufferTexture(framebuffer->framebuffer, attachment, dsTexture->texture, 0);
+		}
+		
+		if (!colorAttachments.Empty())
+		{
+			glNamedFramebufferDrawBuffers(framebuffer->framebuffer, (GLsizei)colorAttachments.size(), drawBuffers);
+		}
+		
+		return reinterpret_cast<FramebufferHandle>(framebuffer);
+	}
+	
+	void DestroyFramebuffer(FramebufferHandle handle)
+	{
+		framebuffers.Free(UnwrapFramebuffer(handle));
+	}
+	
 	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 	{
-		int numColorAttachments;
+		uint32_t numColorAttachments;
 		bool hasDepth;
 		bool hasStencil;
 		bool forceClear;
@@ -218,7 +307,16 @@ namespace eg::graphics_api::gl
 		}
 		else
 		{
-			EG_UNREACHABLE
+			Framebuffer* framebuffer = UnwrapFramebuffer(beginInfo.framebuffer);
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
+			
+			numColorAttachments = framebuffer->numColorAttachments;
+			hasDepth = framebuffer->hasDepth;
+			hasStencil = framebuffer->hasStencil;
+			forceClear = false;
+			
+			SetViewport(cc, 0, 0, framebuffer->width, framebuffer->height);
+			SetScissor(cc, 0, 0, framebuffer->width, framebuffer->height);
 		}
 		
 		SetEnabled<GL_SCISSOR_TEST>(false);
@@ -289,7 +387,7 @@ namespace eg::graphics_api::gl
 			}
 		}
 		
-		for (int i = 0; i < numColorAttachments; i++)
+		for (uint32_t i = 0; i < numColorAttachments; i++)
 		{
 			const RenderPassColorAttachment& attachment = beginInfo.colorAttachments[i];
 			if (attachment.loadOp == AttachmentLoadOp::Clear || forceClear)
@@ -304,7 +402,7 @@ namespace eg::graphics_api::gl
 				}
 				else
 				{
-					invalidateAttachments[numInvalidateAttachments++] = (GLenum)(GL_COLOR_ATTACHMENT0 + i);
+					invalidateAttachments[numInvalidateAttachments++] = GL_COLOR_ATTACHMENT0 + i;
 				}
 			}
 		}

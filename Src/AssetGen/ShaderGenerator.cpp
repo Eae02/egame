@@ -15,6 +15,18 @@ namespace eg::asset_gen
 	static const char* extensionsStr = "#extension GL_GOOGLE_include_directive:enable\n"
 	                                   "#extension GL_GOOGLE_cpp_style_line_directive:enable\n";
 	
+	static std::string_view EGameHeader = R"(
+#ifndef EG_GLH
+#define EG_GLH
+
+layout(constant_id=500) const uint _api = 0;
+#define EG_VULKAN (_api == 0)
+#define EG_OPENGL (_api == 1)
+#define EG_FLIPGL(x) (EG_OPENGL ? 1.0 - (x) : (x))
+
+#endif
+)";
+	
 	class Includer : public glslang::TShader::Includer
 	{
 	public:
@@ -36,6 +48,16 @@ namespace eg::asset_gen
 				return nullptr;
 			std::vector<char> data = ReadStreamContents(stream);
 			return new CustomIncludeResult(path, std::move(data));
+		}
+		
+		IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t size) override
+		{
+			if (std::strcmp(headerName, "EGame.glh") == 0)
+			{
+				return new CustomIncludeResult("EGame.glh", { EGameHeader.begin(), EGameHeader.end() });
+			}
+			
+			return nullptr;
 		}
 		
 		IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t size) override
