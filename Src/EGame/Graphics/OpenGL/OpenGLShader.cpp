@@ -241,6 +241,7 @@ namespace eg::graphics_api::gl
 		GLenum frontFace;
 		GLenum cullFace;
 		GLenum depthFunc;
+		GLenum topology;
 		bool enableScissorTest;
 		bool enableDepthTest;
 		bool enableDepthWrite;
@@ -283,6 +284,20 @@ namespace eg::graphics_api::gl
 			case BlendFactor::OneMinusSrcAlpha: return GL_ONE_MINUS_SRC_ALPHA;
 			case BlendFactor::DstAlpha: return GL_DST_ALPHA;
 			case BlendFactor::OneMinusDstAlpha: return GL_ONE_MINUS_DST_ALPHA;
+		}
+		EG_UNREACHABLE
+	}
+	
+	inline GLenum Translate(Topology t)
+	{
+		switch (t)
+		{
+		case Topology::TriangleList: return GL_TRIANGLES;
+		case Topology::TriangleStrip: return GL_TRIANGLE_STRIP;
+		case Topology::TriangleFan: return GL_TRIANGLE_FAN;
+		case Topology::LineList: return GL_LINES;
+		case Topology::LineStrip: return GL_LINE_STRIP;
+		case Topology::Points: return GL_POINTS;
 		}
 		EG_UNREACHABLE
 	}
@@ -341,6 +356,7 @@ namespace eg::graphics_api::gl
 		pipeline->enableScissorTest = fixedFuncState.enableScissorTest;
 		pipeline->enableDepthTest = fixedFuncState.enableDepthTest;
 		pipeline->enableDepthWrite = fixedFuncState.enableDepthWrite;
+		pipeline->topology = Translate(fixedFuncState.topology);
 		
 		switch (fixedFuncState.cullMode)
 		{
@@ -403,7 +419,6 @@ namespace eg::graphics_api::gl
 	{
 		GLenum frontFace = GL_CCW;
 		GLenum cullFace = GL_BACK;
-		GLenum topology = GL_TRIANGLES;
 		GLenum depthFunc = GL_LESS;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
@@ -661,7 +676,7 @@ namespace eg::graphics_api::gl
 	{
 		CommitViewportAndScissor();
 		MaybeUpdateVAO();
-		glDrawArraysInstancedBaseInstance(curState.topology, firstVertex, numVertices, numInstances, firstInstance);
+		glDrawArraysInstancedBaseInstance(currentPipeline->topology, firstVertex, numVertices, numInstances, firstInstance);
 	}
 	
 	void DrawIndexed(CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance, uint32_t numInstances)
@@ -678,7 +693,7 @@ namespace eg::graphics_api::gl
 			indexOffset += firstIndex * 2;
 		}
 		
-		glDrawElementsInstancedBaseVertexBaseInstance(curState.topology, numIndices, indexType,
+		glDrawElementsInstancedBaseVertexBaseInstance(currentPipeline->topology, numIndices, indexType,
 			(void*)indexOffset, numInstances, firstVertex, firstInstance);
 	}
 }
