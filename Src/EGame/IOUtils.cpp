@@ -147,4 +147,61 @@ namespace eg
 		});
 		output.write(compressedData.back().data(), 256 - lastPageUnusedBytes);
 	}
+	
+	std::vector<char> Compress(const void* data, size_t dataSize)
+	{
+		z_stream deflateStream = { };
+		
+		deflateStream.avail_in = static_cast<uInt>(dataSize);
+		deflateStream.next_in = reinterpret_cast<const Bytef*>(data);
+		
+		if (deflateInit(&deflateStream, Z_BEST_COMPRESSION) != Z_OK)
+		{
+			EG_PANIC("Error initializing ZLIB");
+		}
+		
+		std::vector<char> output;
+		char outBuffer[256];
+		
+		//Deflates and writes the data 256 bytes at a time
+		while (true)
+		{
+			deflateStream.avail_out = sizeof(outBuffer);
+			deflateStream.next_out = reinterpret_cast<Bytef*>(outBuffer);
+			
+			int status = deflate(&deflateStream, Z_FINISH);
+			assert(status != Z_STREAM_ERROR);
+			
+			output.insert(output.end(), outBuffer, outBuffer + (sizeof(outBuffer) - deflateStream.avail_out));
+			
+			if (deflateStream.avail_out != 0)
+				break;
+		}
+		
+		deflateEnd(&deflateStream);
+		
+		return output;
+	}
+	
+	bool Decompress(const void* input, size_t inputSize, void* output, size_t outputSize)
+	{
+		z_stream inflateStream = { };
+		if (inflateInit(&inflateStream) != Z_OK)
+		{
+			EG_PANIC("Error initializing ZLIB");
+		}
+		
+		inflateStream.avail_in = (uInt)inputSize;
+		inflateStream.next_in = reinterpret_cast<const Bytef*>(input);
+		inflateStream.avail_out = (uInt)outputSize;
+		inflateStream.next_out = reinterpret_cast<Bytef*>(output);
+		
+		int status = inflate(&inflateStream, Z_NO_FLUSH);
+		
+		inflateEnd(&inflateStream);
+		
+		if (status == Z_MEM_ERROR || status == Z_STREAM_ERROR)
+			std::abort();
+		return status == Z_STREAM_END;
+	}
 }
