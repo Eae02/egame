@@ -1,10 +1,10 @@
-#include "Texture2DArrayLoader.hpp"
+#include "Texture2DLoader.hpp"
 #include "AssetLoad.hpp"
 #include "../Graphics/AbstractionHL.hpp"
 
 namespace eg
 {
-	const AssetFormat Texture2DArrayAssetFormat { "EG::Texture2DArray", 0 };
+	const AssetFormat Texture2DAssetFormat { "EG::Texture2D", 0 };
 	
 #pragma pack(push, 1)
 	struct Header
@@ -19,7 +19,7 @@ namespace eg
 	};
 #pragma pack(pop)
 	
-	bool Texture2DArrayLoader(const AssetLoadContext& loadContext)
+	bool Texture2DLoader(const AssetLoadContext& loadContext)
 	{
 		const Header* header = reinterpret_cast<const Header*>(loadContext.Data().data());
 		
@@ -37,10 +37,14 @@ namespace eg
 		createInfo.arrayLayers = header->numLayers;
 		createInfo.mipLevels = header->numMipLevels;
 		
-		Texture& texture = loadContext.CreateResult<Texture>(Texture::Create2DArray(createInfo));
+		Texture* texture;
+		if (header->numLayers == 0)
+			texture = &loadContext.CreateResult<Texture>(Texture::Create2D(createInfo));
+		else
+			texture = &loadContext.CreateResult<Texture>(Texture::Create2DArray(createInfo));
 		
 		const size_t layerBytes = header->width * header->height * GetFormatSize(createInfo.format);
-		const size_t uploadBufferSize = layerBytes * header->numLayers;
+		const size_t uploadBufferSize = layerBytes * std::max<uint32_t>(header->numLayers, 1);
 		Buffer uploadBuffer(BufferFlags::HostAllocate | BufferFlags::CopySrc | BufferFlags::MapWrite,
 			uploadBufferSize, nullptr);
 		
@@ -51,16 +55,16 @@ namespace eg
 		TextureRange range = { };
 		range.sizeX = header->width;
 		range.sizeY = header->height;
-		range.sizeZ = header->numLayers;
+		range.sizeZ = std::max<uint32_t>(header->numLayers, 1);
 		
-		eg::DC.SetTextureData(texture, range, uploadBuffer, 0);
+		eg::DC.SetTextureData(*texture, range, uploadBuffer, 0);
 		
 		if (createInfo.mipLevels > 1)
 		{
-			eg::DC.GenerateMipmaps(texture);
+			eg::DC.GenerateMipmaps(*texture);
 		}
 		
-		texture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment);
+		texture->UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment);
 		
 		return true;
 	}

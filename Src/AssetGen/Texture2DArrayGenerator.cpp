@@ -1,5 +1,5 @@
 #include "../../Inc/Common.hpp"
-#include "../EGame/Assets/Texture2DArrayLoader.hpp"
+#include "EGame/Assets/Texture2DLoader.hpp"
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Graphics/ImageLoader.hpp"
 #include "../EGame/Graphics/Format.hpp"
@@ -136,6 +136,6 @@ namespace eg::asset_gen
 	
 	void RegisterTexture2DArrayGenerator()
 	{
-		RegisterAssetGenerator<Texture2DArrayGenerator>("Texture2DArray", Texture2DArrayAssetFormat);
+		RegisterAssetGenerator<Texture2DArrayGenerator>("Texture2DArray", Texture2DAssetFormat);
 	}
 }

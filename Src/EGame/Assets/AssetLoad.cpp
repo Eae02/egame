@@ -1,6 +1,6 @@
 #include "AssetLoad.hpp"
 #include "ShaderModule.hpp"
-#include "Texture2DArrayLoader.hpp"
+#include "Texture2DLoader.hpp"
 #include "ModelAsset.hpp"
 #include "../Graphics/StdVertex.hpp"
 #include "../Log.hpp"
@@ -53,12 +53,13 @@ namespace eg
 	void RegisterAssetLoaders()
 	{
 		RegisterAssetLoader("Shader", &ShaderModule::AssetLoader, ShaderModule::AssetFormat);
-		RegisterAssetLoader("Texture2DArray", &Texture2DArrayLoader, Texture2DArrayAssetFormat);
+		RegisterAssetLoader("Texture2D", &Texture2DLoader, Texture2DAssetFormat);
 		RegisterAssetLoader("Model", &ModelAssetLoader, ModelAssetFormat);
 		
 		DefineModelVertexType<StdVertex>();
 		
 		BindAssetExtension("glsl", "Shader", "Shader");
+		BindAssetExtension("png", "Texture2D", "Texture2D");
 		BindAssetExtension("obj", "Model", "OBJModel");
 	}
 }
