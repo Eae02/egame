@@ -79,8 +79,8 @@ namespace eg::graphics_api::vk
 			if (!sizeSet)
 			{
 				sizeSet = true;
-				createInfo.width = framebuffer->depthStencilAttachment->extent.width;
-				createInfo.height = framebuffer->depthStencilAttachment->extent.height;
+				createInfo.width = framebuffer->colorAttachments[i]->extent.width;
+				createInfo.height = framebuffer->colorAttachments[i]->extent.height;
 			}
 			else if (createInfo.width != texture->extent.width || createInfo.height != texture->extent.height)
 			{
