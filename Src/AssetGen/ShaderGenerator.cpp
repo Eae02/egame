@@ -27,6 +27,34 @@ layout(constant_id=500) const uint _api = 0;
 #endif
 )";
 	
+	static std::string_view DeferredGLH = R"(
+#ifndef DEFERRED_GLH
+#define DEFERRED_GLH
+
+vec2 SMEncode(vec3 n)
+{
+	float p = sqrt(n.z * 8.0 + 8.0);
+	return vec2(n.xy / max(p, 0.001) + 0.5);
+}
+
+vec3 SMDecode(vec2 s)
+{
+	vec2 fenc = s * 4.0 - 2.0;
+	float f = dot(fenc, fenc);
+	float g = sqrt(1.0 - f / 4.0);
+	return normalize(vec3(fenc * g, 1.0 - f / 2.0));
+}
+
+vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
+{
+	vec4 h = vec4(screenCoord * 2.0 - vec2(1.0), depthH * 2 - 1, 1.0);
+	vec4 d = inverseViewProj * h;
+	return d.xyz / d.w;
+}
+
+#endif
+)";
+	
 	class Includer : public glslang::TShader::Includer
 	{
 	public:
@@ -55,6 +83,10 @@ layout(constant_id=500) const uint _api = 0;
 			if (std::strcmp(headerName, "EGame.glh") == 0)
 			{
 				return new CustomIncludeResult("EGame.glh", { EGameHeader.begin(), EGameHeader.end() });
+			}
+			else if (std::strcmp(headerName, "Deferred.glh") == 0)
+			{
+				return new CustomIncludeResult("EGame.glh", { DeferredGLH.begin(), DeferredGLH.end() });
 			}
 			
 			return nullptr;
