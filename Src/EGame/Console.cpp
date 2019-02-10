@@ -90,6 +90,18 @@ namespace eg::console
 		return ctx != nullptr && ctx->shown;
 	}
 	
+	void Show()
+	{
+		if (ctx != nullptr)
+			ctx->shown = true;
+	}
+	
+	void Hide()
+	{
+		if (ctx != nullptr)
+			ctx->shown = false;
+	}
+	
 	void Update(float dt)
 	{
 		if (ctx == nullptr)

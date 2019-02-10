@@ -29,6 +29,9 @@ namespace eg::console
 	
 	EG_API bool IsShown();
 	
+	EG_API void Show();
+	EG_API void Hide();
+	
 	void Update(float dt);
 	void Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight);
 }
