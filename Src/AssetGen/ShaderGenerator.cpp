@@ -31,23 +31,29 @@ layout(constant_id=500) const uint _api = 0;
 #ifndef DEFERRED_GLH
 #define DEFERRED_GLH
 
+#include <EGame.glh>
+
 vec2 SMEncode(vec3 n)
 {
+	if (n.z < -0.999)
+		return vec2(0.5, 1.0);
 	float p = sqrt(n.z * 8.0 + 8.0);
-	return vec2(n.xy / max(p, 0.001) + 0.5);
+	return vec2(n.xy / p + 0.5);
 }
 
 vec3 SMDecode(vec2 s)
 {
 	vec2 fenc = s * 4.0 - 2.0;
 	float f = dot(fenc, fenc);
-	float g = sqrt(1.0 - f / 4.0);
+	float g = sqrt(max(1.0 - f / 4.0, 0.0));
 	return normalize(vec3(fenc * g, 1.0 - f / 2.0));
 }
 
 vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 {
-	vec4 h = vec4(screenCoord * 2.0 - vec2(1.0), depthH * 2 - 1, 1.0);
+	vec4 h = vec4(screenCoord * 2.0 - vec2(1.0), EG_OPENGL ? (depthH * 2.0 - 1.0) : depthH, 1.0);
+	if (!EG_OPENGL)
+		h.y = -h.y;
 	vec4 d = inverseViewProj * h;
 	return d.xyz / d.w;
 }
@@ -63,19 +69,19 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 		
 		struct CustomIncludeResult : IncludeResult
 		{
-			CustomIncludeResult(const std::string& path, std::vector<char> _data)
-				: IncludeResult(path, _data.data(), _data.size(), nullptr), data(std::move(_data)) { }
+			CustomIncludeResult(const std::string& name, std::vector<char> _data)
+				: IncludeResult(name, _data.data(), _data.size(), nullptr), data(std::move(_data)) { }
 			
 			std::vector<char> data;
 		};
 		
-		inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path)
+		inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path, const std::string& name)
 		{
 			std::ifstream stream(path, std::ios::binary);
 			if (!stream)
 				return nullptr;
 			std::vector<char> data = ReadStreamContents(stream);
-			return new CustomIncludeResult(path, std::move(data));
+			return new CustomIncludeResult(name, std::move(data));
 		}
 		
 		IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t size) override
@@ -95,7 +101,7 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 		IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t size) override
 		{
 			std::string path = Concat({ ParentPath(includerName), headerName });
-			if (IncludeResult* iRes = TryCreateIncludeResult(m_generateContext->ResolveRelPath(path)))
+			if (IncludeResult* iRes = TryCreateIncludeResult(m_generateContext->ResolveRelPath(path), path))
 			{
 				m_generateContext->FileDependency(std::move(path));
 				return iRes;
