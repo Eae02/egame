@@ -61,7 +61,7 @@ namespace eg
 	 */
 	struct FreeDel
 	{
-		void operator()(void* mem) const
+		void operator()(void* mem) const noexcept
 		{
 			std::free(mem);
 		}
@@ -132,17 +132,6 @@ namespace eg
 	{
 		return a.size() == b.size() && strncasecmp(a.data(), b.data(), a.size()) == 0;
 	}
-	/*
-	inline glm::vec3 ParseRGBHexColor(int hex)
-	{
-		glm::vec3 color;
-		
-		color.r = ((hex & 0xFF0000) >> (8 * 2)) / 255.0f;
-		color.g = ((hex & 0x00FF00) >> (8 * 1)) / 255.0f;
-		color.b = ((hex & 0x0000FF) >> (8 * 0)) / 255.0f;
-		
-		return color;
-	}*/
 	
 	/**
 	 * Concatenates a list of string views into one string object.

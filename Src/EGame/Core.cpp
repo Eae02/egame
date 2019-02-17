@@ -8,7 +8,7 @@
 #include "Event.hpp"
 #include "Console.hpp"
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <iostream>
 
 using namespace std::chrono;

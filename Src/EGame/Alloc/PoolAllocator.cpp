@@ -9,7 +9,7 @@ namespace eg
 	
 	PoolAllocator::FindAvailableResult PoolAllocator::FindAvailable(uint64_t elementCount, uint64_t alignment)
 	{
-		long blockIndex = -1;
+		int64_t blockIndex = -1;
 		uint64_t bestPadding = 0;
 		
 		for (size_t i = 0; i < m_availableBlocks.size(); i++)

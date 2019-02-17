@@ -114,6 +114,11 @@ namespace eg
 			: m_vertexSize(vertexSize), m_indexSize(indexSize),
 			  m_vertexType(vertexType), m_indexType(indexType), m_indexTypeE(indexTypeE) { }
 		
+		ModelBuilderUnformatted(ModelBuilderUnformatted&&) = default;
+		ModelBuilderUnformatted& operator=(ModelBuilderUnformatted&&) = default;
+		ModelBuilderUnformatted(const ModelBuilderUnformatted&) = delete;
+		ModelBuilderUnformatted& operator=(const ModelBuilderUnformatted&) = delete;
+		
 		/**
 		 * Creates the model, this will also reset the model builder.
 		 */

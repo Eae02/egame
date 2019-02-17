@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 namespace eg
 {

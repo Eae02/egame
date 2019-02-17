@@ -160,7 +160,7 @@ namespace eg::graphics_api::gl
 				const SPIRType& type = spvCrossCompiler.get_type(pcBlock.base_type_id);
 				uint32_t numMembers = type.member_types.size();
 				
-				std::string_view blockName = spvCrossCompiler.get_name(pcBlock.id);
+				std::string blockName = spvCrossCompiler.get_name(pcBlock.id);
 				if (blockName.empty())
 				{
 					blockName = spvCrossCompiler.get_fallback_name(pcBlock.id);
@@ -184,7 +184,7 @@ namespace eg::graphics_api::gl
 					int location = glGetUniformLocation(program->program, uniformName.c_str());
 					if (location == -1)
 					{
-						Log(LogLevel::Error, "gl", "Internal OpenGL error, push constant uniform not found: '{0}'", name);
+						Log(LogLevel::Error, "gl", "Internal OpenGL error, push constant uniform not found: '{0}' (expected name: '{1}')", name, uniformName);
 						continue;
 					}
 					

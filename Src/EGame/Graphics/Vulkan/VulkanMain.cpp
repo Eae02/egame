@@ -4,7 +4,7 @@
 #include "RenderPasses.hpp"
 #include "../../Core.hpp"
 
-#include <SDL2/SDL_vulkan.h>
+#include <SDL_vulkan.h>
 #include <volk.h>
 
 namespace eg::graphics_api::vk

@@ -6,7 +6,7 @@
 #include "OpenGLTexture.hpp"
 
 #include <bitset>
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <GL/gl3w.h>
 
 namespace eg::graphics_api::gl

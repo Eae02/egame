@@ -1,7 +1,7 @@
 #include "InputState.hpp"
 #include "Utils.hpp"
 
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 namespace eg
 {
