@@ -32,7 +32,16 @@ namespace eg
 			m_scissorStack.pop();
 		}
 		
-		//If origin is specified, position is the position of the origin.
+		/**
+		 * Adds a sprite to the spritebatch.
+		 * @param texture The texture to use for the sprite.
+		 * @param position The position of the origin in input space.
+		 * @param color Constant color which will be multiplied with the texture color.
+		 * @param scale Scale factor.
+		 * @param flipFlags Controlls sprite texture flipping.
+		 * @param rotation Angle of rotation, specified clockwise in radians.
+		 * @param origin Sprite origin in texture space.
+		 */
 		void Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color, float scale = 1,
 			FlipFlags flipFlags = FlipFlags::Normal, float rotation = 0, const glm::vec2& origin = { })
 		{

@@ -233,4 +233,6 @@ namespace eg
 	{
 		return (int8_t)std::clamp((int)(x * 127), -127, 127);
 	}
+	
+	EG_API bool TriangleContainsPoint(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& p);
 }

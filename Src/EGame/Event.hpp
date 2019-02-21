@@ -108,7 +108,7 @@ namespace eg
 		bool ProcessOne(Callback callback)
 		{
 			uint64_t maxPos = m_page->position.load();
-			uint64_t minPos = std::max(maxPos, MAX_TRAIL_DIST) - MAX_TRAIL_DIST;
+			uint64_t minPos = std::max<uint64_t>(maxPos, MAX_TRAIL_DIST) - MAX_TRAIL_DIST;
 			if (m_position >= maxPos)
 				return false;
 			if (m_position < minPos)

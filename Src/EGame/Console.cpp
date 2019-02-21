@@ -198,7 +198,7 @@ namespace eg::console
 		
 		const SpriteFont& font = SpriteFont::DevFont();
 		
-		spriteBatch.DrawRect(Rectangle(baseX, baseY, width, height), ColorLin(0.2f, 0.2f, 0.25f, opacity));
+		spriteBatch.DrawRect(Rectangle(baseX, baseY, width, height), ColorLin(ColorSRGB(0.2f, 0.2f, 0.25f, opacity)));
 		
 		spriteBatch.PushScissor(innerMinX, baseY, width - padding * 2, font.Size() + padding * 2);
 		

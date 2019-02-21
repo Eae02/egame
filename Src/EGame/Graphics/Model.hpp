@@ -3,6 +3,7 @@
 #include "AbstractionHL.hpp"
 #include "../Span.hpp"
 #include "../API.hpp"
+#include "../Ray.hpp"
 
 namespace eg
 {

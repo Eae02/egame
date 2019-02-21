@@ -108,4 +108,25 @@ namespace eg
 		}
 		return h;
 	}
+	
+	bool TriangleContainsPoint(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& p)
+	{
+		glm::vec3 e10 = v2 - v1;
+		glm::vec3 e20 = v3 - v1;
+		
+		float a = glm::dot(e10, e10);
+		float b = glm::dot(e10, e20);
+		float c = glm::dot(e20, e20);
+		float ac_bb = (a * c) - (b * b);
+		
+		glm::vec3 vp = p - v1;
+		
+		float d = glm::dot(vp, e10);
+		float e = glm::dot(vp, e20);
+		float x = (d * c) - (e * b);
+		float y = (e * a) - (d * b);
+		float z = x + y - ac_bb;
+		
+		return ((reinterpret_cast<uint32_t&>(z)& ~(reinterpret_cast<uint32_t&>(x) | reinterpret_cast<uint32_t&>(y))) & 0x80000000);
+	}
 }
