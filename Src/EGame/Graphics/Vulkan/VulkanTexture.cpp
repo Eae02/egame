@@ -307,9 +307,8 @@ namespace eg::graphics_api::vk
 			vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 				0, 0, nullptr, 0, nullptr, 1, &preBlitBarrier);
 			
-			int dstWidth = srcWidth / 2;
-			int dstHeight = srcHeight / 2;
-			EG_ASSERT(dstWidth > 0 && dstHeight > 0);
+			int dstWidth = std::max(srcWidth / 2, 1);
+			int dstHeight = std::max(srcHeight / 2, 1);
 			
 			VkImageBlit blit;
 			blit.srcOffsets[0] = { 0, 0, 0 };

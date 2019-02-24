@@ -61,7 +61,7 @@ namespace eg
 		explicit ColorLin(const Color& c)
 			: Color(c) { }
 		
-		inline explicit ColorLin(const struct ColorSRGB& c);
+		inline ColorLin(const struct ColorSRGB& c);
 		
 		ColorLin(float _r, float _g, float _b, float _a = 1.0f) : Color(_r, _g, _b, _a) { }
 		
@@ -81,7 +81,7 @@ namespace eg
 		explicit ColorSRGB(const Color& c)
 			: Color(c) { }
 		
-		inline explicit ColorSRGB(const struct ColorLin& c);
+		inline ColorSRGB(const struct ColorLin& c);
 		
 		ColorSRGB(float _r, float _g, float _b, float _a = 1.0f) : Color(_r, _g, _b, _a) { }
 		

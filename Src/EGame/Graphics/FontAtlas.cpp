@@ -237,7 +237,7 @@ namespace eg
 				atlas.m_lineHeight = GetPartValueI("lineHeight");
 				atlas.m_size = GetPartValueI("base");
 				
-				if (atlas.m_lineHeight == -1 || atlas.m_size)
+				if (atlas.m_lineHeight == -1 || atlas.m_size == -1)
 				{
 					PrintMalformatted();
 					return { };
