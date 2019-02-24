@@ -1,7 +1,7 @@
 SC=glslangValidator
 FLAGS=-V
 
-SHADERS=Sprite.fs Sprite.vs
+SHADERS=Sprite.fs Sprite.vs Gizmo.fs Gizmo.vs
 
 all: $(addsuffix .h, $(SHADERS))
 

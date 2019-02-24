@@ -21,6 +21,7 @@
 #include "Log.hpp"
 #include "IOUtils.hpp"
 #include "InputState.hpp"
+#include "TranslationGizmo.h"
 #include "MainThreadInvoke.hpp"
 #include "Span.hpp"
 #include "Rectangle.hpp"

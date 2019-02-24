@@ -7,6 +7,7 @@
 #include "InputState.hpp"
 #include "Event.hpp"
 #include "Console.hpp"
+#include "TranslationGizmo.h"
 
 #include <SDL.h>
 #include <iostream>
@@ -236,6 +237,7 @@ namespace eg
 		gal::GetCapabilities(detail::graphicsCapabilities);
 		
 		SpriteBatch::InitStatic();
+		TranslationGizmo::InitStatic();
 		if (DevMode())
 		{
 			SpriteFont::LoadDevFont();
@@ -392,6 +394,7 @@ namespace eg
 		SpriteBatch::overlay = {};
 		SpriteFont::UnloadDevFont();
 		SpriteBatch::DestroyStatic();
+		TranslationGizmo::DestroyStatic();
 		UnloadAssets();
 		DestroyUploadBuffers();
 		DestroyGraphicsAPI();

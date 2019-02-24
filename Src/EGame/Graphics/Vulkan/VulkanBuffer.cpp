@@ -56,7 +56,43 @@ namespace eg::graphics_api::vk
 		
 		buffer->mappedMemory = reinterpret_cast<char*>(allocationInfo.pMappedData);
 		
-		//TODO: Copy initial data
+		//Copies initial data
+		if (initialData != nullptr)
+		{
+			if (buffer->mappedMemory)
+			{
+				std::memcpy(buffer->mappedMemory, initialData, size);
+				vmaFlushAllocation(ctx.allocator, buffer->allocation, 0, size);
+			}
+			else
+			{
+				VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+				barrier.buffer = buffer->buffer;
+				barrier.offset = 0;
+				barrier.size = VK_WHOLE_SIZE;
+				barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				
+				VkCommandBuffer cb = GetCB(nullptr);
+				vkCmdPipelineBarrier(cb, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+				                     0, 0, nullptr, 1, &barrier, 0, nullptr);
+				
+				buffer->currentStageFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
+				buffer->currentUsage = eg::BufferUsage::CopyDst;
+				
+				if (size <= 65536)
+				{
+					vkCmdUpdateBuffer(GetCB(nullptr), buffer->buffer, 0, size, initialData);
+				}
+				else
+				{
+					//TODO: Copy initial data
+					eg::Log(LogLevel::Warning, "vk", "Initial data parameter for buffers is not yet supported in "
+					        "vulkan for buffers larger than 64KiB.");
+				}
+			}
+		}
 		
 		return reinterpret_cast<BufferHandle>(buffer);
 	}
