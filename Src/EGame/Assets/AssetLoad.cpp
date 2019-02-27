@@ -29,22 +29,23 @@ namespace eg
 		}
 	}
 	
-	Asset* LoadAsset(std::string_view loader, Span<const char> data, Asset* asset)
+	const AssetLoader* FindAssetLoader(std::string_view loader)
 	{
 		auto it = std::lower_bound(assetLoaders.begin(), assetLoaders.end(), loader, &AssetLoaderLess);
 		if (it == assetLoaders.end() || it->name != loader)
-		{
-			Log(LogLevel::Error, "as", "Asset loader not found: '{0}'.", loader);
 			return nullptr;
-		}
-		
-		AssetLoadContext context(asset, data);
-		if (!it->callback(context))
+		return &*it;
+	}
+	
+	Asset* LoadAsset(const AssetLoader& loader, std::string_view dirPath, Span<const char> data, Asset* asset)
+	{
+		AssetLoadContext context(asset, dirPath, data);
+		if (!loader.callback(context))
 			return nullptr;
 		
 		if (context.GetAsset() == nullptr)
 		{
-			Log(LogLevel::Error, "as", "Asset loader '{0}' returned true but did not call CreateResult.", loader);
+			Log(LogLevel::Error, "as", "Asset loader '{0}' returned true but did not call CreateResult.", loader.name);
 		}
 		
 		return context.GetAsset();

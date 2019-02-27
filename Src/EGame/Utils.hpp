@@ -235,4 +235,6 @@ namespace eg
 	}
 	
 	EG_API bool TriangleContainsPoint(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& p);
+	
+	EG_API std::string CanonicalPath(std::string_view path);
 }

@@ -10,7 +10,7 @@ namespace eg
 	class EG_API AssetLoadContext
 	{
 	public:
-		AssetLoadContext(Asset* asset, Span<const char> data)
+		AssetLoadContext(Asset* asset, std::string_view dirPath, Span<const char> data)
 			: m_asset(asset), m_data(data) { }
 		
 		/**
@@ -53,8 +53,14 @@ namespace eg
 			return m_data;
 		}
 		
+		std::string_view dirPath() const
+		{
+			return m_dirPath;
+		}
+	
 	private:
 		mutable Asset* m_asset = nullptr;
+		std::string_view m_dirPath;
 		Span<const char> m_data;
 	};
 	
@@ -67,7 +73,9 @@ namespace eg
 		AssetLoaderCallback callback;
 	};
 	
-	EG_API Asset* LoadAsset(std::string_view loader, Span<const char> data, Asset* asset);
+	EG_API const AssetLoader* FindAssetLoader(std::string_view loader);
+	
+	EG_API Asset* LoadAsset(const AssetLoader& loader, std::string_view dirPath, Span<const char> data, Asset* asset);
 	
 	EG_API void RegisterAssetLoader(std::string name, AssetLoaderCallback loader,
 		const AssetFormat& format = DefaultGeneratorFormat);

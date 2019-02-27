@@ -22,7 +22,7 @@ namespace eg
 	
 	EG_API void CreateDirectory(const char* path);
 	
-	EG_API void CreateDirectories(const char* path);
+	EG_API void CreateDirectories(std::string_view path);
 	
 	EG_API bool IsRegularFile(const char* path);
 }

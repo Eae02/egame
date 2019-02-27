@@ -58,16 +58,16 @@ namespace eg
 		return std::chrono::system_clock::from_time_t(attrib.st_mtime);
 	}
 	
-	void CreateDirectories(const char* path)
+	void CreateDirectories(std::string_view path)
 	{
-		size_t pathLen = strlen(path);
-		char* pathCopy = reinterpret_cast<char*>(alloca(pathLen + 1));
-		std::memcpy(pathCopy, path, pathLen + 1);
+		char* pathCopy = reinterpret_cast<char*>(alloca(path.size() + 1));
+		std::memcpy(pathCopy, path.data(), path.size());
+		pathCopy[path.size()] = '\0';
 		
 		bool seenNonSep = false;
 		for (size_t i = 0; true; i++)
 		{
-			if (path[i] == '\\' || path[i] == '/' || path[i] == '\0')
+			if (i >= path.size() || path[i] == '\\' || path[i] == '/')
 			{
 				if (seenNonSep)
 				{
@@ -78,11 +78,13 @@ namespace eg
 					seenNonSep = false;
 				}
 				
-				if (path[i] == '\0')
+				if (i >= path.size())
 					break;
 			}
 			else
+			{
 				seenNonSep = true;
+			}
 		}
 	}
 }

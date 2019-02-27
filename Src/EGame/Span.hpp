@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Utils.hpp"
+
 namespace eg
 {
 	template <typename T>
@@ -40,8 +42,16 @@ namespace eg
 		inline T& At(size_t index) const
 		{
 			if (index >= m_size)
-				throw std::range_error("Span index out of range");
+				EG_PANIC("Span index out of range");
 			return m_data[index];
+		}
+		
+		template <typename U>
+		inline U& AtAs(size_t index) const
+		{
+			if (index + sizeof(U) > m_size)
+				EG_PANIC("Span index out of range");
+			return *reinterpret_cast<U*>(m_data + index);
 		}
 		
 		inline T& operator[](size_t index) const

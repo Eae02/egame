@@ -33,4 +33,4 @@ namespace eg
 		std::vector<uint32_t> m_indices;
 		std::vector<__m128> m_positions;
 	};
-};
+}

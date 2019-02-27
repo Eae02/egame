@@ -12,8 +12,8 @@ namespace eg
 	enum class AssetFlags : uint32_t
 	{
 		None = 0,
-		NoCache = 1,
-		NoPackage = 2
+		NeverCache = 1,
+		NeverPackage = 2
 	};
 	
 	EG_BIT_FIELD(AssetFlags)
@@ -21,7 +21,8 @@ namespace eg
 	struct GeneratedAsset
 	{
 		std::string data;
-		std::vector<std::string> dependencies;
+		std::vector<std::string> fileDependencies; //List of files that are referenced by this resource
+		std::vector<std::string> loadDependencies; //List of resources that must be loaded before this one
 		AssetFlags flags;
 		AssetFormat format;
 	};
@@ -45,22 +46,33 @@ namespace eg
 		std::string FileDependency(std::string relPath)
 		{
 			std::string ret = ResolveRelPath(relPath);
-			m_dependencies.push_back(std::move(relPath));
+			m_fileDependencies.push_back(std::move(relPath));
 			return ret;
+		}
+		
+		void AddLoadDependency(std::string relPath)
+		{
+			m_loadDependencies.push_back(std::move(relPath));
 		}
 		
 		std::string RelSourcePath() const;
 		
-		const std::vector<std::string>& Dependencies() const
+		const std::vector<std::string>& FileDependencies() const
 		{
-			return m_dependencies;
+			return m_fileDependencies;
+		}
+		
+		const std::vector<std::string>& LoadDependencies() const
+		{
+			return m_loadDependencies;
 		}
 		
 		std::ostringstream outputStream;
 		AssetFlags outputFlags = AssetFlags::None;
 		
 	private:
-		std::vector<std::string> m_dependencies;
+		std::vector<std::string> m_fileDependencies;
+		std::vector<std::string> m_loadDependencies;
 		std::string_view m_currentDir;
 		const YAML::Node* m_node;
 	};

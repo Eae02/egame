@@ -27,7 +27,7 @@ namespace eg
 				context.outputStream.write(readBuffer, stream.gcount());
 			}
 			
-			context.outputFlags = AssetFlags::NoCache;
+			context.outputFlags = AssetFlags::NeverCache;
 			return true;
 		}
 	};

@@ -52,7 +52,8 @@ namespace eg
 		
 		GeneratedAsset generatedAsset;
 		generatedAsset.data = context.outputStream.str();
-		generatedAsset.dependencies = context.Dependencies();
+		generatedAsset.fileDependencies = context.FileDependencies();
+		generatedAsset.loadDependencies = context.LoadDependencies();
 		generatedAsset.flags = context.outputFlags;
 		generatedAsset.format = it->format;
 		return generatedAsset;

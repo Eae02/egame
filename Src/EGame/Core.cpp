@@ -27,6 +27,8 @@ namespace eg
 	std::string_view detail::exeDirPath;
 	uint64_t detail::frameIndex;
 	
+	extern bool createAssetPackage;
+	
 	static const char* exeDirPathPtr;
 	
 	static Button TranslateSDLKey(SDL_Scancode scancode)
@@ -138,6 +140,7 @@ namespace eg
 	int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
 	{
 		devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
+		createAssetPackage = HasFlag(runConfig.flags, RunFlags::CreateAssetPackage);
 		
 		if (const char* devEnv = getenv("EG_DEV"))
 		{

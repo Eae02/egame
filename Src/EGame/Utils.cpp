@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <stack>
 #include <SDL.h>
 
 namespace eg
@@ -128,5 +129,30 @@ namespace eg
 		float z = x + y - ac_bb;
 		
 		return ((reinterpret_cast<uint32_t&>(z)& ~(reinterpret_cast<uint32_t&>(x) | reinterpret_cast<uint32_t&>(y))) & 0x80000000);
+	}
+	
+	std::string CanonicalPath(std::string_view path)
+	{
+		std::vector<std::string_view> parts;
+		IterateStringParts(path, '/', [&] (std::string_view part)
+		{
+			if (part == ".." && !parts.empty())
+			{
+				parts.pop_back();
+			}
+			else if (part != ".")
+			{
+				parts.push_back(part);
+			}
+		});
+		
+		if (parts.empty())
+			return {};
+		
+		std::ostringstream outStream;
+		outStream << parts[0];
+		for (size_t i = 1; i < parts.size(); i++)
+			outStream << "/" << parts[i];
+		return outStream.str();
 	}
 }
