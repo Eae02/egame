@@ -53,6 +53,26 @@ namespace eg::asset_gen
 			std::vector<glm::vec2> texCoords;
 			std::vector<std::array<VertexPtr, 3>> faces;
 			
+			struct OBJObject
+			{
+				std::string name;
+				size_t facesBegin;
+				size_t facesEnd;
+			};
+			std::vector<OBJObject> objects;
+			
+			std::string currentObjectName;
+			auto CommitCurrentObject = [&] () 
+			{
+				size_t facesBegin = !objects.empty() ? objects.back().facesEnd : 0;
+				if (facesBegin == faces.size())
+					return;
+				OBJObject& object = objects.emplace_back();
+				object.name = currentObjectName;
+				object.facesBegin = facesBegin;
+				object.facesEnd = faces.size();
+			};
+			
 			int64_t defaultNormalIdx = -1;
 			int64_t defaultTexCoordIdx = -1;
 			
@@ -152,55 +172,71 @@ namespace eg::asset_gen
 						}
 					}
 				}
-			}
-			
-			//Remaps OBJ style vertex references to vertices and indices
-			std::map<VertexPtr, uint32_t> indexMap;
-			std::vector<VertexPtr> verticesP;
-			std::vector<uint32_t> indices;
-			for (const auto& face : faces)
-			{
-				for (const VertexPtr& faceVertexPtr : face)
+				else if (parts[0] == "o")
 				{
-					auto it = indexMap.find(faceVertexPtr);
-					if (it == indexMap.end())
-					{
-						indexMap.emplace(faceVertexPtr, verticesP.size());
-						indices.push_back(verticesP.size());
-						verticesP.push_back(faceVertexPtr);
-					}
-					else
-					{
-						indices.push_back(it->second);
-					}
+					CommitCurrentObject();
+					currentObjectName = parts[1];
 				}
 			}
 			
-			//Initializes AoS vertex data
-			std::vector<StdVertex> vertices(verticesP.size());
-			for (size_t i = 0; i < vertices.size(); i++)
-			{
-				std::copy_n(&positions[verticesP[i].position].x, 3, vertices[i].position);
-				std::copy_n(&texCoords[verticesP[i].texCoord].x, 2, vertices[i].texCoord);
-				glm::vec3 n = normals[verticesP[i].normal];
-				for (int j = 0; j < 3; j++)
-					vertices[i].normal[j] = FloatToSNorm(n[j]);
-			}
-			
-			//Generates tangents for the vertices
-			GenerateTangents(vertices.size(), indices.size(),
-				[&] (size_t i) { return positions[verticesP[i].position]; },
-				[&] (size_t i) { return texCoords[verticesP[i].texCoord]; },
-				[&] (size_t i) { return normals[verticesP[i].normal]; },
-				[&] (size_t i) { return indices[i]; },
-				[&] (size_t i, const glm::vec3& tangent)
-				{
-					for (int j = 0; j < 3; j++)
-						vertices[i].tangent[j] = FloatToSNorm(tangent[j]);
-				});
+			CommitCurrentObject();
 			
 			ModelAssetWriter<StdVertex> writer(generateContext.outputStream);
-			writer.WriteMesh(vertices, indices, "", MeshAccess::All);
+			
+			std::map<VertexPtr, uint32_t> indexMap;
+			std::vector<VertexPtr> verticesP;
+			std::vector<uint32_t> indices;
+			std::vector<StdVertex> vertices;
+			for (const OBJObject& object : objects)
+			{
+				indexMap.clear();
+				verticesP.clear();
+				indices.clear();
+				
+				//Remaps OBJ style vertex references to vertices and indices
+				for (size_t f = object.facesBegin; f < object.facesEnd; f++)
+				{
+					for (const VertexPtr& faceVertexPtr : faces[f])
+					{
+						auto it = indexMap.find(faceVertexPtr);
+						if (it == indexMap.end())
+						{
+							indexMap.emplace(faceVertexPtr, verticesP.size());
+							indices.push_back(verticesP.size());
+							verticesP.push_back(faceVertexPtr);
+						}
+						else
+						{
+							indices.push_back(it->second);
+						}
+					}
+				}
+				
+				//Initializes AoS vertex data
+				vertices.resize(verticesP.size());
+				for (size_t i = 0; i < vertices.size(); i++)
+				{
+					std::copy_n(&positions[verticesP[i].position].x, 3, vertices[i].position);
+					std::copy_n(&texCoords[verticesP[i].texCoord].x, 2, vertices[i].texCoord);
+					glm::vec3 n = normals[verticesP[i].normal];
+					for (int j = 0; j < 3; j++)
+						vertices[i].normal[j] = FloatToSNorm(n[j]);
+				}
+				
+				//Generates tangents for the vertices
+				GenerateTangents(vertices.size(), indices.size(),
+					[&] (size_t i) { return positions[verticesP[i].position]; },
+					[&] (size_t i) { return texCoords[verticesP[i].texCoord]; },
+					[&] (size_t i) { return normals[verticesP[i].normal]; },
+					[&] (size_t i) { return indices[i]; },
+					[&] (size_t i, const glm::vec3& tangent)
+					{
+						for (int j = 0; j < 3; j++)
+							vertices[i].tangent[j] = FloatToSNorm(tangent[j]);
+					});
+				writer.WriteMesh(vertices, indices, object.name, MeshAccess::All);
+			}
+			
 			writer.End();
 			
 			return true;
