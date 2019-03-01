@@ -203,8 +203,6 @@ namespace eg::graphics_api::gl
 					pushConstant.vectorSize = memberType.vecsize;
 					pushConstant.columns = memberType.columns;
 					
-					Log(LogLevel::Info, "gl", "Found push constant '{0}' at offset {1}", name, pushConstant.offset);
-					
 					for (uint32_t arraySize : memberType.array)
 						pushConstant.arraySize *= arraySize;
 				}
