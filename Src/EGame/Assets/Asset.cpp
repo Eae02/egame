@@ -500,7 +500,8 @@ namespace eg
 	
 	const Asset* detail::FindAsset(std::string_view name)
 	{
-		AssetDirectory* dir = FindDirectory(&assetRootDir, ParentPath(name), false);
+		std::string cPath = CanonicalPath(name);
+		AssetDirectory* dir = FindDirectory(&assetRootDir, ParentPath(cPath), false);
 		if (dir == nullptr)
 			return nullptr;
 		

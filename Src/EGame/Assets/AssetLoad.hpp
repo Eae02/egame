@@ -11,7 +11,7 @@ namespace eg
 	{
 	public:
 		AssetLoadContext(Asset* asset, std::string_view dirPath, Span<const char> data)
-			: m_asset(asset), m_data(data) { }
+			: m_asset(asset), m_dirPath(dirPath), m_data(data) { }
 		
 		/**
 		 * Creates the result asset. The loader must always call this function with the same type T.
@@ -53,7 +53,7 @@ namespace eg
 			return m_data;
 		}
 		
-		std::string_view dirPath() const
+		std::string_view DirPath() const
 		{
 			return m_dirPath;
 		}

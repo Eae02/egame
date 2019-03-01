@@ -13,7 +13,7 @@ namespace eg
 	
 	EG_API std::vector<char> ReadStreamContents(std::istream& stream);
 	
-	class MemoryStreambuf : public std::streambuf
+	class EG_API MemoryStreambuf : public std::streambuf
 	{
 	public:
 		MemoryStreambuf(const char* begin, const char* end)
