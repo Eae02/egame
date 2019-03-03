@@ -168,21 +168,16 @@ namespace eg
 		}
 	}
 	
-	static float CalcScale(const glm::vec3& position, const glm::mat4& viewProjMatrix)
+	void TranslationGizmo::Update(glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix, const Ray& viewRay)
 	{
-		return glm::distance(-glm::vec3(viewProjMatrix[3]), position);
-	}
-	
-	void TranslationGizmo::Update(glm::vec3& position, const glm::mat4& viewProjMatrix, const Ray& viewRay)
-	{
-		const float scale = CalcScale(position, viewProjMatrix) * m_sizeScale;
+		m_renderScale = glm::distance(cameraPos, position) * m_sizeScale;
 		
 		//Calculates the depth of the end of each arrow
 		float arrowDepths[3];
 		for (int i = 0; i < 3; i++)
 		{
 			glm::vec3 endPos = position;
-			endPos[i] += ARROW_SCALE.x * scale;
+			endPos[i] += ARROW_SCALE.x * m_renderScale;
 			
 			glm::vec4 endPosPPS = viewProjMatrix * glm::vec4(endPos, 1.0f);
 			arrowDepths[i] = endPosPPS.z / endPosPPS.w;
@@ -244,7 +239,7 @@ namespace eg
 		m_hoveredAxis = -1;
 		for (int axis : m_axisDrawOrder)
 		{
-			//Initializes the rotation & scale matrix
+			//Initializes the rotation & m_renderScale matrix
 			glm::mat4 rotation(0.0f);
 			for (int i = 0; i < 3; i++)
 				rotation[i][(axis + i) % 3] = 1;
@@ -252,8 +247,8 @@ namespace eg
 			
 			glm::mat4 worldMatrix = glm::translate(glm::mat4(), position) *
 			                        rotation *
-			                        glm::translate(glm::mat4(), ARROW_OFFSET * scale) *
-			                        glm::scale(glm::mat4(), ARROW_SCALE * scale);
+			                        glm::translate(glm::mat4(), ARROW_OFFSET * m_renderScale) *
+			                        glm::scale(glm::mat4(), ARROW_SCALE * m_renderScale);
 			
 			if (RayIntersectsArrow(worldMatrix, viewRay))
 			{
@@ -274,15 +269,13 @@ namespace eg
 	
 	void TranslationGizmo::Draw(const glm::mat4& viewProjMatrix) const
 	{
-		const float scale = CalcScale(m_lastPosition, viewProjMatrix) * m_sizeScale;
-		
 		DC.BindPipeline(s_pipeline);
 		DC.BindVertexBuffer(0, s_arrowVB, 0);
 		DC.BindIndexBuffer(IndexType::UInt16, s_arrowIB, 0);
 		
 		for (int axis : m_axisDrawOrder)
 		{
-			//Initializes the rotation & scale matrix
+			//Initializes the rotation & m_renderScale matrix
 			glm::mat4 rotation(0.0f);
 			for (int i = 0; i < 3; i++)
 				rotation[i][(axis + i) % 3] = 1;
@@ -290,8 +283,8 @@ namespace eg
 			
 			glm::mat4 worldMatrix = glm::translate(glm::mat4(), m_lastPosition) *
 			                        rotation *
-			                        glm::translate(glm::mat4(), ARROW_OFFSET * scale) *
-			                        glm::scale(glm::mat4(), ARROW_SCALE * scale);
+			                        glm::translate(glm::mat4(), ARROW_OFFSET * m_renderScale) *
+			                        glm::scale(glm::mat4(), ARROW_SCALE * m_renderScale);
 			
 			glm::vec3 color = AXIS_COLORS[axis];
 			

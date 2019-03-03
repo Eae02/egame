@@ -12,7 +12,7 @@ namespace eg
 	public:
 		TranslationGizmo();
 		
-		void Update(glm::vec3& position, const glm::mat4& viewProjMatrix, const Ray& viewRay);
+		void Update(glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix, const Ray& viewRay);
 		
 		void Draw(const glm::mat4& viewProjMatrix) const;
 		
@@ -39,6 +39,7 @@ namespace eg
 		int m_axisDrawOrder[3];
 		
 		float m_sizeScale = 0.1f;
+		float m_renderScale;
 		
 		int m_currentAxis = -1;
 		int m_hoveredAxis = -1;
