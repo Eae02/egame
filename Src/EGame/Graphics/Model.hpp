@@ -49,6 +49,11 @@ namespace eg
 			return m_meshes[index];
 		}
 		
+		size_t NumMaterials() const
+		{
+			return m_materialNames.size();
+		}
+		
 		template <typename V, typename I>
 		MeshData<const V, const I> GetMeshData(size_t index) const
 		{
@@ -75,6 +80,8 @@ namespace eg
 		
 		void Bind(CommandContext& cc = DC, uint32_t vertexBinding = 0) const;
 		
+		int GetMaterialIndex(std::string_view name) const;
+		
 		BufferRef VertexBuffer() const
 		{
 			return m_vertexBuffer;
@@ -98,6 +105,8 @@ namespace eg
 		};
 		
 		std::vector<InternalMesh> m_meshes;
+		
+		std::vector<std::string> m_materialNames;
 		
 		std::type_index m_vertexType { typeid(int) };
 		std::type_index m_indexType { typeid(int) };
@@ -125,6 +134,8 @@ namespace eg
 		 */
 		Model CreateAndReset();
 		
+		int AddMaterial(std::string_view name);
+		
 		std::tuple<void*, void*> AddMesh(uint32_t numVertices, uint32_t numIndices,
 			std::string name, MeshAccess access = MeshAccess::All, int materialIndex = -1);
 		
@@ -138,6 +149,8 @@ namespace eg
 			std::string name;
 			std::unique_ptr<void, FreeDel> memory;
 		};
+		
+		std::vector<std::string> m_materialNames;
 		
 		uint64_t m_vertexSize;
 		uint64_t m_indexSize;

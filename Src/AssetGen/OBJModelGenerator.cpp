@@ -56,11 +56,13 @@ namespace eg::asset_gen
 			struct OBJObject
 			{
 				std::string name;
+				std::string material;
 				size_t facesBegin;
 				size_t facesEnd;
 			};
 			std::vector<OBJObject> objects;
 			
+			std::string currentMaterial;
 			std::string currentObjectName;
 			auto CommitCurrentObject = [&] () 
 			{
@@ -68,13 +70,27 @@ namespace eg::asset_gen
 				if (facesBegin == faces.size())
 					return;
 				OBJObject& object = objects.emplace_back();
+				object.material = currentMaterial;
 				object.name = currentObjectName;
 				object.facesBegin = facesBegin;
 				object.facesEnd = faces.size();
+				
+				int nameSuffix = 2;
+				while (true)
+				{
+					int numSameName = std::count_if(objects.begin(), objects.end(), [&] (const OBJObject& o)
+					{
+						return o.name == object.name;
+					});
+					if (numSameName <= 1)
+						break;
+					object.name = currentObjectName + std::to_string(nameSuffix);
+					nameSuffix++;
+				}
 			};
 			
-			int64_t defaultNormalIdx = -1;
-			int64_t defaultTexCoordIdx = -1;
+			bool addDefaultNormal = false;
+			bool addDefaultTexCoord = false;
 			
 			std::string line;
 			while (!sourceStream.eof())
@@ -119,7 +135,7 @@ namespace eg::asset_gen
 						Log(LogLevel::Error, "as", "Malformatted OBJ: {0}", sourcePath);
 						return false;
 					}
-					texCoords.emplace_back(ParseF(parts[1]), ParseF(parts[2]));
+					texCoords.emplace_back(ParseF(parts[1]), 1.0f - ParseF(parts[2]));
 				}
 				else if (parts[0] == "f")
 				{
@@ -149,12 +165,7 @@ namespace eg::asset_gen
 						}
 						else
 						{
-							if (defaultTexCoordIdx == -1)
-							{
-								defaultTexCoordIdx = texCoords.size();
-								texCoords.emplace_back(0, 0);
-							}
-							face[i].texCoord = defaultTexCoordIdx;
+							addDefaultTexCoord = true;
 						}
 						
 						if (slash1 != std::string_view::npos && slash2 != slash1)
@@ -163,14 +174,14 @@ namespace eg::asset_gen
 						}
 						else
 						{
-							if (defaultNormalIdx == -1)
-							{
-								defaultNormalIdx = normals.size();
-								normals.emplace_back(0, 1, 0);
-							}
-							face[i].normal = defaultNormalIdx;
+							addDefaultNormal = true;
 						}
 					}
+				}
+				else if (parts[0] == "usemtl")
+				{
+					CommitCurrentObject();
+					currentMaterial = parts[1];
 				}
 				else if (parts[0] == "o")
 				{
@@ -182,6 +193,15 @@ namespace eg::asset_gen
 			CommitCurrentObject();
 			
 			ModelAssetWriter<StdVertex> writer(generateContext.outputStream);
+			
+			if (addDefaultNormal)
+			{
+				normals.emplace_back(0, 1, 0);
+			}
+			if (addDefaultTexCoord)
+			{
+				texCoords.emplace_back(0, 0);
+			}
 			
 			std::map<VertexPtr, uint32_t> indexMap;
 			std::vector<VertexPtr> verticesP;
@@ -196,8 +216,13 @@ namespace eg::asset_gen
 				//Remaps OBJ style vertex references to vertices and indices
 				for (size_t f = object.facesBegin; f < object.facesEnd; f++)
 				{
-					for (const VertexPtr& faceVertexPtr : faces[f])
+					for (VertexPtr faceVertexPtr : faces[f])
 					{
+						if (faceVertexPtr.normal == -1)
+							faceVertexPtr.normal = normals.size() - 1;
+						if (faceVertexPtr.texCoord == -1)
+							faceVertexPtr.texCoord = texCoords.size() - 1;
+						
 						auto it = indexMap.find(faceVertexPtr);
 						if (it == indexMap.end())
 						{
@@ -234,7 +259,7 @@ namespace eg::asset_gen
 						for (int j = 0; j < 3; j++)
 							vertices[i].tangent[j] = FloatToSNorm(tangent[j]);
 					});
-				writer.WriteMesh(vertices, indices, object.name, MeshAccess::All);
+				writer.WriteMesh(vertices, indices, object.name, MeshAccess::All, object.material);
 			}
 			
 			writer.End();

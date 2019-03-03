@@ -3,7 +3,7 @@
 
 namespace eg
 {
-	const AssetFormat ModelAssetFormat { "EG::Model", 0 };
+	const AssetFormat ModelAssetFormat { "EG::Model", 1 };
 	
 	std::vector<detail::ModelVertexType> detail::modelVertexTypes;
 	
@@ -32,9 +32,11 @@ namespace eg
 			if (numVertices == 0 || numIndices == 0)
 				break;
 			
-			const int32_t materialIndex = BinRead<int32_t>(stream);
 			MeshAccess access = (MeshAccess)BinRead<uint8_t>(stream);
+			std::string materialName = BinReadString(stream);
 			std::string name = BinReadString(stream);
+			
+			int materialIndex = modelBuilder.AddMaterial(materialName);
 			
 			auto [vertices, indices] = modelBuilder.AddMesh(numVertices, numIndices, std::move(name), access, materialIndex);
 			

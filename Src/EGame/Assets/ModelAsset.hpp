@@ -43,15 +43,15 @@ namespace eg
 		}
 		
 		void WriteMesh(Span<const V> vertices, Span<const uint32_t> indices, std::string_view name,
-			MeshAccess access, int materialIndex = -1)
+			MeshAccess access, std::string_view materialName = { })
 		{
 			if (vertices.Empty() || indices.Empty())
 				EG_PANIC("Attempted to write an empty mesh.");
 			
 			BinWrite<uint32_t>(*m_stream, vertices.size());
 			BinWrite<uint32_t>(*m_stream, indices.size());
-			BinWrite<int32_t>(*m_stream, materialIndex);
 			BinWrite<uint8_t>(*m_stream, (uint8_t)access);
+			BinWriteString(*m_stream, materialName);
 			BinWriteString(*m_stream, name);
 			m_stream->write(reinterpret_cast<const char*>(vertices.data()), vertices.SizeBytes());
 			m_stream->write(reinterpret_cast<const char*>(indices.data()), indices.SizeBytes());

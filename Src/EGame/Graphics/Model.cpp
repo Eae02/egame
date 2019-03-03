@@ -8,6 +8,16 @@ namespace eg
 		cc.BindIndexBuffer(m_indexTypeE, m_indexBuffer, 0);
 	}
 	
+	int Model::GetMaterialIndex(std::string_view name) const
+	{
+		for (int i = 0; i < (int)m_materialNames.size(); i++)
+		{
+			if (m_materialNames[i] == name)
+				return i;
+		}
+		return -1;
+	}
+	
 	std::tuple<void*, void*> ModelBuilderUnformatted::AddMesh(uint32_t numVertices, uint32_t numIndices,
 		std::string name, MeshAccess access, int materialIndex)
 	{
@@ -24,12 +34,26 @@ namespace eg
 		return std::tuple<void*, void*>(memory, memory + numVertices * m_vertexSize);
 	}
 	
+	int ModelBuilderUnformatted::AddMaterial(std::string_view name)
+	{
+		for (int i = 0; i < (int)m_materialNames.size(); i++)
+		{
+			if (m_materialNames[i] == name)
+				return i;
+		}
+		
+		int index = (int)m_materialNames.size();
+		m_materialNames.emplace_back(name);
+		return index;
+	}
+	
 	Model ModelBuilderUnformatted::CreateAndReset()
 	{
 		Model model;
 		model.m_vertexType = m_vertexType;
 		model.m_indexType = m_indexType;
 		model.m_indexTypeE = m_indexTypeE;
+		model.m_materialNames.swap(m_materialNames);
 		
 		//Counts the amount of data to upload
 		uint64_t totalVerticesBytes = 0;
