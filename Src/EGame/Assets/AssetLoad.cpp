@@ -53,7 +53,7 @@ namespace eg
 	
 	void RegisterAssetLoaders()
 	{
-		RegisterAssetLoader("Shader", &ShaderModule::AssetLoader, ShaderModule::AssetFormat);
+		RegisterAssetLoader("Shader", &ShaderModuleLoader, ShaderModuleAssetFormat);
 		RegisterAssetLoader("Texture2D", &Texture2DLoader, Texture2DAssetFormat);
 		RegisterAssetLoader("Model", &ModelAssetLoader, ModelAssetFormat);
 		

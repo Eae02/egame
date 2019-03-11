@@ -6,13 +6,7 @@
 
 namespace eg
 {
-	struct EG_API ShaderModule
-	{
-		ShaderStage stage;
-		std::vector<char> code;
-		
-		static bool AssetLoader(const class AssetLoadContext& context);
-		
-		static const eg::AssetFormat AssetFormat;
-	};
+	EG_API extern const eg::AssetFormat ShaderModuleAssetFormat;
+	
+	EG_API bool ShaderModuleLoader(const class AssetLoadContext& context);
 }

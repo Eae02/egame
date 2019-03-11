@@ -60,30 +60,31 @@ namespace eg::graphics_api::vk
 		cachedSetLayouts.clear();
 	}
 	
-	struct ShaderProgram
+	struct ShaderModule
 	{
-		VkShaderModule fragmentShader;
-		VkShaderModule vertexShader;
-		VkShaderStageFlags pushConstantStages;
-		VkPipelineLayout pipelineLayout;
-		VkPipeline basePipeline;
-		std::atomic_int refCount;
+		VkShaderModule module;
+		std::atomic_int ref;
+		uint32_t numPushConstantBytes;
+		std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
 		
 		void UnRef();
 	};
 	
 	struct Pipeline : Resource
 	{
+		VkShaderStageFlags pushConstantStages;
+		ShaderModule* shaderModules[5];
+		VkPipelineLayout pipelineLayout;
+		Pipeline* basePipeline;
 		VkPipeline pipeline;
-		ShaderProgram* program;
 		bool enableScissorTest;
 		
 		void Free() override;
 	};
 	
-	inline ShaderProgram* UnwrapShaderProgram(ShaderProgramHandle handle)
+	inline ShaderModule* UnwrapShaderModule(ShaderModuleHandle handle)
 	{
-		return reinterpret_cast<ShaderProgram*>(handle);
+		return reinterpret_cast<ShaderModule*>(handle);
 	}
 	
 	inline Pipeline* UnwrapPipeline(PipelineHandle handle)
@@ -91,153 +92,115 @@ namespace eg::graphics_api::vk
 		return reinterpret_cast<Pipeline*>(handle);
 	}
 	
-	static ConcurrentObjectPool<ShaderProgram> shaderProgramsPool;
+	static ConcurrentObjectPool<ShaderModule> shaderModulesPool;
 	static ConcurrentObjectPool<Pipeline> pipelinesPool;
 	
-	void ShaderProgram::UnRef()
+	void ShaderModule::UnRef()
 	{
-		if (--refCount <= 0)
+		if (ref-- == 1)
 		{
-			if (basePipeline != VK_NULL_HANDLE)
-				vkDestroyPipeline(ctx.device, basePipeline, nullptr);
-			
-			vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
-			if (vertexShader != VK_NULL_HANDLE)
-				vkDestroyShaderModule(ctx.device, vertexShader, nullptr);
-			if (fragmentShader != VK_NULL_HANDLE)
-				vkDestroyShaderModule(ctx.device, fragmentShader, nullptr);
-			shaderProgramsPool.Delete(this);
+			vkDestroyShaderModule(ctx.device, module, nullptr);
+			shaderModulesPool.Delete(this);
 		}
 	}
 	
 	void Pipeline::Free()
 	{
-		//If this pipeline is set as the base pipeline, it will be deleted with the shader program.
-		if (program->basePipeline != pipeline)
-			vkDestroyPipeline(ctx.device, pipeline, nullptr);
+		if (basePipeline != nullptr)
+		{
+			basePipeline->UnRef();
+		}
+		else
+		{
+			vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
+		}
 		
-		program->UnRef();
+		for (ShaderModule* module : shaderModules)
+		{
+			if (module != nullptr)
+				module->UnRef();
+		}
+		
+		vkDestroyPipeline(ctx.device, pipeline, nullptr);
+		
 		pipelinesPool.Delete(this);
 	}
 	
-	ShaderProgramHandle CreateShaderProgram(Span<const ShaderStageDesc> stages)
+	static const VkShaderStageFlags ShaderStageFlags[] =
 	{
-		ShaderProgram* program = shaderProgramsPool.New();
-		program->vertexShader = VK_NULL_HANDLE;
-		program->fragmentShader = VK_NULL_HANDLE;
-		program->refCount = 1;
-		program->pushConstantStages = 0;
-		program->basePipeline = VK_NULL_HANDLE;
+		VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT, VK_SHADER_STAGE_GEOMETRY_BIT,
+		VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT
+	};
+	
+	ShaderModuleHandle CreateShaderModule(ShaderStage stage, Span<const char> code)
+	{
+		ShaderModule* module = shaderModulesPool.New();
+		module->ref = 1;
 		
-		std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
-		uint32_t numPushConstantBytes = 0;
+		//Creates the shader module
+		VkShaderModuleCreateInfo moduleCreateInfo = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+		moduleCreateInfo.codeSize = code.size();
+		moduleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+		CheckRes(vkCreateShaderModule(ctx.device, &moduleCreateInfo, nullptr, &module->module));
 		
-		//Creates shader modules and extracts pipeline layout information
-		for (const ShaderStageDesc& stageDesc : stages)
+		VkShaderStageFlags stageFlags = ShaderStageFlags[(int)stage];
+		
+		spirv_cross::Compiler spvCrossCompiler(moduleCreateInfo.pCode, moduleCreateInfo.codeSize / 4);
+		
+		//Processes shader resources
+		auto ProcessResources = [&] (const std::vector<spirv_cross::Resource>& resources, VkDescriptorType type)
 		{
-			//Creates the shader module
-			VkShaderModule module;
-			VkShaderModuleCreateInfo moduleCreateInfo = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-			moduleCreateInfo.codeSize = stageDesc.codeBytes;
-			moduleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(stageDesc.code);
-			CheckRes(vkCreateShaderModule(ctx.device, &moduleCreateInfo, nullptr, &module));
-			
-			VkShaderStageFlags stageFlags;
-			switch (stageDesc.stage)
+			for (const spirv_cross::Resource& resource : resources)
 			{
-			case ShaderStage::Vertex:
-				program->vertexShader = module;
-				stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-				break;
-			case ShaderStage::Fragment:
-				program->fragmentShader = module;
-				stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-				break;
+				const uint32_t set = spvCrossCompiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				const uint32_t binding = spvCrossCompiler.get_decoration(resource.id, spv::DecorationBinding);
+				const uint32_t count = 1;
+				
+				auto it = std::find_if(module->bindings[set].begin(), module->bindings[set].end(),
+					[&] (const VkDescriptorSetLayoutBinding& b) { return b.binding == binding; });
+				
+				if (it != module->bindings[set].end())
+				{
+					if (it->descriptorType != type)
+						EG_PANIC("Descriptor type mismatch for binding " << binding << " in set " << set);
+					if (it->descriptorCount != count)
+						EG_PANIC("Descriptor count mismatch for binding " << binding << " in set " << set);
+					it->stageFlags |= stageFlags;
+				}
+				else
+				{
+					VkDescriptorSetLayoutBinding& bindingRef = module->bindings[set].emplace_back();
+					bindingRef.binding = binding;
+					bindingRef.stageFlags = stageFlags;
+					bindingRef.descriptorType = type;
+					bindingRef.descriptorCount = count;
+					bindingRef.pImmutableSamplers = nullptr;
+				}
 			}
-			
-			spirv_cross::Compiler spvCrossCompiler(moduleCreateInfo.pCode, moduleCreateInfo.codeSize / 4);
-			
-			//Processes shader resources
-			auto ProcessResources = [&] (const std::vector<spirv_cross::Resource>& resources, VkDescriptorType type)
+		};
+		
+		const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
+		ProcessResources(resources.uniform_buffers, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		ProcessResources(resources.storage_buffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+		ProcessResources(resources.sampled_images, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		ProcessResources(resources.separate_images, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
+		ProcessResources(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER);
+		
+		module->numPushConstantBytes = 0;
+		for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
+		{
+			for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
 			{
-				for (const spirv_cross::Resource& resource : resources)
-				{
-					const uint32_t set = spvCrossCompiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
-					const uint32_t binding = spvCrossCompiler.get_decoration(resource.id, spv::DecorationBinding);
-					const uint32_t count = 1;
-					
-					auto it = std::find_if(bindings[set].begin(), bindings[set].end(),
-						[&] (const VkDescriptorSetLayoutBinding& b) { return b.binding == binding; });
-					
-					if (it != bindings[set].end())
-					{
-						if (it->descriptorType != type)
-							EG_PANIC("Descriptor type mismatch for binding " << binding << " in set " << set);
-						if (it->descriptorCount != count)
-							EG_PANIC("Descriptor count mismatch for binding " << binding << " in set " << set);
-						it->stageFlags |= stageFlags;
-					}
-					else
-					{
-						VkDescriptorSetLayoutBinding& bindingRef = bindings[set].emplace_back();
-						bindingRef.binding = binding;
-						bindingRef.stageFlags = stageFlags;
-						bindingRef.descriptorType = type;
-						bindingRef.descriptorCount = count;
-						bindingRef.pImmutableSamplers = nullptr;
-					}
-				}
-			};
-			
-			const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
-			ProcessResources(resources.uniform_buffers, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-			ProcessResources(resources.storage_buffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-			ProcessResources(resources.sampled_images, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-			ProcessResources(resources.separate_images, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-			ProcessResources(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER);
-			
-			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
-			{
-				for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
-				{
-					numPushConstantBytes = std::max<uint32_t>(numPushConstantBytes, range.offset + range.range);
-					program->pushConstantStages |= stageFlags;
-				}
+				module->numPushConstantBytes = std::max<uint32_t>(module->numPushConstantBytes, range.offset + range.range);
 			}
 		}
 		
-		//Gets descriptor set layouts for each descriptor set
-		uint32_t numDescriptorSets = 0;
-		VkDescriptorSetLayout setLayouts[MAX_DESCRIPTOR_SETS] = { };
-		for (uint32_t i = 0; i < MAX_DESCRIPTOR_SETS; i++)
-		{
-			if (bindings[i].empty())
-				continue;
-			numDescriptorSets = i + 1;
-			setLayouts[i] = GetCachedDescriptorSet(bindings[i]);
-		}
-		
-		VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		layoutCreateInfo.pSetLayouts = setLayouts;
-		layoutCreateInfo.setLayoutCount = numDescriptorSets;
-		
-		VkPushConstantRange pushConstantRange;
-		if (numPushConstantBytes > 0)
-		{
-			pushConstantRange = { program->pushConstantStages, 0, numPushConstantBytes };
-			layoutCreateInfo.pushConstantRangeCount = 1;
-			layoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-		}
-		
-		vkCreatePipelineLayout(ctx.device, &layoutCreateInfo, nullptr, &program->pipelineLayout);
-		
-		return reinterpret_cast<ShaderProgramHandle>(program);
+		return reinterpret_cast<ShaderModuleHandle>(module);
 	}
 	
-	void DestroyShaderProgram(ShaderProgramHandle handle)
+	void DestroyShaderModule(ShaderModuleHandle handle)
 	{
-		ShaderProgram* program = UnwrapShaderProgram(handle);
-		program->UnRef();
+		UnwrapShaderModule(handle)->UnRef();
 	}
 	
 	static VkCompareOp TranslateCompareOp(CompareOp op)
@@ -405,39 +368,98 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
-	PipelineHandle CreatePipeline(ShaderProgramHandle programHandle, const FixedFuncState& fixedFuncState)
+	PipelineHandle CreatePipeline(const PipelineCreateInfo& createInfo)
 	{
-		ShaderProgram* program = UnwrapShaderProgram(programHandle);
-		program->refCount++;
-		
 		Pipeline* pipeline = pipelinesPool.New();
 		pipeline->refCount = 1;
-		pipeline->program = UnwrapShaderProgram(programHandle);
-		pipeline->enableScissorTest = fixedFuncState.enableScissorTest;
+		pipeline->enableScissorTest = createInfo.enableScissorTest;
+		std::fill_n(pipeline->shaderModules, 5, nullptr);
 		
-		VkPipelineShaderStageCreateInfo stageCreateInfos[2];
+		VkPipelineShaderStageCreateInfo stageCreateInfos[5];
 		uint32_t numStages = 0;
 		
-		auto MaybeAddStage = [&] (VkShaderModule shaderModule, VkShaderStageFlagBits stageFlags)
+		std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
+		uint32_t numPushConstantBytes = 0;
+		pipeline->pushConstantStages = 0;
+		
+		auto MaybeAddStage = [&] (ShaderModuleHandle handle, VkShaderStageFlagBits stageFlags)
 		{
-			if (shaderModule)
+			if (handle == nullptr)
+				return;
+			
+			ShaderModule* module = UnwrapShaderModule(handle);
+			module->ref++;
+			
+			stageCreateInfos[numStages].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			stageCreateInfos[numStages].pNext = nullptr;
+			stageCreateInfos[numStages].flags = 0;
+			stageCreateInfos[numStages].module = module->module;
+			stageCreateInfos[numStages].pName = "main";
+			stageCreateInfos[numStages].stage = stageFlags;
+			stageCreateInfos[numStages].pSpecializationInfo = nullptr;
+			pipeline->shaderModules[numStages++] = module;
+			
+			for (uint32_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
 			{
-				stageCreateInfos[numStages].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-				stageCreateInfos[numStages].pNext = nullptr;
-				stageCreateInfos[numStages].flags = 0;
-				stageCreateInfos[numStages].module = shaderModule;
-				stageCreateInfos[numStages].pName = "main";
-				stageCreateInfos[numStages].stage = stageFlags;
-				stageCreateInfos[numStages].pSpecializationInfo = nullptr;
-				numStages++;
+				for (const VkDescriptorSetLayoutBinding& binding : module->bindings[set])
+				{
+					auto it = std::find_if(bindings[set].begin(), bindings[set].end(),
+						[&] (const VkDescriptorSetLayoutBinding& b) { return b.binding == binding.binding; });
+					
+					if (it != bindings[set].end())
+					{
+						if (it->descriptorType != binding.descriptorType)
+							EG_PANIC("Descriptor type mismatch for binding " << binding.binding << " in set " << set);
+						if (it->descriptorCount != binding.descriptorCount)
+							EG_PANIC("Descriptor count mismatch for binding " << binding.binding << " in set " << set);
+						it->stageFlags |= stageFlags;
+					}
+					else
+					{
+						bindings[set].push_back(binding);
+					}
+				}
+			}
+			
+			if (module->numPushConstantBytes > 0)
+			{
+				numPushConstantBytes = std::max(numPushConstantBytes, module->numPushConstantBytes);
+				pipeline->pushConstantStages |= stageFlags;
 			}
 		};
 		
-		MaybeAddStage(program->vertexShader, VK_SHADER_STAGE_VERTEX_BIT);
-		MaybeAddStage(program->fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT);
+		MaybeAddStage(createInfo.vertexShader, VK_SHADER_STAGE_VERTEX_BIT);
+		MaybeAddStage(createInfo.fragmentShader, VK_SHADER_STAGE_FRAGMENT_BIT);
+		MaybeAddStage(createInfo.geometryShader, VK_SHADER_STAGE_GEOMETRY_BIT);
+		MaybeAddStage(createInfo.tessControlShader, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+		MaybeAddStage(createInfo.tessEvaluationShader, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+		
+		//Gets descriptor set layouts for each descriptor set
+		uint32_t numDescriptorSets = 0;
+		VkDescriptorSetLayout setLayouts[MAX_DESCRIPTOR_SETS] = { };
+		for (uint32_t i = 0; i < MAX_DESCRIPTOR_SETS; i++)
+		{
+			if (bindings[i].empty())
+				continue;
+			numDescriptorSets = i + 1;
+			setLayouts[i] = GetCachedDescriptorSet(bindings[i]);
+		}
+		
+		//Creates the pipeline layout
+		VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+		layoutCreateInfo.pSetLayouts = setLayouts;
+		layoutCreateInfo.setLayoutCount = numDescriptorSets;
+		VkPushConstantRange pushConstantRange;
+		if (numPushConstantBytes > 0)
+		{
+			pushConstantRange = { pipeline->pushConstantStages, 0, numPushConstantBytes };
+			layoutCreateInfo.pushConstantRangeCount = 1;
+			layoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+		}
+		CheckRes(vkCreatePipelineLayout(ctx.device, &layoutCreateInfo, nullptr, &pipeline->pipelineLayout));
 		
 		VkPipelineInputAssemblyStateCreateInfo iaState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-		switch (fixedFuncState.topology)
+		switch (createInfo.topology)
 		{
 		case Topology::TriangleList: iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
 		case Topology::TriangleStrip: iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; break;
@@ -445,6 +467,7 @@ namespace eg::graphics_api::vk
 		case Topology::LineList: iaState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; break;
 		case Topology::LineStrip: iaState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP; break;
 		case Topology::Points: iaState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
+		case Topology::Patches: iaState.topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST; break;
 		}
 		
 		const VkViewport dummyViewport = { 0, 0, 0, 1, 0, 1 };
@@ -456,7 +479,7 @@ namespace eg::graphics_api::vk
 		viewportState.pScissors = &dummyScissor;
 		
 		VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
-		if (fixedFuncState.wireframe && ctx.deviceFeatures.fillModeNonSolid)
+		if (createInfo.wireframe && ctx.deviceFeatures.fillModeNonSolid)
 			polygonMode = VK_POLYGON_MODE_LINE;
 		
 		const VkPipelineRasterizationStateCreateInfo rasterizationState =
@@ -464,11 +487,11 @@ namespace eg::graphics_api::vk
 			/* sType                   */ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 			/* pNext                   */ nullptr,
 			/* flags                   */ 0,
-			/* depthClampEnable        */ static_cast<VkBool32>(fixedFuncState.enableDepthClamp),
+			/* depthClampEnable        */ static_cast<VkBool32>(createInfo.enableDepthClamp),
 			/* rasterizerDiscardEnable */ VK_FALSE,
 			/* polygonMode             */ polygonMode,
-			/* cullMode                */ TranslateCullMode(fixedFuncState.cullMode),
-			/* frontFace               */ fixedFuncState.frontFaceCCW ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE,
+			/* cullMode                */ TranslateCullMode(createInfo.cullMode),
+			/* frontFace               */ createInfo.frontFaceCCW ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE,
 			/* depthBiasEnable         */ VK_FALSE,
 			/* depthBiasConstantFactor */ 0,
 			/* depthBiasClamp          */ 0,
@@ -494,9 +517,9 @@ namespace eg::graphics_api::vk
 			/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 			/* pNext                 */ nullptr,
 			/* flags                 */ 0,
-			/* depthTestEnable       */ static_cast<VkBool32>(fixedFuncState.enableDepthTest),
-			/* depthWriteEnable      */ static_cast<VkBool32>(fixedFuncState.enableDepthWrite),
-			/* depthCompareOp        */ TranslateCompareOp(fixedFuncState.depthCompare),
+			/* depthTestEnable       */ static_cast<VkBool32>(createInfo.enableDepthTest),
+			/* depthWriteEnable      */ static_cast<VkBool32>(createInfo.enableDepthWrite),
+			/* depthCompareOp        */ TranslateCompareOp(createInfo.depthCompare),
 			/* depthBoundsTestEnable */ VK_FALSE,
 			/* stencilTestEnable     */ VK_FALSE,
 			/* front                 */ { },
@@ -512,19 +535,19 @@ namespace eg::graphics_api::vk
 		colorBlendState.pAttachments = blendStates;
 		
 		RenderPassDescription renderPassDescription;
-		renderPassDescription.depthAttachment.format = TranslateFormat(fixedFuncState.depthFormat);
-		renderPassDescription.depthAttachment.samples = fixedFuncState.depthSamples;
+		renderPassDescription.depthAttachment.format = TranslateFormat(createInfo.depthFormat);
+		renderPassDescription.depthAttachment.samples = createInfo.depthSamples;
 		
 		//Initializes attachment blend states and color attachment information for the render pass description.
 		for (uint32_t i = 0; i < 8; i++)
 		{
-			if (fixedFuncState.attachments[i].format == Format::Undefined)
+			if (createInfo.attachments[i].format == Format::Undefined)
 				continue;
 			
-			renderPassDescription.colorAttachments[i].format = TranslateFormat(fixedFuncState.attachments[i].format);
-			renderPassDescription.colorAttachments[i].samples = fixedFuncState.attachments[i].samples;
+			renderPassDescription.colorAttachments[i].format = TranslateFormat(createInfo.attachments[i].format);
+			renderPassDescription.colorAttachments[i].samples = createInfo.attachments[i].samples;
 			
-			const BlendState& blendState = fixedFuncState.attachments[i].blend;
+			const BlendState& blendState = createInfo.attachments[i].blend;
 			
 			colorBlendState.attachmentCount = i + 1;
 			
@@ -554,13 +577,13 @@ namespace eg::graphics_api::vk
 		VkVertexInputBindingDescription vertexBindings[MAX_VERTEX_BINDINGS];
 		for (uint32_t b = 0; b < MAX_VERTEX_BINDINGS; b++)
 		{
-			if (fixedFuncState.vertexBindings[b].stride == UINT32_MAX)
+			if (createInfo.vertexBindings[b].stride == UINT32_MAX)
 				continue;
 			
 			vertexBindings[numVertexBindings].binding = b;
-			vertexBindings[numVertexBindings].stride = fixedFuncState.vertexBindings[b].stride;
+			vertexBindings[numVertexBindings].stride = createInfo.vertexBindings[b].stride;
 			
-			if (fixedFuncState.vertexBindings[b].inputRate == InputRate::Vertex)
+			if (createInfo.vertexBindings[b].inputRate == InputRate::Vertex)
 				vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 			else
 				vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
@@ -573,7 +596,7 @@ namespace eg::graphics_api::vk
 		VkVertexInputAttributeDescription vertexAttribs[MAX_VERTEX_ATTRIBUTES];
 		for (uint32_t a = 0; a < MAX_VERTEX_ATTRIBUTES; a++)
 		{
-			const VertexAttribute& attribIn = fixedFuncState.vertexAttributes[a];
+			const VertexAttribute& attribIn = createInfo.vertexAttributes[a];
 			if (attribIn.binding == UINT32_MAX)
 				continue;
 			
@@ -595,7 +618,15 @@ namespace eg::graphics_api::vk
 			/* pVertexAttributeDescriptions    */ vertexAttribs
 		};
 		
-		VkGraphicsPipelineCreateInfo createInfo =
+		const VkPipelineTessellationStateCreateInfo tessState =
+		{
+			/* sType              */ VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO,
+			/* pNext              */ nullptr,
+			/* flags              */ 0,
+			/* patchControlPoints */ createInfo.patchControlPoints
+		};
+		
+		VkGraphicsPipelineCreateInfo vkCreateInfo =
 		{
 			/* sType               */ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			/* pNext               */ nullptr,
@@ -604,36 +635,32 @@ namespace eg::graphics_api::vk
 			/* pStages             */ stageCreateInfos,
 			/* pVertexInputState   */ &vertexInputState,
 			/* pInputAssemblyState */ &iaState,
-			/* pTessellationState  */ nullptr,
+			/* pTessellationState  */ createInfo.patchControlPoints ? &tessState : nullptr,
 			/* pViewportState      */ &viewportState,
 			/* pRasterizationState */ &rasterizationState,
 			/* pMultisampleState   */ &multisampleState,
 			/* pDepthStencilState  */ &depthStencilState,
 			/* pColorBlendState    */ &colorBlendState,
 			/* pDynamicState       */ &dynamicStateCreateInfo,
-			/* layout              */ program->pipelineLayout,
+			/* layout              */ pipeline->pipelineLayout,
 			/* renderPass          */ GetRenderPass(renderPassDescription, true),
 			/* subpass             */ 0,
 			/* basePipelineHandle  */ VK_NULL_HANDLE,
 			/* basePipelineIndex   */ -1
 		};
 		
-		if (program->basePipeline == VK_NULL_HANDLE)
+		if (pipeline->basePipeline == nullptr)
 		{
-			createInfo.flags |= VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
+			vkCreateInfo.flags |= VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
 		}
 		else
 		{
-			createInfo.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-			createInfo.basePipelineHandle = program->basePipeline;
+			vkCreateInfo.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+			vkCreateInfo.basePipelineHandle = pipeline->basePipeline->pipeline;
+			pipeline->basePipeline->refCount++;
 		}
 		
-		CheckRes(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &createInfo, nullptr, &pipeline->pipeline));
-		
-		if (program->basePipeline == VK_NULL_HANDLE)
-		{
-			program->basePipeline = pipeline->pipeline;
-		}
+		CheckRes(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &vkCreateInfo, nullptr, &pipeline->pipeline));
 		
 		return reinterpret_cast<PipelineHandle>(pipeline);
 	}
@@ -728,7 +755,7 @@ namespace eg::graphics_api::vk
 		writeDS.descriptorCount = 1;
 		writeDS.pBufferInfo = &bufferInfo;
 		
-		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->program->pipelineLayout,
+		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout,
 			0, 1, &writeDS);
 	}
 	
@@ -766,8 +793,7 @@ namespace eg::graphics_api::vk
 		writeDS.descriptorCount = 1;
 		writeDS.pImageInfo = &imageInfo;
 		
-		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->program->pipelineLayout,
-			0, 1, &writeDS);
+		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout, 0, 1, &writeDS);
 	}
 	
 	void PushConstants(CommandContextHandle cc, uint32_t offset, uint32_t range, const void* data)
@@ -779,8 +805,7 @@ namespace eg::graphics_api::vk
 			return;
 		}
 		
-		vkCmdPushConstants(GetCB(cc), pipeline->program->pipelineLayout, pipeline->program->pushConstantStages,
-			offset, range, data);
+		vkCmdPushConstants(GetCB(cc), pipeline->pipelineLayout, pipeline->pushConstantStages, offset, range, data);
 	}
 	
 	void BindVertexBuffer(CommandContextHandle cc, uint32_t binding, BufferHandle bufferHandle, uint32_t offset)

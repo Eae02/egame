@@ -113,16 +113,17 @@ namespace eg
 		s_arrowVB.UsageHint(BufferUsage::VertexBuffer);
 		s_arrowIB.UsageHint(BufferUsage::IndexBuffer);
 		
-		ShaderProgram program;
-		program.AddStageBorrowedCode(ShaderStage::Vertex, { reinterpret_cast<const char*>(Gizmo_vs_glsl), sizeof(Gizmo_vs_glsl) });
-		program.AddStageBorrowedCode(ShaderStage::Fragment, { reinterpret_cast<const char*>(Gizmo_fs_glsl), sizeof(Gizmo_fs_glsl) });
+		ShaderModule vs(ShaderStage::Vertex, { reinterpret_cast<const char*>(Gizmo_vs_glsl), sizeof(Gizmo_vs_glsl) });
+		ShaderModule fs(ShaderStage::Fragment, { reinterpret_cast<const char*>(Gizmo_fs_glsl), sizeof(Gizmo_fs_glsl) });
 		
-		FixedFuncState ffState;
-		ffState.depthFormat = Format::DefaultDepthStencil;
-		ffState.attachments[0].format = Format::DefaultColor;
-		ffState.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
-		ffState.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };
-		s_pipeline = program.CreatePipeline(ffState);
+		PipelineCreateInfo pipelineCI;
+		pipelineCI.vertexShader = vs.Handle();
+		pipelineCI.fragmentShader = fs.Handle();
+		pipelineCI.depthFormat = Format::DefaultDepthStencil;
+		pipelineCI.attachments[0].format = Format::DefaultColor;
+		pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
+		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };
+		s_pipeline = Pipeline::Create(pipelineCI);
 	}
 	
 	void TranslationGizmo::DestroyStatic()

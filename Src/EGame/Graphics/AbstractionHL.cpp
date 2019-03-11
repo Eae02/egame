@@ -14,7 +14,7 @@ namespace eg
 	
 	GraphicsCapabilities detail::graphicsCapabilities;
 	
-	void ShaderProgram::AddStageFromFile(const std::string& path)
+	ShaderModule ShaderModule::CreateFromFile(const std::string& path)
 	{
 		ShaderStage stage;
 		if (StringEndsWith(path, ".fs.spv") || StringEndsWith(path, ".frag.spv"))
@@ -31,7 +31,7 @@ namespace eg
 		}
 		
 		std::vector<char> code = ReadStreamContents(stream);
-		AddStage(stage, std::move(code));
+		return ShaderModule(stage, code);
 	}
 	
 	Texture Texture::Load(std::istream& stream, LoadFormat format, uint32_t mipLevels, CommandContext* commandContext)

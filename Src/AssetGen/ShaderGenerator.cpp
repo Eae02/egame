@@ -151,21 +151,64 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			{
 				std::string stageName = stageNode.as<std::string>();
 				if (StringEqualCaseInsensitive(stageName, "vertex"))
+				{
 					lang = EShLangVertex;
+				}
 				else if (StringEqualCaseInsensitive(stageName, "fragment"))
+				{
 					lang = EShLangFragment;
+				}
+				else if (StringEqualCaseInsensitive(stageName, "geometry"))
+				{
+					lang = EShLangGeometry;
+				}
+				else if (StringEqualCaseInsensitive(stageName, "tess-control"))
+				{
+					lang = EShLangTessControl;
+				}
+				else if (StringEqualCaseInsensitive(stageName, "tess-eval"))
+				{
+					lang = EShLangTessEvaluation;
+				}
 				else
 				{
-					Log(LogLevel::Error, "as", "{0}: Invalid shader stage {1}, should be 'vertex' or 'fragment'.", sourcePath, stageName);
+					Log(LogLevel::Error, "as", "{0}: Invalid shader stage {1}, should be 'vertex', 'fragment', "
+								"'geometry', 'tess-control' or 'tess-eval'.", sourcePath, stageName);
 					return false;
 				}
 			}
 			else
 			{
-				if (StringEndsWith(sourcePath, ".vs.glsl"))
+				if (StringEndsWith(sourcePath, ".vs.glsl") ||
+					StringEndsWith(sourcePath, ".vert") ||
+					StringEndsWith(sourcePath, ".vert.glsl"))
+				{
 					lang = EShLangVertex;
-				else if (StringEndsWith(sourcePath, ".fs.glsl"))
+				}
+				else if (StringEndsWith(sourcePath, ".fs.glsl") ||
+					StringEndsWith(sourcePath, ".frag") ||
+					StringEndsWith(sourcePath, ".frag.glsl"))
+				{
 					lang = EShLangFragment;
+				}
+				else if (StringEndsWith(sourcePath, ".gs.glsl") ||
+					StringEndsWith(sourcePath, ".geom") ||
+					StringEndsWith(sourcePath, ".geom.glsl"))
+				{
+					lang = EShLangGeometry;
+				}
+				else if (StringEndsWith(sourcePath, ".tcs.glsl") ||
+					StringEndsWith(sourcePath, ".tesc") ||
+					StringEndsWith(sourcePath, ".tesc.glsl"))
+				{
+					lang = EShLangTessControl;
+				}
+				else if (StringEndsWith(sourcePath, ".tes.glsl") ||
+					StringEndsWith(sourcePath, ".tese") ||
+					StringEndsWith(sourcePath, ".tese.glsl"))
+				{
+					lang = EShLangTessEvaluation;
+				}
 				else
 				{
 					Log(LogLevel::Error, "as", "{0}: Unable to deduce shader stage from file extension.", sourcePath);
@@ -209,7 +252,10 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			{
 			case EShLangVertex: egStage = ShaderStage::Vertex; break;
 			case EShLangFragment: egStage = ShaderStage::Fragment; break;
-			default: std::abort();
+			case EShLangGeometry: egStage = ShaderStage::Geometry; break;
+			case EShLangTessControl: egStage = ShaderStage::TessControl; break;
+			case EShLangTessEvaluation: egStage = ShaderStage::TessEvaluation; break;
+			default: EG_UNREACHABLE
 			}
 			
 			uint32_t codeSize = spirvCode.size() * sizeof(uint32_t);
@@ -223,6 +269,6 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 	
 	void RegisterShaderGenerator()
 	{
-		RegisterAssetGenerator<ShaderGenerator>("Shader", ShaderModule::AssetFormat);
+		RegisterAssetGenerator<ShaderGenerator>("Shader", ShaderModuleAssetFormat);
 	}
 }

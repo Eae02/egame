@@ -579,6 +579,9 @@ namespace eg::graphics_api::vk
 	{
 		capabilities.uniformBufferAlignment = ctx.deviceLimits.minUniformBufferOffsetAlignment;
 		capabilities.depthRange = DepthRange::ZeroToOne;
+		capabilities.tessellation = ctx.deviceFeatures.tessellationShader;
+		capabilities.geometryShader = ctx.deviceFeatures.geometryShader;
+		capabilities.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
 	}
 	
 	void DestroyCachedDescriptorSets();

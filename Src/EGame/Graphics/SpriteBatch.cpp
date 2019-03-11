@@ -16,20 +16,21 @@ namespace eg
 	
 	void SpriteBatch::InitStatic()
 	{
-		ShaderProgram program;
-		program.AddStageBorrowedCode(ShaderStage::Vertex, { reinterpret_cast<const char*>(Sprite_vs_glsl), sizeof(Sprite_vs_glsl) });
-		program.AddStageBorrowedCode(ShaderStage::Fragment, { reinterpret_cast<const char*>(Sprite_fs_glsl), sizeof(Sprite_fs_glsl) });
+		ShaderModule vs(ShaderStage::Vertex, { reinterpret_cast<const char*>(Sprite_vs_glsl), sizeof(Sprite_vs_glsl) });
+		ShaderModule fs(ShaderStage::Fragment, { reinterpret_cast<const char*>(Sprite_fs_glsl), sizeof(Sprite_fs_glsl) });
 		
-		FixedFuncState ffState;
-		ffState.enableScissorTest = true;
-		ffState.depthFormat = Format::DefaultDepthStencil;
-		ffState.attachments[0].format = Format::DefaultColor;
-		ffState.attachments[0].blend = AlphaBlend;
-		ffState.vertexBindings[0] = { sizeof(Vertex), InputRate::Vertex };
-		ffState.vertexAttributes[0] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, position) };
-		ffState.vertexAttributes[1] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, texCoord) };
-		ffState.vertexAttributes[2] = { 0, DataType::UInt8Norm, 4, (uint32_t)offsetof(Vertex, color) };
-		spritePipeline = program.CreatePipeline(ffState);
+		PipelineCreateInfo pipelineCI;
+		pipelineCI.vertexShader = vs.Handle();
+		pipelineCI.fragmentShader = fs.Handle();
+		pipelineCI.enableScissorTest = true;
+		pipelineCI.depthFormat = Format::DefaultDepthStencil;
+		pipelineCI.attachments[0].format = Format::DefaultColor;
+		pipelineCI.attachments[0].blend = AlphaBlend;
+		pipelineCI.vertexBindings[0] = { sizeof(Vertex), InputRate::Vertex };
+		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, position) };
+		pipelineCI.vertexAttributes[1] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, texCoord) };
+		pipelineCI.vertexAttributes[2] = { 0, DataType::UInt8Norm, 4, (uint32_t)offsetof(Vertex, color) };
+		spritePipeline = eg::Pipeline::Create(pipelineCI);
 		
 		SamplerDescription whiteTexSamplerDesc;
 		Texture2DCreateInfo whiteTexCreateInfo;

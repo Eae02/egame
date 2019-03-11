@@ -20,7 +20,7 @@ namespace eg
 	typedef struct _Texture* TextureHandle;
 	typedef struct _Sampler* SamplerHandle;
 	typedef struct _Framebuffer* FramebufferHandle;
-	typedef struct _ShaderProgram* ShaderProgramHandle;
+	typedef struct _ShaderModule* ShaderModuleHandle;
 	typedef struct _Pipeline* PipelineHandle;
 	typedef struct _CommandContext* CommandContextHandle;
 	
@@ -84,7 +84,8 @@ namespace eg
 		TriangleFan,
 		LineList,
 		LineStrip,
-		Points
+		Points,
+		Patches
 	};
 	
 	enum class CompareOp
@@ -102,14 +103,10 @@ namespace eg
 	enum class ShaderStage
 	{
 		Vertex = 0,
-		Fragment = 1
-	};
-	
-	struct ShaderStageDesc
-	{
-		ShaderStage stage;
-		uint32_t codeBytes;
-		const char* code;
+		Fragment = 1,
+		Geometry = 2,
+		TessControl = 3,
+		TessEvaluation = 4
 	};
 	
 	enum class IndexType
@@ -212,13 +209,19 @@ namespace eg
 			: binding(_binding), type(_type), components(_components), offset(_offset) { }
 	};
 	
-	struct FixedFuncState
+	struct PipelineCreateInfo
 	{
+		ShaderModuleHandle vertexShader = nullptr;
+		ShaderModuleHandle fragmentShader = nullptr;
+		ShaderModuleHandle geometryShader = nullptr;
+		ShaderModuleHandle tessControlShader = nullptr;
+		ShaderModuleHandle tessEvaluationShader = nullptr;
 		bool enableScissorTest = false;
 		bool enableDepthTest = false;
 		bool enableDepthWrite = false;
 		bool enableDepthClamp = false;
 		bool wireframe = false;
+		uint32_t patchControlPoints = 0;
 		CompareOp depthCompare = CompareOp::Less;
 		CullMode cullMode = CullMode::None;
 		bool frontFaceCCW = false;
@@ -387,7 +390,10 @@ namespace eg
 	struct GraphicsCapabilities
 	{
 		uint32_t uniformBufferAlignment;
+		uint32_t maxTessellationPatchSize;
 		DepthRange depthRange;
+		bool geometryShader;
+		bool tessellation;
 	};
 	
 	template <>

@@ -142,10 +142,17 @@ namespace eg::graphics_api::gl
 	
 	void GetCapabilities(GraphicsCapabilities& capabilities)
 	{
-		int intRes;
-		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &intRes);
-		capabilities.uniformBufferAlignment = intRes;
+		auto GetIntegerLimit = [&] (GLenum name)
+		{
+			int res;
+			glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &res);
+			return res;
+		};
 		
+		capabilities.uniformBufferAlignment = GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
+		capabilities.maxTessellationPatchSize = GetIntegerLimit(GL_MAX_PATCH_VERTICES);
+		capabilities.geometryShader = true;
+		capabilities.tessellation = true;
 		capabilities.depthRange = DepthRange::NegOneToOne;
 	}
 	

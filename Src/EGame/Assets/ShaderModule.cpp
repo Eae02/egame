@@ -1,19 +1,19 @@
 #include "ShaderModule.hpp"
 #include "AssetLoad.hpp"
+#include "../Graphics/AbstractionHL.hpp"
 
 namespace eg
 {
-	const eg::AssetFormat ShaderModule::AssetFormat { "EG::Shader", 0 };
+	const eg::AssetFormat ShaderModuleAssetFormat { "EG::Shader", 0 };
 	
-	bool ShaderModule::AssetLoader(const AssetLoadContext& context)
+	bool ShaderModuleLoader(const AssetLoadContext& context)
 	{
-		ShaderModule& result = context.CreateResult<ShaderModule>();
-		
-		result.stage = (ShaderStage)*reinterpret_cast<const uint32_t*>(context.Data().data());
+		ShaderStage stage = (ShaderStage)*reinterpret_cast<const uint32_t*>(context.Data().data());
 		
 		uint32_t codeSize = *reinterpret_cast<const uint32_t*>(context.Data().data() + 4);
-		result.code.resize(codeSize);
-		std::memcpy(result.code.data(), context.Data().data() + 8, codeSize);
+		Span<const char> code(context.Data().data() + 8, codeSize);
+		
+		context.CreateResult<ShaderModule>(stage, code);
 		
 		return true;
 	}

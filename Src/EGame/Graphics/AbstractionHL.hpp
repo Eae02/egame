@@ -58,85 +58,45 @@ namespace eg
 		Pipeline() = default;
 		explicit Pipeline(PipelineHandle _handle)
 			: OwningRef(_handle) { }
+		
+		static Pipeline Create(const PipelineCreateInfo& createInfo)
+		{
+			return Pipeline(gal::CreatePipeline(createInfo));
+		}
 	};
 	
 	/**
-	 * Represents a shader program. The memory for shader programs is reference counted,
+	 * Represents a shader module. The memory for shader module is reference counted,
 	 * so it is safe to destroy instances of this class while pipelines created from it are still alive.
 	 */
-	class EG_API ShaderProgram
+	class EG_API ShaderModule
 	{
 	public:
-		ShaderProgram() = default;
+		ShaderModule() = default;
 		
-		void AddStageFromAsset(std::string_view name)
-		{
-			ShaderModule& module = GetAsset<ShaderModule>(name);
-			AddStageBorrowedCode(module.stage, module.code);
-		}
+		ShaderModule(ShaderStage stage, Span<const char> code)
+			: m_handle(gal::CreateShaderModule(stage, code)) { }
 		
-		/**
-		 * Adds a stage to the shader program.
-		 * @param stage The stage to add
-		 * @param code SPIR-V code for the stage to be added
-		 */
-		void AddStage(ShaderStage stage, std::vector<char> code)
-		{
-			AddStageBorrowedCode(stage, code);
-			m_code.push_back(std::move(code));
-		}
+		static ShaderModule CreateFromFile(const std::string& path);
 		
 		/**
-		 * Adds a stage to the shader program, the memory pointed
-		 * to by code must stay alive until CreatePipeline is called.
-		 * @param stage The stage to add
-		 * @param code SPIR-V code for the stage to be added
+		 * Gets the GAL handle for this shader module.
 		 */
-		void AddStageBorrowedCode(ShaderStage stage, Span<const char> code)
+		ShaderModuleHandle Handle() const
 		{
-			m_stages.push_back({ stage, (uint32_t)code.size(), code.data() });
-			m_program = nullptr;
+			return m_handle.get();
 		}
-		
-		/**
-		 * Adds a stage to the shader program by reading from a spir-v file.
-		 * The shader stage is deduced from the file extension. TODO: How?
-		 * @param path The path to the spir-v file.
-		 */
-		void AddStageFromFile(const std::string& path);
-		
-		/**
-		 * Creates a pipeline using this shader program.
-		 * @param fixedFuncState 
-		 * @return The created pipeline.
-		 */
-		Pipeline CreatePipeline(const FixedFuncState& fixedFuncState)
-		{
-			if (m_program == nullptr)
-				m_program.reset(gal::CreateShaderProgram(m_stages));
-			return Pipeline(gal::CreatePipeline(Handle(), fixedFuncState));
-		}
-		
-		/**
-		 * Gets the GAL handle for this shader program.
-		 */
-		ShaderProgramHandle Handle() const
-		{
-			return m_program.get();
-		}
-		
+			
 	private:
-		struct ShaderProgramDel
+		struct ShaderModuleDel
 		{
-			void operator()(ShaderProgramHandle handle)
+			void operator()(ShaderModuleHandle handle)
 			{
-				gal::DestroyShaderProgram(handle);
+				gal::DestroyShaderModule(handle);
 			}
 		};
 		
-		std::vector<std::vector<char>> m_code;
-		std::vector<ShaderStageDesc> m_stages;
-		std::unique_ptr<_ShaderProgram, ShaderProgramDel> m_program;
+		std::unique_ptr<_ShaderModule, ShaderModuleDel> m_handle;
 	};
 	
 	class EG_API BufferRef

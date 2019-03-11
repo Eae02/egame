@@ -7,13 +7,12 @@ public:
 	{
 		eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/");
 		
-		eg::ShaderProgram program;
-		program.AddStageFromAsset("Main.vs.glsl");
-		program.AddStageFromAsset("Main.fs.glsl");
-		eg::FixedFuncState ffs;
-		ffs.depthFormat = eg::Format::DefaultDepthStencil;
-		ffs.attachments[0].format = eg::Format::DefaultColor;
-		m_pipeline = program.CreatePipeline(ffs);
+		eg::PipelineCreateInfo pipelineCI;
+		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModule>("Main.vs.glsl").Handle();
+		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModule>("Main.fs.glsl").Handle();
+		pipelineCI.depthFormat = eg::Format::DefaultDepthStencil;
+		pipelineCI.attachments[0].format = eg::Format::DefaultColor;
+		m_pipeline = eg::Pipeline::Create(pipelineCI);
 	}
 	
 	void RunFrame(float dt) override

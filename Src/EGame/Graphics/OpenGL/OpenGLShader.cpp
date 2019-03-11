@@ -7,7 +7,7 @@
 #include "../../Log.hpp"
 #include "OpenGLBuffer.hpp"
 
-#include <list>
+#include <atomic>
 #include <GL/gl3w.h>
 #include <spirv_cross.hpp>
 #include <spirv_glsl.hpp>
@@ -26,42 +26,36 @@ namespace eg::graphics_api::gl
 		SPIRType::BaseType baseType;
 	};
 	
-	struct ShaderProgram
+	struct ShaderModule
 	{
-		int ref;
-		GLuint program;
-		uint32_t numShaders;
-		GLuint shaders[2];
-		std::vector<PushConstantMember> pushConstants;
+		GLuint handle;
+		ShaderStage stage;
+		std::atomic_int ref;
+		spirv_cross::CompilerGLSL spvCompiler;
+		
+		ShaderModule(Span<const char> code)
+			: ref(1), spvCompiler(reinterpret_cast<const uint32_t*>(code.data()), code.size() / 4) { }
+		
+		void Unref();
 	};
 	
-	static ObjectPool<ShaderProgram> shaderProgramPool;
+	static ObjectPool<ShaderModule> shaderModulePool;
 	
-	inline GLenum GetGLStage(ShaderStage stage)
+	void ShaderModule::Unref()
 	{
-		switch (stage)
+		if (ref-- == 1)
 		{
-		case ShaderStage::Vertex: return GL_VERTEX_SHADER;
-		case ShaderStage::Fragment: return GL_FRAGMENT_SHADER;
+			MainThreadInvoke([this]
+			{
+				glDeleteShader(handle);
+				shaderModulePool.Delete(this);
+			});
 		}
-		EG_UNREACHABLE
 	}
 	
-	inline ShaderProgram* UnwrapShaderProgram(ShaderProgramHandle handle)
+	inline ShaderModule* UnwrapShaderModule(ShaderModuleHandle handle)
 	{
-		return reinterpret_cast<ShaderProgram*>(handle);
-	}
-	
-	inline void UnrefProgram(ShaderProgram* program)
-	{
-		program->ref--;
-		if (program->ref == 0)
-		{
-			for (uint32_t i = 0; i < program->numShaders; i++)
-				glDeleteShader(program->shaders[i]);
-			glDeleteProgram(program->program);
-			shaderProgramPool.Delete(program);
-		}
+		return reinterpret_cast<ShaderModule*>(handle);
 	}
 	
 	inline std::optional<UniformType> GetUniformType(GLenum glType)
@@ -82,142 +76,57 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	ShaderProgramHandle CreateShaderProgram(Span<const ShaderStageDesc> stages)
+	//Indices must match ShaderStage
+	static const GLenum ShaderTypes[] =
 	{
-		ShaderProgram* program = shaderProgramPool.New();
-		program->ref = 1;
-		program->numShaders = 0;
-		program->program = glCreateProgram();
+		GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_GEOMETRY_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER
+	};
+	
+	ShaderModuleHandle CreateShaderModule(ShaderStage stage, Span<const char> code)
+	{
+		ShaderModule* module = shaderModulePool.New(code);
+		module->stage = stage;
 		
-		std::list<spirv_cross::CompilerGLSL> spvCompilers;
-		
-		for (const ShaderStageDesc& stage : stages)
+		for (spirv_cross::SpecializationConstant& specConst : module->spvCompiler.get_specialization_constants())
 		{
-			spirv_cross::CompilerGLSL& spvCrossCompiler = spvCompilers.emplace_back(
-				reinterpret_cast<const uint32_t*>(stage.code), stage.codeBytes / 4);
-			
-			for (spirv_cross::SpecializationConstant& specConst : spvCrossCompiler.get_specialization_constants())
+			spirv_cross::SPIRConstant& spirConst = module->spvCompiler.get_constant(specConst.id);
+			if (specConst.constant_id == 500)
 			{
-				spirv_cross::SPIRConstant& spirConst = spvCrossCompiler.get_constant(specConst.id);
-				if (specConst.constant_id == 500)
-				{
-					spirConst.m.c[0].r[0].u32 = 1;
-				}
+				spirConst.m.c[0].r[0].u32 = 1;
 			}
-			
-			std::string glslCode = spvCrossCompiler.compile();
-			
-			GLuint shader = glCreateShader(GetGLStage(stage.stage));
-			
-			const GLchar* glslCodeC = glslCode.c_str();
-			GLint glslCodeLen = glslCode.size();
-			glShaderSource(shader, 1, &glslCodeC, &glslCodeLen);
-			
-			glCompileShader(shader);
-			
-			//Checks the shader's compile status.
-			GLint compileStatus = GL_FALSE;
-			glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus);
-			if (!compileStatus)
-			{
-				GLint infoLogLen = 0;
-				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLen);
-				
-				std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
-				glGetShaderInfoLog(shader, infoLogLen, nullptr, infoLog.data());
-				infoLog.back() = '\0';
-				
-				EG_PANIC("Shader failed to compile:" << infoLog.data());
-			}
-			
-			glAttachShader(program->program, shader);
-			program->shaders[program->numShaders++] = shader;
 		}
 		
-		glLinkProgram(program->program);
+		std::string glslCode = module->spvCompiler.compile();
 		
-		//Checks that the program linked successfully
-		int linkStatus = GL_FALSE;
-		glGetProgramiv(program->program, GL_LINK_STATUS, &linkStatus);
-		if (!linkStatus)
+		module->handle = glCreateShader(ShaderTypes[(int)stage]);
+		
+		const GLchar* glslCodeC = glslCode.c_str();
+		GLint glslCodeLen = glslCode.size();
+		glShaderSource(module->handle, 1, &glslCodeC, &glslCodeLen);
+		
+		glCompileShader(module->handle);
+		
+		//Checks the shader's compile status.
+		GLint compileStatus = GL_FALSE;
+		glGetShaderiv(module->handle, GL_COMPILE_STATUS, &compileStatus);
+		if (!compileStatus)
 		{
-			int infoLogLen = 0;
-			glGetProgramiv(program->program, GL_INFO_LOG_LENGTH, &infoLogLen);
+			GLint infoLogLen = 0;
+			glGetShaderiv(module->handle, GL_INFO_LOG_LENGTH, &infoLogLen);
 			
 			std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
-			glGetProgramInfoLog(program->program, infoLogLen, nullptr, infoLog.data());
+			glGetShaderInfoLog(module->handle, infoLogLen, nullptr, infoLog.data());
 			infoLog.back() = '\0';
 			
-			EG_PANIC("Shader program failed to link: " << infoLog.data());
+			EG_PANIC("Shader failed to compile:" << infoLog.data());
 		}
 		
-		for (const spirv_cross::CompilerGLSL& spvCrossCompiler : spvCompilers)
-		{
-			const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
-			
-			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
-			{
-				const SPIRType& type = spvCrossCompiler.get_type(pcBlock.base_type_id);
-				uint32_t numMembers = type.member_types.size();
-				
-				std::string blockName = spvCrossCompiler.get_name(pcBlock.id);
-				if (blockName.empty())
-				{
-					blockName = spvCrossCompiler.get_fallback_name(pcBlock.id);
-				}
-				
-				for (uint32_t i = 0; i < numMembers; i++)
-				{
-					const SPIRType& memberType = spvCrossCompiler.get_type(type.member_types[i]);
-					
-					//Only process supported base types
-					static const SPIRType::BaseType supportedBaseTypes[] = 
-					{
-						SPIRType::Float, SPIRType::Int, SPIRType::UInt, SPIRType::Boolean
-					};
-					if (!Contains(supportedBaseTypes, memberType.basetype))
-						continue;
-					
-					//Gets the name and uniform location of this member
-					const std::string& name = spvCrossCompiler.get_member_name(type.self, i);
-					std::string uniformName = Concat({ blockName, ".", name });
-					int location = glGetUniformLocation(program->program, uniformName.c_str());
-					if (location == -1)
-					{
-						Log(LogLevel::Error, "gl", "Internal OpenGL error, push constant uniform not found: '{0}' (expected name: '{1}')", name, uniformName);
-						continue;
-					}
-					
-					if (memberType.columns != 1 && memberType.columns != memberType.vecsize)
-					{
-						Log(LogLevel::Error, "gl", "Push constant '{0}': non square matrices are not currently "
-							"supported as push constants.", name);
-						continue;
-					}
-					
-					PushConstantMember& pushConstant = program->pushConstants.emplace_back();
-					pushConstant.uniformLocation = location;
-					pushConstant.arraySize = 1;
-					pushConstant.offset = spvCrossCompiler.type_struct_member_offset(type, i);
-					pushConstant.baseType = memberType.basetype;
-					pushConstant.vectorSize = memberType.vecsize;
-					pushConstant.columns = memberType.columns;
-					
-					for (uint32_t arraySize : memberType.array)
-						pushConstant.arraySize *= arraySize;
-				}
-			}
-		}
-		
-		return reinterpret_cast<ShaderProgramHandle>(program);
+		return reinterpret_cast<ShaderModuleHandle>(module);
 	}
 	
-	void DestroyShaderProgram(ShaderProgramHandle handle)
+	void DestroyShaderModule(ShaderModuleHandle handle)
 	{
-		MainThreadInvoke([handle]
-		{
-			UnrefProgram(UnwrapShaderProgram(handle));
-		});
+		UnwrapShaderModule(handle)->Unref();
 	}
 	
 	struct BlendState
@@ -233,19 +142,22 @@ namespace eg::graphics_api::gl
 	
 	struct Pipeline
 	{
-		ShaderProgram* program;
+		GLuint program;
 		GLuint vertexArray;
 		bool enableFaceCull;
 		GLenum frontFace;
 		GLenum cullFace;
 		GLenum depthFunc;
 		GLenum topology;
+		GLint patchSize;
 		bool enableScissorTest;
 		bool enableDepthTest;
 		bool enableDepthWrite;
 		BlendState blend[8];
 		uint32_t maxVertexBinding;
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
+		std::vector<PushConstantMember> pushConstants;
+		ShaderModule* shaderModules[5];
 	};
 	
 	inline Pipeline* UnwrapPipeline(PipelineHandle handle)
@@ -296,20 +208,124 @@ namespace eg::graphics_api::gl
 		case Topology::LineList: return GL_LINES;
 		case Topology::LineStrip: return GL_LINE_STRIP;
 		case Topology::Points: return GL_POINTS;
+		case Topology::Patches: return GL_PATCHES;
 		}
 		EG_UNREACHABLE
 	}
 	
-	PipelineHandle CreatePipeline(ShaderProgramHandle program, const FixedFuncState& fixedFuncState)
+	PipelineHandle CreatePipeline(const PipelineCreateInfo& createInfo)
 	{
 		Pipeline* pipeline = pipelinePool.New();
-		pipeline->program = UnwrapShaderProgram(program);
-		pipeline->program->ref++;
+		std::fill_n(pipeline->shaderModules, 5, nullptr);
+		
+		pipeline->program = glCreateProgram();
+		
+		size_t numStages = 0;
+		spirv_cross::CompilerGLSL* spvCompilers[5];
+		
+		//Attaches shaders to the pipeline's program
+		auto MaybeAddStage = [&] (ShaderModuleHandle handle, ShaderStage expectedStage)
+		{
+			if (handle != nullptr)
+			{
+				ShaderModule* module = UnwrapShaderModule(handle);
+				if (expectedStage != module->stage)
+				{
+					EG_PANIC("Shader stage mismatch");
+				}
+				module->ref++;
+				glAttachShader(pipeline->program, module->handle);
+				spvCompilers[numStages] = &module->spvCompiler;
+				pipeline->shaderModules[numStages] = module;
+				numStages++;
+			}
+		};
+		MaybeAddStage(createInfo.vertexShader, eg::ShaderStage::Vertex);
+		MaybeAddStage(createInfo.fragmentShader, eg::ShaderStage::Fragment);
+		MaybeAddStage(createInfo.geometryShader, eg::ShaderStage::Geometry);
+		MaybeAddStage(createInfo.tessControlShader, eg::ShaderStage::TessControl);
+		MaybeAddStage(createInfo.tessEvaluationShader, eg::ShaderStage::TessEvaluation);
+		
+		glLinkProgram(pipeline->program);
+		
+		//Checks that the program linked successfully
+		int linkStatus = GL_FALSE;
+		glGetProgramiv(pipeline->program, GL_LINK_STATUS, &linkStatus);
+		if (!linkStatus)
+		{
+			int infoLogLen = 0;
+			glGetProgramiv(pipeline->program, GL_INFO_LOG_LENGTH, &infoLogLen);
+			
+			std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
+			glGetProgramInfoLog(pipeline->program, infoLogLen, nullptr, infoLog.data());
+			infoLog.back() = '\0';
+			
+			EG_PANIC("Shader program failed to link: " << infoLog.data());
+		}
+		
+		std::for_each(spvCompilers, spvCompilers + numStages, [&] (const spirv_cross::CompilerGLSL* spvCrossCompiler)
+		{
+			const spirv_cross::ShaderResources& resources = spvCrossCompiler->get_shader_resources();
+			
+			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
+			{
+				const SPIRType& type = spvCrossCompiler->get_type(pcBlock.base_type_id);
+				uint32_t numMembers = type.member_types.size();
+				
+				std::string blockName = spvCrossCompiler->get_name(pcBlock.id);
+				if (blockName.empty())
+				{
+					blockName = spvCrossCompiler->get_fallback_name(pcBlock.id);
+				}
+				
+				for (uint32_t i = 0; i < numMembers; i++)
+				{
+					const SPIRType& memberType = spvCrossCompiler->get_type(type.member_types[i]);
+					
+					//Only process supported base types
+					static const SPIRType::BaseType supportedBaseTypes[] = 
+					{
+						SPIRType::Float, SPIRType::Int, SPIRType::UInt, SPIRType::Boolean
+					};
+					if (!Contains(supportedBaseTypes, memberType.basetype))
+						continue;
+					
+					//Gets the name and uniform location of this member
+					const std::string& name = spvCrossCompiler->get_member_name(type.self, i);
+					std::string uniformName = Concat({ blockName, ".", name });
+					int location = glGetUniformLocation(pipeline->program, uniformName.c_str());
+					if (location == -1)
+					{
+						Log(LogLevel::Error, "gl", "Internal OpenGL error, push constant uniform not found: '{0}' "
+							"(expected name: '{1}')", name, uniformName);
+						continue;
+					}
+					
+					if (memberType.columns != 1 && memberType.columns != memberType.vecsize)
+					{
+						Log(LogLevel::Error, "gl", "Push constant '{0}': non square matrices are not currently "
+							"supported as push constants.", name);
+						continue;
+					}
+					
+					PushConstantMember& pushConstant = pipeline->pushConstants.emplace_back();
+					pushConstant.uniformLocation = location;
+					pushConstant.arraySize = 1;
+					pushConstant.offset = spvCrossCompiler->type_struct_member_offset(type, i);
+					pushConstant.baseType = memberType.basetype;
+					pushConstant.vectorSize = memberType.vecsize;
+					pushConstant.columns = memberType.columns;
+					
+					for (uint32_t arraySize : memberType.array)
+						pushConstant.arraySize *= arraySize;
+				}
+			}
+		});
 		
 		glCreateVertexArrays(1, &pipeline->vertexArray);
 		for (uint32_t i = 0; i < MAX_VERTEX_ATTRIBUTES; i++)
 		{
-			uint32_t binding = fixedFuncState.vertexAttributes[i].binding;
+			uint32_t binding = createInfo.vertexAttributes[i].binding;
 			if (binding == UINT32_MAX)
 				continue;
 			
@@ -325,38 +341,39 @@ namespace eg::graphics_api::gl
 				DataType::UInt8Norm, DataType::UInt16Norm, DataType::SInt8Norm, DataType::SInt16Norm
 			};
 			
-			DataType type = fixedFuncState.vertexAttributes[i].type;
+			DataType type = createInfo.vertexAttributes[i].type;
 			GLenum glType = TranslateDataType(type);
 			
 			if (eg::Contains(intDataTypes, type))
 			{
-				glVertexArrayAttribIFormat(pipeline->vertexArray, i, fixedFuncState.vertexAttributes[i].components,
-					glType, fixedFuncState.vertexAttributes[i].offset);
+				glVertexArrayAttribIFormat(pipeline->vertexArray, i, createInfo.vertexAttributes[i].components,
+					glType, createInfo.vertexAttributes[i].offset);
 			}
 			else
 			{
 				auto normalized = static_cast<GLboolean>(eg::Contains(normDataTypes, type));
-				glVertexArrayAttribFormat(pipeline->vertexArray, i, fixedFuncState.vertexAttributes[i].components,
-					glType, normalized, fixedFuncState.vertexAttributes[i].offset);
+				glVertexArrayAttribFormat(pipeline->vertexArray, i, createInfo.vertexAttributes[i].components,
+					glType, normalized, createInfo.vertexAttributes[i].offset);
 			}
 		}
 		
 		pipeline->maxVertexBinding = 0;
 		for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
 		{
-			pipeline->vertexBindings[i] = fixedFuncState.vertexBindings[i];
-			if (fixedFuncState.vertexBindings[i].stride == UINT32_MAX)
+			pipeline->vertexBindings[i] = createInfo.vertexBindings[i];
+			if (createInfo.vertexBindings[i].stride == UINT32_MAX)
 				continue;
-			glVertexArrayBindingDivisor(pipeline->vertexArray, i, (GLuint)fixedFuncState.vertexBindings[i].inputRate);
+			glVertexArrayBindingDivisor(pipeline->vertexArray, i, (GLuint)createInfo.vertexBindings[i].inputRate);
 			pipeline->maxVertexBinding = i + 1;
 		}
 		
-		pipeline->enableScissorTest = fixedFuncState.enableScissorTest;
-		pipeline->enableDepthTest = fixedFuncState.enableDepthTest;
-		pipeline->enableDepthWrite = fixedFuncState.enableDepthWrite;
-		pipeline->topology = Translate(fixedFuncState.topology);
+		pipeline->enableScissorTest = createInfo.enableScissorTest;
+		pipeline->enableDepthTest = createInfo.enableDepthTest;
+		pipeline->enableDepthWrite = createInfo.enableDepthWrite;
+		pipeline->topology = Translate(createInfo.topology);
+		pipeline->patchSize = createInfo.patchControlPoints;
 		
-		switch (fixedFuncState.cullMode)
+		switch (createInfo.cullMode)
 		{
 		case CullMode::None:
 			pipeline->enableFaceCull = false;
@@ -372,7 +389,7 @@ namespace eg::graphics_api::gl
 			break;
 		}
 		
-		switch (fixedFuncState.depthCompare)
+		switch (createInfo.depthCompare)
 		{
 		case CompareOp::Never: pipeline->depthFunc = GL_NEVER; break;
 		case CompareOp::Less: pipeline->depthFunc = GL_LESS; break;
@@ -386,19 +403,19 @@ namespace eg::graphics_api::gl
 		
 		for (int i = 0; i < 8; i++)
 		{
-			bool enabled = pipeline->blend[i].enabled = fixedFuncState.attachments[i].blend.enabled;
+			bool enabled = pipeline->blend[i].enabled = createInfo.attachments[i].blend.enabled;
 			if (enabled)
 			{
-				pipeline->blend[i].colorFunc = Translate(fixedFuncState.attachments[i].blend.colorFunc);
-				pipeline->blend[i].alphaFunc = Translate(fixedFuncState.attachments[i].blend.alphaFunc);
-				pipeline->blend[i].srcColorFactor = Translate(fixedFuncState.attachments[i].blend.srcColorFactor);
-				pipeline->blend[i].srcAlphaFactor = Translate(fixedFuncState.attachments[i].blend.srcAlphaFactor);
-				pipeline->blend[i].dstColorFactor = Translate(fixedFuncState.attachments[i].blend.dstColorFactor);
-				pipeline->blend[i].dstAlphaFactor = Translate(fixedFuncState.attachments[i].blend.dstAlphaFactor);
+				pipeline->blend[i].colorFunc = Translate(createInfo.attachments[i].blend.colorFunc);
+				pipeline->blend[i].alphaFunc = Translate(createInfo.attachments[i].blend.alphaFunc);
+				pipeline->blend[i].srcColorFactor = Translate(createInfo.attachments[i].blend.srcColorFactor);
+				pipeline->blend[i].srcAlphaFactor = Translate(createInfo.attachments[i].blend.srcAlphaFactor);
+				pipeline->blend[i].dstColorFactor = Translate(createInfo.attachments[i].blend.dstColorFactor);
+				pipeline->blend[i].dstAlphaFactor = Translate(createInfo.attachments[i].blend.dstAlphaFactor);
 			}
 		}
 		
-		pipeline->frontFace = fixedFuncState.frontFaceCCW ? GL_CCW : GL_CW;
+		pipeline->frontFace = createInfo.frontFaceCCW ? GL_CCW : GL_CW;
 		
 		return reinterpret_cast<PipelineHandle>(pipeline);
 	}
@@ -406,9 +423,16 @@ namespace eg::graphics_api::gl
 	void DestroyPipeline(PipelineHandle handle)
 	{
 		Pipeline* pipeline = UnwrapPipeline(handle);
+		
+		for (ShaderModule* module : pipeline->shaderModules)
+		{
+			if (module != nullptr)
+				module->Unref();
+		}
+		
 		MainThreadInvoke([pipeline]
 		{
-			UnrefProgram(pipeline->program);
+			glDeleteProgram(pipeline->program);
 			pipelinePool.Free(pipeline);
 		});
 	}
@@ -418,6 +442,7 @@ namespace eg::graphics_api::gl
 		GLenum frontFace = GL_CCW;
 		GLenum cullFace = GL_BACK;
 		GLenum depthFunc = GL_LESS;
+		GLint patchSize = 0;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
 	} curState;
@@ -492,7 +517,7 @@ namespace eg::graphics_api::gl
 			return;
 		currentPipeline = pipeline;
 		
-		glUseProgram(pipeline->program->program);
+		glUseProgram(pipeline->program);
 		glBindVertexArray(pipeline->vertexArray);
 		
 		if (curState.frontFace != pipeline->frontFace)
@@ -506,6 +531,12 @@ namespace eg::graphics_api::gl
 		SetEnabled<GL_DEPTH_TEST>(pipeline->enableDepthTest);
 		
 		InitScissorTest();
+		
+		if (pipeline->patchSize != 0 && curState.patchSize != pipeline->patchSize)
+		{
+			glPatchParameteri(GL_PATCH_VERTICES, pipeline->patchSize);
+			curState.patchSize = pipeline->patchSize;
+		}
 		
 		if (curState.enableDepthWrite != pipeline->enableDepthWrite)
 		{
@@ -596,7 +627,7 @@ namespace eg::graphics_api::gl
 	
 	void PushConstants(CommandContextHandle, uint32_t offset, uint32_t range, const void* data)
 	{
-		for (const PushConstantMember& pushConst : currentPipeline->program->pushConstants)
+		for (const PushConstantMember& pushConst : currentPipeline->pushConstants)
 		{
 			if (pushConst.offset < offset && pushConst.offset >= offset + range)
 				continue;
