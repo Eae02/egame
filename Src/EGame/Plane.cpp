@@ -42,7 +42,7 @@ namespace eg
 	
 	void Plane::FlipNormal()
 	{
-		m_normal *= -1;
-		m_distance *= -1;
+		m_normal = -m_normal;
+		m_distance = -m_distance;
 	}
 }

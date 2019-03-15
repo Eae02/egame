@@ -403,15 +403,15 @@ namespace eg::graphics_api::gl
 		
 		for (int i = 0; i < 8; i++)
 		{
-			bool enabled = pipeline->blend[i].enabled = createInfo.attachments[i].blend.enabled;
+			bool enabled = pipeline->blend[i].enabled = createInfo.blendStates[i].enabled;
 			if (enabled)
 			{
-				pipeline->blend[i].colorFunc = Translate(createInfo.attachments[i].blend.colorFunc);
-				pipeline->blend[i].alphaFunc = Translate(createInfo.attachments[i].blend.alphaFunc);
-				pipeline->blend[i].srcColorFactor = Translate(createInfo.attachments[i].blend.srcColorFactor);
-				pipeline->blend[i].srcAlphaFactor = Translate(createInfo.attachments[i].blend.srcAlphaFactor);
-				pipeline->blend[i].dstColorFactor = Translate(createInfo.attachments[i].blend.dstColorFactor);
-				pipeline->blend[i].dstAlphaFactor = Translate(createInfo.attachments[i].blend.dstAlphaFactor);
+				pipeline->blend[i].colorFunc = Translate(createInfo.blendStates[i].colorFunc);
+				pipeline->blend[i].alphaFunc = Translate(createInfo.blendStates[i].alphaFunc);
+				pipeline->blend[i].srcColorFactor = Translate(createInfo.blendStates[i].srcColorFactor);
+				pipeline->blend[i].srcAlphaFactor = Translate(createInfo.blendStates[i].srcAlphaFactor);
+				pipeline->blend[i].dstColorFactor = Translate(createInfo.blendStates[i].dstColorFactor);
+				pipeline->blend[i].dstAlphaFactor = Translate(createInfo.blendStates[i].dstAlphaFactor);
 			}
 		}
 		
@@ -419,6 +419,8 @@ namespace eg::graphics_api::gl
 		
 		return reinterpret_cast<PipelineHandle>(pipeline);
 	}
+	
+	void PipelineFramebufferFormatHint(PipelineHandle handle, const FramebufferFormatHint& hint) { }
 	
 	void DestroyPipeline(PipelineHandle handle)
 	{

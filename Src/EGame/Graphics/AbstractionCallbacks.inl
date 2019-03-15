@@ -35,6 +35,7 @@ XM_ABSCALLBACK(CreateShaderModule, ShaderModuleHandle, (ShaderStage stage, Span<
 XM_ABSCALLBACK(DestroyShaderModule, void, (ShaderModuleHandle handle))
 XM_ABSCALLBACK(CreatePipeline, PipelineHandle, (const PipelineCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyPipeline, void, (PipelineHandle handle))
+XM_ABSCALLBACK(PipelineFramebufferFormatHint, void, (PipelineHandle handle, const FramebufferFormatHint& hint))
 XM_ABSCALLBACK(BindPipeline, void, (CommandContextHandle ctx, PipelineHandle handle))
 XM_ABSCALLBACK(PushConstants, void, (CommandContextHandle ctx, uint32_t offset, uint32_t range, const void* data))
 

@@ -10,9 +10,9 @@ public:
 		eg::PipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModule>("Main.vs.glsl").Handle();
 		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModule>("Main.fs.glsl").Handle();
-		pipelineCI.depthFormat = eg::Format::DefaultDepthStencil;
-		pipelineCI.attachments[0].format = eg::Format::DefaultColor;
 		m_pipeline = eg::Pipeline::Create(pipelineCI);
+		
+		m_pipeline.FramebufferFormatHint(eg::Format::DefaultColor, eg::Format::DefaultDepthStencil);
 	}
 	
 	void RunFrame(float dt) override

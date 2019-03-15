@@ -174,13 +174,6 @@ namespace eg
 		{}
 	};
 	
-	struct AttachmentState
-	{
-		Format format = Format::Undefined;
-		uint32_t samples = 1;
-		BlendState blend;
-	};
-	
 	enum class InputRate
 	{
 		Vertex = 0,
@@ -226,11 +219,17 @@ namespace eg
 		CullMode cullMode = CullMode::None;
 		bool frontFaceCCW = false;
 		Topology topology = Topology::TriangleList;
-		Format depthFormat = Format::Undefined;
-		uint32_t depthSamples = 1;
-		AttachmentState attachments[MAX_COLOR_ATTACHMENTS];
+		uint32_t numColorAttachments = 1;
+		BlendState blendStates[MAX_COLOR_ATTACHMENTS];
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
+	};
+	
+	struct FramebufferFormatHint
+	{
+		uint32_t sampleCount = 1;
+		Format depthStencilFormat = Format::Undefined;
+		Format colorFormats[MAX_COLOR_ATTACHMENTS] = { };
 	};
 	
 	enum class SwizzleMode

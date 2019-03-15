@@ -119,8 +119,6 @@ namespace eg
 		PipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = vs.Handle();
 		pipelineCI.fragmentShader = fs.Handle();
-		pipelineCI.depthFormat = Format::DefaultDepthStencil;
-		pipelineCI.attachments[0].format = Format::DefaultColor;
 		pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
 		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };
 		s_pipeline = Pipeline::Create(pipelineCI);

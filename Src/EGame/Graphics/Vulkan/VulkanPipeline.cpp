@@ -2,9 +2,11 @@
 #include "RenderPasses.hpp"
 #include "VulkanBuffer.hpp"
 #include "VulkanTexture.hpp"
+#include "VulkanFramebuffer.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 #include <spirv_cross.hpp>
+#include <iomanip>
 
 namespace eg::graphics_api::vk
 {
@@ -70,14 +72,32 @@ namespace eg::graphics_api::vk
 		void UnRef();
 	};
 	
+	struct FramebufferPipeline
+	{
+		size_t framebufferHash;
+		VkPipeline pipeline;
+	};
+	
 	struct Pipeline : Resource
 	{
 		VkShaderStageFlags pushConstantStages;
 		ShaderModule* shaderModules[5];
 		VkPipelineLayout pipelineLayout;
 		Pipeline* basePipeline;
-		VkPipeline pipeline;
+		std::vector<FramebufferPipeline> pipelines;
 		bool enableScissorTest;
+		
+		uint32_t numStages;
+		VkPipelineShaderStageCreateInfo shaderStageCI[5];
+		VkVertexInputBindingDescription vertexBindings[MAX_VERTEX_BINDINGS];
+		VkVertexInputAttributeDescription vertexAttribs[MAX_VERTEX_ATTRIBUTES];
+		VkPipelineVertexInputStateCreateInfo vertexInputStateCI;
+		VkPrimitiveTopology topology;
+		uint32_t patchControlPoints;
+		VkPipelineRasterizationStateCreateInfo rasterizationStateCI;
+		VkPipelineDepthStencilStateCreateInfo depthStencilStateCI;
+		VkPipelineColorBlendAttachmentState blendStates[8];
+		VkPipelineColorBlendStateCreateInfo colorBlendStateCI;
 		
 		void Free() override;
 	};
@@ -121,7 +141,10 @@ namespace eg::graphics_api::vk
 				module->UnRef();
 		}
 		
-		vkDestroyPipeline(ctx.device, pipeline, nullptr);
+		for (const FramebufferPipeline& pipeline : pipelines)
+		{
+			vkDestroyPipeline(ctx.device, pipeline.pipeline, nullptr);
+		}
 		
 		pipelinesPool.Delete(this);
 	}
@@ -375,9 +398,6 @@ namespace eg::graphics_api::vk
 		pipeline->enableScissorTest = createInfo.enableScissorTest;
 		std::fill_n(pipeline->shaderModules, 5, nullptr);
 		
-		VkPipelineShaderStageCreateInfo stageCreateInfos[5];
-		uint32_t numStages = 0;
-		
 		std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
 		uint32_t numPushConstantBytes = 0;
 		pipeline->pushConstantStages = 0;
@@ -390,14 +410,14 @@ namespace eg::graphics_api::vk
 			ShaderModule* module = UnwrapShaderModule(handle);
 			module->ref++;
 			
-			stageCreateInfos[numStages].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-			stageCreateInfos[numStages].pNext = nullptr;
-			stageCreateInfos[numStages].flags = 0;
-			stageCreateInfos[numStages].module = module->module;
-			stageCreateInfos[numStages].pName = "main";
-			stageCreateInfos[numStages].stage = stageFlags;
-			stageCreateInfos[numStages].pSpecializationInfo = nullptr;
-			pipeline->shaderModules[numStages++] = module;
+			pipeline->shaderStageCI[pipeline->numStages].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+			pipeline->shaderStageCI[pipeline->numStages].pNext = nullptr;
+			pipeline->shaderStageCI[pipeline->numStages].flags = 0;
+			pipeline->shaderStageCI[pipeline->numStages].module = module->module;
+			pipeline->shaderStageCI[pipeline->numStages].pName = "main";
+			pipeline->shaderStageCI[pipeline->numStages].stage = stageFlags;
+			pipeline->shaderStageCI[pipeline->numStages].pSpecializationInfo = nullptr;
+			pipeline->shaderModules[pipeline->numStages++] = module;
 			
 			for (uint32_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
 			{
@@ -458,31 +478,23 @@ namespace eg::graphics_api::vk
 		}
 		CheckRes(vkCreatePipelineLayout(ctx.device, &layoutCreateInfo, nullptr, &pipeline->pipelineLayout));
 		
-		VkPipelineInputAssemblyStateCreateInfo iaState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 		switch (createInfo.topology)
 		{
-		case Topology::TriangleList: iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
-		case Topology::TriangleStrip: iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; break;
-		case Topology::TriangleFan: iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN; break;
-		case Topology::LineList: iaState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; break;
-		case Topology::LineStrip: iaState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP; break;
-		case Topology::Points: iaState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
-		case Topology::Patches: iaState.topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST; break;
+		case Topology::TriangleList: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
+		case Topology::TriangleStrip: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; break;
+		case Topology::TriangleFan: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN; break;
+		case Topology::LineList: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; break;
+		case Topology::LineStrip: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP; break;
+		case Topology::Points: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
+		case Topology::Patches: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST; break;
+		default: EG_UNREACHABLE
 		}
-		
-		const VkViewport dummyViewport = { 0, 0, 0, 1, 0, 1 };
-		const VkRect2D dummyScissor = { { 0, 0 }, { 1, 1 } };
-		VkPipelineViewportStateCreateInfo viewportState = { VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-		viewportState.viewportCount = 1;
-		viewportState.pViewports = &dummyViewport;
-		viewportState.scissorCount = 1;
-		viewportState.pScissors = &dummyScissor;
 		
 		VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
 		if (createInfo.wireframe && ctx.deviceFeatures.fillModeNonSolid)
 			polygonMode = VK_POLYGON_MODE_LINE;
 		
-		const VkPipelineRasterizationStateCreateInfo rasterizationState =
+		pipeline->rasterizationStateCI =
 		{
 			/* sType                   */ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 			/* pNext                   */ nullptr,
@@ -499,20 +511,7 @@ namespace eg::graphics_api::vk
 			/* lineWidth               */ 1.0f
 		};
 		
-		const VkPipelineMultisampleStateCreateInfo multisampleState =
-		{
-			/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-			/* pNext                 */ nullptr,
-			/* flags                 */ 0,
-			/* rasterizationSamples  */ VK_SAMPLE_COUNT_1_BIT,
-			/* sampleShadingEnable   */ VK_FALSE,
-			/* minSampleShading      */ 0.0f,
-			/* pSampleMask           */ nullptr,
-			/* alphaToCoverageEnable */ VK_FALSE,
-			/* alphaToOneEnable      */ VK_FALSE
-		};
-		
-		VkPipelineDepthStencilStateCreateInfo depthStencilState =
+		pipeline->depthStencilStateCI =
 		{
 			/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 			/* pNext                 */ nullptr,
@@ -528,94 +527,135 @@ namespace eg::graphics_api::vk
 			/* maxDepthBounds        */ 0
 		};
 		
-		VkPipelineColorBlendAttachmentState blendStates[8];
-		
-		VkPipelineColorBlendStateCreateInfo colorBlendState = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-		colorBlendState.attachmentCount = 0;
-		colorBlendState.pAttachments = blendStates;
-		
-		RenderPassDescription renderPassDescription;
-		renderPassDescription.depthAttachment.format = TranslateFormat(createInfo.depthFormat);
-		renderPassDescription.depthAttachment.samples = createInfo.depthSamples;
+		pipeline->colorBlendStateCI = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+		pipeline->colorBlendStateCI.pAttachments = pipeline->blendStates;
 		
 		//Initializes attachment blend states and color attachment information for the render pass description.
-		for (uint32_t i = 0; i < 8; i++)
+		for (uint32_t i = 0; i < createInfo.numColorAttachments; i++)
 		{
-			if (createInfo.attachments[i].format == Format::Undefined)
-				continue;
+			const BlendState& blendState = createInfo.blendStates[i];
 			
-			renderPassDescription.colorAttachments[i].format = TranslateFormat(createInfo.attachments[i].format);
-			renderPassDescription.colorAttachments[i].samples = createInfo.attachments[i].samples;
+			pipeline->colorBlendStateCI.attachmentCount = i + 1;
 			
-			const BlendState& blendState = createInfo.attachments[i].blend;
-			
-			colorBlendState.attachmentCount = i + 1;
-			
-			blendStates[i].blendEnable = static_cast<VkBool32>(blendState.enabled);
-			blendStates[i].colorBlendOp = TranslateBlendFunc(blendState.colorFunc);
-			blendStates[i].alphaBlendOp = TranslateBlendFunc(blendState.alphaFunc);
-			blendStates[i].srcColorBlendFactor = TranslateBlendFactor(blendState.srcColorFactor);
-			blendStates[i].dstColorBlendFactor = TranslateBlendFactor(blendState.dstColorFactor);
-			blendStates[i].srcAlphaBlendFactor = TranslateBlendFactor(blendState.srcAlphaFactor);
-			blendStates[i].dstAlphaBlendFactor = TranslateBlendFactor(blendState.dstAlphaFactor);
-			blendStates[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+			pipeline->blendStates[i].blendEnable = static_cast<VkBool32>(blendState.enabled);
+			pipeline->blendStates[i].colorBlendOp = TranslateBlendFunc(blendState.colorFunc);
+			pipeline->blendStates[i].alphaBlendOp = TranslateBlendFunc(blendState.alphaFunc);
+			pipeline->blendStates[i].srcColorBlendFactor = TranslateBlendFactor(blendState.srcColorFactor);
+			pipeline->blendStates[i].dstColorBlendFactor = TranslateBlendFactor(blendState.dstColorFactor);
+			pipeline->blendStates[i].srcAlphaBlendFactor = TranslateBlendFactor(blendState.srcAlphaFactor);
+			pipeline->blendStates[i].dstAlphaBlendFactor = TranslateBlendFactor(blendState.dstAlphaFactor);
+			pipeline->blendStates[i].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
 				VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 		}
 		
-		const VkDynamicState dynamicState[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-		const VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo =
-		{
-			/* sType             */ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-			/* pNext             */ nullptr,
-			/* flags             */ 0,
-			/* dynamicStateCount */ ArrayLen(dynamicState),
-			/* pDynamicStates    */ dynamicState
-		};
-		
 		//Translates vertex bindings
 		uint32_t numVertexBindings = 0;
-		VkVertexInputBindingDescription vertexBindings[MAX_VERTEX_BINDINGS];
 		for (uint32_t b = 0; b < MAX_VERTEX_BINDINGS; b++)
 		{
 			if (createInfo.vertexBindings[b].stride == UINT32_MAX)
 				continue;
 			
-			vertexBindings[numVertexBindings].binding = b;
-			vertexBindings[numVertexBindings].stride = createInfo.vertexBindings[b].stride;
+			pipeline->vertexBindings[numVertexBindings].binding = b;
+			pipeline->vertexBindings[numVertexBindings].stride = createInfo.vertexBindings[b].stride;
 			
 			if (createInfo.vertexBindings[b].inputRate == InputRate::Vertex)
-				vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+				pipeline->vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 			else
-				vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+				pipeline->vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 			
 			numVertexBindings++;
 		}
 		
 		//Translates vertex attributes
 		uint32_t numVertexAttribs = 0;
-		VkVertexInputAttributeDescription vertexAttribs[MAX_VERTEX_ATTRIBUTES];
 		for (uint32_t a = 0; a < MAX_VERTEX_ATTRIBUTES; a++)
 		{
 			const VertexAttribute& attribIn = createInfo.vertexAttributes[a];
 			if (attribIn.binding == UINT32_MAX)
 				continue;
 			
-			vertexAttribs[numVertexAttribs].binding = attribIn.binding;
-			vertexAttribs[numVertexAttribs].offset = attribIn.offset;
-			vertexAttribs[numVertexAttribs].location = a;
-			vertexAttribs[numVertexAttribs].format = GetAttribFormat(attribIn.type, attribIn.components);
+			pipeline->vertexAttribs[numVertexAttribs].binding = attribIn.binding;
+			pipeline->vertexAttribs[numVertexAttribs].offset = attribIn.offset;
+			pipeline->vertexAttribs[numVertexAttribs].location = a;
+			pipeline->vertexAttribs[numVertexAttribs].format = GetAttribFormat(attribIn.type, attribIn.components);
 			numVertexAttribs++;
 		}
 		
-		const VkPipelineVertexInputStateCreateInfo vertexInputState =
+		pipeline->vertexInputStateCI =
 		{
 			/* sType                           */ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 			/* pNext                           */ nullptr,
 			/* flags                           */ 0,
 			/* vertexBindingDescriptionCount   */ numVertexBindings,
-			/* pVertexBindingDescriptions      */ vertexBindings,
+			/* pVertexBindingDescriptions      */ pipeline->vertexBindings,
 			/* vertexAttributeDescriptionCount */ numVertexAttribs,
-			/* pVertexAttributeDescriptions    */ vertexAttribs
+			/* pVertexAttributeDescriptions    */ pipeline->vertexAttribs
+		};
+		
+		pipeline->patchControlPoints = createInfo.patchControlPoints;
+		
+		return reinterpret_cast<PipelineHandle>(pipeline);
+	}
+	
+	static const VkViewport g_dummyViewport = { 0, 0, 0, 1, 0, 1 };
+	static const VkRect2D g_dummyScissor = { { 0, 0 }, { 1, 1 } };
+	static const VkPipelineViewportStateCreateInfo g_viewportStateCI = 
+	{
+		/* sType         */ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+		/* pNext         */ nullptr,
+		/* flags         */ 0,
+		/* viewportCount */ 1,
+		/* pViewports    */ &g_dummyViewport,
+		/* scissorCount  */ 1,
+		/* pScissors     */ &g_dummyScissor
+	};
+	
+	static const VkDynamicState g_dynamicState[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	static const VkPipelineDynamicStateCreateInfo g_dynamicStateCI =
+	{
+		/* sType             */ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+		/* pNext             */ nullptr,
+		/* flags             */ 0,
+		/* dynamicStateCount */ ArrayLen(g_dynamicState),
+		/* pDynamicStates    */ g_dynamicState
+	};
+	
+	VkPipeline MaybeCreatePipelineFramebufferVariant(const FramebufferFormat& format, Pipeline& pipeline, bool warn)
+	{
+		auto it = std::lower_bound(pipeline.pipelines.begin(), pipeline.pipelines.end(), format.hash,
+			[&] (const FramebufferPipeline& a, size_t b)
+		{
+			return a.framebufferHash < b;
+		});
+		
+		if (it != pipeline.pipelines.end() && it->framebufferHash == format.hash)
+			return it->pipeline;
+		
+		int64_t beginTime = NanoTime();
+		
+		RenderPassDescription renderPassDescription;
+		renderPassDescription.depthAttachment.format = format.depthStencilFormat;
+		renderPassDescription.depthAttachment.samples = format.sampleCount;
+		for (uint32_t i = 0; i < 8; i++)
+		{
+			renderPassDescription.colorAttachments[i].format = format.colorFormats[i];
+			renderPassDescription.colorAttachments[i].samples = format.sampleCount;
+		}
+		
+		VkPipelineInputAssemblyStateCreateInfo iaState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+		iaState.topology = pipeline.topology;
+		
+		const VkPipelineMultisampleStateCreateInfo multisampleState =
+		{
+			/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+			/* pNext                 */ nullptr,
+			/* flags                 */ 0,
+			/* rasterizationSamples  */ VK_SAMPLE_COUNT_1_BIT,
+			/* sampleShadingEnable   */ VK_FALSE,
+			/* minSampleShading      */ 0.0f,
+			/* pSampleMask           */ nullptr,
+			/* alphaToCoverageEnable */ VK_FALSE,
+			/* alphaToOneEnable      */ VK_FALSE
 		};
 		
 		const VkPipelineTessellationStateCreateInfo tessState =
@@ -623,7 +663,7 @@ namespace eg::graphics_api::vk
 			/* sType              */ VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO,
 			/* pNext              */ nullptr,
 			/* flags              */ 0,
-			/* patchControlPoints */ createInfo.patchControlPoints
+			/* patchControlPoints */ pipeline.patchControlPoints
 		};
 		
 		VkGraphicsPipelineCreateInfo vkCreateInfo =
@@ -631,38 +671,54 @@ namespace eg::graphics_api::vk
 			/* sType               */ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			/* pNext               */ nullptr,
 			/* flags               */ 0,
-			/* stageCount          */ numStages,
-			/* pStages             */ stageCreateInfos,
-			/* pVertexInputState   */ &vertexInputState,
+			/* stageCount          */ pipeline.numStages,
+			/* pStages             */ pipeline.shaderStageCI,
+			/* pVertexInputState   */ &pipeline.vertexInputStateCI,
 			/* pInputAssemblyState */ &iaState,
-			/* pTessellationState  */ createInfo.patchControlPoints ? &tessState : nullptr,
-			/* pViewportState      */ &viewportState,
-			/* pRasterizationState */ &rasterizationState,
+			/* pTessellationState  */ pipeline.patchControlPoints ? &tessState : nullptr,
+			/* pViewportState      */ &g_viewportStateCI,
+			/* pRasterizationState */ &pipeline.rasterizationStateCI,
 			/* pMultisampleState   */ &multisampleState,
-			/* pDepthStencilState  */ &depthStencilState,
-			/* pColorBlendState    */ &colorBlendState,
-			/* pDynamicState       */ &dynamicStateCreateInfo,
-			/* layout              */ pipeline->pipelineLayout,
+			/* pDepthStencilState  */ &pipeline.depthStencilStateCI,
+			/* pColorBlendState    */ &pipeline.colorBlendStateCI,
+			/* pDynamicState       */ &g_dynamicStateCI,
+			/* layout              */ pipeline.pipelineLayout,
 			/* renderPass          */ GetRenderPass(renderPassDescription, true),
 			/* subpass             */ 0,
 			/* basePipelineHandle  */ VK_NULL_HANDLE,
 			/* basePipelineIndex   */ -1
 		};
 		
-		if (pipeline->basePipeline == nullptr)
+		if (pipeline.pipelines.empty())
 		{
 			vkCreateInfo.flags |= VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
 		}
 		else
 		{
 			vkCreateInfo.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-			vkCreateInfo.basePipelineHandle = pipeline->basePipeline->pipeline;
-			pipeline->basePipeline->refCount++;
+			vkCreateInfo.basePipelineHandle = pipeline.pipelines.front().pipeline;
 		}
 		
-		CheckRes(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &vkCreateInfo, nullptr, &pipeline->pipeline));
+		FramebufferPipeline& fbPipeline = *pipeline.pipelines.emplace(it);
+		fbPipeline.framebufferHash = format.hash;
+		CheckRes(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &vkCreateInfo, nullptr, &fbPipeline.pipeline));
 		
-		return reinterpret_cast<PipelineHandle>(pipeline);
+		int64_t elapsed = NanoTime() - beginTime;
+		
+		if (warn)
+		{
+			std::ostringstream msgStream;
+			msgStream << "Creating pipeline on demand stalled CPU for " << std::setprecision(2) << (elapsed * 1E-6) <<
+				"ms. Consider adding a framebuffer format hint after creation.";
+			Log(LogLevel::Warning, "vk", "{0}", msgStream.str());
+		}
+		
+		return fbPipeline.pipeline;
+	}
+	
+	void PipelineFramebufferFormatHint(PipelineHandle handle, const FramebufferFormatHint& hint)
+	{
+		MaybeCreatePipelineFramebufferVariant(FramebufferFormat::FromHint(hint), *UnwrapPipeline(handle), false);
 	}
 	
 	void DestroyPipeline(PipelineHandle handle)
@@ -726,7 +782,8 @@ namespace eg::graphics_api::vk
 		ctxState.pipeline = pipeline;
 		
 		VkCommandBuffer cb = GetCB(cc);
-		vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
+		VkPipeline vkPipeline = MaybeCreatePipelineFramebufferVariant(currentFBFormat, *pipeline, true);
+		vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
 		
 		if (!pipeline->enableScissorTest)
 		{

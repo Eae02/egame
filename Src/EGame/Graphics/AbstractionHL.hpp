@@ -49,6 +49,21 @@ namespace eg
 			}
 		}
 		
+		void FramebufferFormatHint(eg::Format colorFormat, eg::Format depthFormat = eg::Format::Undefined,
+			uint32_t sampleCount = 1)
+		{
+			eg::FramebufferFormatHint hint;
+			hint.depthStencilFormat = depthFormat;
+			hint.colorFormats[0] = colorFormat;
+			hint.sampleCount = sampleCount;
+			gal::PipelineFramebufferFormatHint(handle, hint);
+		}
+		
+		void FramebufferFormatHint(const eg::FramebufferFormatHint& hint)
+		{
+			gal::PipelineFramebufferFormatHint(handle, hint);
+		}
+		
 		PipelineHandle handle;
 	};
 	

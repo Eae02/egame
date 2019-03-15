@@ -23,9 +23,7 @@ namespace eg
 		pipelineCI.vertexShader = vs.Handle();
 		pipelineCI.fragmentShader = fs.Handle();
 		pipelineCI.enableScissorTest = true;
-		pipelineCI.depthFormat = Format::DefaultDepthStencil;
-		pipelineCI.attachments[0].format = Format::DefaultColor;
-		pipelineCI.attachments[0].blend = AlphaBlend;
+		pipelineCI.blendStates[0] = AlphaBlend;
 		pipelineCI.vertexBindings[0] = { sizeof(Vertex), InputRate::Vertex };
 		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, position) };
 		pipelineCI.vertexAttributes[1] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, texCoord) };
