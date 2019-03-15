@@ -10,6 +10,7 @@
 #include "Graphics/PerspectiveProjection.hpp"
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
+#include "Graphics/MeshBatch.hpp"
 #include "Alloc/LinearAllocator.hpp"
 #include "Alloc/DirectAllocator.hpp"
 #include "Alloc/ObjectPool.hpp"
