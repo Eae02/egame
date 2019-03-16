@@ -351,6 +351,45 @@ namespace eg
 		std::unique_ptr<_Sampler, SamplerDel> m_sampler;
 	};
 	
+	class EG_API DescriptorSetRef
+	{
+	public:
+		DescriptorSetRef(DescriptorSetHandle _handle = nullptr)
+			: handle(_handle) { }
+		
+		void Destroy()
+		{
+			if (handle)
+			{
+				gal::DestroyDescriptorSet(handle);
+				handle = nullptr;
+			}
+		}
+		
+		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr)
+		{
+			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding);
+		}
+		
+		void BindUniformBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
+		{
+			gal::BindUniformBufferDS(buffer.handle, handle, binding, offset, range);
+		}
+		
+		DescriptorSetHandle handle;
+	};
+	
+	class EG_API DescriptorSet : public OwningRef<DescriptorSetRef>
+	{
+	public:
+		DescriptorSet() = default;
+		
+		DescriptorSet(eg::PipelineRef pipeline, uint32_t set)
+		{
+			handle = gal::CreateDescriptorSet(pipeline.handle, set);
+		}
+	};
+	
 	class EG_API CommandContext
 	{
 	public:
@@ -398,7 +437,17 @@ namespace eg
 		
 		void BindUniformBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
 		{
-			gal::BindUniformBuffer(Handle(), buffer.handle, binding, offset, range);
+			gal::BindUniformBuffer(Handle(), buffer.handle, 0, binding, offset, range);
+		}
+		
+		void BindUniformBuffer(BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+		{
+			gal::BindUniformBuffer(Handle(), buffer.handle, set, binding, offset, range);
+		}
+		
+		void BindDescriptorSet(DescriptorSetRef descriptorSet)
+		{
+			gal::BindDescriptorSet(Handle(), descriptorSet.handle);
 		}
 		
 		void Draw(uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
@@ -413,7 +462,12 @@ namespace eg
 		
 		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr)
 		{
-			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, binding);
+			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, 0, binding);
+		}
+		
+		void BindTexture(TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr)
+		{
+			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding);
 		}
 		
 		void PushConstants(uint32_t offset, uint32_t range, const void* data)

@@ -15,12 +15,16 @@ namespace eg::graphics_api::vk
 	struct DescriptorSetLayout
 	{
 		VkDescriptorSetLayout layout;
+		BindMode bindMode;
+		uint32_t maxBinding;
 		std::vector<VkDescriptorSetLayoutBinding> bindings;
+		std::vector<VkDescriptorPoolSize> sizes;
+		std::vector<VkDescriptorPool> pools;
 	};
 	
 	static std::vector<DescriptorSetLayout> cachedSetLayouts;
 	
-	static VkDescriptorSetLayout GetCachedDescriptorSet(std::vector<VkDescriptorSetLayoutBinding> bindings)
+	static size_t GetCachedDescriptorSetIndex(std::vector<VkDescriptorSetLayoutBinding> bindings, BindMode bindMode)
 	{
 		std::sort(bindings.begin(), bindings.end(),
 			[&] (const VkDescriptorSetLayoutBinding& a, const VkDescriptorSetLayoutBinding& b)
@@ -28,35 +32,110 @@ namespace eg::graphics_api::vk
 			return a.binding < b.binding;
 		});
 		
-		for (const DescriptorSetLayout& setLayout : cachedSetLayouts)
+		//Searches for a matching descriptor set in the cache
+		for (size_t i = 0; i < cachedSetLayouts.size(); i++)
 		{
-			bool eq = std::equal(setLayout.bindings.begin(), setLayout.bindings.end(), bindings.begin(), bindings.end(),
+			bool eq = std::equal(cachedSetLayouts[i].bindings.begin(), cachedSetLayouts[i].bindings.end(),
+				bindings.begin(), bindings.end(),
 				[&] (const VkDescriptorSetLayoutBinding& a, const VkDescriptorSetLayoutBinding& b)
 			{
 				return a.binding == b.binding && a.stageFlags == b.stageFlags && a.descriptorType == b.descriptorType &&
 				       a.descriptorCount == b.descriptorCount;
 			});
 			
-			if (eq)
-				return setLayout.layout;
+			if (eq && cachedSetLayouts[i].bindMode == bindMode)
+				return i;
+		}
+		
+		std::vector<VkDescriptorPoolSize> poolSizes;
+		uint32_t maxBinding = 0;
+		for (const VkDescriptorSetLayoutBinding& binding : bindings)
+		{
+			maxBinding = std::max(maxBinding, binding.binding);
+			
+			bool found = false;
+			for (VkDescriptorPoolSize& poolSize : poolSizes)
+			{
+				if (poolSize.type == binding.descriptorType)
+				{
+					poolSize.descriptorCount += binding.descriptorCount;
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+			{
+				poolSizes.push_back({ binding.descriptorType, binding.descriptorCount });
+			}
 		}
 		
 		VkDescriptorSetLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		createInfo.bindingCount = bindings.size();
+		createInfo.bindingCount = (uint32_t)bindings.size();
 		createInfo.pBindings = bindings.data();
-		createInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+		
+		if (bindMode == BindMode::Dynamic)
+		{
+			createInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+		}
 		
 		VkDescriptorSetLayout setLayout;
 		CheckRes(vkCreateDescriptorSetLayout(ctx.device, &createInfo, nullptr, &setLayout));
-		cachedSetLayouts.push_back({ setLayout, std::move(bindings) });
+		cachedSetLayouts.push_back({ setLayout, bindMode, maxBinding, std::move(bindings), std::move(poolSizes) });
 		
-		return setLayout;
+		return cachedSetLayouts.size() - 1;
+	}
+	
+	static std::tuple<VkDescriptorSet, VkDescriptorPool> AllocateDescriptorSet(size_t setLayoutIndex)
+	{
+		if (cachedSetLayouts[setLayoutIndex].bindMode != eg::BindMode::DescriptorSet)
+		{
+			EG_PANIC("Attempted to create a descriptor set for a set with dynamic bind mode.");
+		}
+		
+		VkDescriptorSetAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+		allocateInfo.descriptorSetCount = 1;
+		allocateInfo.pSetLayouts = &cachedSetLayouts[setLayoutIndex].layout;
+		
+		//Attempts to allocate from an existing pool
+		for (VkDescriptorPool pool : cachedSetLayouts[setLayoutIndex].pools)
+		{
+			allocateInfo.descriptorPool = pool;
+			VkDescriptorSet set;
+			VkResult allocResult = vkAllocateDescriptorSets(ctx.device, &allocateInfo, &set);
+			if (allocResult != VK_ERROR_OUT_OF_POOL_MEMORY)
+			{
+				CheckRes(allocResult);
+				return {set, pool};
+			}
+		}
+		
+		constexpr uint32_t SETS_PER_POOL = 64;
+		
+		VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+		poolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		poolCreateInfo.maxSets = SETS_PER_POOL;
+		poolCreateInfo.poolSizeCount = (uint32_t)cachedSetLayouts[setLayoutIndex].sizes.size();
+		poolCreateInfo.pPoolSizes = cachedSetLayouts[setLayoutIndex].sizes.data();
+		
+		VkDescriptorPool pool;
+		CheckRes(vkCreateDescriptorPool(ctx.device, &poolCreateInfo, nullptr, &pool));
+		cachedSetLayouts[setLayoutIndex].pools.push_back(pool);
+		
+		allocateInfo.descriptorPool = pool;
+		VkDescriptorSet set;
+		CheckRes(vkAllocateDescriptorSets(ctx.device, &allocateInfo, &set));
+		
+		return {set, pool};
 	}
 	
 	void DestroyCachedDescriptorSets()
 	{
 		for (const DescriptorSetLayout& setLayout : cachedSetLayouts)
 		{
+			for (VkDescriptorPool pool : setLayout.pools)
+			{
+				vkDestroyDescriptorPool(ctx.device, pool, nullptr);
+			}
 			vkDestroyDescriptorSetLayout(ctx.device, setLayout.layout, nullptr);
 		}
 		cachedSetLayouts.clear();
@@ -86,6 +165,8 @@ namespace eg::graphics_api::vk
 		Pipeline* basePipeline;
 		std::vector<FramebufferPipeline> pipelines;
 		bool enableScissorTest;
+		
+		size_t setsLayoutIndices[4];
 		
 		uint32_t numStages;
 		VkPipelineShaderStageCreateInfo shaderStageCI[5];
@@ -462,7 +543,9 @@ namespace eg::graphics_api::vk
 			if (bindings[i].empty())
 				continue;
 			numDescriptorSets = i + 1;
-			setLayouts[i] = GetCachedDescriptorSet(bindings[i]);
+			const size_t cacheIdx = GetCachedDescriptorSetIndex(bindings[i], createInfo.setBindModes[i]);
+			pipeline->setsLayoutIndices[i] = cacheIdx;
+			setLayouts[i] = cachedSetLayouts[cacheIdx].layout;
 		}
 		
 		//Creates the pipeline layout
@@ -791,7 +874,138 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
-	void BindUniformBuffer(CommandContextHandle cc, BufferHandle bufferHandle, uint32_t binding, uint64_t offset, uint64_t range)
+	struct DescriptorSet : Resource
+	{
+		VkDescriptorSet descriptorSet;
+		VkDescriptorPool pool;
+		uint32_t setIndex;
+		Pipeline* pipeline;
+		std::vector<Resource*> resources;
+		
+		void AssignResource(uint32_t binding, Resource* resource)
+		{
+			if (binding >= resources.size())
+				EG_PANIC("Descriptor set binding out of range");
+			resource->refCount++;
+			if (resources[binding] != nullptr)
+				resources[binding]->UnRef();
+			resources[binding] = resource;
+		}
+		
+		void Free() override;
+	};
+	
+	ConcurrentObjectPool<DescriptorSet> descriptorSets;
+	
+	DescriptorSet* UnwrapDescriptorSet(DescriptorSetHandle handle)
+	{
+		return reinterpret_cast<DescriptorSet*>(handle);
+	}
+	
+	void DescriptorSet::Free()
+	{
+		for (Resource* res : resources)
+		{
+			if (res != nullptr)
+				res->UnRef();
+		}
+		if (!cachedSetLayouts.empty())
+		{
+			CheckRes(vkFreeDescriptorSets(ctx.device, pool, 1, &descriptorSet));
+		}
+		pipeline->UnRef();
+		descriptorSets.Delete(this);
+	}
+	
+	DescriptorSetHandle CreateDescriptorSet(PipelineHandle pipelineHandle, uint32_t set)
+	{
+		Pipeline* pipeline = UnwrapPipeline(pipelineHandle);
+		auto [descriptorSet, pool] = AllocateDescriptorSet(pipeline->setsLayoutIndices[set]);
+		
+		DescriptorSet* ds = descriptorSets.New();
+		ds->descriptorSet = descriptorSet;
+		ds->pool = pool;
+		ds->pipeline = pipeline;
+		ds->setIndex = set;
+		ds->refCount = 1;
+		ds->resources.resize(cachedSetLayouts[pipeline->setsLayoutIndices[set]].maxBinding + 1, nullptr);
+		
+		pipeline->refCount++;
+		
+		return reinterpret_cast<DescriptorSetHandle>(ds);
+	}
+	
+	void DestroyDescriptorSet(DescriptorSetHandle set)
+	{
+		UnwrapDescriptorSet(set)->UnRef();
+	}
+	
+	void BindTextureDS(TextureHandle textureHandle, SamplerHandle samplerHandle,
+		DescriptorSetHandle setHandle, uint32_t binding)
+	{
+		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
+		Texture* texture = UnwrapTexture(textureHandle);
+		
+		ds->AssignResource(binding, texture);
+		
+		VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
+		if (sampler == VK_NULL_HANDLE)
+		{
+			if (texture->defaultSampler == VK_NULL_HANDLE)
+			{
+				EG_PANIC("Attempted to bind texture with no sampler specified.")
+			}
+			sampler = texture->defaultSampler;
+		}
+		
+		VkDescriptorImageInfo imageInfo;
+		imageInfo.imageView = texture->imageView;
+		imageInfo.sampler = sampler;
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writeDS.descriptorCount = 1;
+		writeDS.dstSet = ds->descriptorSet;
+		writeDS.dstBinding = binding;
+		writeDS.pImageInfo = &imageInfo;
+		
+		vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
+	}
+	
+	void BindUniformBufferDS(BufferHandle bufferHandle, DescriptorSetHandle setHandle,
+		uint32_t binding, uint64_t offset, uint64_t range)
+	{
+		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
+		Buffer* buffer = UnwrapBuffer(bufferHandle);
+		
+		ds->AssignResource(binding, buffer);
+		
+		VkDescriptorBufferInfo bufferInfo;
+		bufferInfo.buffer = buffer->buffer;
+		bufferInfo.offset = offset;
+		bufferInfo.range = range;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writeDS.descriptorCount = 1;
+		writeDS.dstSet = ds->descriptorSet;
+		writeDS.dstBinding = binding;
+		writeDS.pBufferInfo = &bufferInfo;
+		
+		vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
+	}
+	
+	void BindDescriptorSet(CommandContextHandle cc, DescriptorSetHandle handle)
+	{
+		DescriptorSet* ds = UnwrapDescriptorSet(handle);
+		RefResource(cc, *ds);
+		vkCmdBindDescriptorSets(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, GetCtxState(cc).pipeline->pipelineLayout,
+			ds->setIndex, 1, &ds->descriptorSet, 0, nullptr);
+	}
+	
+	void BindUniformBuffer(CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set,
+		uint32_t binding, uint64_t offset, uint64_t range)
 	{
 		Buffer* buffer = UnwrapBuffer(bufferHandle);
 		RefResource(cc, *buffer);
@@ -808,15 +1022,16 @@ namespace eg::graphics_api::vk
 		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		writeDS.dstBinding = binding;
-		writeDS.dstSet = 0;
+		writeDS.dstSet = VK_NULL_HANDLE;
 		writeDS.descriptorCount = 1;
 		writeDS.pBufferInfo = &bufferInfo;
 		
 		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout,
-			0, 1, &writeDS);
+			set, 1, &writeDS);
 	}
 	
-	void BindTexture(CommandContextHandle cc, TextureHandle textureHandle, SamplerHandle samplerHandle, uint32_t binding)
+	void BindTexture(CommandContextHandle cc, TextureHandle textureHandle, SamplerHandle samplerHandle,
+		uint32_t set, uint32_t binding)
 	{
 		Texture* texture = UnwrapTexture(textureHandle);
 		RefResource(cc, *texture);
@@ -850,7 +1065,8 @@ namespace eg::graphics_api::vk
 		writeDS.descriptorCount = 1;
 		writeDS.pImageInfo = &imageInfo;
 		
-		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout, 0, 1, &writeDS);
+		vkCmdPushDescriptorSetKHR(GetCB(cc), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipelineLayout,
+			set, 1, &writeDS);
 	}
 	
 	void PushConstants(CommandContextHandle cc, uint32_t offset, uint32_t range, const void* data)

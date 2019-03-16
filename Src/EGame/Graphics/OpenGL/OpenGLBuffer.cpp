@@ -1,5 +1,6 @@
 #include "OpenGL.hpp"
 #include "OpenGLBuffer.hpp"
+#include "OpenGLShader.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
@@ -7,11 +8,6 @@
 namespace eg::graphics_api::gl
 {
 	static ObjectPool<Buffer> bufferPool;
-	
-	inline Buffer* UnwrapBuffer(BufferHandle handle)
-	{
-		return reinterpret_cast<Buffer*>(handle);
-	}
 	
 	BufferHandle CreateBuffer(BufferFlags flags, uint64_t size, const void* initialData)
 	{
@@ -85,10 +81,11 @@ namespace eg::graphics_api::gl
 		glCopyNamedBufferSubData(UnwrapBuffer(src)->buffer, UnwrapBuffer(dst)->buffer, srcOffset, dstOffset, size);
 	}
 	
-	void BindUniformBuffer(CommandContextHandle, BufferHandle handle, uint32_t binding, uint64_t offset, uint64_t range)
+	void BindUniformBuffer(CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding,
+		uint64_t offset, uint64_t range)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
-		glBindBufferRange(GL_UNIFORM_BUFFER, binding, buffer->buffer, offset, range);
+		glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBinding(set, binding), buffer->buffer, offset, range);
 	}
 	
 	void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags) { }

@@ -1,6 +1,7 @@
 #include "OpenGL.hpp"
 #include "OpenGLTexture.hpp"
 #include "OpenGLBuffer.hpp"
+#include "OpenGLShader.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
@@ -102,9 +103,9 @@ namespace eg::graphics_api::gl
 	void DestroySampler(SamplerHandle handle)
 	{
 		MainThreadInvoke([sampler = static_cast<GLuint>(reinterpret_cast<uintptr_t>(handle))]
-		                 {
-			                 glDeleteSamplers(1, &sampler);
-		                 });
+		{
+			glDeleteSamplers(1, &sampler);
+		});
 	}
 	
 	static GLenum TranslateSwizzle(SwizzleMode mode, GLenum identity)
@@ -252,16 +253,18 @@ namespace eg::graphics_api::gl
 	void DestroyTexture(TextureHandle handle)
 	{
 		MainThreadInvoke([texture = UnwrapTexture(handle)]
-		                 {
-			                 glDeleteTextures(1, &texture->texture);
-			                 texturePool.Free(texture);
-		                 });
+		{
+			glDeleteTextures(1, &texture->texture);
+			texturePool.Free(texture);
+		});
 	}
 	
-	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t binding)
+	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler,
+		uint32_t set, uint32_t binding)
 	{
-		glBindSampler(binding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
-		glBindTextureUnit(binding, UnwrapTexture(texture)->texture);
+		uint32_t glBinding = ResolveBinding(set, binding);
+		glBindSampler(glBinding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
+		glBindTextureUnit(glBinding, UnwrapTexture(texture)->texture);
 	}
 	
 	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const Color& color)

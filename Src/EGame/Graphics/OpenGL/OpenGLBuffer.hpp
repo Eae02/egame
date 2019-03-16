@@ -10,4 +10,9 @@ namespace eg::graphics_api::gl
 		uint64_t size;
 		char* persistentMapping;
 	};
+	
+	inline Buffer* UnwrapBuffer(BufferHandle handle)
+	{
+		return reinterpret_cast<Buffer*>(handle);
+	}
 }

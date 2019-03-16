@@ -1,11 +1,12 @@
 #include "OpenGL.hpp"
 #include "Utils.hpp"
+#include "OpenGLBuffer.hpp"
+#include "OpenGLTexture.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
 #include "../../Span.hpp"
 #include "../../Log.hpp"
-#include "OpenGLBuffer.hpp"
 
 #include <atomic>
 #include <GL/gl3w.h>
@@ -28,30 +29,14 @@ namespace eg::graphics_api::gl
 	
 	struct ShaderModule
 	{
-		GLuint handle;
 		ShaderStage stage;
-		std::atomic_int ref;
 		spirv_cross::CompilerGLSL spvCompiler;
 		
 		ShaderModule(Span<const char> code)
-			: ref(1), spvCompiler(reinterpret_cast<const uint32_t*>(code.data()), code.size() / 4) { }
-		
-		void Unref();
+			: spvCompiler(reinterpret_cast<const uint32_t*>(code.data()), code.size() / 4) { }
 	};
 	
-	static ObjectPool<ShaderModule> shaderModulePool;
-	
-	void ShaderModule::Unref()
-	{
-		if (ref-- == 1)
-		{
-			MainThreadInvoke([this]
-			{
-				glDeleteShader(handle);
-				shaderModulePool.Delete(this);
-			});
-		}
-	}
+	static ConcurrentObjectPool<ShaderModule> shaderModulePool;
 	
 	inline ShaderModule* UnwrapShaderModule(ShaderModuleHandle handle)
 	{
@@ -96,37 +81,12 @@ namespace eg::graphics_api::gl
 			}
 		}
 		
-		std::string glslCode = module->spvCompiler.compile();
-		
-		module->handle = glCreateShader(ShaderTypes[(int)stage]);
-		
-		const GLchar* glslCodeC = glslCode.c_str();
-		GLint glslCodeLen = glslCode.size();
-		glShaderSource(module->handle, 1, &glslCodeC, &glslCodeLen);
-		
-		glCompileShader(module->handle);
-		
-		//Checks the shader's compile status.
-		GLint compileStatus = GL_FALSE;
-		glGetShaderiv(module->handle, GL_COMPILE_STATUS, &compileStatus);
-		if (!compileStatus)
-		{
-			GLint infoLogLen = 0;
-			glGetShaderiv(module->handle, GL_INFO_LOG_LENGTH, &infoLogLen);
-			
-			std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
-			glGetShaderInfoLog(module->handle, infoLogLen, nullptr, infoLog.data());
-			infoLog.back() = '\0';
-			
-			EG_PANIC("Shader failed to compile:" << infoLog.data());
-		}
-		
 		return reinterpret_cast<ShaderModuleHandle>(module);
 	}
 	
 	void DestroyShaderModule(ShaderModuleHandle handle)
 	{
-		UnwrapShaderModule(handle)->Unref();
+		shaderModulePool.Delete(UnwrapShaderModule(handle));
 	}
 	
 	struct BlendState
@@ -140,9 +100,40 @@ namespace eg::graphics_api::gl
 		GLenum dstAlphaFactor;
 	};
 	
+	enum class BindingType
+	{
+		UniformBuffer,
+		Texture
+	};
+	
+	struct MappedBinding
+	{
+		uint32_t set;
+		uint32_t binding;
+		BindingType type;
+		uint32_t glBinding;
+		
+		bool operator<(const MappedBinding& other) const
+		{
+			if (set != other.set)
+				return set < other.set;
+			return binding < other.binding;
+		}
+	};
+	
+	struct PipelineDescriptorSet
+	{
+		uint32_t numUniformBuffers;
+		uint32_t numTextures;
+		uint32_t firstUniformBuffer;
+		uint32_t firstTexture;
+	};
+	
 	struct Pipeline
 	{
 		GLuint program;
+		uint32_t numShaderModules;
+		GLuint shaderModules[5];
 		GLuint vertexArray;
 		bool enableFaceCull;
 		GLenum frontFace;
@@ -157,7 +148,10 @@ namespace eg::graphics_api::gl
 		uint32_t maxVertexBinding;
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		std::vector<PushConstantMember> pushConstants;
-		ShaderModule* shaderModules[5];
+		uint32_t numUniformBuffers;
+		uint32_t numTextures;
+		std::vector<MappedBinding> bindings;
+		PipelineDescriptorSet sets[MAX_DESCRIPTOR_SETS];
 	};
 	
 	inline Pipeline* UnwrapPipeline(PipelineHandle handle)
@@ -216,11 +210,12 @@ namespace eg::graphics_api::gl
 	PipelineHandle CreatePipeline(const PipelineCreateInfo& createInfo)
 	{
 		Pipeline* pipeline = pipelinePool.New();
-		std::fill_n(pipeline->shaderModules, 5, nullptr);
 		
 		pipeline->program = glCreateProgram();
+		pipeline->numTextures = 0;
+		pipeline->numUniformBuffers = 0;
+		pipeline->numShaderModules = 0;
 		
-		size_t numStages = 0;
 		spirv_cross::CompilerGLSL* spvCompilers[5];
 		
 		//Attaches shaders to the pipeline's program
@@ -233,11 +228,9 @@ namespace eg::graphics_api::gl
 				{
 					EG_PANIC("Shader stage mismatch");
 				}
-				module->ref++;
-				glAttachShader(pipeline->program, module->handle);
-				spvCompilers[numStages] = &module->spvCompiler;
-				pipeline->shaderModules[numStages] = module;
-				numStages++;
+				spvCompilers[pipeline->numShaderModules] = &module->spvCompiler;
+				pipeline->shaderModules[pipeline->numShaderModules] = glCreateShader(ShaderTypes[(int)expectedStage]);
+				pipeline->numShaderModules++;
 			}
 		};
 		MaybeAddStage(createInfo.vertexShader, eg::ShaderStage::Vertex);
@@ -245,6 +238,106 @@ namespace eg::graphics_api::gl
 		MaybeAddStage(createInfo.geometryShader, eg::ShaderStage::Geometry);
 		MaybeAddStage(createInfo.tessControlShader, eg::ShaderStage::TessControl);
 		MaybeAddStage(createInfo.tessEvaluationShader, eg::ShaderStage::TessEvaluation);
+		
+		//Detects resources used in shaders
+		std::for_each(spvCompilers, spvCompilers + pipeline->numShaderModules,
+			[&] (const spirv_cross::CompilerGLSL* spvCompiler)
+		{
+			auto ProcessResources = [&] (const std::vector<spirv_cross::Resource>& resources, BindingType type)
+			{
+				for (const spirv_cross::Resource& res : resources)
+				{
+					const uint32_t set = spvCompiler->get_decoration(res.id, spv::DecorationDescriptorSet);
+					const uint32_t binding = spvCompiler->get_decoration(res.id, spv::DecorationBinding);
+					bool exists = std::any_of(pipeline->bindings.begin(), pipeline->bindings.end(),
+						[&] (const MappedBinding& mb) { return mb.set == set && mb.binding == binding; });
+					if (!exists)
+					{
+						pipeline->bindings.push_back({ set, binding, type, 0 });
+					}
+				}
+			};
+			
+			const spirv_cross::ShaderResources& resources = spvCompiler->get_shader_resources();
+			ProcessResources(resources.uniform_buffers, BindingType::UniformBuffer);
+			ProcessResources(resources.sampled_images, BindingType::Texture);
+		});
+		
+		std::sort(pipeline->bindings.begin(), pipeline->bindings.end());
+		
+		//Assigns gl bindings to resources
+		uint32_t nextTextureBinding = 0;
+		uint32_t nextUniformBufferBinding = 0;
+		for (uint32_t i = 0; i < pipeline->bindings.size(); i++)
+		{
+			uint32_t set = pipeline->bindings[i].set;
+			if (i == 0 || pipeline->bindings[i - 1].set != set)
+			{
+				pipeline->sets[set] = { 0, 0, nextUniformBufferBinding, nextTextureBinding };
+			}
+			switch (pipeline->bindings[i].type)
+			{
+			case BindingType::UniformBuffer:
+				pipeline->sets[set].numUniformBuffers++;
+				pipeline->bindings[i].glBinding = nextUniformBufferBinding++;
+				break;
+			case BindingType::Texture:
+				pipeline->sets[set].numTextures++;
+				pipeline->bindings[i].glBinding = nextTextureBinding++;
+				break;
+			}
+		}
+		
+		//Updates the bindings used by resources and uploads code to shader modules
+		for (uint32_t i = 0; i < pipeline->numShaderModules; i++)
+		{
+			auto ProcessResources = [&] (const std::vector<spirv_cross::Resource>& resources)
+			{
+				for (const spirv_cross::Resource& res : resources)
+				{
+					const uint32_t set = spvCompilers[i]->get_decoration(res.id, spv::DecorationDescriptorSet);
+					const uint32_t binding = spvCompilers[i]->get_decoration(res.id, spv::DecorationBinding);
+					auto it = std::lower_bound(pipeline->bindings.begin(), pipeline->bindings.end(), MappedBinding { set, binding });
+					spvCompilers[i]->set_decoration(res.id, spv::DecorationDescriptorSet, 0);
+					spvCompilers[i]->set_decoration(res.id, spv::DecorationBinding, it->glBinding);
+				}
+			};
+			
+			const spirv_cross::ShaderResources& resources = spvCompilers[i]->get_shader_resources();
+			ProcessResources(resources.uniform_buffers);
+			ProcessResources(resources.sampled_images);
+			
+			spirv_cross::CompilerGLSL::Options options = spvCompilers[i]->get_common_options();
+			options.version = 430;
+			spvCompilers[i]->set_common_options(options);
+			std::string glslCode = spvCompilers[i]->compile();
+			
+			const GLchar* glslCodeC = glslCode.c_str();
+			const GLint glslCodeLen = (GLint)glslCode.size();
+			glShaderSource(pipeline->shaderModules[i], 1, &glslCodeC, &glslCodeLen);
+			
+			glCompileShader(pipeline->shaderModules[i]);
+			
+			//Checks the shader's compile status.
+			GLint compileStatus = GL_FALSE;
+			glGetShaderiv(pipeline->shaderModules[i], GL_COMPILE_STATUS, &compileStatus);
+			if (!compileStatus)
+			{
+				GLint infoLogLen = 0;
+				glGetShaderiv(pipeline->shaderModules[i], GL_INFO_LOG_LENGTH, &infoLogLen);
+				
+				std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
+				glGetShaderInfoLog(pipeline->shaderModules[i], infoLogLen, nullptr, infoLog.data());
+				infoLog.back() = '\0';
+				
+				std::cout << "Shader failed to compile!\n\n --- GLSL Code --- \n" << glslCode <<
+					"\n\n --- Info Log --- \n" << infoLog.data() << std::endl;
+				
+				std::abort();
+			}
+			
+			glAttachShader(pipeline->program, pipeline->shaderModules[i]);
+		}
 		
 		glLinkProgram(pipeline->program);
 		
@@ -263,14 +356,16 @@ namespace eg::graphics_api::gl
 			EG_PANIC("Shader program failed to link: " << infoLog.data());
 		}
 		
-		std::for_each(spvCompilers, spvCompilers + numStages, [&] (const spirv_cross::CompilerGLSL* spvCrossCompiler)
+		//Processes push constant blocks
+		std::for_each(spvCompilers, spvCompilers + pipeline->numShaderModules,
+			[&] (const spirv_cross::CompilerGLSL* spvCrossCompiler)
 		{
 			const spirv_cross::ShaderResources& resources = spvCrossCompiler->get_shader_resources();
 			
 			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
 			{
 				const SPIRType& type = spvCrossCompiler->get_type(pcBlock.base_type_id);
-				uint32_t numMembers = type.member_types.size();
+				uint32_t numMembers = (uint32_t)type.member_types.size();
 				
 				std::string blockName = spvCrossCompiler->get_name(pcBlock.id);
 				if (blockName.empty())
@@ -426,14 +521,10 @@ namespace eg::graphics_api::gl
 	{
 		Pipeline* pipeline = UnwrapPipeline(handle);
 		
-		for (ShaderModule* module : pipeline->shaderModules)
-		{
-			if (module != nullptr)
-				module->Unref();
-		}
-		
 		MainThreadInvoke([pipeline]
 		{
+			for (uint32_t i = 0; i < pipeline->numShaderModules; i++)
+				glDeleteShader(pipeline->shaderModules[i]);
 			glDeleteProgram(pipeline->program);
 			pipelinePool.Free(pipeline);
 		});
@@ -451,6 +542,17 @@ namespace eg::graphics_api::gl
 	
 	static bool updateVAOBindings = false;
 	static const Pipeline* currentPipeline;
+	
+	inline uint32_t ResolveBinding(const Pipeline& pipeline, uint32_t set, uint32_t binding)
+	{
+		auto it = std::lower_bound(pipeline.bindings.begin(), pipeline.bindings.end(), MappedBinding { set, binding });
+		return it->glBinding;
+	}
+	
+	uint32_t ResolveBinding(uint32_t set, uint32_t binding)
+	{
+		return ResolveBinding(*currentPipeline, set, binding);
+	}
 	
 	static float currentViewport[4];
 	static int currentScissor[4];
@@ -710,7 +812,8 @@ namespace eg::graphics_api::gl
 		glDrawArraysInstancedBaseInstance(currentPipeline->topology, firstVertex, numVertices, numInstances, firstInstance);
 	}
 	
-	void DrawIndexed(CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance, uint32_t numInstances)
+	void DrawIndexed(CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex,
+		uint32_t firstInstance, uint32_t numInstances)
 	{
 		CommitViewportAndScissor();
 		MaybeUpdateVAO();
@@ -726,5 +829,87 @@ namespace eg::graphics_api::gl
 		
 		glDrawElementsInstancedBaseVertexBaseInstance(currentPipeline->topology, numIndices, indexType,
 			(void*)indexOffset, numInstances, firstVertex, firstInstance);
+	}
+	
+	struct DescriptorSet
+	{
+		uint32_t set;
+		Pipeline* pipeline;
+		GLuint* textures;
+		GLuint* samplers;
+		GLuint* uniBuffers;
+		GLsizeiptr* uniBufferOffsets;
+		GLsizeiptr* uniBufferRanges;
+	};
+	
+	inline DescriptorSet* UnwrapDescriptorSet(DescriptorSetHandle handle)
+	{
+		return reinterpret_cast<DescriptorSet*>(handle);
+	}
+	
+	DescriptorSetHandle CreateDescriptorSet(PipelineHandle pipelineHandle, uint32_t set)
+	{
+		Pipeline* pipeline = UnwrapPipeline(pipelineHandle);
+		const PipelineDescriptorSet& pipelineDS = pipeline->sets[set];
+		
+		const size_t extraMemory = pipelineDS.numTextures * 2 * sizeof(GLuint) +
+			pipelineDS.numUniformBuffers * (sizeof(GLuint) + sizeof(GLsizeiptr) * 2);
+		char* memory = static_cast<char*>(std::malloc(sizeof(DescriptorSet) + extraMemory));
+		DescriptorSet* ds = new (memory) DescriptorSet;
+		
+		std::memset(memory + sizeof(DescriptorSet), 0, extraMemory);
+		ds->textures = reinterpret_cast<GLuint*>(memory + sizeof(DescriptorSet));
+		ds->samplers = ds->textures + pipelineDS.numTextures;
+		ds->uniBuffers = ds->samplers + pipelineDS.numTextures;
+		ds->uniBufferOffsets = reinterpret_cast<GLsizeiptr*>(ds->uniBuffers + pipelineDS.numUniformBuffers);
+		ds->uniBufferRanges = ds->uniBufferOffsets + pipelineDS.numUniformBuffers;
+		
+		ds->set = set;
+		ds->pipeline = pipeline;
+		
+		return reinterpret_cast<DescriptorSetHandle>(ds);
+	}
+	
+	void DestroyDescriptorSet(DescriptorSetHandle set)
+	{
+		std::free(UnwrapDescriptorSet(set));
+	}
+	
+	void BindTextureDS(TextureHandle texture, SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding)
+	{
+		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
+		uint32_t idx = ResolveBinding(*set->pipeline, set->set, binding) - set->pipeline->sets[set->set].firstTexture;
+		EG_ASSERT(idx < set->pipeline->sets[set->set].numTextures);
+		set->textures[idx] = UnwrapTexture(texture)->texture;
+		set->samplers[idx] = (GLuint)reinterpret_cast<uintptr_t>(sampler);
+	}
+	
+	void BindUniformBufferDS(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding,
+		uint64_t offset, uint64_t range)
+	{
+		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
+		uint32_t idx = ResolveBinding(*set->pipeline, set->set, binding) - set->pipeline->sets[set->set].firstUniformBuffer;
+		EG_ASSERT(idx < set->pipeline->sets[set->set].numUniformBuffers);
+		set->uniBuffers[idx] = UnwrapBuffer(buffer)->buffer;
+		set->uniBufferOffsets[idx] = offset;
+		set->uniBufferRanges[idx] = range;
+	}
+	
+	void BindDescriptorSet(CommandContextHandle ctx, DescriptorSetHandle handle)
+	{
+		DescriptorSet* set = UnwrapDescriptorSet(handle);
+		const PipelineDescriptorSet& pipelineDS = set->pipeline->sets[set->set];
+		
+		if (pipelineDS.numTextures > 0)
+		{
+			glBindTextures(pipelineDS.firstTexture, pipelineDS.numTextures, set->textures);
+			glBindSamplers(pipelineDS.firstTexture, pipelineDS.numTextures, set->samplers);
+		}
+		
+		if (pipelineDS.numUniformBuffers > 0)
+		{
+			glBindBuffersRange(GL_UNIFORM_BUFFER, pipelineDS.firstUniformBuffer, pipelineDS.numUniformBuffers,
+				set->uniBuffers, set->uniBufferOffsets, set->uniBufferRanges);
+		}
 	}
 }

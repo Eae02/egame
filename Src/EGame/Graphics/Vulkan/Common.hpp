@@ -7,6 +7,7 @@
 #include <volk.h>
 #include <vk_mem_alloc.h>
 #include <atomic>
+#include <set>
 #include <mutex>
 
 namespace eg
@@ -42,10 +43,12 @@ namespace eg::graphics_api::vk
 		
 		void Add(Resource& resource);
 		
+		void Remove(Resource& resource);
+		
 		void Release();
 		
 	private:
-		std::vector<Resource*> m_resources;
+		std::set<Resource*> m_resources;
 	};
 	
 	struct CommandContextState

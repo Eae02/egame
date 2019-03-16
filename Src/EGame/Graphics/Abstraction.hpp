@@ -23,6 +23,7 @@ namespace eg
 	typedef struct _ShaderModule* ShaderModuleHandle;
 	typedef struct _Pipeline* PipelineHandle;
 	typedef struct _CommandContext* CommandContextHandle;
+	typedef struct _DescriptorSet* DescriptorSetHandle;
 	
 	enum class ShaderAccessFlags
 	{
@@ -202,6 +203,12 @@ namespace eg
 			: binding(_binding), type(_type), components(_components), offset(_offset) { }
 	};
 	
+	enum class BindMode : uint8_t
+	{
+		Dynamic,
+		DescriptorSet
+	};
+	
 	struct PipelineCreateInfo
 	{
 		ShaderModuleHandle vertexShader = nullptr;
@@ -220,6 +227,7 @@ namespace eg
 		bool frontFaceCCW = false;
 		Topology topology = Topology::TriangleList;
 		uint32_t numColorAttachments = 1;
+		BindMode setBindModes[MAX_DESCRIPTOR_SETS] = { };
 		BlendState blendStates[MAX_COLOR_ATTACHMENTS];
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];

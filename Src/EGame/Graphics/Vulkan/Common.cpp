@@ -300,11 +300,10 @@ namespace eg::graphics_api::vk
 	
 	void ReferencedResourceSet::Add(Resource& resource)
 	{
-		auto it = std::lower_bound(m_resources.begin(), m_resources.end(), &resource);
-		if (it != m_resources.end() && *it == &resource)
-			return;
-		resource.refCount++;
-		m_resources.insert(it, &resource);
+		if (m_resources.insert(&resource).second)
+		{
+			resource.refCount++;
+		}
 	}
 	
 	void ReferencedResourceSet::Release()
@@ -312,5 +311,13 @@ namespace eg::graphics_api::vk
 		for (Resource* resource : m_resources)
 			resource->UnRef();
 		m_resources.clear();
+	}
+	
+	void ReferencedResourceSet::Remove(Resource& resource)
+	{
+		if (m_resources.erase(&resource))
+		{
+			resource.UnRef();
+		}
 	}
 }
