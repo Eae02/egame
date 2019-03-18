@@ -18,6 +18,8 @@ XM_ABSCALLBACK(BindUniformBuffer, void, (CommandContextHandle, BufferHandle hand
 
 XM_ABSCALLBACK(CreateTexture2D, TextureHandle, (const Texture2DCreateInfo& createInfo))
 XM_ABSCALLBACK(CreateTexture2DArray, TextureHandle, (const Texture2DArrayCreateInfo& createInfo))
+XM_ABSCALLBACK(CreateTextureCube, TextureHandle, (const TextureCubeCreateInfo& createInfo))
+XM_ABSCALLBACK(CreateTextureCubeArray, TextureHandle, (const TextureCubeArrayCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyTexture, void, (TextureHandle handle))
 XM_ABSCALLBACK(TextureUsageHint, void, (TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags))
 XM_ABSCALLBACK(SetTextureData, void, (CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset))

@@ -254,6 +254,30 @@ namespace eg
 			return texture;
 		}
 		
+		static Texture CreateCube(const TextureCubeCreateInfo& createInfo)
+		{
+			Texture texture(gal::CreateTextureCube(createInfo));
+			texture.m_width = createInfo.width;
+			texture.m_height = createInfo.width;
+			texture.m_depth = 1;
+			texture.m_mipLevels = createInfo.mipLevels;
+			texture.m_arrayLayers = 1;
+			texture.m_format = createInfo.format;
+			return texture;
+		}
+		
+		static Texture CreateCubeArray(const TextureCubeArrayCreateInfo& createInfo)
+		{
+			Texture texture(gal::CreateTextureCubeArray(createInfo));
+			texture.m_width = createInfo.width;
+			texture.m_height = createInfo.width;
+			texture.m_depth = 1;
+			texture.m_mipLevels = createInfo.mipLevels;
+			texture.m_arrayLayers = createInfo.arrayLayers;
+			texture.m_format = createInfo.format;
+			return texture;
+		}
+		
 		uint32_t Width() const
 		{
 			return m_width;

@@ -69,6 +69,11 @@ namespace eg::graphics_api::vk
 				imageCreateInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		}
 		
+		if (viewType == VK_IMAGE_VIEW_TYPE_CUBE || viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY)
+			imageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+		if (viewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
+			imageCreateInfo.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
+		
 		VmaAllocationCreateInfo allocationCreateInfo = { };
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		CheckRes(vmaCreateImage(ctx.allocator, &imageCreateInfo, &allocationCreateInfo, &texture.image,
@@ -113,6 +118,26 @@ namespace eg::graphics_api::vk
 		
 		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
 			{ createInfo.width, createInfo.height, 1 }, createInfo.arrayLayers);
+		
+		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
+	TextureHandle CreateTextureCube(const TextureCubeCreateInfo& createInfo)
+	{
+		Texture* texture = texturePool.New();
+		
+		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE,
+			{ createInfo.width, createInfo.width, 1 }, 6);
+		
+		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
+	TextureHandle CreateTextureCubeArray(const TextureCubeArrayCreateInfo& createInfo)
+	{
+		Texture* texture = texturePool.New();
+		
+		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
+			{ createInfo.width, createInfo.width, 1 }, 6 * createInfo.arrayLayers);
 		
 		return reinterpret_cast<TextureHandle>(texture);
 	}

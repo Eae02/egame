@@ -337,6 +337,16 @@ namespace eg
 		uint32_t arrayLayers = 0;
 	};
 	
+	struct TextureCubeCreateInfo : TextureCreateInfo
+	{
+		uint32_t width;
+	};
+	
+	struct TextureCubeArrayCreateInfo : TextureCubeCreateInfo
+	{
+		uint32_t arrayLayers = 0;
+	};
+	
 	enum class UniformType
 	{
 		Int,

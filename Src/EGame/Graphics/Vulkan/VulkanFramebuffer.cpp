@@ -58,6 +58,7 @@ namespace eg::graphics_api::vk
 			framebuffer->depthStencilAttachment = UnwrapTexture(dsAttachment);
 			attachments[createInfo.attachmentCount++] = framebuffer->depthStencilAttachment->imageView;
 			
+			createInfo.layers = framebuffer->depthStencilAttachment->numArrayLayers;
 			framebuffer->depthStencilAttachment->refCount++;
 			
 			sizeSet = true;
@@ -75,6 +76,8 @@ namespace eg::graphics_api::vk
 		{
 			Texture* texture = UnwrapTexture(colorAttachments[i]);
 			texture->refCount++;
+			
+			createInfo.layers = texture->numArrayLayers;
 			
 			framebuffer->colorAttachments[i] = texture;
 			attachments[createInfo.attachmentCount++] = texture->imageView;

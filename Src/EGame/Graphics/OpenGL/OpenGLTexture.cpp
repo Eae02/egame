@@ -194,6 +194,44 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
+	TextureHandle CreateTextureCube(const TextureCubeCreateInfo& createInfo)
+	{
+		Texture* texture = texturePool.New();
+		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture->texture);
+		
+		texture->format = createInfo.format;
+		texture->dim = 3;
+		texture->width = createInfo.width;
+		texture->height = createInfo.width;
+		
+		GLenum format = TranslateFormat(createInfo.format);
+		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
+		                   createInfo.width, createInfo.width, 6);
+		
+		InitTexture(texture->texture, createInfo);
+		
+		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
+	TextureHandle CreateTextureCubeArray(const TextureCubeArrayCreateInfo& createInfo)
+	{
+		Texture* texture = texturePool.New();
+		glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, 1, &texture->texture);
+		
+		texture->format = createInfo.format;
+		texture->dim = 3;
+		texture->width = createInfo.width;
+		texture->height = createInfo.width;
+		
+		GLenum format = TranslateFormat(createInfo.format);
+		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
+		                   createInfo.width, createInfo.width, 6 * createInfo.arrayLayers);
+		
+		InitTexture(texture->texture, createInfo);
+		
+		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
 	static std::tuple<GLenum, GLenum> GetUploadFormat(Format format)
 	{
 		int componentCount = GetFormatComponentCount(format);
