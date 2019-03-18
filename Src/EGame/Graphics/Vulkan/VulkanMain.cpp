@@ -428,6 +428,8 @@ namespace eg::graphics_api::vk
 			enabledDeviceFeatures.robustBufferAccess = VK_TRUE;
 		enabledDeviceFeatures.samplerAnisotropy = ctx.deviceFeatures.samplerAnisotropy;
 		enabledDeviceFeatures.fillModeNonSolid = ctx.deviceFeatures.fillModeNonSolid;
+		enabledDeviceFeatures.geometryShader = ctx.deviceFeatures.geometryShader;
+		enabledDeviceFeatures.tessellationShader = ctx.deviceFeatures.tessellationShader;
 		
 		uint32_t numEnabledDeviceExtensions = 0;
 		const char* enabledDeviceExtensions[16];

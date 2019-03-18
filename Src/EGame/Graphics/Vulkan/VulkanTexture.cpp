@@ -71,8 +71,6 @@ namespace eg::graphics_api::vk
 		
 		if (viewType == VK_IMAGE_VIEW_TYPE_CUBE || viewType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY)
 			imageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-		if (viewType == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
-			imageCreateInfo.flags |= VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT;
 		
 		VmaAllocationCreateInfo allocationCreateInfo = { };
 		allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -197,14 +195,7 @@ namespace eg::graphics_api::vk
 			       VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
 			       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		case TextureUsage::ShaderSample:
-		{
-			VkAccessFlags flags = 0;
-			if (HasFlag(shaderAccessFlags, ShaderAccessFlags::Vertex))
-				flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
-			if (HasFlag(shaderAccessFlags, ShaderAccessFlags::Fragment))
-				flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			return flags;
-		}
+			return TranslateShaderAccess(shaderAccessFlags);
 		}
 		EG_UNREACHABLE
 	}

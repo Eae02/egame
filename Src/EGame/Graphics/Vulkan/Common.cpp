@@ -256,6 +256,7 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
+	
 	VkImageAspectFlags GetFormatAspect(Format format)
 	{
 		if (format == Format::Depth16 || format == Format::Depth32)
@@ -263,6 +264,22 @@ namespace eg::graphics_api::vk
 		if (format == Format::Depth24Stencil8 || format == Format::Depth32Stencil8)
 			return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 		return VK_IMAGE_ASPECT_COLOR_BIT;
+	}
+	
+	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags)
+	{
+		VkAccessFlags flags = 0;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Vertex))
+			flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Fragment))
+			flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Geometry))
+			flags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::TessControl))
+			flags |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::TessEvaluation))
+			flags |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+		return flags;
 	}
 	
 	VkFormat RelaxDepthStencilFormat(VkFormat format)

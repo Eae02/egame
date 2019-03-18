@@ -136,15 +136,7 @@ namespace eg::graphics_api::vk
 		case BufferUsage::CopyDst: return VK_PIPELINE_STAGE_TRANSFER_BIT;
 		case BufferUsage::VertexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 		case BufferUsage::IndexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-		case BufferUsage::UniformBuffer:
-		{
-			VkAccessFlags flags = 0;
-			if (HasFlag(shaderAccessFlags, ShaderAccessFlags::Vertex))
-				flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
-			if (HasFlag(shaderAccessFlags, ShaderAccessFlags::Fragment))
-				flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			return flags;
-		}
+		case BufferUsage::UniformBuffer: return TranslateShaderAccess(shaderAccessFlags);
 		}
 		EG_UNREACHABLE
 	}

@@ -25,11 +25,23 @@ namespace eg
 	typedef struct _CommandContext* CommandContextHandle;
 	typedef struct _DescriptorSet* DescriptorSetHandle;
 	
+	enum class ShaderStage
+	{
+		Vertex = 0,
+		Fragment = 1,
+		Geometry = 2,
+		TessControl = 3,
+		TessEvaluation = 4
+	};
+	
 	enum class ShaderAccessFlags
 	{
 		None = 0,
-		Vertex = 1,
-		Fragment = 2
+		Vertex = 1 << (int)ShaderStage::Vertex,
+		Fragment = 1 << (int)ShaderStage::Fragment,
+		Geometry = 1 << (int)ShaderStage::Geometry,
+		TessControl = 1 << (int)ShaderStage::TessControl,
+		TessEvaluation = 1 << (int)ShaderStage::TessEvaluation,
 	};
 	
 	EG_BIT_FIELD(ShaderAccessFlags)
@@ -99,15 +111,6 @@ namespace eg
 		NotEqual,
 		GreaterOrEqual,
 		Always
-	};
-	
-	enum class ShaderStage
-	{
-		Vertex = 0,
-		Fragment = 1,
-		Geometry = 2,
-		TessControl = 3,
-		TessEvaluation = 4
 	};
 	
 	enum class IndexType

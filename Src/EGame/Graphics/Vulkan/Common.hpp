@@ -152,6 +152,8 @@ namespace eg::graphics_api::vk
 	
 	VkFormat RelaxDepthStencilFormat(VkFormat format);
 	
+	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags);
+	
 	inline VkSemaphore CreateSemaphore(VkDevice device)
 	{
 		static const VkSemaphoreCreateInfo createInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };

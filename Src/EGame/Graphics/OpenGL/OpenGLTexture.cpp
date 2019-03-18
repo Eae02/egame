@@ -205,8 +205,8 @@ namespace eg::graphics_api::gl
 		texture->height = createInfo.width;
 		
 		GLenum format = TranslateFormat(createInfo.format);
-		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
-		                   createInfo.width, createInfo.width, 6);
+		glTextureStorage2D(texture->texture, createInfo.mipLevels, format,
+		                   createInfo.width, createInfo.width);
 		
 		InitTexture(texture->texture, createInfo);
 		
