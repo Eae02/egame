@@ -10,8 +10,8 @@ namespace eg
 	{
 	public:
 		virtual size_t PipelineHash() const = 0;
-		virtual void BindPipeline(CommandContext& cmdCtx, void* drawArgs) const = 0;
-		virtual void BindMaterial(CommandContext& cmdCtx, void* drawArgs) const = 0;
+		virtual bool BindPipeline(CommandContext& cmdCtx, void* drawArgs) const = 0;
+		virtual bool BindMaterial(CommandContext& cmdCtx, void* drawArgs) const = 0;
 	};
 	
 	class EG_API MeshBatch

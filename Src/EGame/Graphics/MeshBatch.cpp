@@ -156,7 +156,8 @@ namespace eg
 		
 		for (PipelineBucket* pipeline = m_drawList; pipeline; pipeline =  pipeline->next)
 		{
-			pipeline->materials->material->BindPipeline(cmdCtx, drawArgs);
+			if (!pipeline->materials->material->BindPipeline(cmdCtx, drawArgs))
+				continue;
 			
 			if (pipeline->hasInstanceData)
 			{
@@ -165,7 +166,8 @@ namespace eg
 			
 			for (MaterialBucket* material = pipeline->materials; material; material = material->next)
 			{
-				material->material->BindMaterial(cmdCtx, drawArgs);
+				if (!material->material->BindMaterial(cmdCtx, drawArgs))
+					continue;
 				
 				for (ModelBucket* model = material->models; model; model = model->next)
 				{
