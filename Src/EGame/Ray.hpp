@@ -35,6 +35,8 @@ namespace eg
 		
 		bool Intersects(const class Plane& plane, float& distance) const;
 		
+		bool Intersects(const class Sphere& sphere, float& distance) const;
+		
 		/***
 		 * Returns the distance along this ray that is closest to the other ray. If parallel, returns NaN.
 		 */

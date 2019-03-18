@@ -30,6 +30,8 @@
 #include "Console.hpp"
 #include "TextEdit.hpp"
 #include "Ray.hpp"
+#include "Sphere.hpp"
+#include "AABB.hpp"
 #include "Plane.hpp"
 #include "Lazy.hpp"
 #include "Assets/Asset.hpp"

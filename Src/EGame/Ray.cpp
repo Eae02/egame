@@ -1,4 +1,5 @@
 #include "Ray.hpp"
+#include "Sphere.hpp"
 #include "Plane.hpp"
 #include "Graphics/AbstractionHL.hpp"
 
@@ -34,6 +35,28 @@ namespace eg
 		if (std::abs(div) < 1E-6f)
 			return false;
 		distance = (plane.GetDistance() - glm::dot(plane.GetNormal(), m_start)) / div;
+		return true;
+	}
+	
+	bool Ray::Intersects(const Sphere& sphere, float& distance) const
+	{
+		if (sphere.Contains(m_start))
+		{
+			distance = 0;
+			return true;
+		}
+		
+		const float a = glm::length2(m_direction);
+		const float b = 2.0f * glm::dot(m_direction, m_start - sphere.position);
+		const float c = glm::length2(m_start - sphere.position) - sphere.radius * sphere.radius;
+		
+		const float disc = b * b - 4 * a * c;
+		
+		if (disc < 0)
+			return false;
+		
+		const float discSqrt = std::sqrt(disc);
+		distance = std::min((-b + discSqrt) / (2 * a), (-b - discSqrt) / (2 * a));
 		return true;
 	}
 	
