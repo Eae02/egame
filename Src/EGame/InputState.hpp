@@ -5,6 +5,7 @@
 
 #include "Utils.hpp"
 #include "API.hpp"
+#include "Span.hpp"
 
 namespace eg
 {
@@ -16,6 +17,21 @@ namespace eg
 		MouseMiddle,
 		MouseSide1,
 		MouseSide2,
+		CtrlrA,
+		CtrlrB,
+		CtrlrX,
+		CtrlrY,
+		CtrlrBack,
+		CtrlrGuide,
+		CtrlrStart,
+		CtrlrLeftStick,
+		CtrlrRightStick,
+		CtrlrLeftShoulder,
+		CtrlrRightShoulder,
+		CtrlrDPadUp,
+		CtrlrDPadDown,
+		CtrlrDPadLeft,
+		CtrlrDPadRight,
 		LeftShift,
 		RightShift,
 		LeftControl,
@@ -100,6 +116,16 @@ namespace eg
 		NUM_BUTTONS
 	};
 	
+	enum class ControllerAxis
+	{
+		LeftX,
+		LeftY,
+		RightX,
+		RightY,
+		LeftTrigger,
+		RightTrigger,
+	};
+	
 	EG_API std::string_view ButtonToString(Button button);
 	EG_API Button ButtonFromString(std::string_view str);
 	EG_API std::string_view ButtonDisplayName(Button button);
@@ -158,6 +184,11 @@ namespace eg
 			m_isButtonDown[(int)button / 8] &= ~(1 << ((int)button % 8));
 		}
 		
+		void OnAxisMoved(ControllerAxis axis, float newValue)
+		{
+			m_axisValues[(int)axis] = newValue;
+		}
+		
 		glm::ivec2 CursorPos() const
 		{
 			return { cursorX, cursorY };
@@ -171,6 +202,21 @@ namespace eg
 		glm::ivec2 ScrollPos() const
 		{
 			return { scrollX, scrollY };
+		}
+		
+		float AxisValue(ControllerAxis axis)
+		{
+			return m_axisValues[(int)axis];
+		}
+		
+		glm::vec2 LeftAnalogValue() const
+		{
+			return { m_axisValues[0], m_axisValues[1] };
+		}
+		
+		glm::vec2 RightAnalogValue() const
+		{
+			return { m_axisValues[2], m_axisValues[3] };
 		}
 		
 		static const InputState& Current()
@@ -192,7 +238,8 @@ namespace eg
 		
 	private:
 		Button m_pressed = Button::Unknown;
-		char m_isButtonDown[12] = { };
+		char m_isButtonDown[13] = { };
+		float m_axisValues[6] = { };
 		
 		static_assert(sizeof(m_isButtonDown) * 8 >= NUM_BUTTONS);
 	};
@@ -263,5 +310,35 @@ namespace eg
 	inline int32_t PrevCursorY()
 	{
 		return detail::previousIS->cursorY;
+	}
+	
+	inline float AxisValue(ControllerAxis axis)
+	{
+		return detail::currentIS->AxisValue(axis);
+	}
+	
+	inline glm::vec2 LeftAnalogValue()
+	{
+		return detail::currentIS->LeftAnalogValue();
+	}
+	
+	inline glm::vec2 RightAnalogValue()
+	{
+		return detail::currentIS->RightAnalogValue();
+	}
+	
+	inline float PrevAxisValue(ControllerAxis axis)
+	{
+		return detail::previousIS->AxisValue(axis);
+	}
+	
+	inline glm::vec2 PrevLeftAnalogValue()
+	{
+		return detail::previousIS->LeftAnalogValue();
+	}
+	
+	inline glm::vec2 PrevRightAnalogValue()
+	{
+		return detail::previousIS->RightAnalogValue();
 	}
 }

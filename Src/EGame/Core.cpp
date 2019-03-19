@@ -8,6 +8,7 @@
 #include "Event.hpp"
 #include "Console.hpp"
 #include "TranslationGizmo.h"
+#include "GameController.hpp"
 
 #include <SDL.h>
 #include <iostream>
@@ -120,6 +121,29 @@ namespace eg
 		}
 	}
 	
+	static Button TranslateSDLControllerButton(int button)
+	{
+		switch (button)
+		{
+		case SDL_CONTROLLER_BUTTON_A: return Button::CtrlrA;
+		case SDL_CONTROLLER_BUTTON_B: return Button::CtrlrB;
+		case SDL_CONTROLLER_BUTTON_X: return Button::CtrlrX;
+		case SDL_CONTROLLER_BUTTON_Y: return Button::CtrlrY;
+		case SDL_CONTROLLER_BUTTON_BACK: return Button::CtrlrBack;
+		case SDL_CONTROLLER_BUTTON_GUIDE: return Button::CtrlrGuide;
+		case SDL_CONTROLLER_BUTTON_START: return Button::CtrlrStart;
+		case SDL_CONTROLLER_BUTTON_LEFTSTICK: return Button::CtrlrLeftStick;
+		case SDL_CONTROLLER_BUTTON_RIGHTSTICK: return Button::CtrlrRightStick;
+		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return Button::CtrlrLeftShoulder;
+		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return Button::CtrlrRightShoulder;
+		case SDL_CONTROLLER_BUTTON_DPAD_UP: return Button::CtrlrDPadUp;
+		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return Button::CtrlrDPadDown;
+		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return Button::CtrlrDPadLeft;
+		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return Button::CtrlrDPadRight;
+		default: return Button::Unknown;
+		}
+	}
+	
 	static Button TranslateSDLMouseButton(int button)
 	{
 		switch (button)
@@ -136,6 +160,12 @@ namespace eg
 	void LoadAssetGenLibrary();
 	void RegisterAssetLoaders();
 	void RegisterDefaultAssetGenerator();
+	
+	void LoadGameControllers();
+	void AddGameController(SDL_GameController* controller);
+	
+	extern std::vector<GameController> controllers;
+	extern SDL_GameController* activeController;
 	
 	int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
 	{
@@ -155,7 +185,7 @@ namespace eg
 			}
 		}
 		
-		if (SDL_Init(SDL_INIT_VIDEO))
+		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
 		{
 			std::cerr << "SDL failed to initialize: " << SDL_GetError() << std::endl;
 			return 1;
@@ -179,6 +209,7 @@ namespace eg
 		RegisterDefaultAssetGenerator();
 		LoadAssetGenLibrary();
 		RegisterAssetLoaders();
+		LoadGameControllers();
 		
 		uint32_t windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN;
 		
@@ -282,6 +313,7 @@ namespace eg
 		MarkUploadBuffersAvailable();
 		
 		bool firstMouseMotionEvent = true;
+		bool firstControllerAxisEvent = true;
 		
 		resolutionX = -1;
 		resolutionY = -1;
@@ -317,6 +349,34 @@ namespace eg
 					break;
 				case SDL_KEYUP:
 					ButtonUpEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
+					break;
+				case SDL_CONTROLLERBUTTONDOWN:
+					if (SDL_GameControllerFromInstanceID(event.cbutton.which) == activeController)
+					{
+						ButtonDownEvent(TranslateSDLControllerButton(event.cbutton.button), false);
+					}
+					break;
+				case SDL_CONTROLLERBUTTONUP:
+					if (SDL_GameControllerFromInstanceID(event.cbutton.which) == activeController)
+					{
+						ButtonUpEvent(TranslateSDLControllerButton(event.cbutton.button), false);
+					}
+					break;
+				case SDL_CONTROLLERAXISMOTION:
+					if (SDL_GameControllerFromInstanceID(event.caxis.which) == activeController)
+					{
+						const ControllerAxis axis = (ControllerAxis)event.caxis.axis;
+						const float valueF = event.caxis.value / SDL_JOYSTICK_AXIS_MAX;
+						if (firstControllerAxisEvent)
+						{
+							previousIS.OnAxisMoved(axis, valueF);
+							firstControllerAxisEvent = false;
+						}
+						currentIS.OnAxisMoved(axis, valueF);
+					}
+					break;
+				case SDL_CONTROLLERDEVICEADDED:
+					AddGameController(SDL_GameControllerFromInstanceID(event.cdevice.which));
 					break;
 				case SDL_MOUSEBUTTONDOWN:
 					ButtonDownEvent(TranslateSDLMouseButton(event.button.button), false);
