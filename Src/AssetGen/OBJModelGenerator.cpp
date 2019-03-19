@@ -96,11 +96,14 @@ namespace eg::asset_gen
 			while (!sourceStream.eof())
 			{
 				std::getline(sourceStream, line);
-				if (line[0] == '#')
+				std::string_view lineV = TrimString(line);
+				if (lineV.empty() || lineV[0] == '#')
 					continue;
+				if (lineV.back() == '\r')
+					lineV.remove_suffix(1);
 				
 				parts.clear();
-				SplitString(line, ' ', parts);
+				SplitString(lineV, ' ', parts);
 				if (parts.empty())
 					continue;
 				
@@ -181,12 +184,12 @@ namespace eg::asset_gen
 				else if (parts[0] == "usemtl")
 				{
 					CommitCurrentObject();
-					currentMaterial = parts[1];
+					currentMaterial = TrimString(parts[1]);
 				}
 				else if (parts[0] == "o")
 				{
 					CommitCurrentObject();
-					currentObjectName = parts[1];
+					currentObjectName = TrimString(parts[1]);
 				}
 			}
 			

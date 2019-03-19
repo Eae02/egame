@@ -68,7 +68,7 @@ namespace eg
 		
 		FontAtlas atlas;
 		atlas.m_size = size;
-		atlas.m_lineHeight = face->height / 64.0f;
+		atlas.m_lineHeight = size;
 		
 		if (FT_Load_Char(face, ' ', FT_LOAD_DEFAULT) != 0)
 		{

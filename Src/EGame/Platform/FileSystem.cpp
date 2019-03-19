@@ -74,7 +74,8 @@ namespace eg
 					pathCopy[i] = '\0';
 					if (!FileExists(pathCopy))
 						CreateDirectory(pathCopy);
-					pathCopy[i] = path[i];
+					if (i < path.size())
+						pathCopy[i] = path[i];
 					seenNonSep = false;
 				}
 				

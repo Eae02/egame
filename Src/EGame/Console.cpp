@@ -2,6 +2,16 @@
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
 
+#ifdef _WIN32
+#define DEFINE_CONSOLEV2_PROPERTIES
+#define WIN32_LEAN_AND_MEAN
+
+#include <windows.h>
+#undef DrawText
+#undef min
+#undef max
+#endif
+
 namespace eg::console
 {
 	struct Command
@@ -48,6 +58,19 @@ namespace eg::console
 		if (ctx != nullptr)
 			return;
 		ctx = new ConsoleContext;
+		
+#ifdef _WIN32
+		HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+		if (hOut != INVALID_HANDLE_VALUE)
+		{
+			DWORD dwMode = 0;
+			if (GetConsoleMode(hOut, &dwMode))
+			{
+				dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+				SetConsoleMode(hOut, dwMode);
+			}
+		}
+#endif
 	}
 	
 	void Destroy()
