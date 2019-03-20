@@ -333,7 +333,7 @@ namespace eg
 			}
 			
 			//Tries to load the asset from the cache
-			std::string assetCachePath = cachePath + assetToLoad.name;
+			std::string assetCachePath = Concat({ cachePath, assetToLoad.name, ".eab" });
 			std::optional<GeneratedAsset> generated =
 				TryReadAssetFromCache(dirPath, *assetToLoad.loader->format, assetCachePath);
 			
