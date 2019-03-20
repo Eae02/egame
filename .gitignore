@@ -7,5 +7,6 @@ Install
 CMake/Debug
 CMake/Release
 Src/Shaders/*.h
+Src/Sandbox/SandboxAssets/.AssetCache
 Bin
 *.gch
