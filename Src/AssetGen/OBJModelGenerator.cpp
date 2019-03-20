@@ -206,6 +206,8 @@ namespace eg::asset_gen
 				texCoords.emplace_back(0, 0);
 			}
 			
+			const bool flipWinding = !generateContext.YAMLNode()["flipWinding"].as<bool>(false);
+			
 			std::map<VertexPtr, uint32_t> indexMap;
 			std::vector<VertexPtr> verticesP;
 			std::vector<uint32_t> indices;
@@ -237,6 +239,15 @@ namespace eg::asset_gen
 						{
 							indices.push_back(it->second);
 						}
+					}
+				}
+				
+				//Potentially flips winding order
+				if (flipWinding)
+				{
+					for (size_t i = 0; i < indices.size(); i += 3)
+					{
+						std::swap(indices[i], indices[i + 2]);
 					}
 				}
 				
