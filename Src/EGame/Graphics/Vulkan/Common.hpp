@@ -147,11 +147,10 @@ namespace eg::graphics_api::vk
 	void CheckRes(VkResult result);
 	
 	VkFormat TranslateFormat(Format format);
-	
 	VkImageAspectFlags GetFormatAspect(Format format);
-	
 	VkFormat RelaxDepthStencilFormat(VkFormat format);
 	
+	VkCompareOp TranslateCompareOp(CompareOp op);
 	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags);
 	
 	inline VkSemaphore CreateSemaphore(VkDevice device)

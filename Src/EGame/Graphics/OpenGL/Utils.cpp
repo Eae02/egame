@@ -88,4 +88,20 @@ namespace eg::graphics_api::gl
 		
 		EG_UNREACHABLE
 	}
+	
+	GLenum TranslateCompareOp(CompareOp compareOp)
+	{
+		switch (compareOp)
+		{
+		case CompareOp::Never: return GL_NEVER;
+		case CompareOp::Less: return GL_LESS;
+		case CompareOp::Equal: return GL_EQUAL;
+		case CompareOp::LessOrEqual: return GL_LEQUAL;
+		case CompareOp::Greater: return GL_GREATER;
+		case CompareOp::NotEqual: return GL_NOTEQUAL;
+		case CompareOp::GreaterOrEqual: return GL_GEQUAL;
+		case CompareOp::Always: return GL_ALWAYS;
+		}
+		EG_UNREACHABLE
+	}
 }

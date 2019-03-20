@@ -266,6 +266,22 @@ namespace eg::graphics_api::vk
 		return VK_IMAGE_ASPECT_COLOR_BIT;
 	}
 	
+	VkCompareOp TranslateCompareOp(CompareOp op)
+	{
+		switch (op)
+		{
+		case CompareOp::Never: return VK_COMPARE_OP_NEVER;
+		case CompareOp::Less: return VK_COMPARE_OP_LESS;
+		case CompareOp::Equal: return VK_COMPARE_OP_EQUAL;
+		case CompareOp::LessOrEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+		case CompareOp::Greater: return VK_COMPARE_OP_GREATER;
+		case CompareOp::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+		case CompareOp::GreaterOrEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+		case CompareOp::Always: return VK_COMPARE_OP_ALWAYS;
+		}
+		EG_UNREACHABLE
+	}
+	
 	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags)
 	{
 		VkAccessFlags flags = 0;

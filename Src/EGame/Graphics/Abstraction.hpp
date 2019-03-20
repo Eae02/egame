@@ -289,6 +289,8 @@ namespace eg
 		float mipLodBias = 0;
 		int maxAnistropy = 0;
 		BorderColor borderColor = BorderColor::F0000;
+		bool enableCompare = false;
+		CompareOp compareOp = CompareOp::Less;
 		
 		bool operator==(const SamplerDescription& rhs) const;
 		

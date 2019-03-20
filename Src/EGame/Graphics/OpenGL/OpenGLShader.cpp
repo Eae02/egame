@@ -484,17 +484,7 @@ namespace eg::graphics_api::gl
 			break;
 		}
 		
-		switch (createInfo.depthCompare)
-		{
-		case CompareOp::Never: pipeline->depthFunc = GL_NEVER; break;
-		case CompareOp::Less: pipeline->depthFunc = GL_LESS; break;
-		case CompareOp::Equal: pipeline->depthFunc = GL_EQUAL; break;
-		case CompareOp::LessOrEqual: pipeline->depthFunc = GL_LEQUAL; break;
-		case CompareOp::Greater: pipeline->depthFunc = GL_GREATER; break;
-		case CompareOp::NotEqual: pipeline->depthFunc = GL_NOTEQUAL; break;
-		case CompareOp::GreaterOrEqual: pipeline->depthFunc = GL_GEQUAL; break;
-		case CompareOp::Always: pipeline->depthFunc = GL_ALWAYS; break;
-		}
+		pipeline->depthFunc = TranslateCompareOp(createInfo.depthCompare);
 		
 		for (int i = 0; i < 8; i++)
 		{

@@ -52,7 +52,7 @@ namespace eg::graphics_api::vk
 		samplerCreateInfo.addressModeV = TranslateAddressMode(description.wrapV);
 		samplerCreateInfo.addressModeW = TranslateAddressMode(description.wrapW);
 		samplerCreateInfo.mipLodBias = description.mipLodBias;
-		samplerCreateInfo.anisotropyEnable = description.maxAnistropy > 1;
+		samplerCreateInfo.anisotropyEnable = (VkBool32)(description.maxAnistropy > 1);
 		samplerCreateInfo.maxAnisotropy = glm::clamp((float)description.maxAnistropy, 1.0f, ctx.deviceLimits.maxSamplerAnisotropy);
 		samplerCreateInfo.borderColor = TranslateBorderColor(description.borderColor);
 		samplerCreateInfo.minLod = -1000;
@@ -61,6 +61,8 @@ namespace eg::graphics_api::vk
 		samplerCreateInfo.magFilter = description.magFilter == TextureFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
 		samplerCreateInfo.mipmapMode = description.mipFilter == TextureFilter::Linear ?
 			VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		samplerCreateInfo.compareEnable = (VkBool32)description.enableCompare;
+		samplerCreateInfo.compareOp = TranslateCompareOp(description.compareOp);
 		
 		VkSampler sampler;
 		CheckRes(vkCreateSampler(ctx.device, &samplerCreateInfo, nullptr, &sampler));

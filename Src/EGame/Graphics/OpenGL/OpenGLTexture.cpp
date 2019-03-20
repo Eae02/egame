@@ -97,6 +97,12 @@ namespace eg::graphics_api::gl
 		glSamplerParameterf(sampler, GL_TEXTURE_LOD_BIAS, description.mipLodBias);
 		glSamplerParameterfv(sampler, GL_TEXTURE_BORDER_COLOR, borderColor.data());
 		
+		if (description.enableCompare)
+		{
+			glSamplerParameteri(sampler, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+			glSamplerParameteri(sampler, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(description.compareOp));
+		}
+		
 		return reinterpret_cast<SamplerHandle>(sampler);
 	}
 	
@@ -149,6 +155,12 @@ namespace eg::graphics_api::gl
 			glTextureParameterf(texture, GL_TEXTURE_MAX_ANISOTROPY, ClampMaxAnistropy(samplerDesc.maxAnistropy));
 			glTextureParameterf(texture, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
 			glTextureParameterfv(texture, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+			
+			if (samplerDesc.enableCompare)
+			{
+				glTextureParameteri(texture, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+				glTextureParameteri(texture, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(samplerDesc.compareOp));
+			}
 		}
 		
 		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_R, TranslateSwizzle(createInfo.swizzleR, GL_RED));
