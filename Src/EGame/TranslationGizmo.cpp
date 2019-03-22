@@ -1,4 +1,4 @@
-#include "TranslationGizmo.h"
+#include "TranslationGizmo.hpp"
 #include "Plane.hpp"
 #include "../Shaders/Gizmo.vs.h"
 #include "../Shaders/Gizmo.fs.h"
@@ -116,7 +116,7 @@ namespace eg
 		ShaderModule vs(ShaderStage::Vertex, { reinterpret_cast<const char*>(Gizmo_vs_glsl), sizeof(Gizmo_vs_glsl) });
 		ShaderModule fs(ShaderStage::Fragment, { reinterpret_cast<const char*>(Gizmo_fs_glsl), sizeof(Gizmo_fs_glsl) });
 		
-		PipelineCreateInfo pipelineCI;
+		GraphicsPipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = vs.Handle();
 		pipelineCI.fragmentShader = fs.Handle();
 		pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };

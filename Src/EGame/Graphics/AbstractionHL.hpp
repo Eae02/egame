@@ -74,9 +74,14 @@ namespace eg
 		explicit Pipeline(PipelineHandle _handle)
 			: OwningRef(_handle) { }
 		
-		static Pipeline Create(const PipelineCreateInfo& createInfo)
+		static Pipeline Create(const GraphicsPipelineCreateInfo& createInfo)
 		{
-			return Pipeline(gal::CreatePipeline(createInfo));
+			return Pipeline(gal::CreateGraphicsPipeline(createInfo));
+		}
+		
+		static Pipeline Create(const ComputePipelineCreateInfo& createInfo)
+		{
+			return Pipeline(gal::CreateComputePipeline(createInfo));
 		}
 	};
 	

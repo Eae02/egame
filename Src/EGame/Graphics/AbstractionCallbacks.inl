@@ -41,11 +41,14 @@ XM_ABSCALLBACK(DestroySampler, void, (SamplerHandle handle))
 
 XM_ABSCALLBACK(CreateShaderModule, ShaderModuleHandle, (ShaderStage stage, Span<const char> code))
 XM_ABSCALLBACK(DestroyShaderModule, void, (ShaderModuleHandle handle))
-XM_ABSCALLBACK(CreatePipeline, PipelineHandle, (const PipelineCreateInfo& createInfo))
+XM_ABSCALLBACK(CreateGraphicsPipeline, PipelineHandle, (const GraphicsPipelineCreateInfo& createInfo))
+XM_ABSCALLBACK(CreateComputePipeline, PipelineHandle, (const ComputePipelineCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyPipeline, void, (PipelineHandle handle))
 XM_ABSCALLBACK(PipelineFramebufferFormatHint, void, (PipelineHandle handle, const FramebufferFormatHint& hint))
 XM_ABSCALLBACK(BindPipeline, void, (CommandContextHandle ctx, PipelineHandle handle))
 XM_ABSCALLBACK(PushConstants, void, (CommandContextHandle ctx, uint32_t offset, uint32_t range, const void* data))
+
+XM_ABSCALLBACK(DispatchCompute, void, (CommandContextHandle ctx, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ))
 
 XM_ABSCALLBACK(SetViewport, void, (CommandContextHandle ctx, float x, float y, float w, float h))
 XM_ABSCALLBACK(SetScissor, void, (CommandContextHandle, int x, int y, int w, int h))

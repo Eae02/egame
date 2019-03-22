@@ -60,7 +60,7 @@ namespace eg::graphics_api::vk
 		VkRect2D scissor;
 		bool viewportOutOfDate;
 		bool scissorOutOfDate;
-		struct Pipeline* pipeline;
+		struct AbstractPipeline* pipeline;
 		uint32_t framebufferW;
 		uint32_t framebufferH;
 	};
@@ -146,12 +146,8 @@ namespace eg::graphics_api::vk
 	
 	void CheckRes(VkResult result);
 	
-	VkFormat TranslateFormat(Format format);
 	VkImageAspectFlags GetFormatAspect(Format format);
 	VkFormat RelaxDepthStencilFormat(VkFormat format);
-	
-	VkCompareOp TranslateCompareOp(CompareOp op);
-	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags);
 	
 	inline VkSemaphore CreateSemaphore(VkDevice device)
 	{

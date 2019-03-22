@@ -1,6 +1,8 @@
-#include "VulkanTexture.hpp"
-#include "VulkanBuffer.hpp"
+#include "Texture.hpp"
+#include "Buffer.hpp"
 #include "Sampler.hpp"
+#include "Translation.hpp"
+#include "Pipeline.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Utils.hpp"
@@ -61,6 +63,8 @@ namespace eg::graphics_api::vk
 			imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 		if (HasFlag(createInfo.flags, TextureFlags::ShaderSample))
 			imageCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+		if (HasFlag(createInfo.flags, TextureFlags::StorageImage))
+			imageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 		if (HasFlag(createInfo.flags, TextureFlags::FramebufferAttachment))
 		{
 			if (texture.aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
@@ -100,6 +104,11 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
+	inline TextureHandle WrapTexture(Texture* texture)
+	{
+		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
 	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
@@ -107,7 +116,7 @@ namespace eg::graphics_api::vk
 		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D,
 			{ createInfo.width, createInfo.height, 1 }, 1);
 		
-		return reinterpret_cast<TextureHandle>(texture);
+		return WrapTexture(texture);
 	}
 	
 	TextureHandle CreateTexture2DArray(const Texture2DArrayCreateInfo& createInfo)
@@ -117,7 +126,7 @@ namespace eg::graphics_api::vk
 		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
 			{ createInfo.width, createInfo.height, 1 }, createInfo.arrayLayers);
 		
-		return reinterpret_cast<TextureHandle>(texture);
+		return WrapTexture(texture);
 	}
 	
 	TextureHandle CreateTextureCube(const TextureCubeCreateInfo& createInfo)
@@ -127,7 +136,7 @@ namespace eg::graphics_api::vk
 		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE,
 			{ createInfo.width, createInfo.width, 1 }, 6);
 		
-		return reinterpret_cast<TextureHandle>(texture);
+		return WrapTexture(texture);
 	}
 	
 	TextureHandle CreateTextureCubeArray(const TextureCubeArrayCreateInfo& createInfo)
@@ -137,7 +146,7 @@ namespace eg::graphics_api::vk
 		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_2D, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
 			{ createInfo.width, createInfo.width, 1 }, 6 * createInfo.arrayLayers);
 		
-		return reinterpret_cast<TextureHandle>(texture);
+		return WrapTexture(texture);
 	}
 	
 	void DestroyTexture(TextureHandle handle)
@@ -153,6 +162,9 @@ namespace eg::graphics_api::vk
 		case TextureUsage::CopySrc: return VK_ACCESS_TRANSFER_READ_BIT;
 		case TextureUsage::CopyDst: return VK_ACCESS_TRANSFER_WRITE_BIT;
 		case TextureUsage::ShaderSample: return VK_ACCESS_SHADER_READ_BIT;
+		case TextureUsage::ILSRead: return VK_ACCESS_SHADER_READ_BIT;
+		case TextureUsage::ILSWrite: return VK_ACCESS_SHADER_WRITE_BIT;
+		case TextureUsage::ILSReadWrite: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 		case TextureUsage::FramebufferAttachment:
 			if (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
 				return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -169,6 +181,9 @@ namespace eg::graphics_api::vk
 		case TextureUsage::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
 		case TextureUsage::CopySrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		case TextureUsage::CopyDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		case TextureUsage::ILSRead: return VK_IMAGE_LAYOUT_GENERAL;
+		case TextureUsage::ILSWrite: return VK_IMAGE_LAYOUT_GENERAL;
+		case TextureUsage::ILSReadWrite: return VK_IMAGE_LAYOUT_GENERAL;
 		case TextureUsage::ShaderSample:
 			if (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
 				return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -194,6 +209,9 @@ namespace eg::graphics_api::vk
 			return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
 			       VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
 			       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		case TextureUsage::ILSRead:
+		case TextureUsage::ILSWrite:
+		case TextureUsage::ILSReadWrite:
 		case TextureUsage::ShaderSample:
 			return TranslateShaderAccess(shaderAccessFlags);
 		}
@@ -346,5 +364,43 @@ namespace eg::graphics_api::vk
 				0, 0, nullptr, 0, nullptr, 1, &preBlitBarrier);
 		
 		texture->currentUsage = TextureUsage::CopySrc;
+	}
+	
+	void BindTexture(CommandContextHandle cc, TextureHandle textureHandle, SamplerHandle samplerHandle,
+		uint32_t set, uint32_t binding)
+	{
+		Texture* texture = UnwrapTexture(textureHandle);
+		RefResource(cc, *texture);
+		
+		if (texture->autoBarrier && texture->currentUsage != TextureUsage::ShaderSample)
+		{
+			EG_PANIC("Texture passed to BindTexture not in the correct usage state, did you forget to call UsageHint?");
+		}
+		
+		VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
+		if (sampler == VK_NULL_HANDLE)
+		{
+			if (texture->defaultSampler == VK_NULL_HANDLE)
+			{
+				EG_PANIC("Attempted to bind texture with no sampler specified.")
+			}
+			sampler = texture->defaultSampler;
+		}
+		
+		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
+		
+		VkDescriptorImageInfo imageInfo;
+		imageInfo.imageView = texture->imageView;
+		imageInfo.sampler = sampler;
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writeDS.dstBinding = binding;
+		writeDS.dstSet = 0;
+		writeDS.descriptorCount = 1;
+		writeDS.pImageInfo = &imageInfo;
+		
+		vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
 	}
 }

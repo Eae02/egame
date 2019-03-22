@@ -104,4 +104,33 @@ namespace eg::graphics_api::gl
 		}
 		EG_UNREACHABLE
 	}
+	
+	std::optional<UniformType> GetUniformType(GLenum glType)
+	{
+		switch (glType)
+		{
+		case GL_INT: return UniformType::Int;
+		case GL_FLOAT: return UniformType::Float;
+		case GL_FLOAT_VEC2: return UniformType::Vec2;
+		case GL_FLOAT_VEC3: return UniformType::Vec3;
+		case GL_FLOAT_VEC4: return UniformType::Vec4;
+		case GL_INT_VEC2: return UniformType::IVec2;
+		case GL_INT_VEC3: return UniformType::IVec3;
+		case GL_INT_VEC4: return UniformType::IVec4;
+		case GL_FLOAT_MAT3: return UniformType::Mat3;
+		case GL_FLOAT_MAT4: return UniformType::Mat4;
+		default: return { };
+		}
+	}
+	
+	std::vector<GLenum> insertedBarriers;
+	
+	void MaybeInsertBarrier(GLenum barrier)
+	{
+		if (!Contains(insertedBarriers, barrier))
+		{
+			glMemoryBarrier(barrier);
+			insertedBarriers.push_back(barrier);
+		}
+	}
 }

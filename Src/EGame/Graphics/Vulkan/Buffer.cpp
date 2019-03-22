@@ -1,4 +1,6 @@
-#include "VulkanBuffer.hpp"
+#include "Buffer.hpp"
+#include "Pipeline.hpp"
+#include "Translation.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
@@ -217,5 +219,52 @@ namespace eg::graphics_api::vk
 		
 		const VkBufferCopy copyRegion = { srcOffset, dstOffset, size };
 		vkCmdCopyBuffer(cb, srcBuffer->buffer, dstBuffer->buffer, 1, &copyRegion);
+	}
+	
+	void BindVertexBuffer(CommandContextHandle cc, uint32_t binding, BufferHandle bufferHandle, uint32_t offset)
+	{
+		Buffer* buffer = UnwrapBuffer(bufferHandle);
+		RefResource(cc, *buffer);
+		
+		buffer->CheckUsageState(BufferUsage::VertexBuffer, "binding as a vertex buffer");
+		
+		VkDeviceSize offsetDS = offset;
+		vkCmdBindVertexBuffers(GetCB(cc), binding, 1, &buffer->buffer, &offsetDS);
+	}
+	
+	void BindIndexBuffer(CommandContextHandle cc, IndexType type, BufferHandle bufferHandle, uint32_t offset)
+	{
+		Buffer* buffer = UnwrapBuffer(bufferHandle);
+		RefResource(cc, *buffer);
+		
+		buffer->CheckUsageState(BufferUsage::IndexBuffer, "binding as an index buffer");
+		
+		const VkIndexType vkIndexType = type == IndexType::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+		vkCmdBindIndexBuffer(GetCB(cc), buffer->buffer, offset, vkIndexType);
+	}
+	
+	void BindUniformBuffer(CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set,
+		uint32_t binding, uint64_t offset, uint64_t range)
+	{
+		Buffer* buffer = UnwrapBuffer(bufferHandle);
+		RefResource(cc, *buffer);
+		
+		buffer->CheckUsageState(BufferUsage::UniformBuffer, "binding as a uniform buffer");
+		
+		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
+		
+		VkDescriptorBufferInfo bufferInfo;
+		bufferInfo.buffer = buffer->buffer;
+		bufferInfo.offset = offset;
+		bufferInfo.range = range;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writeDS.dstBinding = binding;
+		writeDS.dstSet = VK_NULL_HANDLE;
+		writeDS.descriptorCount = 1;
+		writeDS.pBufferInfo = &bufferInfo;
+		
+		vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
 	}
 }

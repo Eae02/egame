@@ -11,6 +11,17 @@ namespace eg::graphics_api::gl
 	GLenum TranslateDataType(DataType type);
 	GLenum TranslateCompareOp(CompareOp compareOp);
 	
+	std::optional<UniformType> GetUniformType(GLenum glType);
+	
+	extern std::vector<GLenum> insertedBarriers;
+	
+	inline void ClearBarriers()
+	{
+		insertedBarriers.clear();
+	}
+	
+	void MaybeInsertBarrier(GLenum barrier);
+	
 	template <GLenum E>
 	inline void SetEnabled(bool enable)
 	{

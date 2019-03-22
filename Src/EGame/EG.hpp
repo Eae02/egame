@@ -23,7 +23,7 @@
 #include "IOUtils.hpp"
 #include "InputState.hpp"
 #include "GameController.hpp"
-#include "TranslationGizmo.h"
+#include "TranslationGizmo.hpp"
 #include "MainThreadInvoke.hpp"
 #include "Span.hpp"
 #include "Rectangle.hpp"

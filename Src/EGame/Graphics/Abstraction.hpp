@@ -31,7 +31,8 @@ namespace eg
 		Fragment = 1,
 		Geometry = 2,
 		TessControl = 3,
-		TessEvaluation = 4
+		TessEvaluation = 4,
+		Compute = 8
 	};
 	
 	enum class ShaderAccessFlags
@@ -42,6 +43,7 @@ namespace eg
 		Geometry = 1 << (int)ShaderStage::Geometry,
 		TessControl = 1 << (int)ShaderStage::TessControl,
 		TessEvaluation = 1 << (int)ShaderStage::TessEvaluation,
+		Compute = 1 << (int)ShaderStage::Compute,
 	};
 	
 	EG_BIT_FIELD(ShaderAccessFlags)
@@ -212,7 +214,7 @@ namespace eg
 		DescriptorSet
 	};
 	
-	struct PipelineCreateInfo
+	struct GraphicsPipelineCreateInfo
 	{
 		ShaderModuleHandle vertexShader = nullptr;
 		ShaderModuleHandle fragmentShader = nullptr;
@@ -241,6 +243,12 @@ namespace eg
 		uint32_t sampleCount = 1;
 		Format depthStencilFormat = Format::Undefined;
 		Format colorFormats[MAX_COLOR_ATTACHMENTS] = { };
+	};
+	
+	struct ComputePipelineCreateInfo
+	{
+		ShaderModuleHandle computeShader;
+		BindMode setBindModes[MAX_DESCRIPTOR_SETS] = { };
 	};
 	
 	enum class SwizzleMode
@@ -303,7 +311,10 @@ namespace eg
 		CopySrc,
 		CopyDst,
 		ShaderSample,
-		FramebufferAttachment
+		FramebufferAttachment,
+		ILSRead,
+		ILSWrite,
+		ILSReadWrite
 	};
 	
 	enum class TextureFlags
@@ -314,7 +325,8 @@ namespace eg
 		CopyDst               = 4,  //Allows copy operations to the texture from other textures and buffers.
 		GenerateMipmaps       = 8,  //Allows automatic mipmap generation for this texture.
 		ShaderSample          = 16, //The texture can be sampled in a shader.
-		FramebufferAttachment = 32, //The texture can be used as a framebuffer attachment.
+		StorageImage          = 32, //The texture can be bound as a storage image.
+		FramebufferAttachment = 64, //The texture can be used as a framebuffer attachment.
 	};
 	
 	EG_BIT_FIELD(TextureFlags)

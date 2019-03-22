@@ -19,7 +19,7 @@ namespace eg
 		ShaderModule vs(ShaderStage::Vertex, { reinterpret_cast<const char*>(Sprite_vs_glsl), sizeof(Sprite_vs_glsl) });
 		ShaderModule fs(ShaderStage::Fragment, { reinterpret_cast<const char*>(Sprite_fs_glsl), sizeof(Sprite_fs_glsl) });
 		
-		PipelineCreateInfo pipelineCI;
+		GraphicsPipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = vs.Handle();
 		pipelineCI.fragmentShader = fs.Handle();
 		pipelineCI.enableScissorTest = true;

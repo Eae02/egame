@@ -7,7 +7,7 @@
 #include "InputState.hpp"
 #include "Event.hpp"
 #include "Console.hpp"
-#include "TranslationGizmo.h"
+#include "TranslationGizmo.hpp"
 #include "GameController.hpp"
 
 #include <SDL.h>

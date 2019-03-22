@@ -1,11 +1,11 @@
 #include "OpenGL.hpp"
 #include "OpenGLTexture.hpp"
 #include "OpenGLBuffer.hpp"
-#include "OpenGLShader.hpp"
+#include "Pipeline.hpp"
+#include "Utils.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
-#include "Utils.hpp"
 
 #include <GL/gl3w.h>
 
@@ -178,6 +178,7 @@ namespace eg::graphics_api::gl
 		texture->dim = 2;
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
+		texture->needsBarrier = false;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage2D(texture->texture, createInfo.mipLevels, format, createInfo.width, createInfo.height);
@@ -196,6 +197,7 @@ namespace eg::graphics_api::gl
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
+		texture->needsBarrier = false;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
@@ -215,6 +217,7 @@ namespace eg::graphics_api::gl
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
+		texture->needsBarrier = false;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage2D(texture->texture, createInfo.mipLevels, format,
@@ -234,6 +237,7 @@ namespace eg::graphics_api::gl
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
+		texture->needsBarrier = false;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
@@ -323,5 +327,33 @@ namespace eg::graphics_api::gl
 		glClearTexImage(texture->texture, mipLevel, GL_RGBA, GL_FLOAT, &color.r);
 	}
 	
-	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags) { }
+	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
+	{
+		Texture* texture = UnwrapTexture(handle);
+		
+		if (texture->needsBarrier)
+		{
+			switch (newUsage)
+			{
+			case TextureUsage::Undefined:break;
+			case TextureUsage::CopySrc:
+			case TextureUsage::CopyDst:
+				MaybeInsertBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
+				break;
+			case TextureUsage::ShaderSample:
+				MaybeInsertBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+				break;
+			case TextureUsage::FramebufferAttachment:
+				MaybeInsertBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+				break;
+			case TextureUsage::ILSRead:
+			case TextureUsage::ILSWrite:
+			case TextureUsage::ILSReadWrite:
+				MaybeInsertBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+				break;
+			}
+		}
+		
+		texture->needsBarrier = newUsage == TextureUsage::ILSWrite || newUsage == TextureUsage::ILSReadWrite;
+	}
 }

@@ -13,6 +13,7 @@ namespace eg::graphics_api::gl
 		int dim;
 		uint32_t width;
 		uint32_t height;
+		bool needsBarrier;
 	};
 	
 	inline Texture* UnwrapTexture(TextureHandle handle)

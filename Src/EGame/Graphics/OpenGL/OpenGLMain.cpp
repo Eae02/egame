@@ -1,9 +1,10 @@
 #include "OpenGL.hpp"
 #include "Utils.hpp"
+#include "OpenGLTexture.hpp"
+#include "PipelineGraphics.hpp"
 #include "../Graphics.hpp"
 #include "../../Log.hpp"
 #include "../../Alloc/ObjectPool.hpp"
-#include "OpenGLTexture.hpp"
 
 #include <bitset>
 #include <SDL.h>
@@ -120,7 +121,7 @@ namespace eg::graphics_api::gl
 		
 		float maxAnistropyF;
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAnistropyF);
-		maxAnistropy = maxAnistropyF;
+		maxAnistropy = (int)maxAnistropyF;
 		
 		std::string_view vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 		if (vendorName == "Intel Open Source Technology Center")
@@ -149,8 +150,8 @@ namespace eg::graphics_api::gl
 			return res;
 		};
 		
-		capabilities.uniformBufferAlignment = GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
-		capabilities.maxTessellationPatchSize = GetIntegerLimit(GL_MAX_PATCH_VERTICES);
+		capabilities.uniformBufferAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
+		capabilities.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
 		capabilities.geometryShader = true;
 		capabilities.tessellation = true;
 		capabilities.depthRange = DepthRange::NegOneToOne;
@@ -184,9 +185,6 @@ namespace eg::graphics_api::gl
 		SDL_GL_GetDrawableSize(glWindow, &width, &height);
 	}
 	
-	extern bool viewportOutOfDate;
-	extern bool scissorOutOfDate;
-	
 	void BeginFrame()
 	{
 		SDL_GL_GetDrawableSize(glWindow, &drawableWidth, &drawableHeight);
@@ -207,9 +205,6 @@ namespace eg::graphics_api::gl
 		fences[CFrameIdx()] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		SDL_GL_SwapWindow(glWindow);
 	}
-	
-	void InitScissorTest();
-	bool IsDepthWriteEnabled();
 	
 	struct Framebuffer
 	{
@@ -234,7 +229,7 @@ namespace eg::graphics_api::gl
 		Framebuffer* framebuffer = framebuffers.New();
 		glCreateFramebuffers(1, &framebuffer->framebuffer);
 		
-		framebuffer->numColorAttachments = colorAttachments.size();
+		framebuffer->numColorAttachments = (uint32_t)colorAttachments.size();
 		framebuffer->hasDepth = false;
 		framebuffer->hasStencil = false;
 		framebuffer->hasSRGB = false;
@@ -438,5 +433,5 @@ namespace eg::graphics_api::gl
 		hasWrittenToBackBuffer = true;
 	}
 	
-	void EndRenderPass(CommandContextHandle cc) { }
+	void EndRenderPass(CommandContextHandle) { }
 }

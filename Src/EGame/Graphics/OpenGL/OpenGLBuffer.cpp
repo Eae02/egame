@@ -1,9 +1,9 @@
 #include "OpenGL.hpp"
 #include "OpenGLBuffer.hpp"
-#include "OpenGLShader.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
+#include "Pipeline.hpp"
 
 namespace eg::graphics_api::gl
 {
