@@ -20,6 +20,7 @@ namespace eg::graphics_api::vk
 	{
 		shaderModule->UnRef();
 		
+		vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
 		vkDestroyPipeline(ctx.device, pipeline, nullptr);
 		
 		computePipelinesPool.Delete(this);
@@ -30,15 +31,17 @@ namespace eg::graphics_api::vk
 		ComputePipeline* pipeline = computePipelinesPool.New();
 		pipeline->refCount = 1;
 		pipeline->bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+		pipeline->pushConstantStages = VK_SHADER_STAGE_COMPUTE_BIT;
 		
 		VkComputePipelineCreateInfo pipelineCreateInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 		pipelineCreateInfo.basePipelineIndex = -1;
 		
-		ShaderModule* shaderModule = UnwrapShaderModule(createInfo.computeShader);
-		shaderModule->ref++;
-		InitShaderStageCreateInfo(pipelineCreateInfo.stage, shaderModule->module, VK_SHADER_STAGE_COMPUTE_BIT);
+		pipeline->shaderModule = UnwrapShaderModule(createInfo.computeShader);
+		pipeline->shaderModule->ref++;
+		InitShaderStageCreateInfo(pipelineCreateInfo.stage, pipeline->shaderModule->module, VK_SHADER_STAGE_COMPUTE_BIT);
 		
-		pipeline->InitPipelineLayout(shaderModule->bindings, createInfo.setBindModes, shaderModule->pushConstantBytes);
+		pipeline->InitPipelineLayout(pipeline->shaderModule->bindings, createInfo.setBindModes,
+			pipeline->shaderModule->pushConstantBytes);
 		pipelineCreateInfo.layout = pipeline->pipelineLayout;
 		
 		CheckRes(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pipeline->pipeline));

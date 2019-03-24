@@ -1,7 +1,7 @@
 SC=glslangValidator
-FLAGS=-V
+FLAGS=-V -l
 
-SHADERS=Sprite.fs Sprite.vs Gizmo.fs Gizmo.vs
+SHADERS=Sprite.fs Sprite.vs Gizmo.fs Gizmo.vs BRDFIntegration.cs SPFMapGenerator.cs IrradianceMapGenerator.cs
 
 all: $(addsuffix .h, $(SHADERS))
 
@@ -10,3 +10,6 @@ all: $(addsuffix .h, $(SHADERS))
 
 %.fs.h : %.fs.glsl
 	$(SC) $(FLAGS) --vn $(subst .,_,$<) -S frag $< -o $@
+
+%.cs.h : %.cs.glsl
+	$(SC) $(FLAGS) --vn $(subst .,_,$<) -S comp $< -o $@

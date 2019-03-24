@@ -1,4 +1,5 @@
 #include "EGame/EG.hpp"
+#include <EGame/Graphics/PBR/BRDFIntegrationMap.hpp>
 
 class Game : public eg::IGame
 {
@@ -7,7 +8,7 @@ public:
 	{
 		eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/");
 		
-		eg::PipelineCreateInfo pipelineCI;
+		eg::GraphicsPipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModule>("Main.vs.glsl").Handle();
 		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModule>("Main.fs.glsl").Handle();
 		m_pipeline = eg::Pipeline::Create(pipelineCI);
@@ -40,6 +41,7 @@ public:
 private:
 	float m_rotation = 0.0f;
 	eg::Pipeline m_pipeline;
+	eg::BRDFIntegrationMap m_integMap;
 };
 
 int main(int argc, char** argv)

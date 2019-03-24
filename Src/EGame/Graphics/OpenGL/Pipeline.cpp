@@ -56,20 +56,23 @@ namespace eg::graphics_api::gl
 			const spirv_cross::ShaderResources& resources = spvCompiler->get_shader_resources();
 			ProcessResources(resources.uniform_buffers, BindingType::UniformBuffer);
 			ProcessResources(resources.sampled_images, BindingType::Texture);
+			ProcessResources(resources.storage_images, BindingType::StorageImage);
 		});
 		
 		std::sort(bindings.begin(), bindings.end());
 		
 		//Assigns gl bindings to resources
 		uint32_t nextTextureBinding = 0;
+		uint32_t nextStorageImageBinding = 0;
 		uint32_t nextUniformBufferBinding = 0;
 		for (uint32_t i = 0; i < bindings.size(); i++)
 		{
 			uint32_t set = bindings[i].set;
 			if (i == 0 || bindings[i - 1].set != set)
 			{
-				sets[set] = { 0, 0, nextUniformBufferBinding, nextTextureBinding };
+				sets[set] = { 0, 0, 0, 0, nextUniformBufferBinding, nextTextureBinding, nextStorageImageBinding };
 			}
+			sets[set].maxBinding = std::max(sets[set].maxBinding, bindings[i].binding);
 			switch (bindings[i].type)
 			{
 			case BindingType::UniformBuffer:
@@ -79,6 +82,10 @@ namespace eg::graphics_api::gl
 			case BindingType::Texture:
 				sets[set].numTextures++;
 				bindings[i].glBinding = nextTextureBinding++;
+				break;
+			case BindingType::StorageImage:
+				sets[set].numStorageImages++;
+				bindings[i].glBinding = nextStorageImageBinding++;
 				break;
 			}
 		}
@@ -103,6 +110,7 @@ namespace eg::graphics_api::gl
 			const spirv_cross::ShaderResources& resources = spvCompilers[i]->get_shader_resources();
 			ProcessResources(resources.uniform_buffers);
 			ProcessResources(resources.sampled_images);
+			ProcessResources(resources.storage_images);
 			
 			spirv_cross::CompilerGLSL::Options options = spvCompilers[i]->get_common_options();
 			options.version = 430;

@@ -3,6 +3,7 @@
 #include "Sampler.hpp"
 #include "Translation.hpp"
 #include "RenderPasses.hpp"
+#include "../RenderDoc.hpp"
 #include "../../Core.hpp"
 
 #include <SDL_vulkan.h>
@@ -427,6 +428,8 @@ namespace eg::graphics_api::vk
 		VkPhysicalDeviceFeatures enabledDeviceFeatures = {};
 		if (DevMode() && ctx.deviceFeatures.robustBufferAccess)
 			enabledDeviceFeatures.robustBufferAccess = VK_TRUE;
+		enabledDeviceFeatures.shaderStorageImageExtendedFormats = ctx.deviceFeatures.shaderStorageImageExtendedFormats;
+		enabledDeviceFeatures.imageCubeArray = ctx.deviceFeatures.imageCubeArray;
 		enabledDeviceFeatures.samplerAnisotropy = ctx.deviceFeatures.samplerAnisotropy;
 		enabledDeviceFeatures.fillModeNonSolid = ctx.deviceFeatures.fillModeNonSolid;
 		enabledDeviceFeatures.geometryShader = ctx.deviceFeatures.geometryShader;
@@ -438,7 +441,7 @@ namespace eg::graphics_api::vk
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
 		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_MAINTENANCE1_EXTENSION_NAME;
 		
-		const bool hasDedicatedAllocation = hasExtDedicatedAllocation && hasExtGetMemoryRequirements2;
+		const bool hasDedicatedAllocation = hasExtDedicatedAllocation && hasExtGetMemoryRequirements2 && !renderdoc::IsPresent();
 		if (hasDedicatedAllocation)
 		{
 			enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
@@ -647,6 +650,11 @@ namespace eg::graphics_api::vk
 	bool IsLoadingComplete()
 	{
 		return vkGetFenceStatus(ctx.device, ctx.frameQueueFences[0]) == VK_SUCCESS;
+	}
+	
+	void DeviceWaitIdle()
+	{
+		CheckRes(vkDeviceWaitIdle(ctx.device));
 	}
 	
 	static VkSemaphore acquireSemaphore;

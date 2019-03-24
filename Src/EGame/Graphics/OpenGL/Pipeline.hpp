@@ -6,12 +6,6 @@
 
 namespace eg::graphics_api::gl
 {
-	enum class BindingType
-	{
-		UniformBuffer,
-		Texture
-	};
-	
 	struct MappedBinding
 	{
 		uint32_t set;
@@ -29,10 +23,13 @@ namespace eg::graphics_api::gl
 	
 	struct PipelineDescriptorSet
 	{
+		uint32_t maxBinding;
 		uint32_t numUniformBuffers;
 		uint32_t numTextures;
+		uint32_t numStorageImages;
 		uint32_t firstUniformBuffer;
 		uint32_t firstTexture;
+		uint32_t firstStorageImage;
 	};
 	
 	struct AbstractPipeline

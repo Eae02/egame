@@ -4,6 +4,7 @@
 #include "Graphics/AbstractionHL.hpp"
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
+#include "Graphics/RenderDoc.hpp"
 #include "InputState.hpp"
 #include "Event.hpp"
 #include "Console.hpp"
@@ -205,6 +206,7 @@ namespace eg
 			console::Init();
 		}
 		
+		renderdoc::Init();
 		InitPlatformFontConfig();
 		RegisterDefaultAssetGenerator();
 		LoadAssetGenLibrary();

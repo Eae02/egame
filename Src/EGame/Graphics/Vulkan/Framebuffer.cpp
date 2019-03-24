@@ -38,7 +38,13 @@ namespace eg::graphics_api::vk
 		return reinterpret_cast<Framebuffer*>(handle);
 	}
 	
-	FramebufferHandle CreateFramebuffer(Span<const TextureHandle> colorAttachments, TextureHandle dsAttachment)
+	VkImageView GetAttachmentView(const FramebufferAttachment& attachment)
+	{
+		return UnwrapTexture(attachment.texture)->GetView(attachment.subresource.AsSubresource());
+	}
+	
+	FramebufferHandle CreateFramebuffer(Span<const FramebufferAttachment> colorAttachments,
+		const FramebufferAttachment* dsAttachment)
 	{
 		Framebuffer* framebuffer = framebufferPool.New();
 		framebuffer->refCount = 1;
@@ -53,46 +59,47 @@ namespace eg::graphics_api::vk
 		
 		bool sizeSet = false;
 		
+		auto ProcessAttachment = [&] (const FramebufferAttachment& attachment, VkFormat& formatOut)
+		{
+			Texture* texture = UnwrapTexture(attachment.texture);
+			const uint32_t layers = attachment.subresource.ResolveRem(texture->numArrayLayers).numArrayLayers;
+			
+			if (!sizeSet)
+			{
+				sizeSet = true;
+				createInfo.width = texture->extent.width;
+				createInfo.height = texture->extent.height;
+				createInfo.layers = layers;
+			}
+			else if (createInfo.width != texture->extent.width || createInfo.height != texture->extent.height ||
+			         createInfo.layers != layers)
+			{
+				EG_PANIC("Inconsistent framebuffer attachment resolution");
+			}
+			
+			attachments[createInfo.attachmentCount++] = texture->GetView(attachment.subresource.AsSubresource());
+			
+			texture->refCount++;
+			formatOut = texture->format;
+			
+			return texture;
+		};
+		
 		if (dsAttachment != nullptr)
 		{
-			framebuffer->depthStencilAttachment = UnwrapTexture(dsAttachment);
-			attachments[createInfo.attachmentCount++] = framebuffer->depthStencilAttachment->imageView;
-			
-			createInfo.layers = framebuffer->depthStencilAttachment->numArrayLayers;
-			framebuffer->depthStencilAttachment->refCount++;
-			
-			sizeSet = true;
-			createInfo.width = framebuffer->depthStencilAttachment->extent.width;
-			createInfo.height = framebuffer->depthStencilAttachment->extent.height;
-			rpDescription.depthAttachment.format = framebuffer->depthStencilAttachment->format;
+			framebuffer->depthStencilAttachment = ProcessAttachment(*dsAttachment,
+				rpDescription.depthAttachment.format);
 		}
 		else
 		{
 			framebuffer->depthStencilAttachment = nullptr;
 		}
 		
-		framebuffer->numColorAttachments = colorAttachments.size();
+		framebuffer->numColorAttachments = (uint32_t)colorAttachments.size();
 		for (uint32_t i = 0; i < colorAttachments.size(); i++)
 		{
-			Texture* texture = UnwrapTexture(colorAttachments[i]);
-			texture->refCount++;
-			
-			createInfo.layers = texture->numArrayLayers;
-			
-			framebuffer->colorAttachments[i] = texture;
-			attachments[createInfo.attachmentCount++] = texture->imageView;
-			rpDescription.colorAttachments[i].format = texture->format;
-			
-			if (!sizeSet)
-			{
-				sizeSet = true;
-				createInfo.width = framebuffer->colorAttachments[i]->extent.width;
-				createInfo.height = framebuffer->colorAttachments[i]->extent.height;
-			}
-			else if (createInfo.width != texture->extent.width || createInfo.height != texture->extent.height)
-			{
-				EG_PANIC("Inconsistent framebuffer attachment resolution");
-			}
+			framebuffer->colorAttachments[i] = ProcessAttachment(colorAttachments[i],
+				rpDescription.colorAttachments[i].format);
 		}
 		
 		createInfo.renderPass = GetRenderPass(rpDescription, true);
@@ -169,9 +176,13 @@ namespace eg::graphics_api::vk
 					framebufferS->colorAttachments[i]->currentUsage = TextureUsage::FramebufferAttachment;
 					framebufferS->colorAttachments[i]->currentStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 				}
-				else
+				else if (beginInfo.colorAttachments[i].loadOp == eg::AttachmentLoadOp::Load)
 				{
 					colorImageLayouts[i] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				}
+				else
+				{
+					colorImageLayouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
 				}
 			}
 			
@@ -183,6 +194,14 @@ namespace eg::graphics_api::vk
 					depthStencilImageLayout = framebufferS->depthStencilAttachment->CurrentLayout();
 					framebufferS->depthStencilAttachment->currentUsage = TextureUsage::FramebufferAttachment;
 					framebufferS->depthStencilAttachment->currentStageFlags = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+				}
+				else if (beginInfo.depthLoadOp == eg::AttachmentLoadOp::Load)
+				{
+					depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				}
+				else
+				{
+					depthStencilImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 				}
 			}
 		}

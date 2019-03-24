@@ -238,6 +238,37 @@ namespace eg::graphics_api::vk
 			flags |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
 		if (HasFlag(accessFlags, ShaderAccessFlags::TessEvaluation))
 			flags |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Compute))
+			flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 		return flags;
+	}
+	
+	VkShaderStageFlags TranslateShaderStage(ShaderAccessFlags accessFlags)
+	{
+		VkShaderStageFlags flags = 0;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Vertex))
+			flags |= VK_SHADER_STAGE_VERTEX_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Fragment))
+			flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Geometry))
+			flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::TessControl))
+			flags |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::TessEvaluation))
+			flags |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+		if (HasFlag(accessFlags, ShaderAccessFlags::Compute))
+			flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+		return flags;
+	}
+	
+	VkDescriptorType TranslateBindingType(BindingType bindingType)
+	{
+		switch (bindingType)
+		{
+		case BindingType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		case BindingType::Texture: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		case BindingType::StorageImage: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		}
+		EG_UNREACHABLE;
 	}
 }

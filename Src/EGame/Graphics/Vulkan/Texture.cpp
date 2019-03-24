@@ -9,11 +9,16 @@
 
 namespace eg::graphics_api::vk
 {
+	static_assert(REMAINING_SUBRESOURCE == VK_REMAINING_MIP_LEVELS);
+	static_assert(REMAINING_SUBRESOURCE == VK_REMAINING_ARRAY_LAYERS);
+	
 	ConcurrentObjectPool<Texture> texturePool;
 	
 	void Texture::Free()
 	{
-		vkDestroyImageView(ctx.device, imageView, nullptr);
+		for (const TextureView& view : views)
+			vkDestroyImageView(ctx.device, view.view, nullptr);
+		
 		vmaDestroyImage(ctx.allocator, image, allocation);
 		
 		texturePool.Delete(this);
@@ -81,17 +86,10 @@ namespace eg::graphics_api::vk
 		CheckRes(vmaCreateImage(ctx.allocator, &imageCreateInfo, &allocationCreateInfo, &texture.image,
 			&texture.allocation, nullptr));
 		
-		//Creates the image view
-		VkImageViewCreateInfo viewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		viewCreateInfo.viewType = viewType;
-		viewCreateInfo.image = texture.image;
-		viewCreateInfo.format = texture.format;
-		viewCreateInfo.subresourceRange = { texture.aspectFlags, 0, createInfo.mipLevels, 0, arrayLayers };
-		viewCreateInfo.components.r = TranslateCompSwizzle(createInfo.swizzleR);
-		viewCreateInfo.components.g = TranslateCompSwizzle(createInfo.swizzleG);
-		viewCreateInfo.components.b = TranslateCompSwizzle(createInfo.swizzleB);
-		viewCreateInfo.components.a = TranslateCompSwizzle(createInfo.swizzleA);
-		CheckRes(vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &texture.imageView));
+		texture.componentMapping.r = TranslateCompSwizzle(createInfo.swizzleR);
+		texture.componentMapping.g = TranslateCompSwizzle(createInfo.swizzleG);
+		texture.componentMapping.b = TranslateCompSwizzle(createInfo.swizzleB);
+		texture.componentMapping.a = TranslateCompSwizzle(createInfo.swizzleA);
 		
 		//Creates the default sampler
 		if (createInfo.defaultSamplerDescription != nullptr)
@@ -102,6 +100,33 @@ namespace eg::graphics_api::vk
 		{
 			texture.defaultSampler = VK_NULL_HANDLE;
 		}
+	}
+	
+	VkImageView Texture::GetView(const TextureSubresource& subresource)
+	{
+		TextureSubresource resolvedSubresource = subresource.ResolveRem(numMipLevels, numArrayLayers);
+		
+		for (const TextureView& view : views)
+		{
+			if (view.subresource == resolvedSubresource)
+				return view.view;
+		}
+		
+		VkImageViewCreateInfo viewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+		viewCreateInfo.viewType = viewType;
+		viewCreateInfo.image = image;
+		viewCreateInfo.format = format;
+		viewCreateInfo.subresourceRange.aspectMask = aspectFlags;
+		viewCreateInfo.subresourceRange.baseMipLevel = resolvedSubresource.firstMipLevel;
+		viewCreateInfo.subresourceRange.levelCount = resolvedSubresource.numMipLevels;
+		viewCreateInfo.subresourceRange.baseArrayLayer = resolvedSubresource.firstArrayLayer;
+		viewCreateInfo.subresourceRange.layerCount = resolvedSubresource.numArrayLayers;
+		viewCreateInfo.components = componentMapping;
+		
+		TextureView& view = views.emplace_back();
+		CheckRes(vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &view.view));
+		view.subresource = resolvedSubresource;
+		return view.view;
 	}
 	
 	inline TextureHandle WrapTexture(Texture* texture)
@@ -243,6 +268,33 @@ namespace eg::graphics_api::vk
 		currentUsage = newUsage;
 	}
 	
+	void TextureBarrier(CommandContextHandle cc, TextureHandle handle, const eg::TextureBarrier& barrier)
+	{
+		Texture* texture = UnwrapTexture(handle);
+		RefResource(cc, *texture);
+		
+		VkImageMemoryBarrier vkBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
+		vkBarrier.image = texture->image;
+		vkBarrier.srcAccessMask = GetBarrierAccess(barrier.oldUsage, texture->aspectFlags);
+		vkBarrier.dstAccessMask = GetBarrierAccess(barrier.newUsage, texture->aspectFlags);
+		vkBarrier.oldLayout = ImageLayoutFromUsage(barrier.oldUsage, texture->aspectFlags);
+		vkBarrier.newLayout = ImageLayoutFromUsage(barrier.newUsage, texture->aspectFlags);
+		vkBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		vkBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		vkBarrier.subresourceRange.aspectMask = texture->aspectFlags;
+		vkBarrier.subresourceRange.baseMipLevel = barrier.subresource.firstMipLevel;
+		vkBarrier.subresourceRange.levelCount = barrier.subresource.numMipLevels;
+		vkBarrier.subresourceRange.baseArrayLayer = barrier.subresource.firstArrayLayer;
+		vkBarrier.subresourceRange.layerCount = barrier.subresource.numArrayLayers;
+		
+		VkPipelineStageFlags srcStageFlags = GetBarrierStageFlags(barrier.oldUsage, barrier.oldAccess);
+		VkPipelineStageFlags dstStageFlags = GetBarrierStageFlags(barrier.newUsage, barrier.newAccess);
+		if (srcStageFlags == 0)
+			srcStageFlags = dstStageFlags;
+		
+		vkCmdPipelineBarrier(GetCB(cc), srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &vkBarrier);
+	}
+	
 	void SetTextureData(CommandContextHandle cc, TextureHandle handle, const TextureRange& range,
 		BufferHandle bufferHandle, uint64_t offset)
 	{
@@ -367,7 +419,7 @@ namespace eg::graphics_api::vk
 	}
 	
 	void BindTexture(CommandContextHandle cc, TextureHandle textureHandle, SamplerHandle samplerHandle,
-		uint32_t set, uint32_t binding)
+		uint32_t set, uint32_t binding, const TextureSubresource& subresource)
 	{
 		Texture* texture = UnwrapTexture(textureHandle);
 		RefResource(cc, *texture);
@@ -390,12 +442,41 @@ namespace eg::graphics_api::vk
 		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
 		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->imageView;
+		imageInfo.imageView = texture->GetView(subresource);
 		imageInfo.sampler = sampler;
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		
 		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writeDS.dstBinding = binding;
+		writeDS.dstSet = 0;
+		writeDS.descriptorCount = 1;
+		writeDS.pImageInfo = &imageInfo;
+		
+		vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
+	}
+	
+	void BindStorageImage(CommandContextHandle cc, TextureHandle textureHandle, uint32_t set, uint32_t binding,
+		const TextureSubresourceLayers& subresource)
+	{
+		Texture* texture = UnwrapTexture(textureHandle);
+		RefResource(cc, *texture);
+		
+		if (texture->autoBarrier && texture->currentUsage != TextureUsage::ILSRead &&
+		    texture->currentUsage != TextureUsage::ILSWrite && texture->currentUsage != TextureUsage::ILSReadWrite)
+		{
+			EG_PANIC("Texture passed to BindStorageImage not in the correct usage state, did you forget to call UsageHint?");
+		}
+		
+		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
+		
+		VkDescriptorImageInfo imageInfo;
+		imageInfo.imageView = texture->GetView(subresource.AsSubresource());
+		imageInfo.sampler = VK_NULL_HANDLE;
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		writeDS.dstBinding = binding;
 		writeDS.dstSet = 0;
 		writeDS.descriptorCount = 1;

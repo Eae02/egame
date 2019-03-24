@@ -16,8 +16,8 @@ namespace eg
 	
 	void SpriteBatch::InitStatic()
 	{
-		ShaderModule vs(ShaderStage::Vertex, { reinterpret_cast<const char*>(Sprite_vs_glsl), sizeof(Sprite_vs_glsl) });
-		ShaderModule fs(ShaderStage::Fragment, { reinterpret_cast<const char*>(Sprite_fs_glsl), sizeof(Sprite_fs_glsl) });
+		ShaderModule vs(ShaderStage::Vertex, Sprite_vs_glsl);
+		ShaderModule fs(ShaderStage::Fragment, Sprite_fs_glsl);
 		
 		GraphicsPipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = vs.Handle();
@@ -346,7 +346,7 @@ namespace eg
 			else
 				DC.SetScissor(0, 0, screenWidth, screenHeight);
 			
-			DC.BindTexture(batch.texture, 0);
+			DC.BindTexture(batch.texture, 0, 0);
 			
 			DC.DrawIndexed(batch.firstIndex, batch.numIndices, 0, 0, 1);
 		}

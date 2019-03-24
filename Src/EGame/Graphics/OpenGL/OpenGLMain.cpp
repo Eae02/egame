@@ -18,14 +18,14 @@ namespace eg::graphics_api::gl
 	
 	extern int maxAnistropy;
 	
-	static bool defaultFramebufferHasDepth;
-	static bool defaultFramebufferHasStencil;
+	extern bool defaultFramebufferHasDepth;
+	extern bool defaultFramebufferHasStencil;
 	
-	static int drawableWidth;
-	static int drawableHeight;
+	extern int drawableWidth;
+	extern int drawableHeight;
 	
-	static bool srgbBackBuffer;
-	static bool hasWrittenToBackBuffer;
+	extern bool srgbBackBuffer;
+	extern bool hasWrittenToBackBuffer;
 	
 	enum class GLVendor
 	{
@@ -114,6 +114,7 @@ namespace eg::graphics_api::gl
 		glWindow = initArguments.window;
 		
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 		
 		GLuint vao;
 		glCreateVertexArrays(1, &vao);
@@ -206,232 +207,8 @@ namespace eg::graphics_api::gl
 		SDL_GL_SwapWindow(glWindow);
 	}
 	
-	struct Framebuffer
+	void DeviceWaitIdle()
 	{
-		GLuint framebuffer;
-		uint32_t numColorAttachments;
-		bool hasSRGB;
-		bool hasDepth;
-		bool hasStencil;
-		uint32_t width;
-		uint32_t height;
-	};
-	
-	static ObjectPool<Framebuffer> framebuffers;
-	
-	inline Framebuffer* UnwrapFramebuffer(FramebufferHandle handle)
-	{
-		return reinterpret_cast<Framebuffer*>(handle);
+		glFinish();
 	}
-	
-	FramebufferHandle CreateFramebuffer(Span<const TextureHandle> colorAttachments, TextureHandle dsAttachment)
-	{
-		Framebuffer* framebuffer = framebuffers.New();
-		glCreateFramebuffers(1, &framebuffer->framebuffer);
-		
-		framebuffer->numColorAttachments = (uint32_t)colorAttachments.size();
-		framebuffer->hasDepth = false;
-		framebuffer->hasStencil = false;
-		framebuffer->hasSRGB = false;
-		
-		bool hasSetSize = false;
-		auto SetSize = [&] (uint32_t w, uint32_t h)
-		{
-			if (!hasSetSize)
-			{
-				framebuffer->width = w;
-				framebuffer->height = h;
-			}
-			else if (framebuffer->width != w || framebuffer->height != h)
-			{
-				EG_PANIC("Inconsistent framebuffer attachment resolution");
-			}
-		};
-		
-		GLenum drawBuffers[MAX_COLOR_ATTACHMENTS];
-		
-		for (uint32_t i = 0; i < colorAttachments.size(); i++)
-		{
-			Texture* texture = UnwrapTexture(colorAttachments[i]);
-			glNamedFramebufferTexture(framebuffer->framebuffer, GL_COLOR_ATTACHMENT0 + i, texture->texture, 0);
-			drawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
-			SetSize(texture->width, texture->height);
-			if (IsSRGBFormat(texture->format))
-				framebuffer->hasSRGB = true;
-		}
-		
-		if (dsAttachment != nullptr)
-		{
-			Texture* dsTexture = UnwrapTexture(dsAttachment);
-			
-			SetSize(dsTexture->width, dsTexture->height);
-			framebuffer->hasDepth = true;
-			
-			GLenum attachment;
-			if (dsTexture->format == Format::Depth32 || dsTexture->format == Format::Depth16)
-			{
-				attachment = GL_DEPTH_ATTACHMENT;
-			}
-			else if (dsTexture->format == Format::Depth24Stencil8 || dsTexture->format == Format::Depth32Stencil8)
-			{
-				attachment = GL_DEPTH_STENCIL_ATTACHMENT;
-				framebuffer->hasStencil = true;
-			}
-			else
-			{
-				EG_PANIC("Invalid depth stencil attachment format");
-			}
-			
-			glNamedFramebufferTexture(framebuffer->framebuffer, attachment, dsTexture->texture, 0);
-		}
-		
-		if (!colorAttachments.Empty())
-		{
-			glNamedFramebufferDrawBuffers(framebuffer->framebuffer, (GLsizei)colorAttachments.size(), drawBuffers);
-		}
-		
-		return reinterpret_cast<FramebufferHandle>(framebuffer);
-	}
-	
-	void DestroyFramebuffer(FramebufferHandle handle)
-	{
-		framebuffers.Free(UnwrapFramebuffer(handle));
-	}
-	
-	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
-	{
-		uint32_t numColorAttachments;
-		bool hasDepth;
-		bool hasStencil;
-		bool forceClear;
-		if (beginInfo.framebuffer == nullptr)
-		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-			numColorAttachments = 1;
-			hasDepth = defaultFramebufferHasDepth;
-			hasStencil = defaultFramebufferHasStencil;
-			forceClear = !hasWrittenToBackBuffer;
-			
-			SetEnabled<GL_FRAMEBUFFER_SRGB>(srgbBackBuffer);
-			
-			SetViewport(cc, 0, 0, drawableWidth, drawableHeight);
-			SetScissor(cc, 0, 0, drawableWidth, drawableHeight);
-		}
-		else
-		{
-			Framebuffer* framebuffer = UnwrapFramebuffer(beginInfo.framebuffer);
-			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
-			
-			numColorAttachments = framebuffer->numColorAttachments;
-			hasDepth = framebuffer->hasDepth;
-			hasStencil = framebuffer->hasStencil;
-			forceClear = false;
-			
-			SetEnabled<GL_FRAMEBUFFER_SRGB>(true);
-			
-			SetViewport(cc, 0, 0, framebuffer->width, framebuffer->height);
-			SetScissor(cc, 0, 0, framebuffer->width, framebuffer->height);
-		}
-		
-		SetEnabled<GL_SCISSOR_TEST>(false);
-		if (!IsDepthWriteEnabled())
-			glDepthMask(GL_TRUE);
-		
-		uint32_t numInvalidateAttachments = 0;
-		GLenum invalidateAttachments[MAX_COLOR_ATTACHMENTS + 2];
-		
-		if (hasDepth)
-		{
-			if (beginInfo.depthLoadOp == beginInfo.stencilLoadOp && hasStencil)
-			{
-				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear || forceClear)
-				{
-					glClearBufferfi(GL_DEPTH_STENCIL, 0, beginInfo.depthClearValue, beginInfo.stencilClearValue);
-				}
-				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
-				{
-					if (beginInfo.framebuffer == nullptr)
-					{
-						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
-						invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
-					}
-					else
-					{
-						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH_STENCIL_ATTACHMENT;
-					}
-				}
-			}
-			else
-			{
-				if (beginInfo.depthLoadOp == AttachmentLoadOp::Clear || forceClear)
-				{
-					glClearBufferfv(GL_DEPTH, 0, &beginInfo.depthClearValue);
-				}
-				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
-				{
-					if (beginInfo.framebuffer == nullptr)
-					{
-						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
-					}
-					else
-					{
-						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH_ATTACHMENT;
-					}
-				}
-				
-				if (hasStencil)
-				{
-					if (beginInfo.stencilLoadOp == AttachmentLoadOp::Clear || forceClear)
-					{
-						GLuint value = beginInfo.stencilClearValue;
-						glClearBufferuiv(GL_STENCIL, 0, &value);
-					}
-					else if (beginInfo.stencilLoadOp == AttachmentLoadOp::Discard)
-					{
-						if (beginInfo.framebuffer == nullptr)
-						{
-							invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
-						}
-						else
-						{
-							invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL_ATTACHMENT;
-						}
-					}
-				}
-			}
-		}
-		
-		for (uint32_t i = 0; i < numColorAttachments; i++)
-		{
-			const RenderPassColorAttachment& attachment = beginInfo.colorAttachments[i];
-			if (attachment.loadOp == AttachmentLoadOp::Clear || forceClear)
-			{
-				glClearBufferfv(GL_COLOR, i, &attachment.clearValue.r);
-			}
-			else if (attachment.loadOp == AttachmentLoadOp::Discard)
-			{
-				if (beginInfo.framebuffer == nullptr)
-				{
-					invalidateAttachments[numInvalidateAttachments++] = GL_BACK_LEFT;
-				}
-				else
-				{
-					invalidateAttachments[numInvalidateAttachments++] = GL_COLOR_ATTACHMENT0 + i;
-				}
-			}
-		}
-		
-		if (numInvalidateAttachments != 0)
-		{
-			glInvalidateFramebuffer(GL_FRAMEBUFFER, numInvalidateAttachments, invalidateAttachments);
-		}
-		
-		InitScissorTest();
-		if (!IsDepthWriteEnabled())
-			glDepthMask(GL_FALSE);
-		
-		hasWrittenToBackBuffer = true;
-	}
-	
-	void EndRenderPass(CommandContextHandle) { }
 }

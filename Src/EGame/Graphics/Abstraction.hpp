@@ -238,6 +238,24 @@ namespace eg
 		VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
 	};
 	
+	enum class BindingType
+	{
+		UniformBuffer,
+		Texture,
+		StorageImage
+	};
+	
+	struct DescriptorSetBinding
+	{
+		uint32_t binding;
+		BindingType type;
+		ShaderAccessFlags shaderAccess;
+		uint32_t count;
+		
+		DescriptorSetBinding(uint32_t _binding, BindingType _type, ShaderAccessFlags _shaderAccess, uint32_t _count = 1)
+			: binding(_binding), type(_type), shaderAccess(_shaderAccess), count(_count) { }
+	};
+	
 	struct FramebufferFormatHint
 	{
 		uint32_t sampleCount = 1;
@@ -389,11 +407,76 @@ namespace eg
 		uint32_t mipLevel;
 	};
 	
+	constexpr uint32_t REMAINING_SUBRESOURCE = UINT32_MAX;
+	
+	struct TextureSubresource
+	{
+		uint32_t firstMipLevel = 0;
+		uint32_t numMipLevels = REMAINING_SUBRESOURCE;
+		uint32_t firstArrayLayer = 0;
+		uint32_t numArrayLayers = REMAINING_SUBRESOURCE;
+		
+		TextureSubresource ResolveRem(uint32_t maxMipLevels, uint32_t maxArrayLayers) const;
+		
+		bool operator==(const TextureSubresource& rhs) const
+		{
+			return firstMipLevel == rhs.firstMipLevel && numMipLevels == rhs.numMipLevels &&
+				firstArrayLayer == rhs.firstArrayLayer && numArrayLayers == rhs.numArrayLayers;
+		}
+		
+		bool operator!=(const TextureSubresource& rhs) const
+		{
+			return !(rhs == *this);
+		}
+	};
+	
+	struct TextureSubresourceLayers
+	{
+		uint32_t mipLevel = 0;
+		uint32_t firstArrayLayer = 0;
+		uint32_t numArrayLayers = REMAINING_SUBRESOURCE;
+		
+		TextureSubresource AsSubresource() const
+		{
+			return { mipLevel, 1, firstArrayLayer, numArrayLayers };
+		}
+		
+		TextureSubresourceLayers ResolveRem(uint32_t maxArrayLayers) const;
+		
+		bool operator==(const TextureSubresourceLayers& rhs) const
+		{
+			return mipLevel == rhs.mipLevel && firstArrayLayer == rhs.firstArrayLayer &&
+			       numArrayLayers == rhs.numArrayLayers;
+		}
+		
+		bool operator!=(const TextureSubresourceLayers& rhs) const
+		{
+			return !(rhs == *this);
+		}
+	};
+	
+	struct TextureBarrier
+	{
+		TextureUsage oldUsage;
+		TextureUsage newUsage;
+		ShaderAccessFlags oldAccess;
+		ShaderAccessFlags newAccess;
+		TextureSubresource subresource;
+	};
+	
 	enum class AttachmentLoadOp
 	{
 		Load,
 		Clear,
 		Discard
+	};
+	
+	struct FramebufferAttachment
+	{
+		TextureHandle texture;
+		TextureSubresourceLayers subresource;
+		
+		FramebufferAttachment(TextureHandle _texture = nullptr) : texture(_texture) { }
 	};
 	
 	struct RenderPassColorAttachment

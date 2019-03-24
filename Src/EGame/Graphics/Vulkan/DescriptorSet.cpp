@@ -3,6 +3,7 @@
 #include "Pipeline.hpp"
 #include "Texture.hpp"
 #include "Buffer.hpp"
+#include "Translation.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 namespace eg::graphics_api::vk
@@ -11,8 +12,6 @@ namespace eg::graphics_api::vk
 	{
 		VkDescriptorSet descriptorSet;
 		VkDescriptorPool pool;
-		uint32_t setIndex;
-		AbstractPipeline* pipeline;
 		std::vector<Resource*> resources;
 		
 		void AssignResource(uint32_t binding, Resource* resource)
@@ -30,9 +29,14 @@ namespace eg::graphics_api::vk
 	
 	ConcurrentObjectPool<DescriptorSet> descriptorSets;
 	
-	DescriptorSet* UnwrapDescriptorSet(DescriptorSetHandle handle)
+	inline DescriptorSet* UnwrapDescriptorSet(DescriptorSetHandle handle)
 	{
 		return reinterpret_cast<DescriptorSet*>(handle);
+	}
+	
+	inline DescriptorSetHandle WrapDescriptorSet(DescriptorSet* set)
+	{
+		return reinterpret_cast<DescriptorSetHandle>(set);
 	}
 	
 	void DescriptorSet::Free()
@@ -46,11 +50,10 @@ namespace eg::graphics_api::vk
 		{
 			CheckRes(vkFreeDescriptorSets(ctx.device, pool, 1, &descriptorSet));
 		}
-		pipeline->UnRef();
 		descriptorSets.Delete(this);
 	}
 	
-	DescriptorSetHandle CreateDescriptorSet(PipelineHandle pipelineHandle, uint32_t set)
+	DescriptorSetHandle CreateDescriptorSetP(PipelineHandle pipelineHandle, uint32_t set)
 	{
 		AbstractPipeline* pipeline = UnwrapPipeline(pipelineHandle);
 		auto [descriptorSet, pool] = AllocateDescriptorSet(pipeline->setsLayoutIndices[set]);
@@ -58,14 +61,36 @@ namespace eg::graphics_api::vk
 		DescriptorSet* ds = descriptorSets.New();
 		ds->descriptorSet = descriptorSet;
 		ds->pool = pool;
-		ds->pipeline = pipeline;
-		ds->setIndex = set;
 		ds->refCount = 1;
 		ds->resources.resize(GetDSLFromCache(pipeline->setsLayoutIndices[set]).maxBinding + 1, nullptr);
 		
-		pipeline->refCount++;
+		return WrapDescriptorSet(ds);
+	}
+	
+	DescriptorSetHandle CreateDescriptorSetB(Span<const DescriptorSetBinding> bindings)
+	{
+		std::vector<VkDescriptorSetLayoutBinding> vkBindings(bindings.size());
+		uint32_t maxBinding = 0;
+		for (size_t i = 0; i < bindings.size(); i++)
+		{
+			maxBinding = std::max(maxBinding, bindings[i].binding);
+			vkBindings[i].binding = bindings[i].binding;
+			vkBindings[i].descriptorType = TranslateBindingType(bindings[i].type);
+			vkBindings[i].descriptorCount = bindings[i].count;
+			vkBindings[i].stageFlags = TranslateShaderAccess(bindings[i].shaderAccess);
+			vkBindings[i].pImmutableSamplers = nullptr;
+		}
 		
-		return reinterpret_cast<DescriptorSetHandle>(ds);
+		size_t dslIndex = GetCachedDSLIndex(vkBindings, BindMode::DescriptorSet);
+		auto [descriptorSet, pool] = AllocateDescriptorSet(dslIndex);
+		
+		DescriptorSet* ds = descriptorSets.New();
+		ds->descriptorSet = descriptorSet;
+		ds->pool = pool;
+		ds->refCount = 1;
+		ds->resources.resize(maxBinding + 1, nullptr);
+		
+		return WrapDescriptorSet(ds);
 	}
 	
 	void DestroyDescriptorSet(DescriptorSetHandle set)
@@ -74,7 +99,7 @@ namespace eg::graphics_api::vk
 	}
 	
 	void BindTextureDS(TextureHandle textureHandle, SamplerHandle samplerHandle,
-		DescriptorSetHandle setHandle, uint32_t binding)
+		DescriptorSetHandle setHandle, uint32_t binding, const TextureSubresource& subresource)
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
 		Texture* texture = UnwrapTexture(textureHandle);
@@ -92,12 +117,35 @@ namespace eg::graphics_api::vk
 		}
 		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->imageView;
+		imageInfo.imageView = texture->GetView(subresource);
 		imageInfo.sampler = sampler;
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		
 		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writeDS.descriptorCount = 1;
+		writeDS.dstSet = ds->descriptorSet;
+		writeDS.dstBinding = binding;
+		writeDS.pImageInfo = &imageInfo;
+		
+		vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
+	}
+	
+	void BindStorageImageDS(TextureHandle textureHandle, DescriptorSetHandle setHandle, uint32_t binding,
+		const TextureSubresourceLayers& subresource)
+	{
+		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
+		Texture* texture = UnwrapTexture(textureHandle);
+		
+		ds->AssignResource(binding, texture);
+		
+		VkDescriptorImageInfo imageInfo;
+		imageInfo.imageView = texture->GetView(subresource.AsSubresource());
+		imageInfo.sampler = VK_NULL_HANDLE;
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		writeDS.descriptorCount = 1;
 		writeDS.dstSet = ds->descriptorSet;
 		writeDS.dstBinding = binding;
@@ -129,12 +177,12 @@ namespace eg::graphics_api::vk
 		vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
 	}
 	
-	void BindDescriptorSet(CommandContextHandle cc, DescriptorSetHandle handle)
+	void BindDescriptorSet(CommandContextHandle cc, uint32_t set, DescriptorSetHandle handle)
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(handle);
 		RefResource(cc, *ds);
 		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
 		vkCmdBindDescriptorSets(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout,
-			ds->setIndex, 1, &ds->descriptorSet, 0, nullptr);
+			set, 1, &ds->descriptorSet, 0, nullptr);
 	}
 }

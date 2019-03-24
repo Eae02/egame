@@ -6,17 +6,24 @@ namespace eg::graphics_api::vk
 {
 	VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspectFlags);
 	
+	struct TextureView
+	{
+		VkImageView view;
+		TextureSubresource subresource;
+	};
+	
 	struct Texture : Resource
 	{
 		VkImage image;
 		VmaAllocation allocation;
-		VkImageView imageView;
+		std::vector<TextureView> views;
 		VkImageViewType viewType;
 		VkExtent3D extent;
 		uint32_t numMipLevels;
 		uint32_t numArrayLayers;
 		VkFormat format;
 		VkImageAspectFlags aspectFlags;
+		VkComponentMapping componentMapping;
 		VkSampler defaultSampler;
 		bool autoBarrier;
 		
@@ -30,6 +37,8 @@ namespace eg::graphics_api::vk
 		
 		void AutoBarrier(VkCommandBuffer cb, TextureUsage newUsage,
 			ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
+		
+		VkImageView GetView(const TextureSubresource& subresource);
 		
 		void Free() override;
 	};

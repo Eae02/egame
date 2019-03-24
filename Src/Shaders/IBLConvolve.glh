@@ -1,0 +1,20 @@
+const mat3 rotationMatrices[6] = mat3[]
+(
+	/* Positive X */ mat3(vec3(0, 0, -1), vec3(0, 1, 0), vec3(1, 0, 0)),
+	/* Negative X */ mat3(vec3(0, 0, 1), vec3(0, 1, 0), vec3(-1, 0, 0)),
+	/* Positive Y */ mat3(vec3(1, 0, 0), vec3(0, 0, -1), vec3(0, 1, 0)),
+	/* Negative Y */ mat3(vec3(1, 0, 0), vec3(0, 0, 1), vec3(0, -1, 0)),
+	/* Positive Z */ mat3(vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 1)),
+	/* Negative Z */ mat3(vec3(-1, 0, 0), vec3(0, 1, 0), vec3(0, 0, -1))
+);
+
+layout(constant_id=500) const uint _api = 0;
+
+void GetConvolveDir(vec2 outputCoord, uint face, out vec3 normal, out vec3 tangent)
+{
+	vec3 basePos = vec3(outputCoord.x * 2 - 1, 1 - outputCoord.y * 2, 1);
+	if (_api == 0)
+		basePos.y = -basePos.y;
+	normal = normalize(rotationMatrices[face] * basePos);
+	tangent = normalize(rotationMatrices[face] * cross(basePos, vec3(0, 1, 0)));
+}

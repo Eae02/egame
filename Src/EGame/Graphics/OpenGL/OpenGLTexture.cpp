@@ -172,13 +172,16 @@ namespace eg::graphics_api::gl
 	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
-		glCreateTextures(GL_TEXTURE_2D, 1, &texture->texture);
+		texture->type = GL_TEXTURE_2D;
+		glCreateTextures(texture->type, 1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 2;
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
-		texture->needsBarrier = false;
+		texture->mipLevels = createInfo.mipLevels;
+		texture->arrayLayers = 1;
+		texture->currentUsage = TextureUsage::Undefined;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage2D(texture->texture, createInfo.mipLevels, format, createInfo.width, createInfo.height);
@@ -191,13 +194,16 @@ namespace eg::graphics_api::gl
 	TextureHandle CreateTexture2DArray(const Texture2DArrayCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
-		glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &texture->texture);
+		texture->type = GL_TEXTURE_2D_ARRAY;
+		glCreateTextures(texture->type, 1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
-		texture->needsBarrier = false;
+		texture->mipLevels = createInfo.mipLevels;
+		texture->arrayLayers = createInfo.arrayLayers;
+		texture->currentUsage = TextureUsage::Undefined;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
@@ -211,13 +217,16 @@ namespace eg::graphics_api::gl
 	TextureHandle CreateTextureCube(const TextureCubeCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
-		glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture->texture);
+		texture->type = GL_TEXTURE_CUBE_MAP;
+		glCreateTextures(texture->type, 1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
-		texture->needsBarrier = false;
+		texture->mipLevels = createInfo.mipLevels;
+		texture->arrayLayers = 6;
+		texture->currentUsage = TextureUsage::Undefined;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage2D(texture->texture, createInfo.mipLevels, format,
@@ -231,21 +240,59 @@ namespace eg::graphics_api::gl
 	TextureHandle CreateTextureCubeArray(const TextureCubeArrayCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
-		glCreateTextures(GL_TEXTURE_CUBE_MAP_ARRAY, 1, &texture->texture);
+		texture->type = GL_TEXTURE_CUBE_MAP_ARRAY;
+		glCreateTextures(texture->type, 1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
-		texture->needsBarrier = false;
+		texture->mipLevels = createInfo.mipLevels;
+		texture->arrayLayers = 6 * createInfo.arrayLayers;
+		texture->currentUsage = TextureUsage::Undefined;
 		
 		GLenum format = TranslateFormat(createInfo.format);
 		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
-		                   createInfo.width, createInfo.width, 6 * createInfo.arrayLayers);
+		                   createInfo.width, createInfo.width, texture->arrayLayers);
 		
 		InitTexture(texture->texture, createInfo);
 		
 		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
+	GLuint Texture::GetView(const TextureSubresource& subresource)
+	{
+		TextureSubresource resolvedSubresource = subresource.ResolveRem(mipLevels, arrayLayers);
+		if (resolvedSubresource.firstMipLevel == 0 && resolvedSubresource.numMipLevels == mipLevels &&
+			resolvedSubresource.firstArrayLayer == 0 && resolvedSubresource.numArrayLayers == arrayLayers)
+		{
+			return texture;
+		}
+		
+		for (const TextureView& view : views)
+		{
+			if (view.subresource == resolvedSubresource)
+			{
+				return view.texture;
+			}
+		}
+		
+		TextureView& view = views.emplace_back();
+		
+		GLenum viewType = type;
+		if (viewType == GL_TEXTURE_2D_ARRAY && resolvedSubresource.numArrayLayers == 1)
+			viewType = GL_TEXTURE_2D;
+		if (viewType == GL_TEXTURE_CUBE_MAP_ARRAY && resolvedSubresource.numArrayLayers == 6)
+			viewType = GL_TEXTURE_CUBE_MAP;
+		
+		glGenTextures(1, &view.texture);
+		glTextureView(view.texture, viewType, texture, TranslateFormat(format),
+			resolvedSubresource.firstMipLevel, resolvedSubresource.numMipLevels,
+			resolvedSubresource.firstArrayLayer, resolvedSubresource.numArrayLayers);
+		
+		view.subresource = resolvedSubresource;
+		
+		return view.texture;
 	}
 	
 	static std::tuple<GLenum, GLenum> GetUploadFormat(Format format)
@@ -313,12 +360,23 @@ namespace eg::graphics_api::gl
 		});
 	}
 	
-	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler,
-		uint32_t set, uint32_t binding)
+	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t set, uint32_t binding,
+		const TextureSubresource& subresource)
 	{
 		uint32_t glBinding = ResolveBinding(set, binding);
 		glBindSampler(glBinding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
-		glBindTextureUnit(glBinding, UnwrapTexture(texture)->texture);
+		glBindTextureUnit(glBinding, UnwrapTexture(texture)->GetView(subresource));
+	}
+	
+	void Texture::BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource)
+	{
+		glBindImageTexture(glBinding, GetView(subresource), 0, GL_TRUE, 0, GL_READ_WRITE, TranslateFormat(format));
+	}
+	
+	void BindStorageImage(CommandContextHandle, TextureHandle textureHandle, uint32_t set, uint32_t binding,
+		const TextureSubresourceLayers& subresource)
+	{
+		UnwrapTexture(textureHandle)->BindAsStorageImage(ResolveBinding(set, binding), subresource.AsSubresource());
 	}
 	
 	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const Color& color)
@@ -327,33 +385,46 @@ namespace eg::graphics_api::gl
 		glClearTexImage(texture->texture, mipLevel, GL_RGBA, GL_FLOAT, &color.r);
 	}
 	
+	inline void MaybeBarrierAfterILS(TextureUsage newUsage)
+	{
+		switch (newUsage)
+		{
+		case TextureUsage::Undefined:break;
+		case TextureUsage::CopySrc:
+		case TextureUsage::CopyDst:
+			MaybeInsertBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
+			break;
+		case TextureUsage::ShaderSample:
+			MaybeInsertBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+			break;
+		case TextureUsage::FramebufferAttachment:
+			MaybeInsertBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+			break;
+		case TextureUsage::ILSRead:
+		case TextureUsage::ILSWrite:
+		case TextureUsage::ILSReadWrite:
+			MaybeInsertBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+			break;
+		}
+	}
+	
+	void TextureBarrier(CommandContextHandle cc, TextureHandle handle, const eg::TextureBarrier& barrier)
+	{
+		if (barrier.oldUsage == TextureUsage::ILSWrite || barrier.oldUsage == TextureUsage::ILSReadWrite)
+		{
+			MaybeBarrierAfterILS(barrier.newUsage);
+		}
+	}
+	
 	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 	{
 		Texture* texture = UnwrapTexture(handle);
 		
-		if (texture->needsBarrier)
+		if (texture->currentUsage == TextureUsage::ILSWrite || texture->currentUsage == TextureUsage::ILSReadWrite)
 		{
-			switch (newUsage)
-			{
-			case TextureUsage::Undefined:break;
-			case TextureUsage::CopySrc:
-			case TextureUsage::CopyDst:
-				MaybeInsertBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
-				break;
-			case TextureUsage::ShaderSample:
-				MaybeInsertBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-				break;
-			case TextureUsage::FramebufferAttachment:
-				MaybeInsertBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
-				break;
-			case TextureUsage::ILSRead:
-			case TextureUsage::ILSWrite:
-			case TextureUsage::ILSReadWrite:
-				MaybeInsertBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-				break;
-			}
+			MaybeBarrierAfterILS(newUsage);
 		}
 		
-		texture->needsBarrier = newUsage == TextureUsage::ILSWrite || newUsage == TextureUsage::ILSReadWrite;
+		texture->currentUsage = newUsage;
 	}
 }

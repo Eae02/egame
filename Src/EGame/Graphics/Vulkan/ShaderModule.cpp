@@ -79,6 +79,7 @@ namespace eg::graphics_api::vk
 		ProcessResources(resources.sampled_images, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		ProcessResources(resources.separate_images, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
 		ProcessResources(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER);
+		ProcessResources(resources.storage_images, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		
 		module->pushConstantBytes = 0;
 		for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)

@@ -11,8 +11,10 @@ namespace eg
 		inline Span()
 			: m_data(nullptr), m_size(0) { }
 		
-		template <typename Container, class = std::enable_if_t<std::is_class<Container>::value>>
-		inline Span(Container& c)
+		template <typename C,
+			class = std::enable_if_t<std::is_class<C>::value>,
+			class = std::enable_if_t<std::is_same_v<std::decay_t<typename C::value_type>, std::decay_t<T>>>>
+		inline Span(C& c)
 			: m_data(c.data()), m_size(c.size()) { }
 		
 		template <class = std::enable_if<std::is_const_v<T>>>

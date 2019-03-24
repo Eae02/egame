@@ -97,6 +97,9 @@ namespace eg
 		ShaderModule(ShaderStage stage, Span<const char> code)
 			: m_handle(gal::CreateShaderModule(stage, code)) { }
 		
+		ShaderModule(ShaderStage stage, Span<const uint32_t> code)
+			: m_handle(gal::CreateShaderModule(stage, { reinterpret_cast<const char*>(code.data()), code.SizeBytes() })) { }
+		
 		static ShaderModule CreateFromFile(const std::string& path);
 		
 		/**
@@ -348,9 +351,15 @@ namespace eg
 	public:
 		Framebuffer() = default;
 		
-		explicit Framebuffer(Span<const TextureRef> colorAttachments)
-			: Framebuffer(colorAttachments, TextureRef(nullptr)) { }
-		Framebuffer(Span<const TextureRef> colorAttachments, TextureRef depthStencilAttachment);
+		Framebuffer(Span<const FramebufferAttachment> colorAttachments)
+		{
+			handle = gal::CreateFramebuffer(colorAttachments, nullptr);
+		}
+		
+		Framebuffer(Span<const FramebufferAttachment> colorAttachments, const FramebufferAttachment& depthStencilAttachment)
+		{
+			handle = gal::CreateFramebuffer(colorAttachments, &depthStencilAttachment);
+		}
 	};
 	
 	class EG_API Sampler
@@ -395,9 +404,15 @@ namespace eg
 			}
 		}
 		
-		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr)
+		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr,
+			const TextureSubresource& subresource = { })
 		{
-			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding);
+			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding,subresource);
+		}
+		
+		void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresourceLayers& subresource = { })
+		{
+			gal::BindStorageImageDS(texture.handle, handle, binding, subresource);
 		}
 		
 		void BindUniformBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
@@ -415,14 +430,20 @@ namespace eg
 		
 		DescriptorSet(eg::PipelineRef pipeline, uint32_t set)
 		{
-			handle = gal::CreateDescriptorSet(pipeline.handle, set);
+			handle = gal::CreateDescriptorSetP(pipeline.handle, set);
+		}
+		
+		explicit DescriptorSet(Span<const DescriptorSetBinding> bindings)
+		{
+			handle = gal::CreateDescriptorSetB(bindings);
 		}
 	};
 	
 	class EG_API CommandContext
 	{
 	public:
-		CommandContext() : CommandContext(nullptr) { }
+		CommandContext() : CommandContext(nullptr)
+		{ }
 		
 		void SetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
 		{
@@ -449,9 +470,19 @@ namespace eg
 			gal::BufferBarrier(Handle(), buffer.handle, barrier);
 		}
 		
+		void Barrier(TextureRef texture, const eg::TextureBarrier& barrier)
+		{
+			gal::TextureBarrier(Handle(), texture.handle, barrier);
+		}
+		
 		void BindPipeline(PipelineRef pipeline)
 		{
 			gal::BindPipeline(Handle(), pipeline.handle);
+		}
+		
+		void DispatchCompute(uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)
+		{
+			gal::DispatchCompute(Handle(), sizeX, sizeY, sizeZ);
 		}
 		
 		void BindVertexBuffer(uint32_t binding, BufferRef buffer, uint32_t offset)
@@ -464,19 +495,14 @@ namespace eg
 			gal::BindIndexBuffer(Handle(), type, buffer.handle, offset);
 		}
 		
-		void BindUniformBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
-		{
-			gal::BindUniformBuffer(Handle(), buffer.handle, 0, binding, offset, range);
-		}
-		
 		void BindUniformBuffer(BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
 		{
 			gal::BindUniformBuffer(Handle(), buffer.handle, set, binding, offset, range);
 		}
 		
-		void BindDescriptorSet(DescriptorSetRef descriptorSet)
+		void BindDescriptorSet(DescriptorSetRef descriptorSet, uint32_t setIndex)
 		{
-			gal::BindDescriptorSet(Handle(), descriptorSet.handle);
+			gal::BindDescriptorSet(Handle(), setIndex, descriptorSet.handle);
 		}
 		
 		void Draw(uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
@@ -489,14 +515,16 @@ namespace eg
 			gal::DrawIndexed(Handle(), firstIndex, numIndices, firstVertex, firstInstance, numInstances);
 		}
 		
-		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr)
+		void BindTexture(TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr,
+			const TextureSubresource& subresource = { })
 		{
-			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, 0, binding);
+			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding, subresource);
 		}
 		
-		void BindTexture(TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr)
+		void BindStorageImage(TextureRef texture, uint32_t set, uint32_t binding,
+			const TextureSubresourceLayers& subresource = { })
 		{
-			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding);
+			gal::BindStorageImage(Handle(), texture.handle, set, binding, subresource);
 		}
 		
 		void PushConstants(uint32_t offset, uint32_t range, const void* data)

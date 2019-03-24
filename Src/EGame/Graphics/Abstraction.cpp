@@ -75,4 +75,22 @@ namespace eg
 		}
 		EG_UNREACHABLE
 	}
+	
+	TextureSubresource TextureSubresource::ResolveRem(uint32_t maxMipLevels, uint32_t maxArrayLayers) const
+	{
+		TextureSubresource result = *this;
+		if (numMipLevels == REMAINING_SUBRESOURCE)
+			result.numMipLevels = maxMipLevels - firstMipLevel;
+		if (numArrayLayers == REMAINING_SUBRESOURCE)
+			result.numArrayLayers = maxArrayLayers - firstArrayLayer;
+		return result;
+	}
+	
+	TextureSubresourceLayers TextureSubresourceLayers::ResolveRem(uint32_t maxArrayLayers) const
+	{
+		TextureSubresourceLayers result = *this;
+		if (numArrayLayers == REMAINING_SUBRESOURCE)
+			result.numArrayLayers = maxArrayLayers - firstArrayLayer;
+		return result;
+	}
 }
