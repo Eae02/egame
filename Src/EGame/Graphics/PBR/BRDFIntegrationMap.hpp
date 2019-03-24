@@ -17,7 +17,7 @@ namespace eg
 			return m_texture;
 		}
 		
-		static constexpr Format FORMAT = eg::Format::R32G32_Float;
+		static constexpr Format FORMAT = eg::Format::R8G8_UNorm;
 		
 	private:
 		Texture m_texture;

@@ -1,5 +1,5 @@
 #include "SPFMapGenerator.hpp"
-#include "../../../Shaders/SPFMapGenerator.cs.h"
+#include "../../../Shaders/Build/SPFMapGenerator.cs.h"
 
 namespace eg
 {

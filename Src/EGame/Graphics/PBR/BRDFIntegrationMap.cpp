@@ -1,5 +1,5 @@
 #include "BRDFIntegrationMap.hpp"
-#include "../../../Shaders/BRDFIntegration.cs.h"
+#include "../../../Shaders/Build/BRDFIntegration.cs.h"
 
 namespace eg
 {

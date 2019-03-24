@@ -1,7 +1,7 @@
 #include "TranslationGizmo.hpp"
 #include "Plane.hpp"
-#include "../Shaders/Gizmo.vs.h"
-#include "../Shaders/Gizmo.fs.h"
+#include "../Shaders/Build/Gizmo.vs.h"
+#include "../Shaders/Build/Gizmo.fs.h"
 
 namespace eg
 {

@@ -2,8 +2,8 @@
 #include "SpriteFont.hpp"
 #include "Graphics.hpp"
 #include "../Utils.hpp"
-#include "../../Shaders/Sprite.vs.h"
-#include "../../Shaders/Sprite.fs.h"
+#include "../../Shaders/Build/Sprite.vs.h"
+#include "../../Shaders/Build/Sprite.fs.h"
 
 #include <utf8.h>
 

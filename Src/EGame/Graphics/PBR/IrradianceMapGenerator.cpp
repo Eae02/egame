@@ -1,5 +1,5 @@
 #include "IrradianceMapGenerator.hpp"
-#include "../../../Shaders/IrradianceMapGenerator.cs.h"
+#include "../../../Shaders/Build/IrradianceMapGenerator.cs.h"
 
 namespace eg
 {

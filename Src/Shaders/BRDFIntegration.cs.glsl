@@ -5,7 +5,7 @@ const int NUM_SAMPLES = 256;
 
 layout(local_size_x=32, local_size_y=32) in;
 
-layout(rg32f, binding=0) writeonly uniform image2D outputImage;
+layout(rg8, binding=0) writeonly uniform image2D outputImage;
 
 #include "IBLCommon.glh"
 
@@ -37,7 +37,7 @@ void main()
 		if (NdotL > 0.0)
 		{
 			float G = GeometrySmith(vec3(0, 0, 1), V, L, roughnessExp2);
-			float G_Vis = (G * VdotH) / (NdotH * nDotV);
+			float G_Vis = (G * VdotH) / (NdotH * max(nDotV, 0.001));
 			float Fc = pow(1.0 - VdotH, 5.0);
 			
 			sum += vec2(1.0 - Fc, Fc) * G_Vis;
