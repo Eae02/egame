@@ -227,6 +227,7 @@ namespace eg
 		bool enableDepthClamp = false;
 		bool wireframe = false;
 		uint32_t patchControlPoints = 0;
+		uint32_t numClipDistances = 0;
 		CompareOp depthCompare = CompareOp::Less;
 		CullMode cullMode = CullMode::None;
 		bool frontFaceCCW = false;

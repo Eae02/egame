@@ -38,6 +38,7 @@ namespace eg::graphics_api::gl
 		GLenum depthFunc;
 		GLenum topology;
 		GLint patchSize;
+		uint32_t numClipDistances;
 		bool enableScissorTest;
 		bool enableDepthTest;
 		bool enableDepthWrite;
@@ -69,6 +70,7 @@ namespace eg::graphics_api::gl
 		
 		pipeline->program = glCreateProgram();
 		pipeline->numShaderModules = 0;
+		pipeline->numClipDistances = createInfo.numClipDistances;
 		
 		spirv_cross::CompilerGLSL* spvCompilers[5];
 		
@@ -84,7 +86,7 @@ namespace eg::graphics_api::gl
 				}
 				spvCompilers[pipeline->numShaderModules] = &module->spvCompiler;
 				pipeline->shaderModules[pipeline->numShaderModules] = glCreateShader(ShaderTypes[(int)expectedStage]);
-				pipeline->numShaderModules++;
+				pipeline->numShaderModules++;;
 			}
 		};
 		MaybeAddStage(createInfo.vertexShader, eg::ShaderStage::Vertex);
@@ -198,6 +200,8 @@ namespace eg::graphics_api::gl
 		GLenum cullFace = GL_BACK;
 		GLenum depthFunc = GL_LESS;
 		GLint patchSize = 0;
+		uint32_t numClipDistances = 0;
+		uint32_t numCullDistances = 0;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
 	} curState;
@@ -284,6 +288,17 @@ namespace eg::graphics_api::gl
 		
 		SetEnabled<GL_CULL_FACE>(enableFaceCull);
 		SetEnabled<GL_DEPTH_TEST>(enableDepthTest);
+		
+		while (numClipDistances > curState.numClipDistances)
+		{
+			glEnable(GL_CLIP_DISTANCE0 + curState.numClipDistances);
+			curState.numClipDistances++;
+		}
+		while (curState.numClipDistances > numClipDistances)
+		{
+			curState.numClipDistances--;
+			glDisable(GL_CLIP_DISTANCE0 + curState.numClipDistances);
+		}
 		
 		InitScissorTest();
 		
