@@ -434,6 +434,8 @@ namespace eg::graphics_api::vk
 		enabledDeviceFeatures.fillModeNonSolid = ctx.deviceFeatures.fillModeNonSolid;
 		enabledDeviceFeatures.geometryShader = ctx.deviceFeatures.geometryShader;
 		enabledDeviceFeatures.tessellationShader = ctx.deviceFeatures.tessellationShader;
+		enabledDeviceFeatures.shaderClipDistance = ctx.deviceFeatures.shaderClipDistance;
+		enabledDeviceFeatures.shaderCullDistance = ctx.deviceFeatures.shaderCullDistance;
 		
 		uint32_t numEnabledDeviceExtensions = 0;
 		const char* enabledDeviceExtensions[16];
