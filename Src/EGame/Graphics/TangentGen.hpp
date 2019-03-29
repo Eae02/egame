@@ -24,7 +24,7 @@ namespace eg
 			
 			const float r = 1.0f / div;
 			
-			glm::vec3 d1((dtc0.y * dp0.x - dtc0.y * dp1.x) * r, (dtc1.y * dp0.y - dtc0.y * dp1.y) * r, (dtc1.y * dp0.z - dtc0.y * dp1.z) * r);
+			glm::vec3 d1((dtc1.y * dp0.x - dtc0.y * dp1.x) * r, (dtc1.y * dp0.y - dtc0.y * dp1.y) * r, (dtc1.y * dp0.z - dtc0.y * dp1.z) * r);
 			glm::vec3 d2((dtc0.x * dp1.x - dtc1.x * dp0.x) * r, (dtc0.x * dp1.y - dtc1.x * dp0.y) * r, (dtc0.x * dp1.z - dtc1.x * dp0.z) * r);
 			
 			for (int j = 0; j < 3; j++)
