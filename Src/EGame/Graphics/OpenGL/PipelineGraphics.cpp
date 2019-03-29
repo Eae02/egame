@@ -11,7 +11,6 @@
 #include "../../Log.hpp"
 
 #include <atomic>
-#include <GL/gl3w.h>
 #include <spirv_cross.hpp>
 #include <spirv_glsl.hpp>
 

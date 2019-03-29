@@ -7,8 +7,6 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
 
-#include <GL/gl3w.h>
-
 namespace eg::graphics_api::gl
 {
 	int maxAnistropy;

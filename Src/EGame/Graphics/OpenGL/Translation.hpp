@@ -1,8 +1,7 @@
 #pragma once
 
+#include "GL.hpp"
 #include "../Abstraction.hpp"
-
-#include <GL/gl.h>
 
 namespace eg::graphics_api::gl
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <GL/gl3w.h>
+#include "GL.hpp"
 
 namespace eg::graphics_api::gl
 {

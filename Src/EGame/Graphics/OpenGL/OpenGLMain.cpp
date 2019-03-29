@@ -8,7 +8,6 @@
 
 #include <bitset>
 #include <SDL.h>
-#include <GL/gl3w.h>
 
 namespace eg::graphics_api::gl
 {

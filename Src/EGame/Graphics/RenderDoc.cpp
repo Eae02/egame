@@ -1,28 +1,31 @@
 #include "RenderDoc.hpp"
 #include "../Log.hpp"
 
-#include <dlfcn.h>
 #include <renderdoc.h>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define dlsym GetProcAddress
+#elif defined(__linux__)
+#include <dlfcn.h>
+#endif
 
 namespace eg::renderdoc
 {
-#if defined(__linux__)
-	static const char* renderDocLibName = "librenderdoc.so";
-#elif defined(_WIN32)
-	static const char* renderDocLibName = "renderdoc.dll";
-#else
-	static const char* renderDocLibName = nullptr;
-#endif
-	
 	static RENDERDOC_API_1_0_0* renderDocAPI = nullptr;
 	
 	void Init()
 	{
-		if (renderDocLibName == nullptr)
-			return;
+#if defined(_WIN32)
+		HMODULE renderDocLibrary = GetModuleHandleA("renderdoc.dll");
+#elif defined(__linux__)
+		void* renderDocLibrary = dlopen("librenderdoc.so", RTLD_NOLOAD | RTLD_NOW);
+#else
+		void* renderDocLibrary = nullptr;
+#endif
 		
-		void* renderDocLibrary = dlopen(renderDocLibName, RTLD_NOLOAD | RTLD_NOW);
-		if (renderDocLibrary == nullptr)
+		if (!renderDocLibrary)
 			return;
 		
 		pRENDERDOC_GetAPI GetAPI = reinterpret_cast<pRENDERDOC_GetAPI>(dlsym(renderDocLibrary, "RENDERDOC_GetAPI"));

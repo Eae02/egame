@@ -1,8 +1,7 @@
 #pragma once
 
+#include "GL.hpp"
 #include "../Format.hpp"
-
-#include <GL/gl3w.h>
 
 namespace eg::graphics_api::gl
 {
