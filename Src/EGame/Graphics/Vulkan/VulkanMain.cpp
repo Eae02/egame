@@ -590,6 +590,8 @@ namespace eg::graphics_api::vk
 		capabilities.tessellation = ctx.deviceFeatures.tessellationShader;
 		capabilities.geometryShader = ctx.deviceFeatures.geometryShader;
 		capabilities.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
+		capabilities.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
+		capabilities.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
 	}
 	
 	void DestroyCachedDescriptorSets();

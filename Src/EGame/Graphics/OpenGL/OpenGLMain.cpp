@@ -152,8 +152,10 @@ namespace eg::graphics_api::gl
 		
 		capabilities.uniformBufferAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
 		capabilities.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
+		capabilities.maxClipDistances = (uint32_t)GetIntegerLimit(GL_MAX_CLIP_DISTANCES);
 		capabilities.geometryShader = true;
 		capabilities.tessellation = true;
+		capabilities.textureCubeMapArray = true;
 		capabilities.depthRange = DepthRange::NegOneToOne;
 	}
 	

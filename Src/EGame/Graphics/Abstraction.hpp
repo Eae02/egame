@@ -509,9 +509,11 @@ namespace eg
 	{
 		uint32_t uniformBufferAlignment;
 		uint32_t maxTessellationPatchSize;
+		uint32_t maxClipDistances;
 		DepthRange depthRange;
 		bool geometryShader;
 		bool tessellation;
+		bool textureCubeMapArray;
 	};
 	
 	template <>
