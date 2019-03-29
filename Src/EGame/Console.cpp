@@ -180,7 +180,7 @@ namespace eg::console
 					}
 					else
 					{
-						it->callback(Span<const std::string_view>(&parts[1], parts.size() - 1));
+						it->callback(Span<const std::string_view>(parts.data() + 1, parts.size() - 1));
 					}
 				}
 			}
