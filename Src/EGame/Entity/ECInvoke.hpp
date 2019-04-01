@@ -13,6 +13,9 @@ namespace eg
 	public:
 		using CallbackType = void(*)(Entity&, Args...);
 		
+		explicit ECDynamicInvoke(CallbackType callback = nullptr)
+			: m_callback(callback) { }
+		
 		CallbackType Callback() const
 		{
 			return m_callback;
@@ -38,7 +41,7 @@ namespace eg
 		static EntitySignature signature = EntitySignature::Create<EC>();
 		for (Entity& entity : entityManager.GetEntitySet(signature))
 		{
-			entity.GetComponent<EC>()->operator()(entity, args...);
+			entity.FindComponent<EC>()->operator()(entity, args...);
 		}
 	}
 }

@@ -61,6 +61,20 @@ namespace eg
 		}
 	}
 	
+	const Entity* Entity::FindChildBySignature(const EntitySignature& signature) const
+	{
+		if (signature.IsSubsetOf(*m_signature))
+			return this;
+		
+		for (const Entity* child = m_firstChild; child != nullptr; child = child->m_nextSibling)
+		{
+			if (const Entity* ret = child->FindChildBySignature(signature))
+				return ret;
+		}
+		
+		return nullptr;
+	}
+	
 	void Entity::AddChild(Entity& child)
 	{
 		child.m_parent = this;

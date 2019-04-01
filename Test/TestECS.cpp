@@ -50,12 +50,12 @@ TEST_CASE("ECS", "[EntityManager]")
 		Entity& entity1 = entityManager->AddEntity(sigPR);
 		Entity& entity2 = entityManager->AddEntity(sigRSP);
 		REQUIRE(&entity1 != &entity2);
-		REQUIRE(entity1.GetComponent<ECPosition3D>() != nullptr);
-		REQUIRE(entity1.GetComponent<ECRotation3D>() != nullptr);
-		REQUIRE(entity1.GetComponent<ECScale3D>() == nullptr);
-		REQUIRE(entity2.GetComponent<ECPosition3D>() != nullptr);
-		REQUIRE(entity2.GetComponent<ECRotation3D>() != nullptr);
-		REQUIRE(entity2.GetComponent<ECScale3D>() != nullptr);
+		REQUIRE(entity1.FindComponent<ECPosition3D>() != nullptr);
+		REQUIRE(entity1.FindComponent<ECRotation3D>() != nullptr);
+		REQUIRE(entity1.FindComponent<ECScale3D>() == nullptr);
+		REQUIRE(entity2.FindComponent<ECPosition3D>() != nullptr);
+		REQUIRE(entity2.FindComponent<ECRotation3D>() != nullptr);
+		REQUIRE(entity2.FindComponent<ECScale3D>() != nullptr);
 	}
 	
 	SECTION("Add and list components")

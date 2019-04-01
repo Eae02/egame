@@ -13,15 +13,37 @@ namespace eg
 	{
 	public:
 		template <typename T>
-		const T* GetComponent() const
+		const T* FindComponent() const
 		{
 			return static_cast<const T*>(GetComponentVP(std::type_index(typeid(T))));
 		}
 		
 		template <typename T>
-		T* GetComponent()
+		T* FindComponent()
 		{
 			return static_cast<T*>(GetComponentVP(std::type_index(typeid(T))));
+		}
+		
+		template <typename T>
+		const T& GetComponent() const
+		{
+			if (const T* comp = FindComponent<T>())
+				return *comp;
+			EG_PANIC("Entity does not have component " << typeid(T).name() << "!");
+		}
+		
+		template <typename T>
+		T& GetComponent()
+		{
+			if (T* comp = FindComponent<T>())
+				return *comp;
+			EG_PANIC("Entity does not have component " << typeid(T).name() << "!");
+		}
+		
+		template <typename T, typename... A>
+		T& InitComponent(A&&... args)
+		{
+			return GetComponent<T>() = T(std::forward<A>(args)...);
 		}
 		
 		const class EntitySignature& Signature() const
@@ -38,6 +60,17 @@ namespace eg
 		uint32_t Id() const { return m_id; }
 		Entity* Parent() { return m_parent; }
 		const Entity* Parent() const { return m_parent; }
+		Entity* FirstChild() { return m_firstChild; }
+		const Entity* FirstChild() const { return m_firstChild; }
+		Entity* NextSibling() { return m_nextSibling; }
+		const Entity* NextSibling() const { return m_nextSibling; }
+		
+		Entity* FindChildBySignature(const class EntitySignature& signature)
+		{
+			return const_cast<Entity*>(const_cast<const Entity*>(this)->FindChildBySignature(signature));
+		}
+		
+		const Entity* FindChildBySignature(const class EntitySignature& signature) const;
 		
 		void Despawn();
 		
@@ -84,6 +117,14 @@ namespace eg
 		
 		Entity* Get() const;
 		
+		template <typename T>
+		T* FindComponent() const
+		{
+			if (Entity* entity = Get())
+				return entity->FindComponent<T>();
+			return nullptr;
+		}
+		
 		bool operator==(const EntityHandle& other) const
 		{
 			return m_managerId == other.m_managerId && m_id == other.m_id;
@@ -93,7 +134,7 @@ namespace eg
 		{
 			return !operator==(other);
 		}
-	
+		
 	private:
 		uint32_t m_managerId;
 		uint32_t m_id;

@@ -77,6 +77,14 @@ namespace eg
 		return detail::devMode;
 	}
 	
+	template <typename T>
+	inline T& Deref(T* ptr)
+	{
+		if (ptr == nullptr)
+			EG_PANIC("Deref called with null pointer")
+		return *ptr;
+	}
+	
 	EG_API std::string ReadableSize(uint64_t size);
 	
 	/***

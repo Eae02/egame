@@ -13,7 +13,7 @@ namespace eg
 	{
 		for (const Entity& entity : entityManager.GetEntitySet(modelSignature))
 		{
-			const ECModel* model = entity.GetComponent<ECModel>();
+			const ECModel* model = entity.FindComponent<ECModel>();
 			if ((model->m_modeMask & modeMask) != modeMask)
 				continue;
 			
