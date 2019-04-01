@@ -16,6 +16,7 @@ add_subdirectory(Deps/yaml-cpp)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
+file(GLOB_RECURSE TEST_SOURCE_FILES Test/*.cpp)
 
 set(SPIRV_CROSS_SOURCE_FILES
 	Deps/spirv_cross/spirv_cross.cpp
@@ -34,6 +35,7 @@ endif()
 add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c)
 add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
+add_executable(EGTest ${TEST_SOURCE_FILES})
 
 target_link_libraries(EGame
 	PUBLIC
@@ -78,7 +80,7 @@ target_compile_options(EGame
 
 set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${CMAKE_BUILD_TYPE})
 
-set_target_properties(EGame EGSandbox EGameAssetGen PROPERTIES
+set_target_properties(EGame EGSandbox EGameAssetGen EGTest PROPERTIES
 	CXX_STANDARD 17
 	ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
 	LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
@@ -103,6 +105,8 @@ set_target_properties(EGame PROPERTIES DEFINE_SYMBOL "EG_BUILDING_LIB")
 
 add_dependencies(EGSandbox EGame)
 add_dependencies(EGameAssetGen EGame)
+add_dependencies(EGTest EGameAssetGen EGame)
 target_link_libraries(EGSandbox EGame)
+target_link_libraries(EGTest EGameAssetGen EGame)
 
 export(TARGETS EGame FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${CMAKE_BUILD_TYPE}/EGameTargets.cmake)

@@ -14,6 +14,11 @@ namespace eg
 		
 		bool Contains(const glm::vec3& pos) const;
 		
+		bool Contains(const AABB& aabb) const
+		{
+			return Contains(aabb.min) && Contains(aabb.max);
+		}
+		
 		inline glm::vec3 Center() const
 		{ return (min + max) / 2.0f; }
 		
