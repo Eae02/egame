@@ -15,13 +15,13 @@ namespace eg
 		template <typename T>
 		const T* FindComponent() const
 		{
-			return static_cast<const T*>(GetComponentVP(std::type_index(typeid(T))));
+			return static_cast<const T*>(GetComponentByType(std::type_index(typeid(T))));
 		}
 		
 		template <typename T>
 		T* FindComponent()
 		{
-			return static_cast<T*>(GetComponentVP(std::type_index(typeid(T))));
+			return static_cast<T*>(GetComponentByType(std::type_index(typeid(T))));
 		}
 		
 		template <typename T>
@@ -56,6 +56,8 @@ namespace eg
 			return m_serializer;
 		}
 		
+		void HandleMessage(const class MessageBase& message);
+		
 		uint32_t ManagerId() const { return m_managerId; }
 		uint32_t Id() const { return m_id; }
 		Entity* Parent() { return m_parent; }
@@ -84,7 +86,9 @@ namespace eg
 		
 		void AddChild(Entity& child);
 		
-		void* GetComponentVP(std::type_index type) const;
+		void* GetComponentByType(std::type_index type) const;
+		
+		void* GetComponentByIndex(int index) const;
 		
 		Entity* m_parent = nullptr;
 		Entity* m_firstChild = nullptr;

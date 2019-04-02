@@ -168,6 +168,50 @@ namespace eg
 		{
 			entitySet.RemoveDead();
 		}
+		
+		for (MessageReceiverList& receiverList : m_messageReceivers)
+		{
+			for (int64_t i = (int64_t)receiverList.entities.size() - 1; i >= 0; i--)
+			{
+				if (receiverList.entities[i].Get() == nullptr)
+				{
+					receiverList.entities[i] = receiverList.entities.back();
+					receiverList.entities.pop_back();
+				}
+			}
+		}
+	}
+	
+	void EntityManager::SendMessageToAll(const MessageBase& message)
+	{
+		auto it = std::lower_bound(m_messageReceivers.begin(), m_messageReceivers.end(), message.GetType());
+		
+		//Initializes a new receiver list if none exists for this message type already
+		if (it == m_messageReceivers.end() || it->messageType != message.GetType())
+		{
+			it = m_messageReceivers.emplace(it, message.GetType());
+			for (const EntityPageOuter& page : m_pages)
+			{
+				if (page.page == nullptr)
+					break;
+				for (size_t i = 0; i < 256; i++)
+				{
+					const Entity& entity = page.page->entities[i];
+					if (entity.ManagerId() != UINT32_MAX && entity.Signature().WantsMessage(message.GetType()))
+					{
+						it->entities.emplace_back(entity);
+					}
+				}
+			}
+		}
+		
+		for (const EntityHandle& entityHandle : it->entities)
+		{
+			if (Entity* entity = entityHandle.Get())
+			{
+				entity->HandleMessage(message);
+			}
+		}
 	}
 	
 	void EntityManager::Serialize(std::ostream& stream) const

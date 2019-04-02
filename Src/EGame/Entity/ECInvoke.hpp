@@ -28,7 +28,8 @@ namespace eg
 		
 		void operator()(Entity& entity, Args... args)
 		{
-			m_callback(entity, args...);
+			if (m_callback != nullptr)
+				m_callback(entity, args...);
 		}
 		
 	private:

@@ -1,5 +1,6 @@
 #include "EntitySignature.hpp"
 #include "../Utils.hpp"
+#include "../Log.hpp"
 
 namespace eg
 {
@@ -45,5 +46,13 @@ namespace eg
 		if (it == m_componentTypes.end() || it->typeIndex != typeIndex)
 			return -1;
 		return it - m_componentTypes.begin();
+	}
+	
+	bool EntitySignature::WantsMessage(std::type_index messageType) const
+	{
+		return std::any_of(m_componentTypes.begin(), m_componentTypes.end(), [&] (const ComponentType& component)
+		{
+			return component.messageReceiver != nullptr && component.messageReceiver->WantsMessage(messageType);
+		});
 	}
 }

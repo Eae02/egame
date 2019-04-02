@@ -1,15 +1,20 @@
 #include "Entity.hpp"
 #include "EntitySignature.hpp"
 #include "EntityManager.hpp"
+#include "Message.hpp"
 
 namespace eg
 {
-	void* Entity::GetComponentVP(std::type_index type) const
+	void* Entity::GetComponentByType(std::type_index type) const
 	{
 		int index = m_signature->GetComponentIndex(type);
 		if (index == -1)
 			return nullptr;
-		
+		return GetComponentByIndex(index);
+	}
+	
+	void* Entity::GetComponentByIndex(int index) const
+	{
 		if (index < (int)m_componentsDirect.size())
 			return m_componentsDirect[index].Get();
 		else
@@ -97,6 +102,18 @@ namespace eg
 			for (Entity* child = m_firstChild; child != nullptr; child = child->m_nextSibling)
 			{
 				child->Despawn();
+			}
+		}
+	}
+	
+	void Entity::HandleMessage(const MessageBase& message)
+	{
+		const auto& componentTypes = m_signature->ComponentTypes();
+		for (size_t i = 0; i < componentTypes.size(); i++)
+		{
+			if (componentTypes[i].messageReceiver != nullptr)
+			{
+				componentTypes[i].messageReceiver->HandleMessage(*this, GetComponentByIndex(i), message);
 			}
 		}
 	}

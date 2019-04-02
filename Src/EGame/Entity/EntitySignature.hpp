@@ -2,6 +2,7 @@
 
 #include "../API.hpp"
 #include "../Utils.hpp"
+#include "Message.hpp"
 
 #include <type_traits>
 #include <typeindex>
@@ -14,12 +15,21 @@ namespace eg
 		size_t size;
 		size_t alignment;
 		void (*initializer)(void*);
+		const MessageReceiver* messageReceiver;
 		
 		template <typename T>
 		static ComponentType Create()
 		{
 			static_assert(std::is_default_constructible_v<T>, "Entity components must be default constructible!");
-			return { std::type_index(typeid(T)), sizeof(T), alignof(T), [] (void* mem) { new (mem) T (); } };
+			ComponentType res = { std::type_index(typeid(T)) };
+			res.size = sizeof(T);
+			res.alignment = alignof(T);
+			res.initializer = [] (void* mem) { new (mem) T (); };
+			if constexpr (HasMessageReceiver<T>::value)
+			{
+				res.messageReceiver = &T::MessageReceiver;
+			}
+			return res;
 		}
 		
 		bool operator<(const ComponentType& other) const
@@ -60,6 +70,8 @@ namespace eg
 		{
 			return m_hash;
 		}
+		
+		bool WantsMessage(std::type_index messageType) const;
 		
 		int GetComponentIndex(std::type_index typeIndex) const;
 		

@@ -29,6 +29,8 @@ namespace eg
 		
 		const EntitySet& GetEntitySet(const EntitySignature& signature);
 		
+		void SendMessageToAll(const MessageBase& message);
+		
 		const Entity* FromEntityId(uint32_t id) const
 		{
 			return PrivFromEntityId(id);
@@ -69,6 +71,22 @@ namespace eg
 		ComponentAllocator m_componentAllocator;
 		
 		std::vector<EntitySet> m_entitySets;
+		
+		struct MessageReceiverList
+		{
+			std::type_index messageType;
+			std::vector<EntityHandle> entities;
+			
+			MessageReceiverList(std::type_index _messageType)
+				: messageType(_messageType) { }
+			
+			bool operator<(std::type_index other) const
+			{
+				return messageType < other;
+			}
+		};
+		
+		std::vector<MessageReceiverList> m_messageReceivers;
 		
 		std::vector<EntityHandle> m_despawnQueue;
 	};
