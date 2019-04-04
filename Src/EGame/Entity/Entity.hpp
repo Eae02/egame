@@ -67,6 +67,8 @@ namespace eg
 		Entity* NextSibling() { return m_nextSibling; }
 		const Entity* NextSibling() const { return m_nextSibling; }
 		
+		class EntityManager* Manager() const;
+		
 		Entity* FindChildBySignature(const class EntitySignature& signature)
 		{
 			return const_cast<Entity*>(const_cast<const Entity*>(this)->FindChildBySignature(signature));

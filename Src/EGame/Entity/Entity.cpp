@@ -118,6 +118,11 @@ namespace eg
 		}
 	}
 	
+	EntityManager* Entity::Manager() const
+	{
+		return EntityManager::FromManagerId(m_managerId);
+	}
+	
 	Entity* EntityHandle::Get() const
 	{
 		if (EntityManager* manager = EntityManager::FromManagerId(m_managerId))
