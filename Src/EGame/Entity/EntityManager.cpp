@@ -103,6 +103,14 @@ namespace eg
 			set.MaybeAdd(entity);
 		}
 		
+		for (MessageReceiverList& receiverList : m_messageReceivers)
+		{
+			if (signature.WantsMessage(receiverList.messageType))
+			{
+				receiverList.entities.emplace_back(entity);
+			}
+		}
+		
 		return entity;
 	}
 	
