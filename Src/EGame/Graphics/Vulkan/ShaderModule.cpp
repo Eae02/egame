@@ -42,7 +42,8 @@ namespace eg::graphics_api::vk
 		spirv_cross::Compiler spvCrossCompiler(moduleCreateInfo.pCode, moduleCreateInfo.codeSize / 4);
 		
 		//Processes shader resources
-		auto ProcessResources = [&] (const std::vector<spirv_cross::Resource>& resources, VkDescriptorType type)
+		auto ProcessResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
+		                             VkDescriptorType type)
 		{
 			for (const spirv_cross::Resource& resource : resources)
 			{

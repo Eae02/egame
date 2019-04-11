@@ -38,7 +38,8 @@ namespace eg::graphics_api::gl
 		std::for_each(spvCompilers, spvCompilers + numShaderModules,
 			[&] (const spirv_cross::CompilerGLSL* spvCompiler)
 		{
-			auto ProcessResources = [&] (const std::vector<spirv_cross::Resource>& resources, BindingType type)
+			auto ProcessResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
+			                             BindingType type)
 			{
 				for (const spirv_cross::Resource& res : resources)
 				{
@@ -95,7 +96,7 @@ namespace eg::graphics_api::gl
 		//Updates the bindings used by resources and uploads code to shader modules
 		for (uint32_t i = 0; i < numShaderModules; i++)
 		{
-			auto ProcessResources = [&] (const std::vector<spirv_cross::Resource>& resources)
+			auto ProcessResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources)
 			{
 				for (const spirv_cross::Resource& res : resources)
 				{
