@@ -78,6 +78,12 @@ namespace eg::graphics_api::vk
 			return VK_PRESENT_MODE_MAILBOX_KHR;
 		}
 		
+		if (CanUsePresentMode(VK_PRESENT_MODE_FIFO_RELAXED_KHR))
+		{
+			Log(LogLevel::Info, "vk", "Selected present mode: fifo_relaxed");
+			return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+		}
+		
 		Log(LogLevel::Info, "vk", "Selected present mode: fifo");
 		return VK_PRESENT_MODE_FIFO_KHR;
 	}
@@ -133,14 +139,14 @@ namespace eg::graphics_api::vk
 		//Fetches swapchain images
 		uint32_t numSwapchainImages;
 		vkGetSwapchainImagesKHR(ctx.device, ctx.swapchain, &numSwapchainImages, nullptr);
-		if (ctx.numSwapchainImages > 16)
+		if (numSwapchainImages > 16)
 		{
 			EG_PANIC("Too many swapchain images!");
 		}
 		vkGetSwapchainImagesKHR(ctx.device, ctx.swapchain, &numSwapchainImages, ctx.swapchainImages);
 		
 		//Destroys old swapchain image views
-		for (uint32_t i = 0; i < ctx.numSwapchainImages; i++)
+		for (uint32_t i = 0; i < numSwapchainImages; i++)
 		{
 			vkDestroyImageView(ctx.device, ctx.swapchainImageViews[i], nullptr);
 		}
@@ -156,7 +162,7 @@ namespace eg::graphics_api::vk
 			vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &ctx.swapchainImageViews[i]);
 		}
 		
-		//Creates new image semaphores if the number of images as increased
+		//Creates new image semaphores if the number of images has increased
 		for (uint32_t i = ctx.numSwapchainImages; i < numSwapchainImages; i++)
 		{
 			ctx.acquireSemaphores[i] = CreateSemaphore(ctx.device);
@@ -661,23 +667,25 @@ namespace eg::graphics_api::vk
 		CheckRes(vkDeviceWaitIdle(ctx.device));
 	}
 	
-	static VkSemaphore acquireSemaphore;
+	static VkSemaphore acquireSemaphore = VK_NULL_HANDLE;
 	
-	static void AcquireNextImage()
+	void MaybeAcquireSwapchainImage()
 	{
-		acquireSemaphore = ctx.acquireSemaphores[ctx.acquireSemaphoreIndex];
+		if (acquireSemaphore != VK_NULL_HANDLE)
+			return;
 		
 		VkResult result = vkAcquireNextImageKHR(ctx.device, ctx.swapchain, UINT64_MAX,
-			acquireSemaphore, VK_NULL_HANDLE, &ctx.currentImage);
+			ctx.acquireSemaphores[ctx.acquireSemaphoreIndex], VK_NULL_HANDLE, &ctx.currentImage);
 		
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 		{
 			CreateSwapchain();
-			AcquireNextImage();
+			MaybeAcquireSwapchainImage();
 		}
 		else
 		{
 			CheckRes(result);
+			acquireSemaphore = ctx.acquireSemaphores[ctx.acquireSemaphoreIndex];
 			ctx.acquireSemaphoreIndex = (ctx.acquireSemaphoreIndex + 1) % ctx.numSwapchainImages;
 		}
 	}
@@ -690,7 +698,7 @@ namespace eg::graphics_api::vk
 	
 	void BeginFrame()
 	{
-		AcquireNextImage();
+		acquireSemaphore = VK_NULL_HANDLE;
 		
 		//Waits for the frame queue's fence to complete
 		VkFence fence = ctx.frameQueueFences[CFrameIdx()];
@@ -716,6 +724,8 @@ namespace eg::graphics_api::vk
 	
 	void EndFrame()
 	{
+		MaybeAcquireSwapchainImage();
+		
 		VkCommandBuffer immediateCB = ctx.immediateCommandBuffers[CFrameIdx()];
 		
 		if (!ctx.defaultFramebufferInPresentMode)

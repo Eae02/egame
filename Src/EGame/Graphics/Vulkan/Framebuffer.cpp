@@ -128,6 +128,8 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
+	void MaybeAcquireSwapchainImage();
+	
 	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 	{
 		VkCommandBuffer cb = GetCB(cc);
@@ -145,6 +147,8 @@ namespace eg::graphics_api::vk
 		
 		if (beginInfo.framebuffer == nullptr)
 		{
+			MaybeAcquireSwapchainImage();
+			
 			numColorAttachments = 1;
 			extent = ctx.surfaceExtent;
 			framebuffer = ctx.defaultFramebuffers[ctx.currentImage];
