@@ -43,6 +43,7 @@ namespace eg::graphics_api::gl
 		bool enableDepthTest;
 		bool enableDepthWrite;
 		BlendState blend[8];
+		ColorWriteMask colorWriteMasks[8];
 		uint32_t maxVertexBinding;
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		
@@ -204,6 +205,7 @@ namespace eg::graphics_api::gl
 		uint32_t numCullDistances = 0;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
+		ColorWriteMask colorWriteMasks[8] = { };
 	} curState;
 	
 	static bool updateVAOBindings = false;
@@ -316,6 +318,14 @@ namespace eg::graphics_api::gl
 		
 		for (GLuint i = 0; i < 8; i++)
 		{
+			if (curState.colorWriteMasks[i] != colorWriteMasks[i])
+			{
+				glColorMaski(i, HasFlag(colorWriteMasks[i], ColorWriteMask::R),
+				             HasFlag(colorWriteMasks[i], ColorWriteMask::G),
+				             HasFlag(colorWriteMasks[i], ColorWriteMask::B),
+				             HasFlag(colorWriteMasks[i], ColorWriteMask::A));
+				curState.colorWriteMasks[i] = colorWriteMasks[i];
+			}
 			if (curState.blendEnabled[i] != blend[i].enabled)
 			{
 				if (blend[i].enabled)

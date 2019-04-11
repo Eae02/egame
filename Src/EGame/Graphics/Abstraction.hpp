@@ -153,6 +153,16 @@ namespace eg
 		OneMinusDstAlpha
 	};
 	
+	enum class ColorWriteMask
+	{
+		R = 1,
+		G = 2,
+		B = 4,
+		A = 8,
+		All = 15
+	};
+	EG_BIT_FIELD(ColorWriteMask)
+	
 	struct BlendState
 	{
 		bool enabled;
@@ -162,21 +172,25 @@ namespace eg
 		BlendFactor srcAlphaFactor;
 		BlendFactor dstColorFactor;
 		BlendFactor dstAlphaFactor;
+		ColorWriteMask colorWriteMask;
 		
 		BlendState()
 			: enabled(false), colorFunc(BlendFunc::Add), alphaFunc(BlendFunc::Add), srcColorFactor(BlendFactor::One),
-			  srcAlphaFactor(BlendFactor::One), dstColorFactor(BlendFactor::One), dstAlphaFactor(BlendFactor::One)
+			  srcAlphaFactor(BlendFactor::One), dstColorFactor(BlendFactor::One), dstAlphaFactor(BlendFactor::One),
+			  colorWriteMask(ColorWriteMask::All)
 		{}
 		
-		BlendState(BlendFunc func, BlendFactor srcFactor, BlendFactor dstFactor)
+		BlendState(BlendFunc func, BlendFactor srcFactor, BlendFactor dstFactor,
+			ColorWriteMask _colorWriteMask = ColorWriteMask::All)
 			: enabled(true), colorFunc(func), alphaFunc(func), srcColorFactor(srcFactor), srcAlphaFactor(srcFactor),
-			  dstColorFactor(dstFactor), dstAlphaFactor(dstFactor)
+			  dstColorFactor(dstFactor), dstAlphaFactor(dstFactor), colorWriteMask(_colorWriteMask)
 		{}
 		
 		BlendState(BlendFunc _colorFunc, BlendFunc _alphaFunc, BlendFactor _srcColorFactor, BlendFactor _srcAlphaFactor,
-			BlendFactor _dstColorFactor, BlendFactor _dstAlphaFactor)
+			BlendFactor _dstColorFactor, BlendFactor _dstAlphaFactor, ColorWriteMask _colorWriteMask = ColorWriteMask::All)
 			: enabled(true), colorFunc(_colorFunc), alphaFunc(_alphaFunc), srcColorFactor(_srcColorFactor),
-			  srcAlphaFactor(_srcAlphaFactor), dstColorFactor(_dstColorFactor), dstAlphaFactor(_dstAlphaFactor)
+			  srcAlphaFactor(_srcAlphaFactor), dstColorFactor(_dstColorFactor), dstAlphaFactor(_dstAlphaFactor),
+			  colorWriteMask(_colorWriteMask)
 		{}
 	};
 	

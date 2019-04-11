@@ -485,6 +485,11 @@ namespace eg
 			gal::DispatchCompute(Handle(), sizeX, sizeY, sizeZ);
 		}
 		
+		void UpdateBuffer(BufferRef buffer, uint64_t offset, uint64_t size, const void* data)
+		{
+			gal::UpdateBuffer(Handle(), buffer.handle, offset, size, data);
+		}
+		
 		void BindVertexBuffer(uint32_t binding, BufferRef buffer, uint32_t offset)
 		{
 			gal::BindVertexBuffer(Handle(), binding, buffer.handle, offset);
