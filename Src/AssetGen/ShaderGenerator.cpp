@@ -12,9 +12,6 @@
 
 namespace eg::asset_gen
 {
-	static const char* extensionsStr = "#extension GL_GOOGLE_include_directive:enable\n"
-	                                   "#extension GL_GOOGLE_cpp_style_line_directive:enable\n";
-	
 	static std::string_view EGameHeader = R"(
 #ifndef EG_GLH
 #define EG_GLH
@@ -118,6 +115,75 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 		AssetGenerateContext* m_generateContext;
 	};
 	
+	static std::optional<EShLanguage> DeduceShaderLanguage(std::string_view sourcePath, const YAML::Node& yamlNode)
+	{
+		if (const YAML::Node& stageNode = yamlNode["stage"])
+		{
+			const std::pair<std::string_view, EShLanguage> stageNames[] = 
+			{
+				{ "vertex", EShLangVertex },
+				{ "fragment", EShLangFragment },
+				{ "geometry", EShLangGeometry },
+				{ "tess-control", EShLangTessControl },
+				{ "tess-eval", EShLangTessEvaluation }
+			};
+			
+			std::string stageNameStr = stageNode.as<std::string>();
+			for (const std::pair<std::string_view, EShLanguage> stageName : stageNames)
+			{
+				if (StringEqualCaseInsensitive(stageNameStr, stageName.first))
+				{
+					return stageName.second;
+				}
+			}
+			
+			std::ostringstream errorStream;
+			errorStream << sourcePath << ": Invalid shader stage " << stageNameStr << ", should be ";
+			for (size_t i = 0; i < ArrayLen(stageNames); i++)
+			{
+				if (i == ArrayLen(stageNames) - 1)
+					errorStream << " or ";
+				else if (i != 0)
+					errorStream << ", ";
+				errorStream << "'" << stageNames[i].first << "'";
+			}
+			
+			Log(LogLevel::Error, "as", "{0}", errorStream.str());
+		}
+		else
+		{
+			const std::pair<std::string_view, EShLanguage> stageExtensions[] = 
+			{
+				{ ".vs.glsl", EShLangVertex },
+				{ ".vert", EShLangVertex },
+				{ ".vert.glsl", EShLangVertex },
+				{ ".fs.glsl", EShLangFragment },
+				{ ".frag", EShLangFragment },
+				{ ".frag.glsl", EShLangFragment },
+				{ ".gs.glsl", EShLangGeometry },
+				{ ".geom", EShLangGeometry },
+				{ ".geom.glsl", EShLangGeometry },
+				{ ".tcs.glsl", EShLangTessControl },
+				{ ".tesc", EShLangTessControl },
+				{ ".tesc.glsl", EShLangTessControl },
+				{ ".tes.glsl", EShLangTessEvaluation },
+				{ ".tese", EShLangTessEvaluation },
+				{ ".tese.glsl", EShLangTessEvaluation }
+			};
+			
+			for (const std::pair<std::string_view, EShLanguage> stageExtension : stageExtensions)
+			{
+				if (StringEndsWith(sourcePath, stageExtension.first))
+				{
+					return stageExtension.second;
+				}
+			}
+			
+			Log(LogLevel::Error, "as", "{0}: Unable to deduce shader stage from file extension.", sourcePath);
+		}
+		return {};
+	}
+	
 	class ShaderGenerator : public AssetGenerator
 	{
 	public:
@@ -145,110 +211,39 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			std::vector<char> source = ReadStreamContents(sourceStream);
 			sourceStream.close();
 			
-			//Detects the shader language (stage)
-			EShLanguage lang;
-			if (const YAML::Node& stageNode = generateContext.YAMLNode()["stage"])
+			std::optional<EShLanguage> lang = DeduceShaderLanguage(sourcePath, generateContext.YAMLNode());
+			if (!lang.has_value())
+				return false;
+			
+			std::vector<std::string_view> variants;
+			
+			IterateStringParts(std::string_view(source.data(), source.size()), '\n', [&] (std::string_view line)
 			{
-				std::string stageName = stageNode.as<std::string>();
-				if (StringEqualCaseInsensitive(stageName, "vertex"))
+				std::string_view trimmedLine = TrimString(line);
+				std::vector<std::string_view> words;
+				SplitString(trimmedLine, ' ', words);
+				if (words.size() >= 3 && words[0] == "#pragma" && words[1] == "variants")
 				{
-					lang = EShLangVertex;
+					for (size_t i = 2; i < words.size(); i++)
+						variants.push_back(words[i]);
 				}
-				else if (StringEqualCaseInsensitive(stageName, "fragment"))
-				{
-					lang = EShLangFragment;
-				}
-				else if (StringEqualCaseInsensitive(stageName, "geometry"))
-				{
-					lang = EShLangGeometry;
-				}
-				else if (StringEqualCaseInsensitive(stageName, "tess-control"))
-				{
-					lang = EShLangTessControl;
-				}
-				else if (StringEqualCaseInsensitive(stageName, "tess-eval"))
-				{
-					lang = EShLangTessEvaluation;
-				}
-				else
-				{
-					Log(LogLevel::Error, "as", "{0}: Invalid shader stage {1}, should be 'vertex', 'fragment', "
-								"'geometry', 'tess-control' or 'tess-eval'.", sourcePath, stageName);
-					return false;
-				}
+			});
+			
+			if (variants.empty())
+			{
+				variants.push_back("_VDEFAULT");
 			}
 			else
 			{
-				if (StringEndsWith(sourcePath, ".vs.glsl") ||
-					StringEndsWith(sourcePath, ".vert") ||
-					StringEndsWith(sourcePath, ".vert.glsl"))
-				{
-					lang = EShLangVertex;
-				}
-				else if (StringEndsWith(sourcePath, ".fs.glsl") ||
-					StringEndsWith(sourcePath, ".frag") ||
-					StringEndsWith(sourcePath, ".frag.glsl"))
-				{
-					lang = EShLangFragment;
-				}
-				else if (StringEndsWith(sourcePath, ".gs.glsl") ||
-					StringEndsWith(sourcePath, ".geom") ||
-					StringEndsWith(sourcePath, ".geom.glsl"))
-				{
-					lang = EShLangGeometry;
-				}
-				else if (StringEndsWith(sourcePath, ".tcs.glsl") ||
-					StringEndsWith(sourcePath, ".tesc") ||
-					StringEndsWith(sourcePath, ".tesc.glsl"))
-				{
-					lang = EShLangTessControl;
-				}
-				else if (StringEndsWith(sourcePath, ".tes.glsl") ||
-					StringEndsWith(sourcePath, ".tese") ||
-					StringEndsWith(sourcePath, ".tese.glsl"))
-				{
-					lang = EShLangTessEvaluation;
-				}
-				else
-				{
-					Log(LogLevel::Error, "as", "{0}: Unable to deduce shader stage from file extension.", sourcePath);
-					return false;
-				}
+				std::sort(variants.begin(), variants.end());
+				variants.erase(std::unique(variants.begin(), variants.end()), variants.end());
 			}
 			
 			const EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
 			
-			//Sets up parameters for the shader
-			const char* shaderStrings[] = { source.data() };
-			const int shaderStringLengths[] = { static_cast<int>(source.size()) };
-			const char* shaderStringNames[] = { relSourcePath.c_str() };
-			
-			glslang::TShader shader(lang);
-			shader.setPreamble(extensionsStr);
-			shader.setStringsWithLengthsAndNames(shaderStrings, shaderStringLengths, shaderStringNames, 1);
-			shader.setEnvClient(glslang::EShClient::EShClientOpenGL, glslang::EShTargetVulkan_1_0);
-			shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
-			
-			Includer includer(generateContext);
-			if (!shader.parse(&DefaultTBuiltInResource, 450, ECoreProfile, true, false, messages, includer))
-			{
-				Log(LogLevel::Error, "as", "Shader failed to compile: {0}", shader.getInfoLog());
-				return false;
-			}
-			
-			glslang::TProgram program;
-			program.addShader(&shader);
-			if (!program.link(messages))
-			{
-				Log(LogLevel::Error, "as", "Shader failed to compile: {0}", program.getInfoLog());
-				return false;
-			}
-			
-			std::vector<uint32_t> spirvCode;
-			glslang::GlslangToSpv(*program.getIntermediate(lang), spirvCode);
-			
+			//Translates the shader stage and writes this to the output stream
 			ShaderStage egStage;
-			switch (lang)
+			switch (*lang)
 			{
 			case EShLangVertex: egStage = ShaderStage::Vertex; break;
 			case EShLangFragment: egStage = ShaderStage::Fragment; break;
@@ -257,11 +252,55 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			case EShLangTessEvaluation: egStage = ShaderStage::TessEvaluation; break;
 			default: EG_UNREACHABLE
 			}
-			
-			uint32_t codeSize = spirvCode.size() * sizeof(uint32_t);
 			BinWrite(generateContext.outputStream, (uint32_t)egStage);
-			BinWrite(generateContext.outputStream, codeSize);
-			generateContext.outputStream.write((char*)spirvCode.data(), codeSize);
+			
+			//Sets up parameters for the shader
+			const char* shaderStrings[] = { source.data() };
+			const int shaderStringLengths[] = { static_cast<int>(source.size()) };
+			const char* shaderStringNames[] = { relSourcePath.c_str() };
+			
+			eg::BinWrite<uint32_t>(generateContext.outputStream, variants.size());
+			
+			//Compiles each shader variant
+			for (std::string_view variant : variants)
+			{
+				std::ostringstream preambleStream;
+				preambleStream << "#extension GL_GOOGLE_include_directive:enable\n"
+				                  "#extension GL_GOOGLE_cpp_style_line_directive:enable\n"
+				                  "#define " << variant << "\n";
+				std::string preamble = preambleStream.str();
+				
+				glslang::TShader shader(*lang);
+				shader.setPreamble(preamble.c_str());
+				shader.setStringsWithLengthsAndNames(shaderStrings, shaderStringLengths, shaderStringNames, 1);
+				shader.setEnvClient(glslang::EShClient::EShClientOpenGL, glslang::EShTargetVulkan_1_0);
+				shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+				
+				Includer includer(generateContext);
+				if (!shader.parse(&DefaultTBuiltInResource, 450, ECoreProfile, true, false, messages, includer))
+				{
+					Log(LogLevel::Error, "as", "Shader ({0}:{1}) failed to compile: {2}",
+						sourcePath, variant, shader.getInfoLog());
+					return false;
+				}
+				
+				glslang::TProgram program;
+				program.addShader(&shader);
+				if (!program.link(messages))
+				{
+					Log(LogLevel::Error, "as", "Shader ({0}:{1}) failed to compile: {2}",
+						sourcePath, variant, program.getInfoLog());
+					return false;
+				}
+				
+				std::vector<uint32_t> spirvCode;
+				glslang::GlslangToSpv(*program.getIntermediate(*lang), spirvCode);
+				
+				uint32_t codeSize = spirvCode.size() * sizeof(uint32_t);
+				BinWrite(generateContext.outputStream, eg::HashFNV1a32(variant));
+				BinWrite(generateContext.outputStream, codeSize);
+				generateContext.outputStream.write((char*)spirvCode.data(), codeSize);
+			}
 			
 			return true;
 		}
@@ -269,6 +308,6 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 	
 	void RegisterShaderGenerator()
 	{
-		RegisterAssetGenerator<ShaderGenerator>("Shader", ShaderModuleAssetFormat);
+		RegisterAssetGenerator<ShaderGenerator>("Shader", ShaderModuleAsset::AssetFormat);
 	}
 }

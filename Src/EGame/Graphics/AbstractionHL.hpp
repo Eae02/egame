@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Abstraction.hpp"
-#include "../Assets/ShaderModule.hpp"
 #include "../Assets/Asset.hpp"
 
 namespace eg

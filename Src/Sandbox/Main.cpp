@@ -9,8 +9,8 @@ public:
 		eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/");
 		
 		eg::GraphicsPipelineCreateInfo pipelineCI;
-		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModule>("Main.vs.glsl").Handle();
-		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModule>("Main.fs.glsl").Handle();
+		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").DefaultVariant();
+		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").DefaultVariant();
 		m_pipeline = eg::Pipeline::Create(pipelineCI);
 		
 		m_pipeline.FramebufferFormatHint(eg::Format::DefaultColor, eg::Format::DefaultDepthStencil);
