@@ -44,6 +44,22 @@ namespace eg
 			EG_PANIC("Double delete of entity manager detected!");
 		}
 		
+		//Uninitializes entities
+		for (const EntityPageOuter& page : manager->m_pages)
+		{
+			if (page.page == nullptr)
+				break;
+			for (size_t i = 0; i < 256; i++)
+			{
+				if (page.page->entities[i].ManagerId() != UINT32_MAX)
+				{
+					//Set parent to null so that the entity doesn't try to rearrange the linked list
+					page.page->entities[i].m_parent = nullptr;
+					page.page->entities[i].Uninitialize();
+				}
+			}
+		}
+		
 		s_globalManagersList[index] = nullptr;
 		delete manager;
 	}

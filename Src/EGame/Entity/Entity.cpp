@@ -48,6 +48,20 @@ namespace eg
 	void Entity::Uninitialize()
 	{
 		m_managerId = UINT32_MAX;
+		
+		int componentIndex = 0;
+		for (const ComponentType& componentType : m_signature->ComponentTypes())
+		{
+			ComponentRef* component;
+			if (componentIndex < (int)m_componentsDirect.size())
+				component = &m_componentsDirect[componentIndex];
+			else
+				component = &m_componentsHeap[componentIndex - m_componentsDirect.size()];
+			
+			componentType.destructor(component->Get());
+			component->Free();
+		}
+		
 		if (m_parent != nullptr && !m_parent->m_queuedForDespawn)
 		{
 			if (m_prevSibling == nullptr)

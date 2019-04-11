@@ -15,6 +15,7 @@ namespace eg
 		size_t size;
 		size_t alignment;
 		void (*initializer)(void*);
+		void (*destructor)(void*);
 		const MessageReceiver* messageReceiver;
 		
 		template <typename T>
@@ -25,6 +26,7 @@ namespace eg
 			res.size = sizeof(T);
 			res.alignment = alignof(T);
 			res.initializer = [] (void* mem) { new (mem) T (); };
+			res.destructor = [] (void* mem) { ((T*)mem)->~T(); };
 			if constexpr (HasMessageReceiver<T>::value)
 			{
 				res.messageReceiver = &T::MessageReceiver;
