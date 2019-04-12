@@ -14,33 +14,35 @@ namespace eg::graphics_api::vk
 		bufferPool.Delete(this);
 	}
 	
-	BufferHandle CreateBuffer(BufferFlags flags, uint64_t size, const void* initialData)
+	BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	{
 		Buffer* buffer = bufferPool.New();
 		buffer->refCount = 1;
-		buffer->size = size;
-		buffer->autoBarrier = !HasFlag(flags, BufferFlags::ManualBarrier);
+		buffer->size = createInfo.size;
+		buffer->autoBarrier = !HasFlag(createInfo.flags, BufferFlags::ManualBarrier);
 		buffer->currentUsage = BufferUsage::Undefined;
 		buffer->currentStageFlags = 0;
 		
-		VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		createInfo.size = size;
+		VkBufferCreateInfo vkCreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		vkCreateInfo.size = createInfo.size;
 		
-		if (HasFlag(flags, BufferFlags::Update) || HasFlag(flags, BufferFlags::CopyDst) || initialData != nullptr)
-			createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		if (HasFlag(flags, BufferFlags::CopySrc))
-			createInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-		if (HasFlag(flags, BufferFlags::VertexBuffer))
-			createInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-		if (HasFlag(flags, BufferFlags::IndexBuffer))
-			createInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-		if (HasFlag(flags, BufferFlags::UniformBuffer))
-			createInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		if (HasFlag(createInfo.flags, BufferFlags::Update) || HasFlag(createInfo.flags, BufferFlags::CopyDst) ||
+		    createInfo.initialData != nullptr)
+			vkCreateInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		if (HasFlag(createInfo.flags, BufferFlags::CopySrc))
+			vkCreateInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		if (HasFlag(createInfo.flags, BufferFlags::VertexBuffer))
+			vkCreateInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		if (HasFlag(createInfo.flags, BufferFlags::IndexBuffer))
+			vkCreateInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+		if (HasFlag(createInfo.flags, BufferFlags::UniformBuffer))
+			vkCreateInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 		
-		const bool wantsMap = HasFlag(flags, BufferFlags::MapWrite) || HasFlag(flags, BufferFlags::MapRead);
+		const bool wantsMap = HasFlag(createInfo.flags, BufferFlags::MapWrite) ||
+			HasFlag(createInfo.flags, BufferFlags::MapRead);
 		
 		VmaAllocationCreateInfo allocationCreateInfo = { };
-		if (HasFlag(flags, BufferFlags::HostAllocate))
+		if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
 			allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
 		else if (wantsMap)
 			allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
@@ -53,18 +55,23 @@ namespace eg::graphics_api::vk
 		}
 		
 		VmaAllocationInfo allocationInfo;
-		CheckRes(vmaCreateBuffer(ctx.allocator, &createInfo, &allocationCreateInfo, &buffer->buffer,
+		CheckRes(vmaCreateBuffer(ctx.allocator, &vkCreateInfo, &allocationCreateInfo, &buffer->buffer,
 			&buffer->allocation, &allocationInfo));
+		
+		if (createInfo.label != nullptr)
+		{
+			SetObjectName(reinterpret_cast<uint64_t>(buffer->buffer), VK_OBJECT_TYPE_BUFFER, createInfo.label);
+		}
 		
 		buffer->mappedMemory = reinterpret_cast<char*>(allocationInfo.pMappedData);
 		
 		//Copies initial data
-		if (initialData != nullptr)
+		if (createInfo.initialData != nullptr)
 		{
 			if (buffer->mappedMemory)
 			{
-				std::memcpy(buffer->mappedMemory, initialData, size);
-				vmaFlushAllocation(ctx.allocator, buffer->allocation, 0, size);
+				std::memcpy(buffer->mappedMemory, createInfo.initialData, createInfo.size);
+				vmaFlushAllocation(ctx.allocator, buffer->allocation, 0, createInfo.size);
 			}
 			else
 			{
@@ -83,9 +90,9 @@ namespace eg::graphics_api::vk
 				buffer->currentStageFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
 				buffer->currentUsage = eg::BufferUsage::CopyDst;
 				
-				if (size <= 65536)
+				if (createInfo.size <= 65536)
 				{
-					vkCmdUpdateBuffer(GetCB(nullptr), buffer->buffer, 0, size, initialData);
+					vkCmdUpdateBuffer(GetCB(nullptr), buffer->buffer, 0, createInfo.size, createInfo.initialData);
 				}
 				else
 				{

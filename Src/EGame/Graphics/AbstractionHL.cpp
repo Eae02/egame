@@ -92,8 +92,14 @@ namespace eg
 		Buffer buffer;
 		
 		explicit UploadBufferEntry(uint64_t _size)
-			: size(_size), offset(0),
-			  buffer(BufferFlags::MapWrite | BufferFlags::CopySrc | BufferFlags::HostAllocate, _size, nullptr) { }
+			: size(_size), offset(0)
+		{
+			BufferCreateInfo createInfo;
+			createInfo.flags = BufferFlags::MapWrite | BufferFlags::CopySrc | BufferFlags::HostAllocate;
+			createInfo.size = _size;
+			createInfo.label = "UploadBuffer";
+			buffer = Buffer(createInfo);
+		}
 	};
 	
 	static std::vector<UploadBufferEntry> uploadBuffers;

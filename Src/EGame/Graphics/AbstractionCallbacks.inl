@@ -7,7 +7,7 @@ XM_ABSCALLBACK(EndFrame, void, ())
 XM_ABSCALLBACK(Shutdown, void, ())
 XM_ABSCALLBACK(DeviceWaitIdle, void, ())
 
-XM_ABSCALLBACK(CreateBuffer, BufferHandle, (BufferFlags flags, uint64_t size, const void* initialData))
+XM_ABSCALLBACK(CreateBuffer, BufferHandle, (const BufferCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyBuffer, void, (BufferHandle buffer))
 XM_ABSCALLBACK(BufferUsageHint, void, (BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags))
 XM_ABSCALLBACK(BufferBarrier, void, (CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier))

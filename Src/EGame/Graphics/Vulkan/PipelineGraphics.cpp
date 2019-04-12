@@ -37,6 +37,8 @@ namespace eg::graphics_api::vk
 		VkPipelineColorBlendAttachmentState blendStates[8];
 		VkPipelineColorBlendStateCreateInfo colorBlendStateCI;
 		
+		std::string label;
+		
 		void Free() override;
 		
 		void Bind(CommandContextHandle cc);
@@ -245,6 +247,13 @@ namespace eg::graphics_api::vk
 		
 		pipeline->patchControlPoints = createInfo.patchControlPoints;
 		
+		if (createInfo.label != nullptr)
+		{
+			SetObjectName(reinterpret_cast<uint64_t>(pipeline->pipelineLayout),
+				VK_OBJECT_TYPE_PIPELINE_LAYOUT, createInfo.label);
+			pipeline->label = createInfo.label;
+		}
+		
 		return WrapPipeline(pipeline);
 	}
 	
@@ -359,9 +368,19 @@ namespace eg::graphics_api::vk
 		if (warn)
 		{
 			std::ostringstream msgStream;
-			msgStream << "Creating pipeline on demand stalled CPU for " << std::setprecision(2) << (elapsed * 1E-6) <<
-				"ms. Consider adding a framebuffer format hint after creation.";
+			msgStream << "Creating pipeline on demand stalled CPU for " <<
+				std::setprecision(2) << (elapsed * 1E-6) << "ms.";
+			
+			if (!pipeline.label.empty())
+				msgStream << " Label of affected pipeline: '" << pipeline.label << "'.";
+			
 			Log(LogLevel::Warning, "vk", "{0}", msgStream.str());
+		}
+		
+		if (!pipeline.label.empty())
+		{
+			SetObjectName(reinterpret_cast<uint64_t>(fbPipeline.pipeline),
+				VK_OBJECT_TYPE_PIPELINE, pipeline.label.c_str());
 		}
 		
 		return fbPipeline.pipeline;

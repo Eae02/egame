@@ -181,7 +181,9 @@ namespace eg
 	public:
 		Buffer() = default;
 		Buffer(BufferFlags flags, uint64_t size, const void* data)
-			: OwningRef(gal::CreateBuffer(flags, size, data)) { }
+			: OwningRef(gal::CreateBuffer(BufferCreateInfo { flags, size, data, nullptr })) { }
+		explicit Buffer(const BufferCreateInfo& createInfo)
+			: OwningRef(gal::CreateBuffer(createInfo)) { }
 	};
 	
 	class EG_API TextureRef

@@ -28,6 +28,7 @@ namespace eg
 		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, position) };
 		pipelineCI.vertexAttributes[1] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, texCoord) };
 		pipelineCI.vertexAttributes[2] = { 0, DataType::UInt8Norm, 4, (uint32_t)offsetof(Vertex, color) };
+		pipelineCI.label = "SpriteBatch";
 		spritePipeline = eg::Pipeline::Create(pipelineCI);
 		
 		SamplerDescription whiteTexSamplerDesc;
@@ -58,11 +59,6 @@ namespace eg
 	{
 		whitePixelTexture.Destroy();
 		spritePipeline.Destroy();
-	}
-	
-	SpriteBatch::SpriteBatch()
-	{
-		
 	}
 	
 	void SpriteBatch::Begin()

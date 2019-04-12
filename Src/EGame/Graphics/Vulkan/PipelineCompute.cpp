@@ -46,6 +46,13 @@ namespace eg::graphics_api::vk
 		
 		CheckRes(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pipeline->pipeline));
 		
+		if (createInfo.label != nullptr)
+		{
+			SetObjectName(reinterpret_cast<uint64_t>(pipeline->pipeline), VK_OBJECT_TYPE_PIPELINE, createInfo.label);
+			SetObjectName(reinterpret_cast<uint64_t>(pipeline->pipelineLayout), VK_OBJECT_TYPE_PIPELINE_LAYOUT,
+				createInfo.label);
+		}
+		
 		return WrapPipeline(pipeline);
 	}
 	

@@ -21,7 +21,7 @@ namespace eg
 	class EG_API SpriteBatch
 	{
 	public:
-		SpriteBatch();
+		SpriteBatch() = default;
 		
 		void Begin();
 		

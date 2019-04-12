@@ -85,6 +85,14 @@ namespace eg
 		uint64_t range;
 	};
 	
+	struct BufferCreateInfo
+	{
+		BufferFlags flags;
+		uint64_t size;
+		const void* initialData = nullptr;
+		const char* label = nullptr;
+	};
+	
 	enum class CullMode
 	{
 		None,
@@ -251,6 +259,7 @@ namespace eg
 		BlendState blendStates[MAX_COLOR_ATTACHMENTS];
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
+		const char* label = nullptr;
 	};
 	
 	enum class BindingType
@@ -282,6 +291,7 @@ namespace eg
 	{
 		ShaderModuleHandle computeShader;
 		BindMode setBindModes[MAX_DESCRIPTOR_SETS] = { };
+		const char* label = nullptr;
 	};
 	
 	enum class SwizzleMode
@@ -374,6 +384,7 @@ namespace eg
 		SwizzleMode swizzleG = SwizzleMode::Identity;
 		SwizzleMode swizzleB = SwizzleMode::Identity;
 		SwizzleMode swizzleA = SwizzleMode::Identity;
+		const char* label = nullptr;
 	};
 	
 	struct Texture2DCreateInfo : TextureCreateInfo

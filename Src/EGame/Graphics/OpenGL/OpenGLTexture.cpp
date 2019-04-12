@@ -137,6 +137,11 @@ namespace eg::graphics_api::gl
 	
 	static void InitTexture(GLuint texture, const TextureCreateInfo& createInfo)
 	{
+		if (createInfo.label != nullptr)
+		{
+			glObjectLabel(GL_TEXTURE, texture, -1, createInfo.label);
+		}
+		
 		glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
 		
 		if (createInfo.defaultSamplerDescription != nullptr)

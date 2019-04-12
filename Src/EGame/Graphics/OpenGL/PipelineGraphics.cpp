@@ -65,11 +65,20 @@ namespace eg::graphics_api::gl
 		GL_COMPUTE_SHADER
 	};
 	
+	static const char* ShaderSuffixes[] = 
+	{
+		" [VS]",
+		" [FS]",
+		" [GS]",
+		" [TCS]",
+		" [TES]",
+		" [CS]"
+	};
+	
 	PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
 	{
 		GraphicsPipeline* pipeline = gfxPipelinePool.New();
 		
-		pipeline->program = glCreateProgram();
 		pipeline->numShaderModules = 0;
 		pipeline->numClipDistances = createInfo.numClipDistances;
 		
@@ -86,8 +95,16 @@ namespace eg::graphics_api::gl
 					EG_PANIC("Shader stage mismatch");
 				}
 				spvCompilers[pipeline->numShaderModules] = &module->spvCompiler;
-				pipeline->shaderModules[pipeline->numShaderModules] = glCreateShader(ShaderTypes[(int)expectedStage]);
-				pipeline->numShaderModules++;;
+				
+				GLuint shader = glCreateShader(ShaderTypes[(int)expectedStage]);
+				pipeline->shaderModules[pipeline->numShaderModules] = shader;
+				pipeline->numShaderModules++;
+				
+				if (createInfo.label != nullptr)
+				{
+					std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[(int)expectedStage] });
+					glObjectLabel(GL_SHADER, shader, -1, shaderLabel.c_str());
+				}
 			}
 		};
 		MaybeAddStage(createInfo.vertexShader, eg::ShaderStage::Vertex);
@@ -97,6 +114,11 @@ namespace eg::graphics_api::gl
 		MaybeAddStage(createInfo.tessEvaluationShader, eg::ShaderStage::TessEvaluation);
 		
 		pipeline->Initialize(pipeline->numShaderModules, spvCompilers, pipeline->shaderModules);
+		
+		if (createInfo.label != nullptr)
+		{
+			glObjectLabel(GL_PROGRAM, pipeline->program, -1, createInfo.label);
+		}
 		
 		glCreateVertexArrays(1, &pipeline->vertexArray);
 		for (uint32_t i = 0; i < MAX_VERTEX_ATTRIBUTES; i++)

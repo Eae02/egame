@@ -26,6 +26,7 @@ namespace eg::graphics_api::vk
 		VkComponentMapping componentMapping;
 		VkSampler defaultSampler;
 		bool autoBarrier;
+		std::string viewLabel;
 		
 		VkPipelineStageFlags currentStageFlags;
 		TextureUsage currentUsage;

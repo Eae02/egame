@@ -9,39 +9,49 @@ namespace eg::graphics_api::gl
 {
 	static ObjectPool<Buffer> bufferPool;
 	
-	BufferHandle CreateBuffer(BufferFlags flags, uint64_t size, const void* initialData)
+	BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	{
 		Buffer* buffer = bufferPool.New();
-		buffer->size = size;
+		buffer->size = createInfo.size;
 		
 		glCreateBuffers(1, &buffer->buffer);
 		
 		GLenum mapFlags = 0;
 		GLenum storageFlags = 0;
-		if (HasFlag(flags, BufferFlags::MapWrite))
+		if (HasFlag(createInfo.flags, BufferFlags::MapWrite))
 		{
 			storageFlags |= GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
 			mapFlags |= GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT;
 		}
-		if (HasFlag(flags, BufferFlags::MapRead))
+		if (HasFlag(createInfo.flags, BufferFlags::MapRead))
 		{
 			storageFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT;
 			mapFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT;
 		}
-		if (HasFlag(flags, BufferFlags::Update))
+		if (HasFlag(createInfo.flags, BufferFlags::Update))
 		{
 			storageFlags |= GL_DYNAMIC_STORAGE_BIT;
 		}
-		if (HasFlag(flags, BufferFlags::HostAllocate))
+		if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
 		{
 			storageFlags |= GL_CLIENT_STORAGE_BIT;
 		}
 		
-		glNamedBufferStorage(buffer->buffer, size, initialData, storageFlags);
+		glNamedBufferStorage(buffer->buffer, createInfo.size, createInfo.initialData, storageFlags);
 		if (mapFlags)
-			buffer->persistentMapping = reinterpret_cast<char*>(glMapNamedBufferRange(buffer->buffer, 0, size, mapFlags));
+		{
+			buffer->persistentMapping = reinterpret_cast<char*>(
+				glMapNamedBufferRange(buffer->buffer, 0, createInfo.size, mapFlags));
+		}
 		else
+		{
 			buffer->persistentMapping = nullptr;
+		}
+		
+		if (createInfo.label != nullptr)
+		{
+			glObjectLabel(GL_BUFFER, buffer->buffer, -1, createInfo.label);
+		}
 		
 		return reinterpret_cast<BufferHandle>(buffer);
 	}

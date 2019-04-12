@@ -86,6 +86,12 @@ namespace eg::graphics_api::vk
 		CheckRes(vmaCreateImage(ctx.allocator, &imageCreateInfo, &allocationCreateInfo, &texture.image,
 			&texture.allocation, nullptr));
 		
+		if (createInfo.label != nullptr)
+		{
+			texture.viewLabel = Concat({ createInfo.label, " [View]" });
+			SetObjectName(reinterpret_cast<uint64_t>(texture.image), VK_OBJECT_TYPE_IMAGE, createInfo.label);
+		}
+		
 		texture.componentMapping.r = TranslateCompSwizzle(createInfo.swizzleR);
 		texture.componentMapping.g = TranslateCompSwizzle(createInfo.swizzleG);
 		texture.componentMapping.b = TranslateCompSwizzle(createInfo.swizzleB);
@@ -125,6 +131,12 @@ namespace eg::graphics_api::vk
 		
 		TextureView& view = views.emplace_back();
 		CheckRes(vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &view.view));
+		
+		if (!viewLabel.empty())
+		{
+			SetObjectName(reinterpret_cast<uint64_t>(view.view), VK_OBJECT_TYPE_IMAGE_VIEW, viewLabel.c_str());
+		}
+		
 		view.subresource = resolvedSubresource;
 		return view.view;
 	}
