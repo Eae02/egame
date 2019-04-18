@@ -60,6 +60,7 @@ namespace eg
 			
 			componentType.destructor(component->Get());
 			component->Free();
+			componentIndex++;
 		}
 		
 		if (m_parent != nullptr && !m_parent->m_queuedForDespawn)
