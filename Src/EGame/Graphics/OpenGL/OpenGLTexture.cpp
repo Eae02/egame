@@ -7,6 +7,8 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
 
+#include <GL/glext.h>
+
 namespace eg::graphics_api::gl
 {
 	int maxAnistropy;
@@ -298,8 +300,26 @@ namespace eg::graphics_api::gl
 		return view.texture;
 	}
 	
+	static std::pair<Format, GLenum> compressedUploadFormats[] =
+	{
+		{ Format::BC1_RGBA_UNorm, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT },
+		{ Format::BC1_RGBA_sRGB, GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT },
+		{ Format::BC1_RGB_UNorm, GL_COMPRESSED_RGB_S3TC_DXT1_EXT },
+		{ Format::BC1_RGB_sRGB, GL_COMPRESSED_SRGB_S3TC_DXT1_EXT },
+		{ Format::BC3_UNorm, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT },
+		{ Format::BC3_sRGB, GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT },
+		{ Format::BC4_UNorm, GL_COMPRESSED_RED_RGTC1 },
+		{ Format::BC5_UNorm, GL_COMPRESSED_RG_RGTC2 }
+	};
+	
 	static std::tuple<GLenum, GLenum> GetUploadFormat(Format format)
 	{
+		for (const std::pair<Format, GLenum>& compressedFormat : compressedUploadFormats)
+		{
+			if (compressedFormat.first == format)
+				return std::make_tuple(compressedFormat.second, 0);
+		}
+		
 		int componentCount = GetFormatComponentCount(format);
 		int componentSize = GetFormatSize(format) / componentCount;
 		
@@ -327,22 +347,43 @@ namespace eg::graphics_api::gl
 	}
 	
 	void SetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
-		BufferHandle buffer, uint64_t offset)
+		BufferHandle bufferHandle, uint64_t offset)
 	{
-		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, reinterpret_cast<const Buffer*>(buffer)->buffer);
+		void* offsetPtr = (void*)(uintptr_t)offset;
+		
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, reinterpret_cast<const Buffer*>(bufferHandle)->buffer);
 		
 		Texture* texture = UnwrapTexture(handle);
 		auto[format, type] = GetUploadFormat(texture->format);
 		
+		const bool isCompressed = IsCompressedFormat(texture->format);
+		const uint32_t imageBytes = GetImageByteSize(range.sizeX, range.sizeY, texture->format);
+		
 		switch (texture->dim)
 		{
 		case 2:
-			glTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
-			                    range.sizeX, range.sizeY, format, type, (void*)(uintptr_t)offset);
+			if (isCompressed)
+			{
+				glCompressedTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
+					range.sizeX, range.sizeY, format, imageBytes, offsetPtr);
+			}
+			else
+			{
+				glTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
+				                    range.sizeX, range.sizeY, format, type, offsetPtr);
+			}
 			break;
 		case 3:
-			glTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
-			                    range.sizeX, range.sizeY, range.sizeZ, format, type, (void*)(uintptr_t)offset);
+			if (isCompressed)
+			{
+				glCompressedTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
+					range.offsetZ, range.sizeX, range.sizeY, range.sizeZ, format, imageBytes * range.sizeZ, offsetPtr);
+			}
+			else
+			{
+				glTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
+				                    range.sizeX, range.sizeY, range.sizeZ, format, type, offsetPtr);
+			}
 			break;
 		}
 		

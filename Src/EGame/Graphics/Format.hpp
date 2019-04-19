@@ -68,9 +68,12 @@ namespace eg
 	};
 	
 	EG_API FormatTypes GetFormatType(Format format);
+	EG_API bool IsCompressedFormat(Format format);
 	EG_API int GetFormatComponentCount(Format format);
 	EG_API int GetFormatSize(Format format);
 	EG_API bool IsSRGBFormat(Format format);
+	
+	EG_API uint32_t GetImageByteSize(uint32_t width, uint32_t height, Format format);
 	
 	enum class DataType
 	{

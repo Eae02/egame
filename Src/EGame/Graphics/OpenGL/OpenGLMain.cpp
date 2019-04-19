@@ -156,6 +156,8 @@ namespace eg::graphics_api::gl
 		capabilities.geometryShader = true;
 		capabilities.tessellation = true;
 		capabilities.textureCubeMapArray = true;
+		capabilities.blockTextureCompression = SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
+			SDL_GL_ExtensionSupported("GL_ARB_texture_compression_rgtc");
 		capabilities.depthRange = DepthRange::NegOneToOne;
 	}
 	

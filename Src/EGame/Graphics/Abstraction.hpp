@@ -539,6 +539,7 @@ namespace eg
 		bool geometryShader;
 		bool tessellation;
 		bool textureCubeMapArray;
+		bool blockTextureCompression;
 	};
 	
 	template <>

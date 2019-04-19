@@ -442,6 +442,7 @@ namespace eg::graphics_api::vk
 		enabledDeviceFeatures.tessellationShader = ctx.deviceFeatures.tessellationShader;
 		enabledDeviceFeatures.shaderClipDistance = ctx.deviceFeatures.shaderClipDistance;
 		enabledDeviceFeatures.shaderCullDistance = ctx.deviceFeatures.shaderCullDistance;
+		enabledDeviceFeatures.textureCompressionBC = ctx.deviceFeatures.textureCompressionBC;
 		
 		uint32_t numEnabledDeviceExtensions = 0;
 		const char* enabledDeviceExtensions[16];
@@ -598,6 +599,7 @@ namespace eg::graphics_api::vk
 		capabilities.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
 		capabilities.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
 		capabilities.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
+		capabilities.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
 	}
 	
 	void DestroyCachedDescriptorSets();

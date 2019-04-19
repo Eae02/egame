@@ -133,7 +133,7 @@ namespace eg::graphics_api::vk
 		if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-OutputNotConsumed") == 0)
 			return VK_FALSE;
 		
-		if (std::strstr(callbackData->pMessage, "Mapping an image with layout VK_IMAGE_LAYOUT_UNDEFINED can result in undefined behavior"))
+		if (std::strstr(callbackData->pMessage, "can result in undefined behavior if this memory is used by the device. Only GENERAL or PREINITIALIZED should be used."))
 			return VK_FALSE;
 		
 		std::cerr << "Vk[" << callbackData->messageIdNumber << " " << callbackData->pMessageIdName << "]: \n" <<

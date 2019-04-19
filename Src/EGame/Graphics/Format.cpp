@@ -195,4 +195,42 @@ namespace eg
 		return format == Format::R8G8B8A8_sRGB || format == Format::R8G8B8_sRGB ||
 			format == Format::BC1_RGB_sRGB || format == Format::BC1_RGBA_sRGB || format == Format::BC3_sRGB;
 	}
+	
+	static const Format compressedFormats[] = 
+	{
+		Format::BC1_RGBA_UNorm,
+		Format::BC1_RGBA_sRGB,
+		Format::BC1_RGB_UNorm,
+		Format::BC1_RGB_sRGB,
+		Format::BC3_UNorm,
+		Format::BC3_sRGB,
+		Format::BC4_UNorm,
+		Format::BC5_UNorm
+	};
+	
+	bool IsCompressedFormat(Format format)
+	{
+		return Contains(compressedFormats, format);
+	}
+	
+	uint32_t GetImageByteSize(uint32_t width, uint32_t height, Format format)
+	{
+		uint32_t numBlocks = ((width + 3) / 4) * ((height + 3) / 4);
+		
+		switch (format)
+		{
+		case eg::Format::BC1_RGB_UNorm:
+		case eg::Format::BC1_RGB_sRGB:
+		case eg::Format::BC1_RGBA_UNorm:
+		case eg::Format::BC1_RGBA_sRGB:
+		case eg::Format::BC4_UNorm:
+			return numBlocks * 8;
+		case eg::Format::BC3_UNorm:
+		case eg::Format::BC3_sRGB:
+		case eg::Format::BC5_UNorm:
+			return numBlocks * 16;
+		default:
+			return width * height * GetFormatSize(format);
+		}
+	}
 }

@@ -44,6 +44,7 @@
 #include "Assets/AssetGenerator.hpp"
 #include "Assets/ModelAsset.hpp"
 #include "Assets/ShaderModule.hpp"
+#include "Assets/Texture2DLoader.hpp"
 #include "Entity/EntityManager.hpp"
 #include "Entity/ECTransform.hpp"
 #include "Entity/ECModel.hpp"
