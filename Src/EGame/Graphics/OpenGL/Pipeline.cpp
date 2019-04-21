@@ -118,6 +118,27 @@ namespace eg::graphics_api::gl
 			spvCompilers[i]->set_common_options(options);
 			std::string glslCode = spvCompilers[i]->compile();
 			
+			auto ResetResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources, BindingType type)
+			{
+				for (const spirv_cross::Resource& res : resources)
+				{
+					const uint32_t glBinding = spvCompilers[i]->get_decoration(res.id, spv::DecorationBinding);
+					for (const MappedBinding& mb : bindings)
+					{
+						if (mb.glBinding == glBinding && mb.type == type)
+						{
+							spvCompilers[i]->set_decoration(res.id, spv::DecorationDescriptorSet, mb.set);
+							spvCompilers[i]->set_decoration(res.id, spv::DecorationBinding, mb.binding);
+							break;
+						}
+					}
+				}
+			};
+			
+			ResetResources(resources.uniform_buffers, BindingType::UniformBuffer);
+			ResetResources(resources.sampled_images, BindingType::Texture);
+			ResetResources(resources.storage_images, BindingType::StorageImage);
+			
 			const GLchar* glslCodeC = glslCode.c_str();
 			const GLint glslCodeLen = (GLint)glslCode.size();
 			glShaderSource(shaderModules[i], 1, &glslCodeC, &glslCodeLen);
