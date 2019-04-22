@@ -20,6 +20,8 @@ namespace eg
 	
 	EG_API std::string RealPath(const char* path);
 	
+	EG_API const std::string& AppDataPath();
+	
 	EG_API void CreateDirectory(const char* path);
 	
 	EG_API void CreateDirectories(std::string_view path);

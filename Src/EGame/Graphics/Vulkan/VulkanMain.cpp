@@ -590,16 +590,17 @@ namespace eg::graphics_api::vk
 		return true;
 	}
 	
-	void GetCapabilities(GraphicsCapabilities& capabilities)
+	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	{
-		capabilities.uniformBufferAlignment = ctx.deviceLimits.minUniformBufferOffsetAlignment;
-		capabilities.depthRange = DepthRange::ZeroToOne;
-		capabilities.tessellation = ctx.deviceFeatures.tessellationShader;
-		capabilities.geometryShader = ctx.deviceFeatures.geometryShader;
-		capabilities.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
-		capabilities.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
-		capabilities.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
-		capabilities.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
+		deviceInfo.uniformBufferAlignment = ctx.deviceLimits.minUniformBufferOffsetAlignment;
+		deviceInfo.depthRange = DepthRange::ZeroToOne;
+		deviceInfo.tessellation = ctx.deviceFeatures.tessellationShader;
+		deviceInfo.geometryShader = ctx.deviceFeatures.geometryShader;
+		deviceInfo.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
+		deviceInfo.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
+		deviceInfo.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
+		deviceInfo.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
+		deviceInfo.timerTicksPerNS = ctx.deviceLimits.timestampPeriod;
 	}
 	
 	void DestroyCachedDescriptorSets();

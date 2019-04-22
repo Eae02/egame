@@ -12,7 +12,7 @@ namespace eg
 	
 	const BlendState AlphaBlend { BlendFunc::Add, BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha };
 	
-	GraphicsCapabilities detail::graphicsCapabilities;
+	GraphicsDeviceInfo detail::graphicsDeviceInfo;
 	
 	ShaderModule ShaderModule::CreateFromFile(const std::string& path)
 	{

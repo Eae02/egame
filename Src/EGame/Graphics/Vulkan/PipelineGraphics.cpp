@@ -330,7 +330,7 @@ namespace eg::graphics_api::vk
 		{
 			/* sType               */ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			/* pNext               */ nullptr,
-			/* flags               */ 0,
+			/* flags               */ VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT,
 			/* stageCount          */ pipeline.numStages,
 			/* pStages             */ pipeline.shaderStageCI,
 			/* pVertexInputState   */ &pipeline.vertexInputStateCI,
@@ -349,11 +349,7 @@ namespace eg::graphics_api::vk
 			/* basePipelineIndex   */ -1
 		};
 		
-		if (pipeline.pipelines.empty())
-		{
-			vkCreateInfo.flags |= VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
-		}
-		else
+		if (!pipeline.pipelines.empty())
 		{
 			vkCreateInfo.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
 			vkCreateInfo.basePipelineHandle = pipeline.pipelines.front().pipeline;

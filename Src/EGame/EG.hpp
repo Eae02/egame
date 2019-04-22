@@ -49,3 +49,4 @@
 #include "Entity/ECTransform.hpp"
 #include "Entity/ECModel.hpp"
 #include "Entity/ECInvoke.hpp"
+#include "Profiling/Profiler.hpp"

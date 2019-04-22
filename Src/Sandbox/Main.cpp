@@ -41,7 +41,6 @@ public:
 private:
 	float m_rotation = 0.0f;
 	eg::Pipeline m_pipeline;
-	eg::BRDFIntegrationMap m_integMap;
 };
 
 int main(int argc, char** argv)

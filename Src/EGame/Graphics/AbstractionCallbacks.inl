@@ -1,5 +1,5 @@
 XM_ABSCALLBACK(GetDrawableSize, void, (int& width, int& height))
-XM_ABSCALLBACK(GetCapabilities, void, (GraphicsCapabilities& capabilities))
+XM_ABSCALLBACK(GetDeviceInfo, void, (GraphicsDeviceInfo& deviceInfo))
 XM_ABSCALLBACK(EndLoading, void, ())
 XM_ABSCALLBACK(IsLoadingComplete, bool, ())
 XM_ABSCALLBACK(BeginFrame, void, ())
@@ -65,3 +65,12 @@ XM_ABSCALLBACK(BindVertexBuffer, void, (CommandContextHandle, uint32_t binding, 
 
 XM_ABSCALLBACK(Draw, void, (CommandContextHandle ctx, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances))
 XM_ABSCALLBACK(DrawIndexed, void, (CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance, uint32_t numInstances))
+
+XM_ABSCALLBACK(CreateQueryPool, QueryPoolHandle, (QueryType type, uint32_t queryCount))
+XM_ABSCALLBACK(DestroyQueryPool, void, (QueryPoolHandle queryPool))
+XM_ABSCALLBACK(GetQueryResults, bool, (QueryPoolHandle queryPool, uint32_t firstQuery, uint32_t numQueries, uint64_t dataSize, void* data))
+XM_ABSCALLBACK(CopyQueryResults, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle,
+	uint32_t firstQuery, uint32_t numQueries, BufferHandle dstBufferHandle, uint64_t dstOffset))
+XM_ABSCALLBACK(WriteTimestamp, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))
+XM_ABSCALLBACK(BeginQuery, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))
+XM_ABSCALLBACK(EndQuery, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))

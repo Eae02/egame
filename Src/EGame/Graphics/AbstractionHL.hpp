@@ -440,6 +440,39 @@ namespace eg
 		}
 	};
 	
+	class EG_API QueryPoolRef
+	{
+	public:
+		QueryPoolRef(QueryPoolHandle _handle = nullptr)
+			: handle(_handle) { }
+		
+		void Destroy()
+		{
+			if (handle)
+			{
+				gal::DestroyQueryPool(handle);
+				handle = nullptr;
+			}
+		}
+		
+		bool GetResults(uint32_t firstQuery, uint32_t numQueries, uint64_t dataSize, void* data) const
+		{
+			return gal::GetQueryResults(handle, firstQuery, numQueries, dataSize, data);
+		}
+		
+		QueryPoolHandle handle;
+	};
+	
+	class EG_API QueryPool : public OwningRef<QueryPoolRef>
+	{
+	public:
+		QueryPool() = default;
+		QueryPool(QueryType type, uint32_t size)
+		{
+			handle = gal::CreateQueryPool(type, size);
+		}
+	};
+	
 	class EG_API CommandContext
 	{
 	public:
@@ -570,6 +603,27 @@ namespace eg
 			gal::EndRenderPass(Handle());
 		}
 		
+		void BeginQuery(QueryPoolRef pool, uint32_t query)
+		{
+			gal::BeginQuery(Handle(), pool.handle, query);
+		}
+		
+		void EndQuery(QueryPoolRef pool, uint32_t query)
+		{
+			gal::EndQuery(Handle(), pool.handle, query);
+		}
+		
+		void WriteTimestamp(QueryPoolRef pool, uint32_t query)
+		{
+			gal::WriteTimestamp(Handle(), pool.handle, query);
+		}
+		
+		void CopyQueryResults(QueryPoolRef pool, uint32_t firstQuery, uint32_t numQueries,
+			BufferRef dstBuffer, uint64_t dstOffset)
+		{
+			gal::CopyQueryResults(Handle(), pool.handle, firstQuery, numQueries, dstBuffer.handle, dstOffset);
+		}
+		
 		/**
 		 * Gets the GAL handle for this command context.
 		 */
@@ -599,11 +653,11 @@ namespace eg
 	
 	namespace detail
 	{
-		extern EG_API GraphicsCapabilities graphicsCapabilities;
+		extern EG_API GraphicsDeviceInfo graphicsDeviceInfo;
 	}
 	
-	inline const GraphicsCapabilities& GraphicsCaps()
+	inline const GraphicsDeviceInfo& GetGraphicsDeviceInfo()
 	{
-		return detail::graphicsCapabilities;
+		return detail::graphicsDeviceInfo;
 	}
 }

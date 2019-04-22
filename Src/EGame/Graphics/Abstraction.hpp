@@ -24,6 +24,13 @@ namespace eg
 	typedef struct _Pipeline* PipelineHandle;
 	typedef struct _CommandContext* CommandContextHandle;
 	typedef struct _DescriptorSet* DescriptorSetHandle;
+	typedef struct _QueryPool* QueryPoolHandle;
+	
+	enum class QueryType
+	{
+		Timestamp,
+		Occlusion
+	};
 	
 	enum class ShaderStage
 	{
@@ -530,7 +537,7 @@ namespace eg
 		ZeroToOne
 	};
 	
-	struct GraphicsCapabilities
+	struct GraphicsDeviceInfo
 	{
 		uint32_t uniformBufferAlignment;
 		uint32_t maxTessellationPatchSize;
@@ -540,6 +547,7 @@ namespace eg
 		bool tessellation;
 		bool textureCubeMapArray;
 		bool blockTextureCompression;
+		float timerTicksPerNS;
 	};
 	
 	template <>

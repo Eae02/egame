@@ -35,6 +35,19 @@ namespace eg
 	{
 		return GetFileAttributes(path) == FILE_ATTRIBUTE_NORMAL;
 	}
+	
+	static std::string appDataPath;
+	
+	const std::string& AppDataPath()
+	{
+		if (appDataPath.empty())
+		{
+			LPWSTR wszPath = NULL;
+			SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &wszPath);
+			appDataPath = std::string(wszPath);
+		}
+		return appDataPath;
+	}
 }
 
 #endif

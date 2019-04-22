@@ -141,7 +141,7 @@ namespace eg::graphics_api::gl
 		return true;
 	}
 	
-	void GetCapabilities(GraphicsCapabilities& capabilities)
+	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	{
 		auto GetIntegerLimit = [&] (GLenum name)
 		{
@@ -150,15 +150,17 @@ namespace eg::graphics_api::gl
 			return res;
 		};
 		
-		capabilities.uniformBufferAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
-		capabilities.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
-		capabilities.maxClipDistances = (uint32_t)GetIntegerLimit(GL_MAX_CLIP_DISTANCES);
-		capabilities.geometryShader = true;
-		capabilities.tessellation = true;
-		capabilities.textureCubeMapArray = true;
-		capabilities.blockTextureCompression = SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
+		deviceInfo.uniformBufferAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
+		deviceInfo.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
+		deviceInfo.maxClipDistances = (uint32_t)GetIntegerLimit(GL_MAX_CLIP_DISTANCES);
+		deviceInfo.geometryShader = true;
+		deviceInfo.tessellation = true;
+		deviceInfo.textureCubeMapArray = true;
+		deviceInfo.blockTextureCompression =
+			SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
 			SDL_GL_ExtensionSupported("GL_ARB_texture_compression_rgtc");
-		capabilities.depthRange = DepthRange::NegOneToOne;
+		deviceInfo.depthRange = DepthRange::NegOneToOne;
+		deviceInfo.timerTicksPerNS = 1.0f;
 	}
 	
 	void Shutdown()

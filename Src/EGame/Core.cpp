@@ -10,9 +10,12 @@
 #include "Console.hpp"
 #include "TranslationGizmo.hpp"
 #include "GameController.hpp"
+#include "Profiling/Profiler.hpp"
+#include "Profiling/ProfilerPane.hpp"
 
 #include <SDL.h>
 #include <iostream>
+#include <list>
 
 using namespace std::chrono;
 
@@ -270,13 +273,38 @@ namespace eg
 			return 1;
 		}
 		
-		gal::GetCapabilities(detail::graphicsCapabilities);
+		gal::GetDeviceInfo(detail::graphicsDeviceInfo);
+		
+		std::list<Profiler> profilers;
+		std::vector<Profiler*> availProfilers;
+		std::vector<Profiler*> pendingProfilers;
+		std::unique_ptr<ProfilerPane> profilerPane;
 		
 		SpriteBatch::InitStatic();
 		TranslationGizmo::InitStatic();
 		if (DevMode())
 		{
 			SpriteFont::LoadDevFont();
+			profilers.resize(MAX_CONCURRENT_FRAMES + 1);
+			profilerPane = std::make_unique<ProfilerPane>();
+			
+			console::AddCommand("ppane", 0, [&] (Span<const std::string_view> args)
+			{
+				bool visible = !profilerPane->visible;
+				if (args.size() == 1)
+				{
+					if (args[0] == "show")
+						visible = true;
+					else if (args[0] == "hide")
+						visible = false;
+					else
+					{
+						console::Write(console::ErrorColor, "Invalid argument to ppane, should be 'show' or 'hide'");
+						return;
+					}
+				}
+				profilerPane->visible = visible;
+			});
 		}
 		
 		if (runConfig.initialize)
@@ -330,6 +358,23 @@ namespace eg
 			currentIS.cursorDeltaX = 0;
 			currentIS.cursorDeltaY = 0;
 			inputtedText.clear();
+			
+			if (devMode)
+			{
+				if (availProfilers.empty())
+				{
+					Profiler::current = &profilers.emplace_back();
+				}
+				else
+				{
+					Profiler::current = availProfilers.back();
+					availProfilers.pop_back();
+				}
+				
+				Profiler::current->Reset();
+			}
+			
+			auto frameCPUTimer = StartCPUTimer("Frame");
 			
 			SDL_Event event;
 			while (SDL_PollEvent(&event))
@@ -408,7 +453,25 @@ namespace eg
 				}
 			}
 			
-			gal::BeginFrame();
+			{
+				auto cpuTimer = StartCPUTimer("GPU Sync");
+				gal::BeginFrame();
+			}
+			
+			auto gpuTimer = StartGPUTimer("Frame");
+			
+			while (!pendingProfilers.empty())
+			{
+				Profiler* profiler = pendingProfilers.front();
+				std::optional<ProfilingResults> result = profiler->GetResults();
+				if (!result.has_value())
+					break;
+				
+				profilerPane->AddFrameResult(std::move(*result));
+				
+				pendingProfilers.erase(pendingProfilers.begin());
+				availProfilers.push_back(profiler);
+			}
 			
 			int newDrawableW, newDrawableH;
 			gal::GetDrawableSize(newDrawableW, newDrawableH);
@@ -424,6 +487,11 @@ namespace eg
 			
 			game->RunFrame(dt);
 			
+			if (profilerPane)
+			{
+				profilerPane->Draw(SpriteBatch::overlay, resolutionX, resolutionY);
+			}
+			
 			console::Update(dt);
 			console::Draw(SpriteBatch::overlay, resolutionX, resolutionY);
 			
@@ -438,7 +506,16 @@ namespace eg
 			rpBeginInfo.depthLoadOp = AttachmentLoadOp::Load;
 			SpriteBatch::overlay.End(resolutionX, resolutionY, rpBeginInfo);
 			
+			gpuTimer.Stop();
+			
 			gal::EndFrame();
+			
+			frameCPUTimer.Stop();
+			
+			if (devMode)
+			{
+				pendingProfilers.push_back(Profiler::current);
+			}
 			
 			cFrameIdx = (cFrameIdx + 1) % MAX_CONCURRENT_FRAMES;
 			frameIndex++;
@@ -455,6 +532,7 @@ namespace eg
 		
 		game.reset();
 		
+		profilers.clear();
 		console::Destroy();
 		SpriteBatch::overlay = {};
 		SpriteFont::UnloadDevFont();

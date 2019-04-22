@@ -9,6 +9,7 @@
 #include <sys/prctl.h>
 #include <linux/limits.h>
 #include <unistd.h>
+#include <pwd.h>
 
 namespace eg
 {
@@ -35,6 +36,21 @@ namespace eg
 		struct stat attrib;
 		stat(path, &attrib);
 		return S_ISREG(attrib.st_mode);
+	}
+	
+	static std::string appDataPath;
+	
+	const std::string& AppDataPath()
+	{
+		if (appDataPath.empty())
+		{
+			const char* LINUX_PATH = "/.local/share/";
+			if (struct passwd* pwd = getpwuid(getuid()))
+				appDataPath = Concat({pwd->pw_dir, LINUX_PATH});
+			else
+				appDataPath = Concat({getenv("HOME"), LINUX_PATH});
+		}
+		return appDataPath;
 	}
 }
 
