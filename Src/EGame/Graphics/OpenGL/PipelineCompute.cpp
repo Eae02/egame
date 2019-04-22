@@ -20,7 +20,8 @@ namespace eg::graphics_api::gl
 		
 		pipeline->shaderModule = glCreateShader(GL_COMPUTE_SHADER);
 		
-		ShaderModule* computeShaderModule = UnwrapShaderModule(createInfo.computeShader);
+		ShaderModule* computeShaderModule = UnwrapShaderModule(createInfo.computeShader.shaderModule);
+		SetSpecializationConstants(createInfo.computeShader);
 		
 		spirv_cross::CompilerGLSL* spvCompilerPtr = &computeShaderModule->spvCompiler;
 		pipeline->Initialize(1, &spvCompilerPtr, &pipeline->shaderModule);

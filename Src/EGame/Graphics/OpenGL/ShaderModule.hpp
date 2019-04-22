@@ -24,9 +24,12 @@ namespace eg::graphics_api::gl
 	{
 		ShaderStage stage;
 		spirv_cross::CompilerGLSL spvCompiler;
+		std::vector<spirv_cross::SPIRConstant::ConstantMatrix> initialSpecConstantValues;
 		
 		ShaderModule(Span<const char> code)
 			: spvCompiler(reinterpret_cast<const uint32_t*>(code.data()), code.size() / 4) { }
+		
+		void ResetSpecializationConstants();
 	};
 	
 	inline ShaderModule* UnwrapShaderModule(ShaderModuleHandle handle)

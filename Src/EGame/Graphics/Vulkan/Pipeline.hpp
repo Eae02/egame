@@ -1,11 +1,14 @@
 #pragma once
 
 #include "Common.hpp"
+#include "../../Alloc/LinearAllocator.hpp"
 
 namespace eg::graphics_api::vk
 {
 	struct AbstractPipeline : public Resource
 	{
+		LinearAllocator linearAllocator;
+		
 		VkPipelineBindPoint bindPoint;
 		VkShaderStageFlags pushConstantStages;
 		VkPipelineLayout pipelineLayout;
@@ -19,8 +22,8 @@ namespace eg::graphics_api::vk
 		virtual void Free() override = 0;
 	};
 	
-	void InitShaderStageCreateInfo(VkPipelineShaderStageCreateInfo& createInfo, VkShaderModule module,
-		VkShaderStageFlagBits stage);
+	void InitShaderStageCreateInfo(VkPipelineShaderStageCreateInfo& createInfo, LinearAllocator& linAllocator,
+		const ShaderStageInfo& stageInfo, VkShaderStageFlagBits stage);
 	
 	inline AbstractPipeline* UnwrapPipeline(PipelineHandle handle)
 	{

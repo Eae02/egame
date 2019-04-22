@@ -1,5 +1,6 @@
 #include "Pipeline.hpp"
 #include "DSLCache.hpp"
+#include "ShaderModule.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -61,15 +62,35 @@ namespace eg::graphics_api::vk
 		CheckRes(vkCreatePipelineLayout(ctx.device, &layoutCreateInfo, nullptr, &pipelineLayout));
 	}
 	
-	void InitShaderStageCreateInfo(VkPipelineShaderStageCreateInfo& createInfo, VkShaderModule module,
-		VkShaderStageFlagBits stage)
+	void InitShaderStageCreateInfo(VkPipelineShaderStageCreateInfo& createInfo, LinearAllocator& linAllocator,
+		const ShaderStageInfo& stageInfo, VkShaderStageFlagBits stage)
 	{
 		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		createInfo.pNext = nullptr;
 		createInfo.flags = 0;
-		createInfo.module = module;
+		createInfo.module = UnwrapShaderModule(stageInfo.shaderModule)->module;
 		createInfo.pName = "main";
 		createInfo.stage = stage;
-		createInfo.pSpecializationInfo = nullptr;
+		
+		if (!stageInfo.specConstants.Empty())
+		{
+			VkSpecializationInfo* specInfo = linAllocator.New<VkSpecializationInfo>();
+			specInfo->dataSize = stageInfo.specConstantsDataSize;
+			specInfo->mapEntryCount = stageInfo.specConstants.size();
+			
+			void* specConstantsData = linAllocator.Allocate(stageInfo.specConstantsDataSize);
+			specInfo->pData = specConstantsData;
+			std::memcpy(specConstantsData, stageInfo.specConstantsData, stageInfo.specConstantsDataSize);
+			
+			auto* mapEntries = linAllocator.AllocateArray<VkSpecializationMapEntry>(stageInfo.specConstants.size());
+			specInfo->pMapEntries = mapEntries;
+			std::memcpy(mapEntries, stageInfo.specConstants.data(), stageInfo.specConstants.SizeBytes());
+			
+			createInfo.pSpecializationInfo = specInfo;
+		}
+		else
+		{
+			createInfo.pSpecializationInfo = nullptr;
+		}
 	}
 }

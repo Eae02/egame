@@ -83,15 +83,16 @@ namespace eg::graphics_api::vk
 		uint32_t numPushConstantBytes = 0;
 		pipeline->pushConstantStages = 0;
 		
-		auto MaybeAddStage = [&] (ShaderModuleHandle handle, VkShaderStageFlagBits stageFlags)
+		auto MaybeAddStage = [&] (const ShaderStageInfo& stageInfo, VkShaderStageFlagBits stageFlags)
 		{
-			if (handle == nullptr)
+			if (stageInfo.shaderModule == nullptr)
 				return;
 			
-			ShaderModule* module = UnwrapShaderModule(handle);
+			ShaderModule* module = UnwrapShaderModule(stageInfo.shaderModule);
 			module->ref++;
 			
-			InitShaderStageCreateInfo(pipeline->shaderStageCI[pipeline->numStages], module->module, stageFlags);
+			InitShaderStageCreateInfo(pipeline->shaderStageCI[pipeline->numStages], pipeline->linearAllocator,
+				stageInfo, stageFlags);
 			pipeline->shaderModules[pipeline->numStages++] = module;
 			
 			//Adds bindings from this stage

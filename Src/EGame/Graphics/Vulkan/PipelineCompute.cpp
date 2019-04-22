@@ -36,9 +36,10 @@ namespace eg::graphics_api::vk
 		VkComputePipelineCreateInfo pipelineCreateInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 		pipelineCreateInfo.basePipelineIndex = -1;
 		
-		pipeline->shaderModule = UnwrapShaderModule(createInfo.computeShader);
+		pipeline->shaderModule = UnwrapShaderModule(createInfo.computeShader.shaderModule);
 		pipeline->shaderModule->ref++;
-		InitShaderStageCreateInfo(pipelineCreateInfo.stage, pipeline->shaderModule->module, VK_SHADER_STAGE_COMPUTE_BIT);
+		InitShaderStageCreateInfo(pipelineCreateInfo.stage, pipeline->linearAllocator,
+			createInfo.computeShader, VK_SHADER_STAGE_COMPUTE_BIT);
 		
 		pipeline->InitPipelineLayout(pipeline->shaderModule->bindings, createInfo.setBindModes,
 			pipeline->shaderModule->pushConstantBytes);

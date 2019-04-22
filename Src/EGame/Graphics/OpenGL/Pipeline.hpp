@@ -50,6 +50,8 @@ namespace eg::graphics_api::gl
 	
 	extern const AbstractPipeline* currentPipeline;
 	
+	void SetSpecializationConstants(const ShaderStageInfo& stageInfo);
+	
 	uint32_t ResolveBinding(const AbstractPipeline& pipeline, uint32_t set, uint32_t binding);
 	
 	inline uint32_t ResolveBinding(uint32_t set, uint32_t binding)

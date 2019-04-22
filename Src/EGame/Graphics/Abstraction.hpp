@@ -243,13 +243,32 @@ namespace eg
 		DescriptorSet
 	};
 	
+	struct SpecializationConstantEntry
+	{
+		uint32_t constantID;
+		uint32_t offset;
+		size_t size;
+	};
+	
+	struct ShaderStageInfo
+	{
+		ShaderModuleHandle shaderModule;
+		
+		Span<const SpecializationConstantEntry> specConstants;
+		size_t specConstantsDataSize = 0;
+		void* specConstantsData = nullptr;
+		
+		ShaderStageInfo(ShaderModuleHandle _shaderModule = nullptr)
+			: shaderModule(_shaderModule) { }
+	};
+	
 	struct GraphicsPipelineCreateInfo
 	{
-		ShaderModuleHandle vertexShader = nullptr;
-		ShaderModuleHandle fragmentShader = nullptr;
-		ShaderModuleHandle geometryShader = nullptr;
-		ShaderModuleHandle tessControlShader = nullptr;
-		ShaderModuleHandle tessEvaluationShader = nullptr;
+		ShaderStageInfo vertexShader;
+		ShaderStageInfo fragmentShader;
+		ShaderStageInfo geometryShader;
+		ShaderStageInfo tessControlShader;
+		ShaderStageInfo tessEvaluationShader;
 		bool enableScissorTest = false;
 		bool enableDepthTest = false;
 		bool enableDepthWrite = false;
@@ -296,7 +315,7 @@ namespace eg
 	
 	struct ComputePipelineCreateInfo
 	{
-		ShaderModuleHandle computeShader;
+		ShaderStageInfo computeShader;
 		BindMode setBindModes[MAX_DESCRIPTOR_SETS] = { };
 		const char* label = nullptr;
 	};

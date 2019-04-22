@@ -31,6 +31,26 @@ namespace eg::graphics_api::gl
 		pipeline->Bind();
 	}
 	
+	void SetSpecializationConstants(const ShaderStageInfo& stageInfo)
+	{
+		ShaderModule& shaderModule = *UnwrapShaderModule(stageInfo.shaderModule);
+		shaderModule.ResetSpecializationConstants();
+		
+		const char* dataChar = reinterpret_cast<const char*>(stageInfo.specConstantsData);
+		
+		for (const SpecializationConstantEntry& entry : stageInfo.specConstants)
+		{
+			for (spirv_cross::SpecializationConstant& specConst : shaderModule.spvCompiler.get_specialization_constants())
+			{
+				spirv_cross::SPIRConstant& spirConst = shaderModule.spvCompiler.get_constant(specConst.id);
+				if (specConst.constant_id == entry.constantID)
+				{
+					std::memcpy(spirConst.m.c[0].r, dataChar + entry.offset, entry.size);
+				}
+			}
+		}
+	}
+	
 	void AbstractPipeline::Initialize(uint32_t numShaderModules, spirv_cross::CompilerGLSL** spvCompilers,
 		GLuint* shaderModules)
 	{

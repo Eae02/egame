@@ -85,26 +85,28 @@ namespace eg::graphics_api::gl
 		spirv_cross::CompilerGLSL* spvCompilers[5];
 		
 		//Attaches shaders to the pipeline's program
-		auto MaybeAddStage = [&] (ShaderModuleHandle handle, ShaderStage expectedStage)
+		auto MaybeAddStage = [&] (const ShaderStageInfo& stageInfo, ShaderStage expectedStage)
 		{
-			if (handle != nullptr)
+			if (stageInfo.shaderModule == nullptr)
+				return;
+			
+			ShaderModule* module = UnwrapShaderModule(stageInfo.shaderModule);
+			if (expectedStage != module->stage)
 			{
-				ShaderModule* module = UnwrapShaderModule(handle);
-				if (expectedStage != module->stage)
-				{
-					EG_PANIC("Shader stage mismatch");
-				}
-				spvCompilers[pipeline->numShaderModules] = &module->spvCompiler;
-				
-				GLuint shader = glCreateShader(ShaderTypes[(int)expectedStage]);
-				pipeline->shaderModules[pipeline->numShaderModules] = shader;
-				pipeline->numShaderModules++;
-				
-				if (createInfo.label != nullptr)
-				{
-					std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[(int)expectedStage] });
-					glObjectLabel(GL_SHADER, shader, -1, shaderLabel.c_str());
-				}
+				EG_PANIC("Shader stage mismatch")
+			}
+			spvCompilers[pipeline->numShaderModules] = &module->spvCompiler;
+			
+			SetSpecializationConstants(stageInfo);
+			
+			GLuint shader = glCreateShader(ShaderTypes[(int)expectedStage]);
+			pipeline->shaderModules[pipeline->numShaderModules] = shader;
+			pipeline->numShaderModules++;
+			
+			if (createInfo.label != nullptr)
+			{
+				std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[(int)expectedStage] });
+				glObjectLabel(GL_SHADER, shader, -1, shaderLabel.c_str());
 			}
 		};
 		MaybeAddStage(createInfo.vertexShader, eg::ShaderStage::Vertex);
