@@ -14,9 +14,12 @@ namespace eg::graphics_api::vk
 	{
 		VkFramebuffer framebuffer;
 		uint32_t numColorAttachments;
+		uint32_t sampleCount;
 		VkExtent2D extent;
 		Texture* colorAttachments[MAX_COLOR_ATTACHMENTS];
+		Texture* resolveColorAttachments[MAX_COLOR_ATTACHMENTS];
 		Texture* depthStencilAttachment;
+		Texture* resolveDepthStencilAttachment;
 		
 		void Free() override;
 	};
@@ -43,8 +46,7 @@ namespace eg::graphics_api::vk
 		return UnwrapTexture(attachment.texture)->GetView(attachment.subresource.AsSubresource());
 	}
 	
-	FramebufferHandle CreateFramebuffer(Span<const FramebufferAttachment> colorAttachments,
-		const FramebufferAttachment* dsAttachment)
+	FramebufferHandle CreateFramebuffer(const FramebufferCreateInfo& createInfo)
 	{
 		Framebuffer* framebuffer = framebufferPool.New();
 		framebuffer->refCount = 1;
@@ -53,9 +55,11 @@ namespace eg::graphics_api::vk
 		
 		RenderPassDescription rpDescription;
 		
-		VkFramebufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-		createInfo.pAttachments = attachments;
-		createInfo.layers = 1;
+		VkFramebufferCreateInfo vkCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+		vkCreateInfo.pAttachments = attachments;
+		vkCreateInfo.layers = 1;
+		
+		uint32_t sampleCount = 1;
 		
 		bool sizeSet = false;
 		
@@ -67,17 +71,20 @@ namespace eg::graphics_api::vk
 			if (!sizeSet)
 			{
 				sizeSet = true;
-				createInfo.width = texture->extent.width;
-				createInfo.height = texture->extent.height;
-				createInfo.layers = layers;
+				vkCreateInfo.width = texture->extent.width;
+				vkCreateInfo.height = texture->extent.height;
+				vkCreateInfo.layers = layers;
+				
+				//sampleCount should not be set for resolve attachments, but won't since these are processed last.
+				sampleCount = texture->sampleCount;
 			}
-			else if (createInfo.width != texture->extent.width || createInfo.height != texture->extent.height ||
-			         createInfo.layers != layers)
+			else if (vkCreateInfo.width != texture->extent.width || vkCreateInfo.height != texture->extent.height ||
+			         vkCreateInfo.layers != layers)
 			{
 				EG_PANIC("Inconsistent framebuffer attachment resolution");
 			}
 			
-			attachments[createInfo.attachmentCount++] = texture->GetView(attachment.subresource.AsSubresource());
+			attachments[vkCreateInfo.attachmentCount++] = texture->GetView(attachment.subresource.AsSubresource());
 			
 			texture->refCount++;
 			formatOut = texture->format;
@@ -85,9 +92,9 @@ namespace eg::graphics_api::vk
 			return texture;
 		};
 		
-		if (dsAttachment != nullptr)
+		if (createInfo.depthStencilAttachment.texture != nullptr)
 		{
-			framebuffer->depthStencilAttachment = ProcessAttachment(*dsAttachment,
+			framebuffer->depthStencilAttachment = ProcessAttachment(createInfo.depthStencilAttachment,
 				rpDescription.depthAttachment.format);
 		}
 		else
@@ -95,19 +102,48 @@ namespace eg::graphics_api::vk
 			framebuffer->depthStencilAttachment = nullptr;
 		}
 		
-		framebuffer->numColorAttachments = (uint32_t)colorAttachments.size();
-		for (uint32_t i = 0; i < colorAttachments.size(); i++)
+		//Processes color attachments
+		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
+		rpDescription.numColorAttachments = createInfo.colorAttachments.size();
+		for (uint32_t i = 0; i < createInfo.colorAttachments.size(); i++)
 		{
-			framebuffer->colorAttachments[i] = ProcessAttachment(colorAttachments[i],
+			framebuffer->colorAttachments[i] = ProcessAttachment(createInfo.colorAttachments[i],
 				rpDescription.colorAttachments[i].format);
+			rpDescription.colorAttachments[i].samples = sampleCount;
 		}
 		
-		createInfo.renderPass = GetRenderPass(rpDescription, true);
+		//Processes color resolve attachments
+		rpDescription.numResolveColorAttachments = createInfo.colorResolveAttachments.size();
+		std::fill_n(framebuffer->resolveColorAttachments, MAX_COLOR_ATTACHMENTS, nullptr);
+		for (uint32_t i = 0; i < createInfo.colorResolveAttachments.size(); i++)
+		{
+			if (createInfo.colorResolveAttachments[i].texture != nullptr)
+			{
+				framebuffer->resolveColorAttachments[i] =
+					ProcessAttachment(createInfo.colorResolveAttachments[i], rpDescription.resolveColorAttachments[i].format);
+			}
+		}
 		
-		framebuffer->extent.width = createInfo.width;
-		framebuffer->extent.height = createInfo.height;
+		//Processes the depth resolve attachment
+		if (createInfo.depthStencilResolveAttachment.texture != nullptr)
+		{
+			framebuffer->resolveDepthStencilAttachment = ProcessAttachment(createInfo.depthStencilResolveAttachment,
+				rpDescription.resolveDepthAttachment.format);
+		}
+		else
+		{
+			framebuffer->resolveDepthStencilAttachment = nullptr;
+		}
 		
-		CheckRes(vkCreateFramebuffer(ctx.device, &createInfo, nullptr, &framebuffer->framebuffer));
+		rpDescription.depthAttachment.samples = sampleCount;
+		
+		vkCreateInfo.renderPass = GetRenderPass(rpDescription, true);
+		
+		framebuffer->extent.width = vkCreateInfo.width;
+		framebuffer->extent.height = vkCreateInfo.height;
+		framebuffer->sampleCount = sampleCount;
+		
+		CheckRes(vkCreateFramebuffer(ctx.device, &vkCreateInfo, nullptr, &framebuffer->framebuffer));
 		
 		return reinterpret_cast<FramebufferHandle>(framebuffer);
 	}
@@ -140,6 +176,9 @@ namespace eg::graphics_api::vk
 		VkFramebuffer framebuffer;
 		VkExtent2D extent;
 		
+		VkFormat resolveAttachmentFormats[MAX_COLOR_ATTACHMENTS] = { };
+		VkFormat depthStencilResolveAttachmentFormat = VK_FORMAT_UNDEFINED;
+		
 		currentFBFormat.depthStencilFormat = VK_FORMAT_UNDEFINED;
 		std::fill_n(currentFBFormat.colorFormats, MAX_COLOR_ATTACHMENTS, VK_FORMAT_UNDEFINED);
 		
@@ -167,8 +206,10 @@ namespace eg::graphics_api::vk
 			
 			RefResource(cc, *framebufferS);
 			
-			currentFBFormat.sampleCount = VK_SAMPLE_COUNT_1_BIT;
+			currentFBFormat.sampleCount = framebufferS->sampleCount;
 			
+			//Fetches the initial layouts and formats of color attachments and updates
+			// auto barrier usage state to reflect the changes made in the render pass.
 			numColorAttachments = framebufferS->numColorAttachments;
 			for (uint32_t i = 0; i < numColorAttachments; i++)
 			{
@@ -190,6 +231,35 @@ namespace eg::graphics_api::vk
 				}
 			}
 			
+			//Fetches formats of resolve color attachments and updates
+			// auto barrier usage state to reflect the changes made in the render pass.
+			for (uint32_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
+			{
+				if (framebufferS->resolveColorAttachments[i] != nullptr)
+				{
+					resolveAttachmentFormats[i] = framebufferS->resolveColorAttachments[i]->format;
+					
+					if (framebufferS->resolveColorAttachments[i]->autoBarrier)
+					{
+						framebufferS->resolveColorAttachments[i]->currentUsage = TextureUsage::FramebufferAttachment;
+						framebufferS->resolveColorAttachments[i]->currentStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+					}
+				}
+			}
+			
+			if (framebufferS->resolveDepthStencilAttachment != nullptr)
+			{
+				depthStencilResolveAttachmentFormat = framebufferS->resolveDepthStencilAttachment->format;
+				
+				if (framebufferS->resolveDepthStencilAttachment->autoBarrier)
+				{
+					framebufferS->resolveDepthStencilAttachment->currentUsage = TextureUsage::FramebufferAttachment;
+					framebufferS->resolveDepthStencilAttachment->currentStageFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+				}
+			}
+			
+			//Fetches the initial layout and format for the depth stencil attachment and updates the
+			// auto barrier usage state to reflect the changes made in the render pass.
 			if (framebufferS->depthStencilAttachment != nullptr)
 			{
 				currentFBFormat.depthStencilFormat = framebufferS->depthStencilAttachment->format;
@@ -235,9 +305,14 @@ namespace eg::graphics_api::vk
 				clearValues[0].depthStencil.stencil = beginInfo.stencilClearValue;
 			}
 			
+			renderPassDescription.resolveDepthAttachment.format = depthStencilResolveAttachmentFormat;
+			renderPassDescription.resolveDepthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			
 			clearValueShift = 1;
 		}
 		
+		renderPassDescription.numColorAttachments = numColorAttachments;
+		renderPassDescription.numResolveColorAttachments = numColorAttachments;
 		for (uint32_t i = 0; i < numColorAttachments; i++)
 		{
 			renderPassDescription.colorAttachments[i].loadOp = TranslateLoadOp(beginInfo.colorAttachments[i].loadOp);
@@ -251,8 +326,12 @@ namespace eg::graphics_api::vk
 			}
 			else if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Clear)
 			{
-				std::copy_n(&beginInfo.colorAttachments[i].clearValue.r, 4, clearValues[i + clearValueShift].color.float32);
+				std::copy_n(&beginInfo.colorAttachments[i].clearValue.r, 4,
+				            clearValues[i + clearValueShift].color.float32);
 			}
+			
+			renderPassDescription.resolveColorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			renderPassDescription.resolveColorAttachments[i].format = resolveAttachmentFormats[i];
 		}
 		
 		VkRenderPassBeginInfo vkBeginInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };

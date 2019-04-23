@@ -128,10 +128,10 @@ namespace eg::graphics_api::gl
 				}
 			};
 			
-			const spirv_cross::ShaderResources& resources = spvCompilers[i]->get_shader_resources();
-			ProcessResources(resources.uniform_buffers);
-			ProcessResources(resources.sampled_images);
-			ProcessResources(resources.storage_images);
+			const spirv_cross::ShaderResources& shResources = spvCompilers[i]->get_shader_resources();
+			ProcessResources(shResources.uniform_buffers);
+			ProcessResources(shResources.sampled_images);
+			ProcessResources(shResources.storage_images);
 			
 			spirv_cross::CompilerGLSL::Options options = spvCompilers[i]->get_common_options();
 			options.version = 430;
@@ -155,9 +155,9 @@ namespace eg::graphics_api::gl
 				}
 			};
 			
-			ResetResources(resources.uniform_buffers, BindingType::UniformBuffer);
-			ResetResources(resources.sampled_images, BindingType::Texture);
-			ResetResources(resources.storage_images, BindingType::StorageImage);
+			ResetResources(shResources.uniform_buffers, BindingType::UniformBuffer);
+			ResetResources(shResources.sampled_images, BindingType::Texture);
+			ResetResources(shResources.storage_images, BindingType::StorageImage);
 			
 			const GLchar* glslCodeC = glslCode.c_str();
 			const GLint glslCodeLen = (GLint)glslCode.size();

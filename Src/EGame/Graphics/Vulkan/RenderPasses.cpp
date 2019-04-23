@@ -28,13 +28,17 @@ namespace eg::graphics_api::vk
 		//Searches for a compatible render pass in the cache.
 		for (const RenderPass& renderPass : renderPasses)
 		{
-			if (!renderPass.description.depthAttachment.Equals(description.depthAttachment, allowCompatible))
+			if (!renderPass.description.depthAttachment.Equals(description.depthAttachment, allowCompatible) ||
+			    (!allowCompatible && !renderPass.description.resolveDepthAttachment.Equals(description.resolveDepthAttachment, true)))
+			{
 				continue;
+			}
 			
 			bool ok = true;
 			for (uint32_t i = 0; i < 8; i++)
 			{
-				if (!renderPass.description.colorAttachments[i].Equals(description.colorAttachments[i], allowCompatible))
+				if (!renderPass.description.colorAttachments[i].Equals(description.colorAttachments[i], allowCompatible) ||
+					(!allowCompatible && !renderPass.description.resolveColorAttachments[i].Equals(description.resolveColorAttachments[i], true)))
 				{
 					ok = false;
 					break;
@@ -45,21 +49,23 @@ namespace eg::graphics_api::vk
 				return renderPass.renderPass;
 		}
 		
-		VkAttachmentDescription attachments[MAX_COLOR_ATTACHMENTS + 1];
+		VkAttachmentDescription2KHR attachments[MAX_COLOR_ATTACHMENTS + 1];
 		
-		VkRenderPassCreateInfo createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+		VkRenderPassCreateInfo2KHR createInfo = { VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2_KHR };
 		createInfo.pAttachments = attachments;
 		createInfo.attachmentCount = 0;
 		
-		VkSubpassDescription subpassDescription = { };
+		VkSubpassDescription2KHR subpassDescription = { VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2_KHR };
 		subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		
 		createInfo.subpassCount = 1;
 		createInfo.pSubpasses = &subpassDescription;
 		
-		auto AddAttachment = [&] (const RenderPassAttachment& attachment, VkImageLayout initialLayout, VkImageLayout finalLayout)
+		auto AddAttachment = [&] (const RenderPassAttachment& attachment, VkImageLayout finalLayout)
 		{
-			VkAttachmentDescription& attachmentDesc = attachments[createInfo.attachmentCount++];
+			VkAttachmentDescription2KHR& attachmentDesc = attachments[createInfo.attachmentCount++];
+			attachmentDesc.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2_KHR;
+			attachmentDesc.pNext = nullptr;
 			attachmentDesc.flags = 0;
 			attachmentDesc.format = attachment.format;
 			attachmentDesc.samples = (VkSampleCountFlagBits)attachment.samples;
@@ -67,39 +73,83 @@ namespace eg::graphics_api::vk
 			attachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			attachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			attachmentDesc.initialLayout = attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ? initialLayout : VK_IMAGE_LAYOUT_UNDEFINED;
+			attachmentDesc.initialLayout = attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ? attachment.initialLayout : VK_IMAGE_LAYOUT_UNDEFINED;
 			attachmentDesc.finalLayout = finalLayout;
 		};
 		
 		//Adds the depth attachment if one exists
-		VkAttachmentReference depthStencilAttachmentRef;
+		VkAttachmentReference2KHR depthStencilAttachmentRef;
 		if (description.depthAttachment.format != VK_FORMAT_UNDEFINED)
 		{
+			depthStencilAttachmentRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
+			depthStencilAttachmentRef.pNext = nullptr;
 			depthStencilAttachmentRef.attachment = createInfo.attachmentCount;
 			depthStencilAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthStencilAttachmentRef.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 			subpassDescription.pDepthStencilAttachment = &depthStencilAttachmentRef;
-			AddAttachment(description.depthAttachment, description.depthAttachment.initialLayout,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+			AddAttachment(description.depthAttachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 		}
 		
 		//Adds color attachments
-		VkAttachmentReference colorAttachmentRefs[8];
+		VkAttachmentReference2KHR colorAttachmentRefs[8];
 		subpassDescription.pColorAttachments = colorAttachmentRefs;
-		subpassDescription.colorAttachmentCount = 0;
-		for (const RenderPassAttachment& attachment : description.colorAttachments)
+		subpassDescription.colorAttachmentCount = description.numColorAttachments;
+		for (uint32_t i = 0; i < description.numColorAttachments; i++)
 		{
-			if (attachment.format == VK_FORMAT_UNDEFINED)
-				continue;
+			colorAttachmentRefs[i].sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
+			colorAttachmentRefs[i].pNext = nullptr;
+			colorAttachmentRefs[i].attachment = createInfo.attachmentCount;
+			colorAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorAttachmentRefs[i].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			AddAttachment(description.colorAttachments[i], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		}
+		
+		//Adds resolve color attachments
+		VkAttachmentReference2KHR colorResolveAttachmentRefs[8];
+		subpassDescription.pResolveAttachments = colorResolveAttachmentRefs;
+		for (uint32_t i = 0; i < description.numColorAttachments; i++)
+		{
+			colorResolveAttachmentRefs[i].sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
+			colorResolveAttachmentRefs[i].pNext = nullptr;
+			colorResolveAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorResolveAttachmentRefs[i].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			
-			uint32_t idx = subpassDescription.colorAttachmentCount++;
-			colorAttachmentRefs[idx].attachment = createInfo.attachmentCount;
-			colorAttachmentRefs[idx].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			if (i < description.numResolveColorAttachments &&
+				description.resolveColorAttachments[i].format != VK_FORMAT_UNDEFINED)
+			{
+				colorResolveAttachmentRefs[i].attachment = createInfo.attachmentCount;
+				AddAttachment(description.resolveColorAttachments[i], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+			}
+			else
+			{
+				colorResolveAttachmentRefs[i].attachment = VK_ATTACHMENT_UNUSED;
+			}
+		}
+		
+		//Adds the depth stencil resolve attachment if one exists
+		VkSubpassDescriptionDepthStencilResolveKHR depthStencilResolve;
+		VkAttachmentReference2KHR depthStencilResolveAttachmentRef;
+		if (description.resolveDepthAttachment.format != VK_FORMAT_UNDEFINED)
+		{
+			depthStencilResolveAttachmentRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
+			depthStencilResolveAttachmentRef.pNext = nullptr;
+			depthStencilResolveAttachmentRef.attachment = createInfo.attachmentCount;
+			depthStencilResolveAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthStencilResolveAttachmentRef.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 			
-			AddAttachment(attachment, attachment.initialLayout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+			depthStencilResolve.sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_DEPTH_STENCIL_RESOLVE_KHR;
+			depthStencilResolve.pNext = subpassDescription.pNext;
+			depthStencilResolve.depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT_KHR;
+			depthStencilResolve.stencilResolveMode = VK_RESOLVE_MODE_NONE_KHR;
+			depthStencilResolve.pDepthStencilResolveAttachment = &depthStencilResolveAttachmentRef;
+			
+			subpassDescription.pNext = &depthStencilResolve;
+			
+			AddAttachment(description.resolveDepthAttachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 		}
 		
 		RenderPass& renderPass = renderPasses.emplace_back();
-		CheckRes(vkCreateRenderPass(ctx.device, &createInfo, nullptr, &renderPass.renderPass));
+		CheckRes(vkCreateRenderPass2KHR(ctx.device, &createInfo, nullptr, &renderPass.renderPass));
 		renderPass.description = description;
 		
 		return renderPass.renderPass;

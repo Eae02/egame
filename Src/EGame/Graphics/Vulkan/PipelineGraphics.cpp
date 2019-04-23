@@ -25,6 +25,11 @@ namespace eg::graphics_api::vk
 		std::vector<FramebufferPipeline> pipelines;
 		bool enableScissorTest;
 		
+		bool enableAlphaToCoverage;
+		bool enableAlphaToOne;
+		bool enableSampleShading;
+		float minSampleShading;
+		
 		uint32_t numStages;
 		VkPipelineShaderStageCreateInfo shaderStageCI[5];
 		VkVertexInputBindingDescription vertexBindings[MAX_VERTEX_BINDINGS];
@@ -182,6 +187,11 @@ namespace eg::graphics_api::vk
 			/* maxDepthBounds        */ 0
 		};
 		
+		pipeline->enableAlphaToCoverage = createInfo.enableAlphaToCoverage;
+		pipeline->enableAlphaToOne = createInfo.enableAlphaToOne;
+		pipeline->enableSampleShading = createInfo.enableSampleShading;
+		pipeline->minSampleShading = createInfo.minSampleShading;
+		
 		pipeline->colorBlendStateCI = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 		pipeline->colorBlendStateCI.pAttachments = pipeline->blendStates;
 		
@@ -295,12 +305,15 @@ namespace eg::graphics_api::vk
 		int64_t beginTime = NanoTime();
 		
 		RenderPassDescription renderPassDescription;
+		renderPassDescription.numResolveColorAttachments = 0;
+		renderPassDescription.numColorAttachments = 0;
 		renderPassDescription.depthAttachment.format = format.depthStencilFormat;
 		renderPassDescription.depthAttachment.samples = format.sampleCount;
-		for (uint32_t i = 0; i < 8; i++)
+		for (uint32_t i = 0; i < 8 && format.colorFormats[i] != VK_FORMAT_UNDEFINED; i++)
 		{
 			renderPassDescription.colorAttachments[i].format = format.colorFormats[i];
 			renderPassDescription.colorAttachments[i].samples = format.sampleCount;
+			renderPassDescription.numColorAttachments++;
 		}
 		
 		VkPipelineInputAssemblyStateCreateInfo iaState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
@@ -311,12 +324,12 @@ namespace eg::graphics_api::vk
 			/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 			/* pNext                 */ nullptr,
 			/* flags                 */ 0,
-			/* rasterizationSamples  */ VK_SAMPLE_COUNT_1_BIT,
-			/* sampleShadingEnable   */ VK_FALSE,
-			/* minSampleShading      */ 0.0f,
+			/* rasterizationSamples  */ (VkSampleCountFlagBits)format.sampleCount,
+			/* sampleShadingEnable   */ pipeline.enableSampleShading,
+			/* minSampleShading      */ pipeline.minSampleShading,
 			/* pSampleMask           */ nullptr,
-			/* alphaToCoverageEnable */ VK_FALSE,
-			/* alphaToOneEnable      */ VK_FALSE
+			/* alphaToCoverageEnable */ pipeline.enableAlphaToCoverage,
+			/* alphaToOneEnable      */ pipeline.enableAlphaToOne
 		};
 		
 		const VkPipelineTessellationStateCreateInfo tessState =

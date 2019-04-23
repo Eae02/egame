@@ -171,6 +171,8 @@ namespace eg::graphics_api::vk
 		DestroyDefaultFramebuffer();
 		
 		RenderPassDescription defaultFBRenderPassDesc;
+		defaultFBRenderPassDesc.numColorAttachments = 1;
+		defaultFBRenderPassDesc.numResolveColorAttachments = 0;
 		defaultFBRenderPassDesc.colorAttachments[0].format = ctx.surfaceFormat.format;
 		
 		VkImageView attachments[2];
@@ -230,6 +232,23 @@ namespace eg::graphics_api::vk
 		ctx.acquireSemaphoreIndex = 0;
 		ctx.numSwapchainImages = numSwapchainImages;
 	}
+	
+	static const char* REQUIRED_DEVICE_EXTENSIONS[] = 
+	{
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+		VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+		VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+		VK_KHR_MAINTENANCE2_EXTENSION_NAME,
+		VK_KHR_MULTIVIEW_EXTENSION_NAME,
+		VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME
+	};
+	
+	static const char* OPTIONAL_DEVICE_EXTENSIONS[] = 
+	{
+		VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+		VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+		VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME
+	};
 	
 	bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
@@ -312,8 +331,7 @@ namespace eg::graphics_api::vk
 		vkEnumeratePhysicalDevices(ctx.instance, &numDevices, physicalDevices.data());
 		
 		//Selects which physical device to use
-		bool hasExtGetMemoryRequirements2 = false;
-		bool hasExtDedicatedAllocation = false;
+		bool optionalExtensionsSeen[ArrayLen(OPTIONAL_DEVICE_EXTENSIONS)];
 		bool supportsMultipleGraphicsQueues = false;
 		for (VkPhysicalDevice physicalDevice : physicalDevices)
 		{
@@ -332,6 +350,7 @@ namespace eg::graphics_api::vk
 			//Searches for a compatible queue family
 			const int REQUIRED_QUEUE_FLAGS = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
 			bool foundQueueFamily = false;
+			supportsMultipleGraphicsQueues = false;
 			for (uint32_t i = 0; i < numQueueFamilies; i++)
 			{
 				VkBool32 surfaceSupported;
@@ -364,45 +383,42 @@ namespace eg::graphics_api::vk
 			                                     devExtensionProperties.data());
 			
 			//Checks which device extensions are supported
-			bool hasExtSwapchain = false;
-			bool hasExtPushDescriptor = false;
-			bool hasExtMaintenance1 = false;
-			hasExtGetMemoryRequirements2 = false;
-			hasExtDedicatedAllocation = false;
+			std::fill(std::begin(optionalExtensionsSeen), std::end(optionalExtensionsSeen), false);
+			bool requiredExtensionsSeen[ArrayLen(REQUIRED_DEVICE_EXTENSIONS)] = { };
 			for (const VkExtensionProperties& extProperties : devExtensionProperties)
 			{
-				if (std::strcmp(extProperties.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0)
-					hasExtSwapchain = true;
-				else if (std::strcmp(extProperties.extensionName, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME) == 0)
-					hasExtPushDescriptor = true;
-				else if (std::strcmp(extProperties.extensionName, VK_KHR_MAINTENANCE1_EXTENSION_NAME) == 0)
-					hasExtMaintenance1 = true;
-				else if (std::strcmp(extProperties.extensionName, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME) == 0)
-					hasExtGetMemoryRequirements2 = true;
-				else if (std::strcmp(extProperties.extensionName, VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME) == 0)
-					hasExtDedicatedAllocation = true;
+				for (size_t i = 0; i < ArrayLen(REQUIRED_DEVICE_EXTENSIONS); i++)
+				{
+					if (std::strcmp(REQUIRED_DEVICE_EXTENSIONS[i], extProperties.extensionName) == 0)
+					{
+						requiredExtensionsSeen[i] = true;
+						break;
+					}
+				}
+				for (size_t i = 0; i < ArrayLen(OPTIONAL_DEVICE_EXTENSIONS); i++)
+				{
+					if (std::strcmp(OPTIONAL_DEVICE_EXTENSIONS[i], extProperties.extensionName) == 0)
+					{
+						optionalExtensionsSeen[i] = true;
+						break;
+					}
+				}
 			}
 			
-			if (!hasExtSwapchain)
+			bool hasAllExtensions = true;
+			for (size_t i = 0; i < ArrayLen(REQUIRED_DEVICE_EXTENSIONS); i++)
 			{
-				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the "
-					VK_KHR_SWAPCHAIN_EXTENSION_NAME " extension", deviceProperties.deviceName);
-				continue;
+				if (!requiredExtensionsSeen[i])
+				{
+					Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the {1} extension",
+						deviceProperties.deviceName, REQUIRED_DEVICE_EXTENSIONS[i]);
+					hasAllExtensions = false;
+					break;
+				}
 			}
 			
-			if (!hasExtPushDescriptor)
-			{
-				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the "
-					VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME " extension", deviceProperties.deviceName);
+			if (!hasAllExtensions)
 				continue;
-			}
-			
-			if (!hasExtMaintenance1)
-			{
-				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the "
-					VK_KHR_MAINTENANCE1_EXTENSION_NAME " extension", deviceProperties.deviceName);
-				continue;
-			}
 			
 			ctx.physDevice = physicalDevice;
 			
@@ -444,18 +460,32 @@ namespace eg::graphics_api::vk
 		enabledDeviceFeatures.shaderCullDistance = ctx.deviceFeatures.shaderCullDistance;
 		enabledDeviceFeatures.textureCompressionBC = ctx.deviceFeatures.textureCompressionBC;
 		
-		uint32_t numEnabledDeviceExtensions = 0;
-		const char* enabledDeviceExtensions[16];
-		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
-		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
-		enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_MAINTENANCE1_EXTENSION_NAME;
+		uint32_t numEnabledDeviceExtensions = ArrayLen(REQUIRED_DEVICE_EXTENSIONS);
+		const char* enabledDeviceExtensions[32];
+		std::copy(std::begin(REQUIRED_DEVICE_EXTENSIONS), std::end(REQUIRED_DEVICE_EXTENSIONS), enabledDeviceExtensions);
 		
-		const bool hasDedicatedAllocation = hasExtDedicatedAllocation && hasExtGetMemoryRequirements2 && !renderdoc::IsPresent();
-		if (hasDedicatedAllocation)
+		//Enables optional device extensions
+		for (size_t i = 0; i < ArrayLen(OPTIONAL_DEVICE_EXTENSIONS); i++)
 		{
-			enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
-			enabledDeviceExtensions[numEnabledDeviceExtensions++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
+			if (optionalExtensionsSeen[i])
+			{
+				enabledDeviceExtensions[numEnabledDeviceExtensions++] = OPTIONAL_DEVICE_EXTENSIONS[i];
+			}
 		}
+		
+		auto OptionalExtensionAvailable = [&] (const char* name)
+		{
+			for (size_t i = 0; i < ArrayLen(OPTIONAL_DEVICE_EXTENSIONS); i++)
+			{
+				if (std::strcmp(OPTIONAL_DEVICE_EXTENSIONS[i], name) == 0 && optionalExtensionsSeen[i])
+					return true;
+			}
+			return false;
+		};
+		
+		const bool hasDedicatedAllocation =
+			OptionalExtensionAvailable(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME) &&
+			OptionalExtensionAvailable(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME) && !renderdoc::IsPresent();
 		
 		VkDeviceCreateInfo deviceCreateInfo =
 		{

@@ -264,27 +264,41 @@ namespace eg
 	
 	struct GraphicsPipelineCreateInfo
 	{
+		//Shader stages
 		ShaderStageInfo vertexShader;
 		ShaderStageInfo fragmentShader;
 		ShaderStageInfo geometryShader;
 		ShaderStageInfo tessControlShader;
 		ShaderStageInfo tessEvaluationShader;
+		
+		//Depth & scissor
 		bool enableScissorTest = false;
 		bool enableDepthTest = false;
 		bool enableDepthWrite = false;
 		bool enableDepthClamp = false;
-		bool wireframe = false;
+		CompareOp depthCompare = CompareOp::Less;
+		
+		//Multisampling
+		bool enableAlphaToCoverage = false;
+		bool enableAlphaToOne = false;
+		bool enableSampleShading = false;
+		float minSampleShading = 0.0f;
+		
 		uint32_t patchControlPoints = 0;
 		uint32_t numClipDistances = 0;
-		CompareOp depthCompare = CompareOp::Less;
+		bool wireframe = false;
 		CullMode cullMode = CullMode::None;
 		bool frontFaceCCW = false;
 		Topology topology = Topology::TriangleList;
-		uint32_t numColorAttachments = 1;
+		
 		BindMode setBindModes[MAX_DESCRIPTOR_SETS] = { };
+		
+		uint32_t numColorAttachments = 1;
 		BlendState blendStates[MAX_COLOR_ATTACHMENTS];
+		
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
+		
 		const char* label = nullptr;
 	};
 	
@@ -404,6 +418,7 @@ namespace eg
 	{
 		TextureFlags flags = TextureFlags::None;
 		uint32_t mipLevels = 0;
+		uint32_t sampleCount = 1;
 		Format format = Format::Undefined;
 		const SamplerDescription* defaultSamplerDescription = nullptr;
 		SwizzleMode swizzleR = SwizzleMode::Identity;
@@ -516,6 +531,16 @@ namespace eg
 		TextureSubresource subresource;
 	};
 	
+	struct ResolveRegion
+	{
+		glm::ivec2 srcOffset;
+		glm::ivec2 dstOffset;
+		uint32_t width;
+		uint32_t height;
+		TextureSubresourceLayers srcSubresource;
+		TextureSubresourceLayers dstSubresource;
+	};
+	
 	enum class AttachmentLoadOp
 	{
 		Load,
@@ -529,6 +554,14 @@ namespace eg
 		TextureSubresourceLayers subresource;
 		
 		FramebufferAttachment(TextureHandle _texture = nullptr) : texture(_texture) { }
+	};
+	
+	struct FramebufferCreateInfo
+	{
+		Span<const FramebufferAttachment> colorAttachments;
+		FramebufferAttachment depthStencilAttachment;
+		Span<const FramebufferAttachment> colorResolveAttachments;
+		FramebufferAttachment depthStencilResolveAttachment;
 	};
 	
 	struct RenderPassColorAttachment

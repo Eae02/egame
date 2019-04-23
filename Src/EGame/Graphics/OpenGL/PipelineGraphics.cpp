@@ -39,6 +39,7 @@ namespace eg::graphics_api::gl
 		GLenum topology;
 		GLint patchSize;
 		uint32_t numClipDistances;
+		float minSampleShading;
 		bool enableScissorTest;
 		bool enableDepthTest;
 		bool enableDepthWrite;
@@ -81,6 +82,8 @@ namespace eg::graphics_api::gl
 		
 		pipeline->numShaderModules = 0;
 		pipeline->numClipDistances = createInfo.numClipDistances;
+		
+		pipeline->minSampleShading = createInfo.enableSampleShading ? createInfo.minSampleShading : 0.0f;
 		
 		spirv_cross::CompilerGLSL* spvCompilers[5];
 		
@@ -227,6 +230,7 @@ namespace eg::graphics_api::gl
 		GLint patchSize = 0;
 		uint32_t numClipDistances = 0;
 		uint32_t numCullDistances = 0;
+		float minSampleShading = 0;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
 		ColorWriteMask colorWriteMasks[8] = { };
@@ -327,6 +331,12 @@ namespace eg::graphics_api::gl
 		}
 		
 		InitScissorTest();
+		
+		if (minSampleShading != curState.minSampleShading)
+		{
+			glMinSampleShading(minSampleShading);
+			curState.minSampleShading = minSampleShading;
+		}
 		
 		if (patchSize != 0 && curState.patchSize != patchSize)
 		{

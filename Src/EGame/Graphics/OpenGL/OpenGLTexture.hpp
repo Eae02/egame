@@ -22,7 +22,13 @@ namespace eg::graphics_api::gl
 		uint32_t height;
 		uint32_t mipLevels;
 		uint32_t arrayLayers;
+		uint32_t sampleCount;
 		TextureUsage currentUsage;
+		
+		bool hasBlitFBO = false;
+		GLuint blitFBO;
+		
+		void MaybeInitBlitFBO();
 		
 		void BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource);
 		

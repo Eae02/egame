@@ -29,6 +29,7 @@ XM_ABSCALLBACK(GenerateMipmaps, void, (CommandContextHandle ctx, TextureHandle h
 XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureHandle texture, SamplerHandle sampler, uint32_t set, uint32_t binding, const TextureSubresource& subresource))
 XM_ABSCALLBACK(BindStorageImage, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t set, uint32_t binding, const TextureSubresourceLayers& subresource))
 XM_ABSCALLBACK(ClearColorTexture, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t mipLevel, const Color& color))
+XM_ABSCALLBACK(ResolveTexture, void, (CommandContextHandle ctx, TextureHandle src, TextureHandle dst, const ResolveRegion& region))
 
 XM_ABSCALLBACK(CreateDescriptorSetP, DescriptorSetHandle, (PipelineHandle pipeline, uint32_t set))
 XM_ABSCALLBACK(CreateDescriptorSetB, DescriptorSetHandle, (Span<const DescriptorSetBinding> bindings))
@@ -38,7 +39,7 @@ XM_ABSCALLBACK(BindStorageImageDS, void, (TextureHandle texture, DescriptorSetHa
 XM_ABSCALLBACK(BindUniformBufferDS, void, (BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, uint64_t range))
 XM_ABSCALLBACK(BindDescriptorSet, void, (CommandContextHandle ctx, uint32_t set, DescriptorSetHandle handle))
 
-XM_ABSCALLBACK(CreateFramebuffer, FramebufferHandle, (Span<const FramebufferAttachment> colorAttachments, const FramebufferAttachment* dsAttachment))
+XM_ABSCALLBACK(CreateFramebuffer, FramebufferHandle, (const FramebufferCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyFramebuffer, void, (FramebufferHandle framebuffer))
 
 XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))

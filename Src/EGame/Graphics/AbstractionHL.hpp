@@ -352,14 +352,24 @@ namespace eg
 	public:
 		Framebuffer() = default;
 		
+		Framebuffer(const FramebufferCreateInfo& createInfo)
+		{
+			handle = gal::CreateFramebuffer(createInfo);
+		}
+		
 		Framebuffer(Span<const FramebufferAttachment> colorAttachments)
 		{
-			handle = gal::CreateFramebuffer(colorAttachments, nullptr);
+			FramebufferCreateInfo ci;
+			ci.colorAttachments = colorAttachments;
+			handle = gal::CreateFramebuffer(ci);
 		}
 		
 		Framebuffer(Span<const FramebufferAttachment> colorAttachments, const FramebufferAttachment& depthStencilAttachment)
 		{
-			handle = gal::CreateFramebuffer(colorAttachments, &depthStencilAttachment);
+			FramebufferCreateInfo ci;
+			ci.colorAttachments = colorAttachments;
+			ci.depthStencilAttachment = depthStencilAttachment;
+			handle = gal::CreateFramebuffer(ci);
 		}
 	};
 	
@@ -492,6 +502,11 @@ namespace eg
 		void GenerateMipmaps(TextureRef texture)
 		{
 			gal::GenerateMipmaps(Handle(), texture.handle);
+		}
+		
+		void ResolveTexture(TextureRef src, TextureRef dst, const ResolveRegion& region)
+		{
+			gal::ResolveTexture(Handle(), src.handle, dst.handle, region);
 		}
 		
 		void CopyBuffer(BufferRef src, BufferRef dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)

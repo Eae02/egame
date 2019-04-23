@@ -51,6 +51,7 @@ namespace eg::graphics_api::vk
 		texture.currentUsage = TextureUsage::Undefined;
 		texture.currentStageFlags = 0;
 		texture.extent = extent;
+		texture.sampleCount = std::max(createInfo.sampleCount, 1U);
 		texture.format = TranslateFormat(createInfo.format);
 		
 		//Creates the image
@@ -58,7 +59,7 @@ namespace eg::graphics_api::vk
 		imageCreateInfo.extent = extent;
 		imageCreateInfo.format = texture.format;
 		imageCreateInfo.imageType = imageType;
-		imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageCreateInfo.samples = (VkSampleCountFlagBits)texture.sampleCount;
 		imageCreateInfo.mipLevels = createInfo.mipLevels;
 		imageCreateInfo.arrayLayers = arrayLayers;
 		
@@ -369,6 +370,38 @@ namespace eg::graphics_api::vk
 		
 		vkCmdClearColorImage(cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		                     reinterpret_cast<const VkClearColorValue*>(&color.r), 1, &subresourceRange);
+	}
+	
+	void ResolveTexture(CommandContextHandle cc, TextureHandle srcHandle, TextureHandle dstHandle, const ResolveRegion& region)
+	{
+		Texture* src = UnwrapTexture(srcHandle);
+		Texture* dst = UnwrapTexture(dstHandle);
+		
+		RefResource(cc, *src);
+		RefResource(cc, *dst);
+		
+		src->AutoBarrier(GetCB(cc), TextureUsage::CopySrc);
+		dst->AutoBarrier(GetCB(cc), TextureUsage::CopyDst);
+		
+		VkImageResolve resolve = { };
+		resolve.srcOffset.x = region.srcOffset.x;
+		resolve.srcOffset.y = region.srcOffset.y;
+		resolve.dstOffset.x = region.dstOffset.x;
+		resolve.dstOffset.y = region.dstOffset.y;
+		resolve.extent.width = region.width;
+		resolve.extent.height = region.height;
+		resolve.extent.depth = 1;
+		resolve.srcSubresource.aspectMask = src->aspectFlags;
+		resolve.srcSubresource.mipLevel = region.srcSubresource.mipLevel;
+		resolve.srcSubresource.baseArrayLayer = region.srcSubresource.firstArrayLayer;
+		resolve.srcSubresource.layerCount = region.srcSubresource.numArrayLayers;
+		resolve.dstSubresource.aspectMask = dst->aspectFlags;
+		resolve.dstSubresource.mipLevel = region.dstSubresource.mipLevel;
+		resolve.dstSubresource.baseArrayLayer = region.dstSubresource.firstArrayLayer;
+		resolve.dstSubresource.layerCount = region.dstSubresource.numArrayLayers;
+		
+		vkCmdResolveImage(GetCB(cc), src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &resolve);
 	}
 	
 	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)

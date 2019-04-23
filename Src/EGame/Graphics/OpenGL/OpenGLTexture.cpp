@@ -146,7 +146,7 @@ namespace eg::graphics_api::gl
 		
 		glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
 		
-		if (createInfo.defaultSamplerDescription != nullptr)
+		if (createInfo.defaultSamplerDescription != nullptr && createInfo.sampleCount == 1)
 		{
 			const SamplerDescription& samplerDesc = *createInfo.defaultSamplerDescription;
 			
@@ -177,7 +177,7 @@ namespace eg::graphics_api::gl
 	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
-		texture->type = GL_TEXTURE_2D;
+		texture->type = createInfo.sampleCount == 1 ? GL_TEXTURE_2D : GL_TEXTURE_2D_MULTISAMPLE;
 		glCreateTextures(texture->type, 1, &texture->texture);
 		
 		texture->format = createInfo.format;
@@ -185,11 +185,20 @@ namespace eg::graphics_api::gl
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
 		texture->mipLevels = createInfo.mipLevels;
+		texture->sampleCount = createInfo.sampleCount;
 		texture->arrayLayers = 1;
 		texture->currentUsage = TextureUsage::Undefined;
 		
 		GLenum format = TranslateFormat(createInfo.format);
-		glTextureStorage2D(texture->texture, createInfo.mipLevels, format, createInfo.width, createInfo.height);
+		if (createInfo.sampleCount == 1)
+		{
+			glTextureStorage2D(texture->texture, createInfo.mipLevels, format, createInfo.width, createInfo.height);
+		}
+		else
+		{
+			glTextureStorage2DMultisample(texture->texture, createInfo.sampleCount, format,
+				createInfo.width, createInfo.height, GL_FALSE);
+		}
 		
 		InitTexture(texture->texture, createInfo);
 		
@@ -199,7 +208,7 @@ namespace eg::graphics_api::gl
 	TextureHandle CreateTexture2DArray(const Texture2DArrayCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
-		texture->type = GL_TEXTURE_2D_ARRAY;
+		texture->type = createInfo.sampleCount == 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
 		glCreateTextures(texture->type, 1, &texture->texture);
 		
 		texture->format = createInfo.format;
@@ -207,12 +216,22 @@ namespace eg::graphics_api::gl
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
 		texture->mipLevels = createInfo.mipLevels;
+		texture->sampleCount = createInfo.sampleCount;
 		texture->arrayLayers = createInfo.arrayLayers;
 		texture->currentUsage = TextureUsage::Undefined;
 		
 		GLenum format = TranslateFormat(createInfo.format);
-		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
-		                   createInfo.width, createInfo.height, createInfo.arrayLayers);
+		if (createInfo.sampleCount == 1)
+		{
+			glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
+				createInfo.width, createInfo.height, createInfo.arrayLayers);
+		}
+		else
+		{
+			glTextureStorage3DMultisample(texture->texture, createInfo.sampleCount, format,
+				createInfo.width, createInfo.height, createInfo.arrayLayers, GL_FALSE);
+		}
+		
 		
 		InitTexture(texture->texture, createInfo);
 		
@@ -230,6 +249,7 @@ namespace eg::graphics_api::gl
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
 		texture->mipLevels = createInfo.mipLevels;
+		texture->sampleCount = createInfo.sampleCount;
 		texture->arrayLayers = 6;
 		texture->currentUsage = TextureUsage::Undefined;
 		
@@ -253,6 +273,7 @@ namespace eg::graphics_api::gl
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
 		texture->mipLevels = createInfo.mipLevels;
+		texture->sampleCount = createInfo.sampleCount;
 		texture->arrayLayers = 6 * createInfo.arrayLayers;
 		texture->currentUsage = TextureUsage::Undefined;
 		
@@ -400,6 +421,8 @@ namespace eg::graphics_api::gl
 		MainThreadInvoke([texture = UnwrapTexture(handle)]
 		{
 			glDeleteTextures(1, &texture->texture);
+			if (texture->hasBlitFBO)
+				glDeleteFramebuffers(1, &texture->blitFBO);
 			texturePool.Free(texture);
 		});
 	}
@@ -417,6 +440,18 @@ namespace eg::graphics_api::gl
 		glBindImageTexture(glBinding, GetView(subresource), 0, GL_TRUE, 0, GL_READ_WRITE, TranslateFormat(format));
 	}
 	
+	void Texture::MaybeInitBlitFBO()
+	{
+		if (hasBlitFBO)
+			return;
+		
+		GLenum target = GetFormatType(format) == FormatTypes::DepthStencil ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+		
+		hasBlitFBO = true;
+		glCreateFramebuffers(1, &blitFBO);
+		glNamedFramebufferTexture(blitFBO, target, texture, 0);
+	}
+	
 	void BindStorageImage(CommandContextHandle, TextureHandle textureHandle, uint32_t set, uint32_t binding,
 		const TextureSubresourceLayers& subresource)
 	{
@@ -427,6 +462,24 @@ namespace eg::graphics_api::gl
 	{
 		const Texture* texture = UnwrapTexture(handle);
 		glClearTexImage(texture->texture, mipLevel, GL_RGBA, GL_FLOAT, &color.r);
+	}
+	
+	void ResolveTexture(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle, const ResolveRegion& region)
+	{
+		Texture* src = UnwrapTexture(srcHandle);
+		Texture* dst = UnwrapTexture(dstHandle);
+		
+		src->MaybeInitBlitFBO();
+		dst->MaybeInitBlitFBO();
+		
+		GLenum blitBuffer = GL_COLOR_BUFFER_BIT;
+		if (GetFormatType(src->format) == FormatTypes::DepthStencil)
+			blitBuffer = GL_DEPTH_BUFFER_BIT;
+		
+		glBlitNamedFramebuffer(src->blitFBO, dst->blitFBO,
+			region.srcOffset.x, region.srcOffset.y, region.srcOffset.x + region.width, region.srcOffset.y + region.height,
+			region.dstOffset.x, region.dstOffset.y, region.dstOffset.x + region.width, region.dstOffset.y + region.height,
+			blitBuffer, GL_NEAREST);
 	}
 	
 	inline void MaybeBarrierAfterILS(TextureUsage newUsage)

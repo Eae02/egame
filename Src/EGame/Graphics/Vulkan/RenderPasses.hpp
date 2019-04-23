@@ -19,7 +19,11 @@ namespace eg::graphics_api::vk
 		RenderPassDescription() = default;
 		
 		RenderPassAttachment depthAttachment;
+		uint32_t numColorAttachments;
 		RenderPassAttachment colorAttachments[8];
+		RenderPassAttachment resolveDepthAttachment;
+		uint32_t numResolveColorAttachments;
+		RenderPassAttachment resolveColorAttachments[8];
 	};
 	
 	VkRenderPass GetRenderPass(const RenderPassDescription& description, bool allowCompatible);

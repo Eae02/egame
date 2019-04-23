@@ -21,6 +21,7 @@ namespace eg::graphics_api::vk
 		VkExtent3D extent;
 		uint32_t numMipLevels;
 		uint32_t numArrayLayers;
+		uint32_t sampleCount;
 		VkFormat format;
 		VkImageAspectFlags aspectFlags;
 		VkComponentMapping componentMapping;
