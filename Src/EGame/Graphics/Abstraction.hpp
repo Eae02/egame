@@ -165,7 +165,11 @@ namespace eg
 		SrcAlpha,
 		OneMinusSrcAlpha,
 		DstAlpha,
-		OneMinusDstAlpha
+		OneMinusDstAlpha,
+		ConstantColor,
+		OneMinusConstantColor,
+		ConstantAlpha,
+		OneMinusConstantAlpha
 	};
 	
 	enum class ColorWriteMask
@@ -291,6 +295,7 @@ namespace eg
 		bool frontFaceCCW = false;
 		Topology topology = Topology::TriangleList;
 		
+		float blendConstants[4] = { };
 		BindMode setBindModes[MAX_DESCRIPTOR_SETS] = { };
 		
 		uint32_t numColorAttachments = 1;

@@ -29,6 +29,10 @@ namespace eg::graphics_api::gl
 			case BlendFactor::OneMinusSrcAlpha: return GL_ONE_MINUS_SRC_ALPHA;
 			case BlendFactor::DstAlpha: return GL_DST_ALPHA;
 			case BlendFactor::OneMinusDstAlpha: return GL_ONE_MINUS_DST_ALPHA;
+			case BlendFactor::ConstantColor: return GL_CONSTANT_COLOR;
+			case BlendFactor::OneMinusConstantColor: return GL_ONE_MINUS_CONSTANT_COLOR;
+			case BlendFactor::ConstantAlpha: return GL_CONSTANT_COLOR;
+			case BlendFactor::OneMinusConstantAlpha: return GL_ONE_MINUS_CONSTANT_ALPHA;
 		}
 		EG_UNREACHABLE
 	}

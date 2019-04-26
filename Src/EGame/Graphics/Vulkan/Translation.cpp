@@ -136,6 +136,10 @@ namespace eg::graphics_api::vk
 		case BlendFactor::OneMinusSrcAlpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 		case BlendFactor::DstAlpha: return VK_BLEND_FACTOR_DST_ALPHA;
 		case BlendFactor::OneMinusDstAlpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+		case BlendFactor::ConstantColor: return VK_BLEND_FACTOR_CONSTANT_COLOR;
+		case BlendFactor::OneMinusConstantColor: return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+		case BlendFactor::ConstantAlpha: return VK_BLEND_FACTOR_CONSTANT_COLOR;
+		case BlendFactor::OneMinusConstantAlpha: return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
 		}
 		EG_UNREACHABLE
 	}

@@ -453,6 +453,7 @@ namespace eg::graphics_api::vk
 		enabledDeviceFeatures.shaderStorageImageExtendedFormats = ctx.deviceFeatures.shaderStorageImageExtendedFormats;
 		enabledDeviceFeatures.imageCubeArray = ctx.deviceFeatures.imageCubeArray;
 		enabledDeviceFeatures.samplerAnisotropy = ctx.deviceFeatures.samplerAnisotropy;
+		enabledDeviceFeatures.independentBlend = ctx.deviceFeatures.independentBlend;
 		enabledDeviceFeatures.fillModeNonSolid = ctx.deviceFeatures.fillModeNonSolid;
 		enabledDeviceFeatures.geometryShader = ctx.deviceFeatures.geometryShader;
 		enabledDeviceFeatures.tessellationShader = ctx.deviceFeatures.tessellationShader;

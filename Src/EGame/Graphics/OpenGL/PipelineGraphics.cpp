@@ -44,6 +44,7 @@ namespace eg::graphics_api::gl
 		bool enableDepthTest;
 		bool enableDepthWrite;
 		BlendState blend[8];
+		float blendConstants[4];
 		ColorWriteMask colorWriteMasks[8];
 		uint32_t maxVertexBinding;
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
@@ -176,6 +177,8 @@ namespace eg::graphics_api::gl
 		pipeline->topology = Translate(createInfo.topology);
 		pipeline->patchSize = createInfo.patchControlPoints;
 		
+		std::copy_n(createInfo.blendConstants, 4, pipeline->blendConstants);
+		
 		switch (createInfo.cullMode)
 		{
 		case CullMode::None:
@@ -233,6 +236,7 @@ namespace eg::graphics_api::gl
 		float minSampleShading = 0;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
+		float blendConstants[4] = { };
 		ColorWriteMask colorWriteMasks[8] = { };
 	} curState;
 	
@@ -348,6 +352,12 @@ namespace eg::graphics_api::gl
 		{
 			glDepthMask(static_cast<GLboolean>(enableDepthWrite));
 			curState.enableDepthWrite = enableDepthWrite;
+		}
+		
+		if (std::memcmp(curState.blendConstants, blendConstants, sizeof(float) * 4))
+		{
+			glBlendColor(blendConstants[0], blendConstants[1], blendConstants[2], blendConstants[3]);
+			std::copy_n(blendConstants, 4, curState.blendConstants);
 		}
 		
 		for (GLuint i = 0; i < 8; i++)

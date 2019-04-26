@@ -193,6 +193,7 @@ namespace eg::graphics_api::vk
 		pipeline->minSampleShading = createInfo.minSampleShading;
 		
 		pipeline->colorBlendStateCI = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+		std::copy_n(createInfo.blendConstants, 4, pipeline->colorBlendStateCI.blendConstants);
 		pipeline->colorBlendStateCI.pAttachments = pipeline->blendStates;
 		
 		//Initializes attachment blend states and color attachment information for the render pass description.
