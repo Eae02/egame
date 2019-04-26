@@ -23,7 +23,7 @@ namespace eg
 			{
 				if (const IMaterial* material = model->m_materials[model->m_model->GetMesh(i).materialIndex])
 				{
-					meshBatch.Add(*model->m_model, i, *material, transform * model->m_meshTransforms[i]);
+					meshBatch.AddModelMesh(*model->m_model, i, *material, transform * model->m_meshTransforms[i]);
 				}
 			}
 		}

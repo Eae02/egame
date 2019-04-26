@@ -20,9 +20,9 @@ namespace eg
 		const glm::vec3 sphereCenter = (minPos + maxPos) / 2.0f;
 		
 		float maxDistToSphereSq;
-		int furthestSphereIndex;
+		size_t furthestSphereIndex;
 		
-		for (int i = 0; i < spheres.size(); i++)
+		for (size_t i = 0; i < spheres.size(); i++)
 		{
 			glm::vec3 toCenter = sphereCenter - spheres[i].position;
 			float distToSphereSq = glm::dot(toCenter, toCenter);

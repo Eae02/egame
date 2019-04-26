@@ -28,16 +28,16 @@ namespace eg
 		};
 		
 		template <typename T>
-		void Add(const Model& model, const IMaterial& material, const T& instanceData)
+		void AddModel(const Model& model, const IMaterial& material, const T& instanceData, int orderPriority = 0)
 		{
 			for (size_t i = 0; i < model.NumMeshes(); i++)
 			{
-				Add(model, i, material, instanceData);
+				AddModelMesh(model, i, material, instanceData, orderPriority);
 			}
 		}
 		
 		template <typename T>
-		void Add(const Model& model, size_t meshIndex, const IMaterial& material, const T& instanceData)
+		void AddModelMesh(const Model& model, size_t meshIndex, const IMaterial& material, const T& instanceData, int orderPriority = 0)
 		{
 			Mesh mesh;
 			mesh.vertexBuffer = model.VertexBuffer();
@@ -46,24 +46,24 @@ namespace eg
 			mesh.firstVertex = model.GetMesh(meshIndex).firstVertex;
 			mesh.numElements = model.GetMesh(meshIndex).numIndices;
 			mesh.indexType = model.IndexType();
-			Add(mesh, material, instanceData);
+			Add(mesh, material, instanceData, orderPriority);
 		}
 		
 		template <typename T>
-		void Add(const Mesh& mesh, const IMaterial& material, const T& instanceData)
+		void Add(const Mesh& mesh, const IMaterial& material, const T& instanceData, int orderPriority = 0)
 		{
 			void* instanceMem = m_allocator.Allocate(sizeof(Instance) - 1 + sizeof(T), alignof(Instance));
 			Instance* instance = static_cast<Instance*>(instanceMem);
 			instance->dataSize = sizeof(T);
 			new (instance->data) T (instanceData);
-			Add(mesh, material, instance);
+			_Add(mesh, material, instance, orderPriority);
 		}
 		
-		void Add(const Mesh& mesh, const IMaterial& material)
+		void AddNoData(const Mesh& mesh, const IMaterial& material, int orderPriority = 0)
 		{
 			Instance* instance = m_allocator.New<Instance>();
 			instance->dataSize = 0;
-			Add(mesh, material, instance);
+			_Add(mesh, material, instance, orderPriority);
 		}
 		
 		void Begin();
@@ -80,7 +80,7 @@ namespace eg
 			alignas(std::max_align_t) char data[1];
 		};
 		
-		void Add(const Mesh& mesh, const IMaterial& material, Instance* instance);
+		void _Add(const Mesh& mesh, const IMaterial& material, Instance* instance, int orderPriority);
 		
 		struct MeshBucket
 		{
@@ -119,8 +119,15 @@ namespace eg
 			bool hasInstanceData;
 		};
 		
+		struct OrderPriorityBucket
+		{
+			int orderPriority;
+			PipelineBucket* pipelines;
+		};
+		
+		std::vector<OrderPriorityBucket> m_drawList;
+		
 		eg::LinearAllocator m_allocator;
-		PipelineBucket* m_drawList;
 		uint32_t m_totalInstances;
 		uint32_t m_totalInstanceData;
 		

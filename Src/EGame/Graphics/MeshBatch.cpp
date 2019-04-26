@@ -2,12 +2,22 @@
 
 namespace eg
 {
-	void MeshBatch::Add(const MeshBatch::Mesh& mesh, const IMaterial& material, MeshBatch::Instance* instance)
+	void MeshBatch::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material,
+	                     MeshBatch::Instance* instance, int orderPriority)
 	{
 		size_t pipelineHash = material.PipelineHash();
 		
+		auto opBucketIt = std::lower_bound(m_drawList.begin(), m_drawList.end(), orderPriority,
+		                                   [&] (const OrderPriorityBucket& a, int b) { return a.orderPriority < b; });
+		if (opBucketIt == m_drawList.end() || opBucketIt->orderPriority != orderPriority)
+		{
+			opBucketIt = m_drawList.emplace(opBucketIt);
+			opBucketIt->orderPriority = orderPriority;
+			opBucketIt->pipelines = nullptr;
+		}
+		
 		//Selects a pipeline bucket
-		PipelineBucket* pipelineBucket = m_drawList;
+		PipelineBucket* pipelineBucket = opBucketIt->pipelines;
 		for (; pipelineBucket != nullptr; pipelineBucket = pipelineBucket->next)
 		{
 			if (pipelineBucket->pipelineHash == pipelineHash)
@@ -18,9 +28,9 @@ namespace eg
 			pipelineBucket = m_allocator.New<PipelineBucket>();
 			pipelineBucket->pipelineHash = pipelineHash;
 			pipelineBucket->materials = nullptr;
-			pipelineBucket->next = m_drawList;
+			pipelineBucket->next = opBucketIt->pipelines;
 			pipelineBucket->hasInstanceData = instance->dataSize != 0;
-			m_drawList = pipelineBucket;
+			opBucketIt->pipelines = pipelineBucket;
 		}
 		
 		//Selects a material bucket
@@ -100,7 +110,7 @@ namespace eg
 	void MeshBatch::Begin()
 	{
 		m_allocator.Reset();
-		m_drawList = nullptr;
+		m_drawList.clear();
 		m_totalInstances = 0;
 		m_totalInstanceData = 0;
 	}
@@ -114,23 +124,26 @@ namespace eg
 		
 		char* instanceDataOut = static_cast<char*>(uploadBuffer.Map());
 		uint32_t instanceDataOffset = 0;
-		for (PipelineBucket* pipeline = m_drawList; pipeline; pipeline =  pipeline->next)
+		for (const OrderPriorityBucket& opBucket : m_drawList)
 		{
-			pipeline->instanceDataOffset = instanceDataOffset;
-			uint32_t instanceIndex = 0;
-			for (MaterialBucket* material = pipeline->materials; material; material = material->next)
+			for (PipelineBucket* pipeline = opBucket.pipelines; pipeline; pipeline = pipeline->next)
 			{
-				for (ModelBucket* model = material->models; model; model = model->next)
+				pipeline->instanceDataOffset = instanceDataOffset;
+				uint32_t instanceIndex = 0;
+				for (MaterialBucket* material = pipeline->materials; material; material = material->next)
 				{
-					for (MeshBucket* mesh = model->meshes; mesh; mesh = mesh->next)
+					for (ModelBucket* model = material->models; model; model = model->next)
 					{
-						mesh->instanceBufferOffset = instanceIndex;
-						for (Instance* instance = mesh->firstInstance; instance; instance = instance->next)
+						for (MeshBucket* mesh = model->meshes; mesh; mesh = mesh->next)
 						{
-							std::memcpy(instanceDataOut + instanceDataOffset, instance->data, instance->dataSize);
-							instanceDataOffset += instance->dataSize;
+							mesh->instanceBufferOffset = instanceIndex;
+							for (Instance* instance = mesh->firstInstance; instance; instance = instance->next)
+							{
+								std::memcpy(instanceDataOut + instanceDataOffset, instance->data, instance->dataSize);
+								instanceDataOffset += instance->dataSize;
+							}
+							instanceIndex += mesh->numInstances;
 						}
-						instanceIndex += mesh->numInstances;
 					}
 				}
 			}
@@ -154,40 +167,43 @@ namespace eg
 		if (m_totalInstances == 0)
 			return;
 		
-		for (PipelineBucket* pipeline = m_drawList; pipeline; pipeline =  pipeline->next)
+		for (const OrderPriorityBucket& opBucket : m_drawList)
 		{
-			if (!pipeline->materials->material->BindPipeline(cmdCtx, drawArgs))
-				continue;
-			
-			if (pipeline->hasInstanceData)
+			for (PipelineBucket* pipeline = opBucket.pipelines; pipeline; pipeline =  pipeline->next)
 			{
-				cmdCtx.BindVertexBuffer(1, m_instanceDataBuffer, pipeline->instanceDataOffset);
-			}
-			
-			for (MaterialBucket* material = pipeline->materials; material; material = material->next)
-			{
-				if (!material->material->BindMaterial(cmdCtx, drawArgs))
+				if (!pipeline->materials->material->BindPipeline(cmdCtx, drawArgs))
 					continue;
 				
-				for (ModelBucket* model = material->models; model; model = model->next)
+				if (pipeline->hasInstanceData)
 				{
-					cmdCtx.BindVertexBuffer(0, model->vertexBuffer, 0);
-					if (model->indexBuffer.handle != nullptr)
-					{
-						cmdCtx.BindIndexBuffer(model->indexType, model->indexBuffer, 0);
-					}
+					cmdCtx.BindVertexBuffer(1, m_instanceDataBuffer, pipeline->instanceDataOffset);
+				}
+				
+				for (MaterialBucket* material = pipeline->materials; material; material = material->next)
+				{
+					if (!material->material->BindMaterial(cmdCtx, drawArgs))
+						continue;
 					
-					for (MeshBucket* mesh = model->meshes; mesh; mesh = mesh->next)
+					for (ModelBucket* model = material->models; model; model = model->next)
 					{
-						if (model->indexBuffer.handle == nullptr)
+						cmdCtx.BindVertexBuffer(0, model->vertexBuffer, 0);
+						if (model->indexBuffer.handle != nullptr)
 						{
-							cmdCtx.Draw(mesh->firstVertex, mesh->numElements, mesh->instanceBufferOffset,
-							            mesh->numInstances);
+							cmdCtx.BindIndexBuffer(model->indexType, model->indexBuffer, 0);
 						}
-						else
+						
+						for (MeshBucket* mesh = model->meshes; mesh; mesh = mesh->next)
 						{
-							cmdCtx.DrawIndexed(mesh->firstIndex, mesh->numElements, mesh->firstVertex,
-							                   mesh->instanceBufferOffset, mesh->numInstances);
+							if (model->indexBuffer.handle == nullptr)
+							{
+								cmdCtx.Draw(mesh->firstVertex, mesh->numElements, mesh->instanceBufferOffset,
+								            mesh->numInstances);
+							}
+							else
+							{
+								cmdCtx.DrawIndexed(mesh->firstIndex, mesh->numElements, mesh->firstVertex,
+								                   mesh->instanceBufferOffset, mesh->numInstances);
+							}
 						}
 					}
 				}
