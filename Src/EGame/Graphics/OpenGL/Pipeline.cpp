@@ -220,6 +220,8 @@ namespace eg::graphics_api::gl
 					blockName = spvCrossCompiler->get_fallback_name(pcBlock.id);
 				}
 				
+				auto activeRanges = spvCrossCompiler->get_active_buffer_ranges(pcBlock.id);
+				
 				for (uint32_t i = 0; i < numMembers; i++)
 				{
 					const SPIRType& memberType = spvCrossCompiler->get_type(type.member_types[i]);
@@ -232,14 +234,42 @@ namespace eg::graphics_api::gl
 					if (!Contains(supportedBaseTypes, memberType.basetype))
 						continue;
 					
+					const uint32_t offset = spvCrossCompiler->type_struct_member_offset(type, i);
+					
+					bool active = false;
+					for (const spirv_cross::BufferRange& range : activeRanges)
+					{
+						if (offset >= range.offset && offset < range.offset + range.range)
+						{
+							active = true;
+							break;
+						}
+					}
+					if (!active)
+						continue;
+					
 					//Gets the name and uniform location of this member
 					const std::string& name = spvCrossCompiler->get_member_name(type.self, i);
 					std::string uniformName = Concat({ blockName, ".", name });
 					int location = glGetUniformLocation(program, uniformName.c_str());
 					if (location == -1)
 					{
-						Log(LogLevel::Error, "gl", "Internal OpenGL error, push constant uniform not found: '{0}' "
-							"(expected name: '{1}')", name, uniformName);
+						if (DevMode())
+						{
+							std::cout << "Push constant uniform not found: '" << name <<
+							          "' (expected '" << uniformName << "'). All uniforms:\n";
+							GLint numUniforms;
+							glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &numUniforms);
+							for (int u = 0; u < numUniforms; u++)
+							{
+								char uniformNameBuffer[512];
+								glGetActiveUniformName(program, u, sizeof(uniformNameBuffer), nullptr,
+								                       uniformNameBuffer);
+								std::cout << "  " << uniformNameBuffer << "\n";
+							}
+							std::cout << std::flush;
+						}
+						
 						continue;
 					}
 					
@@ -253,7 +283,7 @@ namespace eg::graphics_api::gl
 					PushConstantMember& pushConstant = pushConstants.emplace_back();
 					pushConstant.uniformLocation = location;
 					pushConstant.arraySize = 1;
-					pushConstant.offset = spvCrossCompiler->type_struct_member_offset(type, i);
+					pushConstant.offset = offset;
 					pushConstant.baseType = memberType.basetype;
 					pushConstant.vectorSize = memberType.vecsize;
 					pushConstant.columns = memberType.columns;
