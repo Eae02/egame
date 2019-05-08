@@ -16,5 +16,5 @@ namespace eg
 	
 	EG_API extern const AssetFormat Texture2DAssetFormat;
 	
-	EG_API bool Texture2DLoader(const struct AssetLoadContext& loadContext);
+	EG_API bool Texture2DLoader(const class AssetLoadContext& loadContext);
 }

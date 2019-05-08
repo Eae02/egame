@@ -6,7 +6,7 @@
 namespace eg
 {
 	template <typename W>
-	class OwningRef : public W
+	class EG_API OwningRef : public W
 	{
 		using HandleT = std::decay_t<decltype(W::handle)>;
 	public:
@@ -31,6 +31,9 @@ namespace eg
 			other.handle = nullptr;
 			return *this;
 		}
+		
+		OwningRef(const OwningRef<W>& other) = delete;
+		OwningRef<W>& operator=(const OwningRef<W>& other) = delete;
 	};
 	
 	class EG_API PipelineRef
@@ -476,7 +479,7 @@ namespace eg
 	class EG_API QueryPool : public OwningRef<QueryPoolRef>
 	{
 	public:
-		QueryPool() = default;
+		QueryPool() { }
 		QueryPool(QueryType type, uint32_t size)
 		{
 			handle = gal::CreateQueryPool(type, size);
