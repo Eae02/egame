@@ -92,7 +92,7 @@ namespace eg
 				}
 			}
 			
-			uploadBuffer.Unmap(0, totalBytesToUpload);
+			uploadBuffer.Flush(0, totalBytesToUpload);
 			
 			model.m_vertexBuffer = Buffer(BufferFlags::VertexBuffer | BufferFlags::CopyDst, totalVerticesBytes, nullptr);
 			model.m_indexBuffer = Buffer(BufferFlags::IndexBuffer | BufferFlags::CopyDst, totalIndicesBytes, nullptr);

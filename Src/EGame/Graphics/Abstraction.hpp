@@ -605,6 +605,7 @@ namespace eg
 		bool textureCubeMapArray;
 		bool blockTextureCompression;
 		float timerTicksPerNS;
+		bool concurrentResourceCreation;
 	};
 	
 	template <>

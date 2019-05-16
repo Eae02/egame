@@ -156,6 +156,7 @@ namespace eg::graphics_api::gl
 		deviceInfo.geometryShader = true;
 		deviceInfo.tessellation = true;
 		deviceInfo.textureCubeMapArray = true;
+		deviceInfo.concurrentResourceCreation = false;
 		deviceInfo.blockTextureCompression =
 			SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
 			SDL_GL_ExtensionSupported("GL_ARB_texture_compression_rgtc");

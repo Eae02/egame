@@ -1,0 +1,76 @@
+<html>
+	<head>
+		<link rel="stylesheet" href="Style.css">
+		<meta charset="utf-8">
+	</head>
+	<body>
+		<h2>Root Entries</h2>
+		<table>
+			<thead>
+				<td>Name</td>
+				<td>Default</td>
+				<td>Description</td>
+			</thead>
+			<tr>
+				<td><code>emissionRate</code></td>
+				<td><span class="req">Required</span></td>
+				<td>Number of particles to emit per second.</td>
+			</tr>
+			<tr>
+				<td><code>lifeTime [min,max]</code></td>
+				<td><span class="req">Required</span></td>
+				<td>Life time in seconds.</td>
+			</tr>
+			<tr>
+				<td><code>position</code></td>
+				<td><code>(0, 0, 0)</code></td>
+				<td>Position generator for new particles.</td>
+			</tr>
+			<tr>
+				<td><code>velocity</code></td>
+				<td><code>(0, 0, 0)</code></td>
+				<td>Velocity generator for new particles.</td>
+			</tr>
+			<tr>
+				<td><code>rotation [min,max]</code></td>
+				<td><code>0</code></td>
+				<td>Initial rotation angle in degrees.</td>
+			</tr>
+			<tr>
+				<td><code>angularVelocity [min,max]</code></td>
+				<td><code>0</code></td>
+				<td>Angular velocity in degrees / second.</td>
+			</tr>
+			<tr>
+				<td><code>opacity [min,max]</code></td>
+				<td><code>1</code></td>
+				<td>Initial opacity, opacity < 0 means transparent, > 1 means opaque.</td>
+			</tr>
+			<tr>
+				<td><code>endOpacity [min,max]</code></td>
+				<td><code>1</code></td>
+				<td>Final opacity factor (the opacity of a particle at the end of it's life is <code>opacity * endOpacity</code>).</td>
+			</tr>
+			<tr>
+				<td><code>size [min,max]</code></td>
+				<td><code>1</code></td>
+				<td>Initial size (radius of the particle in world space units).</td>
+			</tr>
+			<tr>
+				<td><code>endSize [min,max]</code></td>
+				<td><code>1</code></td>
+				<td>Final size factor (the size of a particle at the end of it's life is <code>size * endSize</code>).</td>
+			</tr>
+			<tr>
+				<td><code>blend</code></td>
+				<td><code>alpha</code></td>
+				<td>Particle blend mode. Valid values are <code>alpha</code> and <code>additive</code>.</td>
+			</tr>
+			<tr>
+				<td><code>gravity</code></td>
+				<td><code>true</code></td>
+				<td>Whether or not the particle should be affected by gravity.</td>
+			</tr>
+		</table>
+	</body>
+</html>

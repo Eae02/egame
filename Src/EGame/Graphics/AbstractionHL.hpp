@@ -132,9 +132,9 @@ namespace eg
 			return gal::MapBuffer(handle, offset, range);
 		}
 		
-		void Unmap(uint64_t modOffset, uint64_t modRange)
+		void Flush(uint64_t modOffset, uint64_t modRange)
 		{
-			gal::UnmapBuffer(handle, modOffset, modRange);
+			gal::FlushBuffer(handle, modOffset, modRange);
 		}
 		
 		void UsageHint(BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None)
@@ -165,9 +165,9 @@ namespace eg
 			return buffer.Map(offset, range);
 		}
 		
-		void Unmap()
+		void Flush()
 		{
-			buffer.Unmap(offset, range);
+			buffer.Flush(offset, range);
 		}
 	};
 	

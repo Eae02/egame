@@ -149,7 +149,7 @@ namespace eg
 			}
 		}
 		
-		uploadBuffer.Unmap();
+		uploadBuffer.Flush();
 		
 		if (m_totalInstanceData > m_instanceDataCapacity)
 		{

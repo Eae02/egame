@@ -30,7 +30,7 @@ namespace eg
 		Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite, uploadBytes, nullptr);
 		void* uploadMem = uploadBuffer.Map(0, uploadBytes);
 		std::memcpy(uploadMem, AtlasData(), uploadBytes);
-		uploadBuffer.Unmap(0, uploadBytes);
+		uploadBuffer.Flush(0, uploadBytes);
 		
 		TextureRange textureRange = { };
 		textureRange.sizeX = AtlasWidth();

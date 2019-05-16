@@ -65,7 +65,7 @@ namespace eg
 		
 		void* uploadBufferMem = uploadBuffer.Map(0, dataBytes);
 		std::memcpy(uploadBufferMem, data.get(), dataBytes);
-		uploadBuffer.Unmap(0, dataBytes);
+		uploadBuffer.Flush(0, dataBytes);
 		
 		const TextureRange range = { 0, 0, 0, createInfo.width, createInfo.height, 1, 0 };
 		

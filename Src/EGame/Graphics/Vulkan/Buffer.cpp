@@ -116,7 +116,7 @@ namespace eg::graphics_api::vk
 		return UnwrapBuffer(handle)->mappedMemory + offset;
 	}
 	
-	void UnmapBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
+	void FlushBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
 		vmaFlushAllocation(ctx.allocator, buffer->allocation, modOffset, modRange);

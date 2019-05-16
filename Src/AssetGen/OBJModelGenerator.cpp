@@ -9,10 +9,6 @@
 #include <fstream>
 #include <charconv>
 
-#define PARSE_FLOAT(str, flt) \
-if (std::from_chars(str.data(), str.data() + str.size(), flt).ec == std::errc::invalid_argument) \
-	return false;
-
 namespace eg::asset_gen
 {
 	struct VertexPtr

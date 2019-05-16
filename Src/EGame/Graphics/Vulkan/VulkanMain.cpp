@@ -632,6 +632,7 @@ namespace eg::graphics_api::vk
 		deviceInfo.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
 		deviceInfo.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
 		deviceInfo.timerTicksPerNS = ctx.deviceLimits.timestampPeriod;
+		deviceInfo.concurrentResourceCreation = true;
 	}
 	
 	void DestroyCachedDescriptorSets();

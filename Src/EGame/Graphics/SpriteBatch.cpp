@@ -44,7 +44,7 @@ namespace eg
 		UploadBuffer uploadBuffer = GetTemporaryUploadBuffer(4);
 		uint8_t* uploadBufferMem = static_cast<uint8_t*>(uploadBuffer.Map());
 		std::fill_n(uploadBufferMem, 4, 255);
-		uploadBuffer.Unmap();
+		uploadBuffer.Flush();
 		
 		TextureRange textureRange = { };
 		textureRange.sizeX = 1;
@@ -311,7 +311,7 @@ namespace eg
 		char* uploadMem = static_cast<char*>(uploadBuffer.Map());
 		std::memcpy(uploadMem, m_vertices.data(), verticesBytes);
 		std::memcpy(uploadMem + verticesBytes, m_indices.data(), indicesBytes);
-		uploadBuffer.Unmap();
+		uploadBuffer.Flush();
 		
 		//Copies vertices and indices to the GPU buffers
 		DC.CopyBuffer(uploadBuffer.buffer, m_vertexBuffer, uploadBuffer.offset, 0, verticesBytes);

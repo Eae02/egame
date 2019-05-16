@@ -70,7 +70,7 @@ namespace eg
 		
 		void* uploadBufferMemory = uploadBuffer.Map(0, uploadBufferSize);
 		std::memcpy(uploadBufferMemory, loadContext.Data().data() + sizeof(Header), uploadBufferSize);
-		uploadBuffer.Unmap(0, uploadBufferSize);
+		uploadBuffer.Flush(0, uploadBufferSize);
 		
 		uint64_t bufferOffset = 0;
 		for (uint32_t i = 0; i < header->numLayers; i++)

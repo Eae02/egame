@@ -74,7 +74,7 @@ namespace eg::graphics_api::gl
 		return buffer->persistentMapping + offset;
 	}
 	
-	void UnmapBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
+	void FlushBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
 		glFlushMappedNamedBufferRange(buffer->buffer, modOffset, modRange);

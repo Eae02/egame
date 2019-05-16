@@ -25,6 +25,11 @@ namespace eg
 		inline bool EnableZCheck() const
 		{ return m_enableZCheck; }
 		
+		const Plane& GetPlane(int i) const
+		{
+			return m_planes[i];
+		}
+		
 	private:
 		Plane m_planes[6];
 		bool m_enableZCheck = true;

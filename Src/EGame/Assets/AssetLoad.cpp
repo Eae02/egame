@@ -3,6 +3,7 @@
 #include "Texture2DLoader.hpp"
 #include "ModelAsset.hpp"
 #include "../Graphics/StdVertex.hpp"
+#include "../Graphics/Particles/ParticleEmitterType.hpp"
 #include "../Log.hpp"
 
 namespace eg
@@ -56,11 +57,13 @@ namespace eg
 		RegisterAssetLoader("Shader", &ShaderModuleAsset::AssetLoader, ShaderModuleAsset::AssetFormat);
 		RegisterAssetLoader("Texture2D", &Texture2DLoader, Texture2DAssetFormat);
 		RegisterAssetLoader("Model", &ModelAssetLoader, ModelAssetFormat);
+		RegisterAssetLoader("ParticleEmitter", &ParticleEmitterType::AssetLoader, ParticleEmitterType::AssetFormat);
 		
 		DefineModelVertexType<StdVertex>();
 		
 		BindAssetExtension("glsl", "Shader", "Shader");
 		BindAssetExtension("png", "Texture2D", "Texture2D");
 		BindAssetExtension("obj", "Model", "OBJModel");
+		BindAssetExtension("ype", "ParticleEmitter", "ParticleEmitter");
 	}
 }
