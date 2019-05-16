@@ -27,20 +27,20 @@ namespace eg
 			pos += 8 + codeSize;
 		}
 		
-		std::sort(result.m_variants.begin(), result.m_variants.end());
-		
 		return true;
 	}
 	
 	ShaderModuleHandle ShaderModuleAsset::GetVariant(std::string_view name) const
 	{
 		uint32_t hash = HashFNV1a32(name);
-		auto it = std::lower_bound(m_variants.begin(), m_variants.end(), hash);
-		if (it == m_variants.end() || it->hash != hash)
+		for (const Variant& variant : m_variants)
 		{
-			EG_PANIC("Shader module variant not found: '" << name << "'");
+			if (variant.hash == hash)
+			{
+				return variant.shaderModule.Handle();
+			}
 		}
-		return it->shaderModule.Handle();
+		EG_PANIC("Shader module variant not found: '" << name << "'");
 	}
 	
 	ShaderModuleHandle ShaderModuleAsset::DefaultVariant() const

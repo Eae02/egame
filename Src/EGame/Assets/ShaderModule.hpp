@@ -10,6 +10,11 @@ namespace eg
 	{
 	public:
 		ShaderModuleAsset() = default;
+		ShaderModuleAsset(const ShaderModuleAsset&) = delete;
+		ShaderModuleAsset(ShaderModuleAsset&&) = default;
+		ShaderModuleAsset& operator=(const ShaderModuleAsset&) = delete;
+		ShaderModuleAsset& operator=(ShaderModuleAsset&&) = default;
+		
 		
 		ShaderModuleHandle DefaultVariant() const;
 		

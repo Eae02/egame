@@ -60,6 +60,11 @@ namespace eg
 	public:
 		Profiler() = default;
 		
+		Profiler(const Profiler& other) = delete;
+		Profiler(Profiler&& other) = default;
+		Profiler& operator=(const Profiler& other) = delete;
+		Profiler& operator=(Profiler&& other) = default;
+		
 		void Reset();
 		
 		CPUTimer StartCPUTimer(std::string name);

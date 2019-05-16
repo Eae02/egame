@@ -42,9 +42,15 @@ namespace eg
 	{
 		if (appDataPath.empty())
 		{
-			LPWSTR wszPath = NULL;
-			SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &wszPath);
-			appDataPath = std::string(wszPath);
+			char szPath[MAX_PATH];
+			if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_COMMON_APPDATA, nullptr, 0, szPath)))
+			{
+				appDataPath = std::string(szPath);
+			}
+			else
+			{
+				EG_PANIC("Could not get path to appdata")
+			}
 		}
 		return appDataPath;
 	}
