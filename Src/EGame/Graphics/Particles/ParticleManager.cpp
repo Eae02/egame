@@ -1,7 +1,5 @@
 #include "ParticleManager.hpp"
 #include "ParticleEmitterInstance.hpp"
-#include "../../../Shaders/Build/Particle.vs.h"
-#include "../../../Shaders/Build/Particle.fs.h"
 
 #include <bitset>
 #include <ctime>
@@ -9,8 +7,8 @@
 
 namespace eg
 {
-	ParticleManager::ParticleManager(const eg::Texture* texture)
-		: m_texture(texture), m_random(std::time(nullptr)), m_thread(&ParticleManager::ThreadTarget, this)
+	ParticleManager::ParticleManager()
+		: m_random(std::time(nullptr)), m_thread(&ParticleManager::ThreadTarget, this)
 	{
 		SetGravity(glm::vec3(0, -5, 0));
 	}
@@ -54,14 +52,17 @@ namespace eg
 				__m128* lifeProgressM = reinterpret_cast<__m128*>(page->lifeProgress);
 				__m128* oneOverLifeTimeM = reinterpret_cast<__m128*>(page->oneOverLifeTime);
 				
-				//Increases life progress and updates rotation
+				//Increases life progress
 				for (int i = numAliveDiv4 - 1; i >= 0; i--)
 				{
 					lifeProgressM[i] = _mm_add_ps(lifeProgressM[i], _mm_mul_ps(oneOverLifeTimeM[i], dt4));
 					
+					alignas(16) float lp[4];
+					_mm_store_ps(lp, lifeProgressM[i]);
+					
 					for (int j = 3; j >= 0; j--)
 					{
-						if (lifeProgressM[i][j] > 1.0f)
+						if (lp[j] > 1.0f)
 						{
 							deadIndices[numDead++] = i * 4 + j;
 						}
@@ -122,10 +123,23 @@ namespace eg
 				particleCount += numAlive;
 			}
 			
+			for (int i = m_pages.size() - 1; i >= 0; i--)
+			{
+				if (m_pages[i]->livingParticles == 0)
+				{
+					m_emptyPages.push_back(m_pages[i]);
+					m_pages[i] = m_pages.back();
+					m_pages.pop_back();
+				}
+			}
+			
 			//Spawns new particles
 			for (Emitter& emitter : m_btEmitters)
 			{
+				float oldTSE = emitter.timeSinceEmit;
 				emitter.timeSinceEmit += dt;
+				
+				int emissionsMade = 1;
 				while (emitter.timeSinceEmit > emitter.emissionDelay)
 				{
 					ParticlePage* page = GetPage(*emitter.type);
@@ -134,10 +148,17 @@ namespace eg
 					auto Vec3GenVisitor = [&] (const auto& generator) { return generator(m_random); };
 					
 					uint32_t idx = page->livingParticles++;
-					glm::vec4 position(std::visit(Vec3GenVisitor, emitter.type->positionGenerator), 1.0f);
-					position = emitter.transform * position;
-					glm::vec4 velocity(std::visit(Vec3GenVisitor, emitter.type->velocityGenerator), 0.0f);
-					velocity = emitter.transform * velocity;
+					
+					float transformIA = glm::clamp((emissionsMade * emitter.emissionDelay - oldTSE) / dt, 0.0f, 1.0f);
+					auto TransformV3 = [&] (const glm::vec3& v, float w)
+					{
+						glm::vec3 prev(emitter.prevTransform * glm::vec4(v, w));
+						glm::vec3 next(emitter.transform * glm::vec4(v, w));
+						return glm::mix(prev, next, transformIA);
+					};
+					
+					glm::vec4 position(TransformV3(std::visit(Vec3GenVisitor, emitter.type->positionGenerator), 1), 1);
+					glm::vec4 velocity(TransformV3(std::visit(Vec3GenVisitor, emitter.type->velocityGenerator), 0), 0);
 					
 					page->position[idx] = _mm_loadu_ps(&position.x);
 					page->velocity[idx] = _mm_loadu_ps(&velocity.x);
@@ -156,11 +177,14 @@ namespace eg
 					page->deltaSize[idx] = finalSize - page->initialSize[idx];
 					
 					emitter.timeSinceEmit -= emitter.emissionDelay;
+					emissionsMade++;
 				}
+				
+				emitter.prevTransform = emitter.transform;
 			}
 			
-			float texCoordScaleX = (float)UINT16_MAX / (float)m_texture->Width();
-			float texCoordScaleY = (float)UINT16_MAX / (float)m_texture->Height();
+			float texCoordScaleX = (float)UINT16_MAX / (float)m_textureWidth;
+			float texCoordScaleY = (float)UINT16_MAX / (float)m_textureHeight;
 			
 			//Writes visible particles to the particle instances list
 			particleInstances.clear();
@@ -191,8 +215,8 @@ namespace eg
 						instance.size = page->currentSize[i];
 						instance.opacity = glm::clamp(page->currentOpacity[i], 0.0f, 255.0f);
 						instance.additiveBlend = HasFlag(page->emitterType->flags, ParticleFlags::BlendAdditive) ? 0xFF : 0;
-						instance.sinR = (std::sin(page->rotation[i]) + 1.0f) * 254.0f;
-						instance.cosR = (std::cos(page->rotation[i]) + 1.0f) * 254.0f;
+						instance.sinR = (std::sin(page->rotation[i]) + 1.0f) * 127.0f;
+						instance.cosR = (std::cos(page->rotation[i]) + 1.0f) * 127.0f;
 						
 						auto texVariant = page->emitterType->textureVariants[page->textureVariants[i]];
 						int frame = std::min<int>(page->lifeProgress[i] * texVariant.numFrames, texVariant.numFrames - 1);
@@ -364,11 +388,16 @@ namespace eg
 		{
 			m_btEmitters[i].alive = m_mtEmitters[i].alive;
 			m_btEmitters[i].transform = m_mtEmitters[i].transform;
+			
+			//if (!m_mtEmitters[i].alive)
+			//	std::cout << "Emitter Dead" << std::endl;
 		}
 		
 		//Removes dead emitters
-		std::remove_if(m_btEmitters.begin(), m_btEmitters.end(), [&] (const Emitter& e) { return !e.alive; });
-		std::remove_if(m_mtEmitters.begin(), m_mtEmitters.end(), [&] (const Emitter& e) { return !e.alive; });
+		auto btEnd = std::remove_if(m_btEmitters.begin(), m_btEmitters.end(), [&] (const Emitter& e) { return !e.alive; });
+		m_btEmitters.erase(btEnd, m_btEmitters.end());
+		auto mtEnd = std::remove_if(m_mtEmitters.begin(), m_mtEmitters.end(), [&] (const Emitter& e) { return !e.alive; });
+		m_mtEmitters.erase(mtEnd, m_mtEmitters.end());
 		
 		//Adds new emitters
 		for (size_t i = m_btEmitters.size(); i < m_mtEmitters.size(); i++)
@@ -387,8 +416,10 @@ namespace eg
 		emitter.type = &type;
 		emitter.timeSinceEmit = 0;
 		emitter.alive = true;
+		emitter.hasSetTransform = false;
 		emitter.gravity = glm::vec3(0, -5, 0);
 		emitter.transform = glm::mat4(1.0f);
+		emitter.prevTransform = glm::mat4(1.0f);
 		emitter.UpdateEmissionDelay(1.0f);
 		return ParticleEmitterInstance(emitter.id, this);
 	}

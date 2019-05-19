@@ -47,7 +47,12 @@ namespace eg
 		
 		void SetTransform(const glm::mat4& transform)
 		{
-			m_manager->GetEmitter(m_id).transform = transform;
+			auto& emitter = m_manager->GetEmitter(m_id);
+			emitter.transform = transform;
+			if (!emitter.hasSetTransform) {
+				emitter.prevTransform = transform;
+				emitter.hasSetTransform = true;
+			}
 		}
 		
 		bool Alive() const

@@ -3,14 +3,18 @@
 namespace eg
 {
 	static std::uniform_real_distribution<float> twoPiDist(0, TWO_PI);
-	static std::uniform_real_distribution<float> negOneToOneDist(-1, 1);
+	static std::uniform_real_distribution<float> zeroOneDist(0, 1);
 	
 	glm::vec3 SphereVec3Generator::operator()(std::mt19937& rand) const
 	{
-		float t = twoPiDist(rand);
-		float u = negOneToOneDist(rand);
-		float v = std::sqrt(1.0f - u * u);
-		return sphere.position + glm::vec3(v * std::cos(t), v * std::sin(t), u) * sphere.radius;
+		float theta = twoPiDist(rand);
+		float phi = std::acos(zeroOneDist(rand) * 2 - 1);
+		float r = std::cbrt(zeroOneDist(rand));
+		float sinTheta = std::sin(theta);
+		float cosTheta = std::cos(theta);
+		float sinPhi = std::sin(phi);
+		float cosPhi = std::cos(phi);
+		return sphere.position + (r * sphere.radius) * glm::vec3(sinPhi * cosTheta, sinPhi * sinTheta, cosPhi);
 	}
 	
 	void SphereVec3Generator::Read(std::istream& stream)

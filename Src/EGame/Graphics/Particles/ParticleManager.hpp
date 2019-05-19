@@ -12,7 +12,7 @@
 
 namespace eg
 {
-	#pragma pack(push, 1)
+#pragma pack(push, 1)
 	struct ParticleInstance
 	{
 		float position[3];
@@ -30,7 +30,7 @@ namespace eg
 	public:
 		friend class ParticleEmitterInstance;
 		
-		explicit ParticleManager(const eg::Texture* texture = nullptr);
+		ParticleManager();
 		
 		~ParticleManager();
 		
@@ -59,14 +59,10 @@ namespace eg
 			m_gravity[3] = 0.0f;
 		}
 		
-		void SetTexture(const eg::Texture* texture)
+		void SetTextureSize(int width, int height)
 		{
-			m_texture = texture;
-		}
-		
-		const eg::Texture* Texture() const
-		{
-			return m_texture;
+			m_textureWidth = width;
+			m_textureHeight = height;
 		}
 		
 		class ParticleEmitterInstance AddEmitter(const ParticleEmitterType& type);
@@ -76,11 +72,13 @@ namespace eg
 		{
 			uint32_t id;
 			bool alive;
+			bool hasSetTransform;
 			const ParticleEmitterType* type;
 			float timeSinceEmit;
 			float emissionDelay;
 			glm::vec3 gravity;
 			glm::mat4 transform;
+			glm::mat4 prevTransform;
 			
 			void UpdateEmissionDelay(float rateFactor)
 			{
@@ -148,7 +146,8 @@ namespace eg
 		
 		__m128 m_gravity;
 		
-		const eg::Texture* m_texture;
+		int m_textureWidth = 1;
+		int m_textureHeight = 1;
 		
 		std::mutex m_mutex;
 		
