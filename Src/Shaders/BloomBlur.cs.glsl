@@ -1,6 +1,6 @@
 #version 450 core
 
-layout(local_size_x=32, local_size_y=32) in;
+layout(local_size_x=32, local_size_y_id=0) in;
 
 layout(binding=0) uniform sampler2D inputImage;
 

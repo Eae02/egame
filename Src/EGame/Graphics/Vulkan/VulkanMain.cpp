@@ -633,6 +633,9 @@ namespace eg::graphics_api::vk
 		deviceInfo.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
 		deviceInfo.timerTicksPerNS = ctx.deviceLimits.timestampPeriod;
 		deviceInfo.concurrentResourceCreation = true;
+		deviceInfo.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations;
+		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupCount, 3, deviceInfo.maxComputeWorkGroupCount);
+		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupSize, 3, deviceInfo.maxComputeWorkGroupSize);
 	}
 	
 	void DestroyCachedDescriptorSets();

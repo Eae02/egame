@@ -599,6 +599,9 @@ namespace eg
 		uint32_t uniformBufferAlignment;
 		uint32_t maxTessellationPatchSize;
 		uint32_t maxClipDistances;
+		uint32_t maxComputeWorkGroupSize[3];
+		uint32_t maxComputeWorkGroupCount[3];
+		uint32_t maxComputeWorkGroupInvocations;
 		DepthRange depthRange;
 		bool geometryShader;
 		bool tessellation;

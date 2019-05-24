@@ -18,22 +18,46 @@ namespace eg
 		m_auxTexture = eg::Texture::Create2D(textureCI);
 	}
 	
+	static constexpr uint32_t WORK_GROUP_SIZE_X = 32;
+	
 	BloomRenderer::BloomRenderer()
 	{
+		m_workGroupSizeY = 4;
+		while (m_workGroupSizeY <= GetGraphicsDeviceInfo().maxComputeWorkGroupSize[1] &&
+		       WORK_GROUP_SIZE_X * m_workGroupSizeY <= GetGraphicsDeviceInfo().maxComputeWorkGroupInvocations)
+		{
+			m_workGroupSizeY += 4;
+		}
+		m_workGroupSizeY -= 4;
+		
+		eg::SpecializationConstantEntry specConstants[1];
+		specConstants[0].constantID = 0;
+		specConstants[0].offset = 0;
+		specConstants[0].size = sizeof(uint32_t);
+		
 		eg::ShaderModule brightPassSM(ShaderStage::Compute, BloomBrightPass_cs_glsl);
 		eg::ShaderModule blurSM(ShaderStage::Compute, BloomBlur_cs_glsl);
 		eg::ShaderModule upscaleSM(ShaderStage::Compute, BloomUpscale_cs_glsl);
 		
 		ComputePipelineCreateInfo brightPassPipelineCI;
-		brightPassPipelineCI.computeShader = brightPassSM.Handle();
+		brightPassPipelineCI.computeShader.shaderModule = brightPassSM.Handle();
+		brightPassPipelineCI.computeShader.specConstants = specConstants;
+		brightPassPipelineCI.computeShader.specConstantsData = &m_workGroupSizeY;
+		brightPassPipelineCI.computeShader.specConstantsDataSize = sizeof(uint32_t);
 		m_brightPassPipeline = eg::Pipeline::Create(brightPassPipelineCI);
 		
 		ComputePipelineCreateInfo blurPipelineCI;
-		blurPipelineCI.computeShader = blurSM.Handle();
+		blurPipelineCI.computeShader.shaderModule = blurSM.Handle();
+		blurPipelineCI.computeShader.specConstants = specConstants;
+		blurPipelineCI.computeShader.specConstantsData = &m_workGroupSizeY;
+		blurPipelineCI.computeShader.specConstantsDataSize = sizeof(uint32_t);
 		m_blurPipeline = eg::Pipeline::Create(blurPipelineCI);
 		
 		ComputePipelineCreateInfo upscalePipelineCI;
-		upscalePipelineCI.computeShader = upscaleSM.Handle();
+		upscalePipelineCI.computeShader.shaderModule = upscaleSM.Handle();
+		upscalePipelineCI.computeShader.specConstants = specConstants;
+		upscalePipelineCI.computeShader.specConstantsData = &m_workGroupSizeY;
+		upscalePipelineCI.computeShader.specConstantsDataSize = sizeof(uint32_t);
 		m_upscalePipeline = eg::Pipeline::Create(upscalePipelineCI);
 		
 		SamplerDescription inputSamplerDesc;
@@ -50,7 +74,8 @@ namespace eg
 	{
 		auto Dispatch = [&] (uint32_t width, uint32_t height)
 		{
-			DC.DispatchCompute((width + 31) / 32, (height + 31) / 32, 1);
+			DC.DispatchCompute((width + WORK_GROUP_SIZE_X - 1) / WORK_GROUP_SIZE_X,
+			                   (height + m_workGroupSizeY - 1) / m_workGroupSizeY, 1);
 		};
 		
 		TextureBarrier barrier;

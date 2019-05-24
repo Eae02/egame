@@ -31,6 +31,8 @@ namespace eg
 		void Render(const glm::vec3& threshold, eg::TextureRef inputTexture, RenderTarget& renderTarget) const;
 		
 	private:
+		uint32_t m_workGroupSizeY;
+		
 		Pipeline m_brightPassPipeline;
 		Pipeline m_blurPipeline;
 		Pipeline m_upscalePipeline;

@@ -146,9 +146,19 @@ namespace eg::graphics_api::gl
 		auto GetIntegerLimit = [&] (GLenum name)
 		{
 			int res;
-			glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &res);
+			glGetIntegerv(name, &res);
 			return res;
 		};
+		
+		for (int i = 0; i < 3; i++)
+		{
+			int ans;
+			glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, i, &ans);
+			deviceInfo.maxComputeWorkGroupCount[i] = ans;
+			glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i, &ans);
+			deviceInfo.maxComputeWorkGroupSize[i] = ans;
+		}
+		deviceInfo.maxComputeWorkGroupInvocations = GetIntegerLimit(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS);
 		
 		deviceInfo.uniformBufferAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
 		deviceInfo.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
