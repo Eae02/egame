@@ -8,6 +8,16 @@ namespace eg
 		cc.BindIndexBuffer(m_indexTypeE, m_indexBuffer, 0);
 	}
 	
+	int Model::GetMeshIndex(std::string_view name) const
+	{
+		for (int i = 0; i < (int)m_meshes.size(); i++)
+		{
+			if (m_meshes[i].name == name)
+				return i;
+		}
+		return -1;
+	}
+	
 	int Model::GetMaterialIndex(std::string_view name) const
 	{
 		for (int i = 0; i < (int)m_materialNames.size(); i++)

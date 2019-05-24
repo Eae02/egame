@@ -57,7 +57,7 @@ namespace eg
 		template <typename V, typename I>
 		MeshData<const V, const I> GetMeshData(size_t index) const
 		{
-			if (m_meshes[index].access == MeshAccess::CPUOnly)
+			if (m_meshes[index].access == MeshAccess::GPUOnly)
 			{
 				EG_PANIC("Attempted to get mesh data for a mesh which is not CPU accessible.");
 			}
@@ -79,6 +79,8 @@ namespace eg
 		}
 		
 		void Bind(CommandContext& cc = DC, uint32_t vertexBinding = 0) const;
+		
+		int GetMeshIndex(std::string_view name) const;
 		
 		int GetMaterialIndex(std::string_view name) const;
 		

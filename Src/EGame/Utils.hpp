@@ -41,7 +41,7 @@ inline constexpr T& operator|=(T& a, T b) noexcept \
 
 #ifdef NDEBUG
 #define EG_ASSERT(condition)
-#define EG_PANIC(msg) { std::ostringstream ps; ps << "A runtime error occured\nDescription: " << msg; ReleasePanic(ps.str()); }
+#define EG_PANIC(msg) { std::ostringstream ps; ps << "A runtime error occured\nDescription: " << msg; ::eg::ReleasePanic(ps.str()); }
 #else
 #define EG_PANIC(msg) { std::cerr << "PANIC@" << __FILE__ << ":" << __LINE__ << "\n" << msg << std::endl; EG_DEBUG_BREAK; std::abort(); }
 #define EG_ASSERT(condition) if (!(condition)) { std::cerr << "ASSERT@" << __FILE__ << ":" << __LINE__ << " " #condition << std::endl; EG_DEBUG_BREAK; std::abort(); }
@@ -76,6 +76,8 @@ namespace eg
 	{
 		return detail::devMode;
 	}
+	
+	EG_API void ReleasePanic(const std::string& message);
 	
 	template <typename T>
 	inline T& Deref(T* ptr)
@@ -234,8 +236,6 @@ namespace eg
 		}
 		return false;
 	}
-	
-	EG_API void ReleasePanic(const std::string& message);
 	
 	inline int8_t ToSNorm(float x)
 	{

@@ -73,6 +73,11 @@ namespace eg
 			return m_indices.get();
 		}
 		
+		const float* Vertices() const
+		{
+			return reinterpret_cast<const float*>(m_positions.get());
+		}
+		
 		const __m128* VerticesM128() const
 		{
 			return reinterpret_cast<const __m128*>(m_positions.get());
