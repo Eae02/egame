@@ -34,11 +34,12 @@ namespace eg
 		alignas(16) float rayStartA[4] = { ray.GetStart().x, ray.GetStart().y, ray.GetStart().z, 0.0f };
 		__m128 rayStart = _mm_load_ps(rayStartA);
 		
-		for (int i = 0; i < m_indices.size(); i += 3)
+		const __m128* positions = VerticesM128();
+		for (uint32_t i = 0; i < m_numIndices; i += 3)
 		{
-			const __m128& v0 = m_positions[m_indices[i + 0]];
-			const __m128& v1 = m_positions[m_indices[i + 1]];
-			const __m128& v2 = m_positions[m_indices[i + 2]];
+			const __m128& v0 = positions[m_indices[i + 0]];
+			const __m128& v1 = positions[m_indices[i + 1]];
+			const __m128& v2 = positions[m_indices[i + 2]];
 			
 			__m128 d1 = _mm_sub_ps(v1, v0);
 			__m128 d2 = _mm_sub_ps(v2, v0);
@@ -78,5 +79,13 @@ namespace eg
 		}
 		
 		return ans;
+	}
+	
+	void CollisionMesh::FlipWinding()
+	{
+		for (uint32_t i = 0; i < m_numIndices; i += 3)
+		{
+			std::swap(m_indices[i], m_indices[i + 1]);
+		}
 	}
 }

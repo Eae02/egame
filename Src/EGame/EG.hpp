@@ -43,6 +43,8 @@
 #include "AABB.hpp"
 #include "Plane.hpp"
 #include "Lazy.hpp"
+#include "CollisionMesh.hpp"
+#include "Collision.hpp"
 #include "Assets/Asset.hpp"
 #include "Assets/AssetLoad.hpp"
 #include "Assets/AssetGenerator.hpp"
