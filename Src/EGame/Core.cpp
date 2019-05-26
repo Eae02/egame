@@ -189,6 +189,12 @@ namespace eg
 			}
 		}
 		
+		const char* createEapEnv = getenv("EG_CREATE_EAP");
+		if (createEapEnv != nullptr && std::strcmp(createEapEnv, "true") == 0 && devMode)
+		{
+			createAssetPackage = true;
+		}
+		
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
 		{
 			std::cerr << "SDL failed to initialize: " << SDL_GetError() << std::endl;

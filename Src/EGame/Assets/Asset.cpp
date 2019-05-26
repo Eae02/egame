@@ -365,6 +365,7 @@ namespace eg
 		}
 		
 		EAPWriteContext eapWriteContext;
+		eapWriteContext.numAssets = 0;
 		
 		for (AssetToLoad& asset : assetsToLoad)
 		{
