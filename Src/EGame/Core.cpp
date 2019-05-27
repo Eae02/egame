@@ -201,6 +201,13 @@ namespace eg
 			return 1;
 		}
 		
+		if (!SDL_HasSSE41())
+		{
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "CPU Not Supported",
+				"This game requires SSE 4.1, which your CPU does not support.", nullptr);
+			return 1;
+		}
+		
 		if (exeDirPathPtr == nullptr)
 		{
 			exeDirPathPtr = SDL_GetBasePath();
@@ -238,7 +245,7 @@ namespace eg
 			if (devMode)
 				contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
 			
-			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
@@ -274,8 +281,6 @@ namespace eg
 		
 		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))
 		{
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error initializing graphics",
-				"The selected graphics API could not be initialized.", nullptr);
 			return 1;
 		}
 		

@@ -601,7 +601,7 @@ namespace eg
 			gal::PushConstants(Handle(), offset, sizeof(data), &data);
 		}
 		
-		void SetViewport(int x, int y, int w, int h)
+		void SetViewport(float x, float y, float w, float h)
 		{
 			gal::SetViewport(Handle(), x, y, w, h);
 		}

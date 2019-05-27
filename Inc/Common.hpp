@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef __cplusplus
+
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -27,3 +29,5 @@
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/color_space.hpp>
 #include <glm/gtc/color_space.hpp>
+
+#endif

@@ -45,7 +45,7 @@ namespace eg
 		auto it = std::lower_bound(m_componentTypes.begin(), m_componentTypes.end(), typeIndex);
 		if (it == m_componentTypes.end() || it->typeIndex != typeIndex)
 			return -1;
-		return it - m_componentTypes.begin();
+		return (int)(it - m_componentTypes.begin());
 	}
 	
 	bool EntitySignature::WantsMessage(std::type_index messageType) const

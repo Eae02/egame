@@ -11,6 +11,11 @@ namespace eg
 		explicit ECParticleSystem(ParticleManager* manager = nullptr)
 			: m_manager(manager) { }
 		
+		ECParticleSystem(ECParticleSystem&&) = default;
+		ECParticleSystem(const ECParticleSystem&) = delete;
+		ECParticleSystem& operator=(ECParticleSystem&&) = default;
+		ECParticleSystem& operator=(const ECParticleSystem&) = delete;
+		
 		void AddEmitter(const ParticleEmitterType& emitterType)
 		{
 			m_emitters.push_back(m_manager->AddEmitter(emitterType));

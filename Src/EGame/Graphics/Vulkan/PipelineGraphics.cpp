@@ -147,7 +147,7 @@ namespace eg::graphics_api::vk
 		case Topology::LineStrip: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP; break;
 		case Topology::Points: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
 		case Topology::Patches: pipeline->topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST; break;
-		default: EG_UNREACHABLE
+		default: EG_UNREACHABLE break;
 		}
 		
 		VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;

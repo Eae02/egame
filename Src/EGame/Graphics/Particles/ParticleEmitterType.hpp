@@ -52,7 +52,7 @@ namespace eg
 		ParticleFlags flags;
 		
 		static const eg::AssetFormat AssetFormat;
-		static bool AssetLoader(const struct AssetLoadContext& loadContext);
+		static bool AssetLoader(const class AssetLoadContext& loadContext);
 	};
 	
 #pragma pack(push, 1)

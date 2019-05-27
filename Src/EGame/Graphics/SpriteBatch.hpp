@@ -45,7 +45,7 @@ namespace eg
 		void Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color, float scale = 1,
 			FlipFlags flipFlags = FlipFlags::Normal, float rotation = 0, const glm::vec2& origin = { })
 		{
-			Draw(texture, position, color, Rectangle(0, 0, texture.Width(), texture.Height()), scale,
+			Draw(texture, position, color, Rectangle(0, 0, (float)texture.Width(), (float)texture.Height()), scale,
 				flipFlags, rotation, origin);
 		}
 		
@@ -55,7 +55,7 @@ namespace eg
 		
 		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color, FlipFlags flipFlags)
 		{
-			Draw(texture, rectangle, color, Rectangle(0, 0, texture.Width(), texture.Height()), flipFlags);
+			Draw(texture, rectangle, color, Rectangle(0, 0, (float)texture.Width(), (float)texture.Height()), flipFlags);
 		}
 		
 		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color,

@@ -53,10 +53,8 @@ namespace eg
 		
 		void SetGravity(glm::vec3 gravity)
 		{
-			m_gravity[0] = gravity.x;
-			m_gravity[1] = gravity.y;
-			m_gravity[2] = gravity.z;
-			m_gravity[3] = 0.0f;
+			alignas(16) float setBuf[4] = { gravity.x, gravity.y, gravity.z, 0.0f };
+			m_gravity = _mm_load_ps(setBuf);
 		}
 		
 		void SetTextureSize(int width, int height)
@@ -121,7 +119,7 @@ namespace eg
 			int instancesWritten;
 		};
 		std::vector<ParticleUploadBuffer> m_particleUploadBuffers;
-		int m_missingUploadBuffers = 0;
+		size_t m_missingUploadBuffers = 0;
 		
 		uint32_t m_deviceBufferCapacity = 0;
 		Buffer m_deviceBuffer;

@@ -123,7 +123,7 @@ namespace eg
 				particleCount += numAlive;
 			}
 			
-			for (int i = m_pages.size() - 1; i >= 0; i--)
+			for (int64_t i = (int64_t)m_pages.size() - 1; i >= 0; i--)
 			{
 				if (m_pages[i]->livingParticles == 0)
 				{
@@ -210,22 +210,21 @@ namespace eg
 						particleDepths.emplace_back(depth, particleInstances.size());
 						
 						ParticleInstance& instance = particleInstances.emplace_back();
-						for (int j = 0; j < 3; j++)
-							instance.position[j] = page->position[i][j];
+						_mm_storeu_ps(instance.position, page->position[i]);
 						instance.size = page->currentSize[i];
-						instance.opacity = glm::clamp(page->currentOpacity[i], 0.0f, 255.0f);
+						instance.opacity = (uint8_t)glm::clamp(page->currentOpacity[i], 0.0f, 255.0f);
 						instance.additiveBlend = HasFlag(page->emitterType->flags, ParticleFlags::BlendAdditive) ? 0xFF : 0;
-						instance.sinR = (std::sin(page->rotation[i]) + 1.0f) * 127.0f;
-						instance.cosR = (std::cos(page->rotation[i]) + 1.0f) * 127.0f;
+						instance.sinR = (uint8_t)((std::sin(page->rotation[i]) + 1.0f) * 127.0f);
+						instance.cosR = (uint8_t)((std::cos(page->rotation[i]) + 1.0f) * 127.0f);
 						
 						auto texVariant = page->emitterType->textureVariants[page->textureVariants[i]];
-						int frame = std::min<int>(page->lifeProgress[i] * texVariant.numFrames, texVariant.numFrames - 1);
+						int frame = std::min((int)(page->lifeProgress[i] * texVariant.numFrames), texVariant.numFrames - 1);
 						int texX = texVariant.x + frame * texVariant.width;
 						
-						instance.texCoord[0] = std::ceil(texX * texCoordScaleX);
-						instance.texCoord[1] = std::ceil(texVariant.y * texCoordScaleY);
-						instance.texCoord[2] = std::floor((texX + texVariant.width) * texCoordScaleX);
-						instance.texCoord[3] = std::floor((texVariant.y + texVariant.height) * texCoordScaleY);
+						instance.texCoord[0] = (uint16_t)std::ceil(texX * texCoordScaleX);
+						instance.texCoord[1] = (uint16_t)std::ceil(texVariant.y * texCoordScaleY);
+						instance.texCoord[2] = (uint16_t)std::floor((texX + texVariant.width) * texCoordScaleX);
+						instance.texCoord[3] = (uint16_t)std::floor((texVariant.y + texVariant.height) * texCoordScaleY);
 					}
 				}
 			}
@@ -330,9 +329,11 @@ namespace eg
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_simulationDoneSignal.wait(lock, [&] { return m_state == State::SimulationDone; });
 		
-		for (int i = 0; i < m_missingUploadBuffers; i++)
+		while (m_missingUploadBuffers > 0)
+		{
 			AddUploadBuffer();
-		m_missingUploadBuffers = 0;
+			m_missingUploadBuffers--;
+		}
 		
 		m_instancesToDraw = 0;
 		for (ParticleUploadBuffer& buffer : m_particleUploadBuffers)
@@ -367,19 +368,23 @@ namespace eg
 			m_deviceBuffer.UsageHint(BufferUsage::VertexBuffer);
 		}
 		
+		alignas(16) float setBuf[4];
+		
 		for (int i = 0; i < 6; i++)
 		{
 			const Plane& p = frustum.GetPlane(i);
-			m_frustumPlanes[i][0] = p.GetNormal().x;
-			m_frustumPlanes[i][1] = p.GetNormal().y;
-			m_frustumPlanes[i][2] = p.GetNormal().z;
-			m_frustumPlanes[i][3] = -p.GetDistance();
+			setBuf[0] = p.GetNormal().x;
+			setBuf[1] = p.GetNormal().y;
+			setBuf[2] = p.GetNormal().z;
+			setBuf[3] = -p.GetDistance();
+			m_frustumPlanes[i] = _mm_load_ps(setBuf);
 		}
 		
-		m_cameraForward[0] = cameraForward.x;
-		m_cameraForward[1] = cameraForward.y;
-		m_cameraForward[2] = cameraForward.z;
-		m_cameraForward[3] = 0.0f;
+		setBuf[0] = cameraForward.x;
+		setBuf[1] = cameraForward.y;
+		setBuf[2] = cameraForward.z;
+		setBuf[3] = 0.0f;
+		m_cameraForward = _mm_load_ps(setBuf);
 		
 		m_currentTime += dt;
 		

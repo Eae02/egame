@@ -251,7 +251,7 @@ namespace eg
 			sizeOut = reinterpret_cast<glm::vec2*>(alloca(sizeof(glm::vec2)));
 		}
 		
-		int x = 0;
+		float x = 0;
 		sizeOut->y = 0;
 		
 		uint32_t prev = 0;
@@ -266,8 +266,8 @@ namespace eg
 			const int kerning = font.GetKerning(prev, c);
 			
 			Rectangle rectangle;
-			rectangle.x = position.x + (x + fontChar->xOffset + kerning) * scale;
-			rectangle.y = position.y - (0 - fontChar->yOffset + fontChar->height) * scale;
+			rectangle.x = std::round(position.x + (x + fontChar->xOffset + kerning) * scale);
+			rectangle.y = std::round(position.y - (0 - fontChar->yOffset + fontChar->height) * scale);
 			rectangle.w = fontChar->width * scale;
 			rectangle.h = fontChar->height * scale;
 			

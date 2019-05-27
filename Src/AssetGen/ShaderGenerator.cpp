@@ -250,7 +250,7 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			case EShLangGeometry: egStage = ShaderStage::Geometry; break;
 			case EShLangTessControl: egStage = ShaderStage::TessControl; break;
 			case EShLangTessEvaluation: egStage = ShaderStage::TessEvaluation; break;
-			default: EG_UNREACHABLE
+			default: EG_UNREACHABLE break;
 			}
 			BinWrite(generateContext.outputStream, (uint32_t)egStage);
 			

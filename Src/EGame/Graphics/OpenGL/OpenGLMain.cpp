@@ -84,7 +84,11 @@ namespace eg::graphics_api::gl
 	{
 		glContext = SDL_GL_CreateContext(initArguments.window);
 		if (glContext == nullptr)
+		{
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL",
+				"Could not create OpenGL context, make sure your graphics driver supports at least OpenGL 4.3.", nullptr);
 			return false;
+		}
 		
 		if (!initArguments.enableVSync)
 			SDL_GL_SetSwapInterval(0);
@@ -93,8 +97,32 @@ namespace eg::graphics_api::gl
 		
 		srgbBackBuffer = initArguments.defaultFramebufferSRGB;
 		
+		const char* requiredExtensions[] = 
+		{
+			"GL_ARB_direct_state_access",
+			"GL_ARB_buffer_storage",
+			"GL_ARB_clear_texture",
+			"GL_EXT_texture_filter_anisotropic"
+		};
+		
+		for (const char* ext : requiredExtensions)
+		{
+			if (!SDL_GL_ExtensionSupported(ext))
+			{
+				std::ostringstream messageStream;
+				messageStream << "Required OpenGL extension " << ext << " is not supported by your graphics driver.";
+				std::string message = messageStream.str();
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL", message.c_str(), nullptr);
+				return false;
+			}
+		}
+		
 		if (gl3wInit() != GL3W_OK)
+		{
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL",
+				"Unknown error occurred when initializing OpenGL (gl3wInit failed).", nullptr);
 			return false;
+		}
 		
 		if (initArguments.defaultDepthStencilFormat == Format::Depth32 ||
 		    initArguments.defaultDepthStencilFormat == Format::Depth16)

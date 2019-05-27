@@ -14,7 +14,7 @@ namespace eg
 	{
 		std::lock_guard<std::mutex> lock(s_globalManagersMutex);
 		
-		uint32_t index = s_globalManagersList.size();
+		uint32_t index = (uint32_t)s_globalManagersList.size();
 		for (uint32_t i = 0; i < s_globalManagersList.size(); i++)
 		{
 			if (s_globalManagersList[i] == nullptr)
@@ -273,7 +273,7 @@ namespace eg
 					entity.Serializer()->Serialize(entity, tempStream);
 					
 					std::string serializedStr = tempStream.str();
-					BinWrite<uint32_t>(stream, serializedStr.size());
+					BinWrite(stream, (uint32_t)serializedStr.size());
 					stream.write(serializedStr.data(), serializedStr.size());
 				}
 			}

@@ -43,9 +43,9 @@ namespace eg
 		if (appDataPath.empty())
 		{
 			char szPath[MAX_PATH];
-			if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_COMMON_APPDATA, nullptr, 0, szPath)))
+			if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_APPDATA, nullptr, 0, szPath)))
 			{
-				appDataPath = std::string(szPath);
+				appDataPath = std::string(szPath) + "/";
 			}
 			else
 			{

@@ -67,8 +67,8 @@ namespace eg
 		FT_Set_Pixel_Sizes(face, 0, size);
 		
 		FontAtlas atlas;
-		atlas.m_size = size;
-		atlas.m_lineHeight = size;
+		atlas.m_size = (int)size;
+		atlas.m_lineHeight = (float)size;
 		
 		if (FT_Load_Char(face, ' ', FT_LOAD_DEFAULT) != 0)
 		{
