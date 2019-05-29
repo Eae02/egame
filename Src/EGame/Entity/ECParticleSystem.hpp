@@ -31,6 +31,11 @@ namespace eg
 			return m_emitters;
 		}
 		
+		void ClearEmitters()
+		{
+			m_emitters.clear();
+		}
+		
 		static void Update(class EntityManager& entityManager);
 		
 	private:

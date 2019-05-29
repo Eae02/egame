@@ -254,7 +254,7 @@ namespace eg::graphics_api::vk
 				if (framebufferS->resolveDepthStencilAttachment->autoBarrier)
 				{
 					framebufferS->resolveDepthStencilAttachment->currentUsage = TextureUsage::FramebufferAttachment;
-					framebufferS->resolveDepthStencilAttachment->currentStageFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+					framebufferS->resolveDepthStencilAttachment->currentStageFlags = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 				}
 			}
 			
