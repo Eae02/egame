@@ -6,7 +6,7 @@ layout(binding=0) uniform sampler2D inputImage;
 
 layout(rgba16f, binding=1) writeonly uniform image2D outputImage;
 
-const float kernel[] = float[] (0.20236, 0.179044, 0.124009, 0.067234, 0.028532);
+const float kernel[] = float[] (0.382928, 0.241732, 0.060598, 0.005977, 0.000229);
 
 layout(push_constant) uniform PC
 {
