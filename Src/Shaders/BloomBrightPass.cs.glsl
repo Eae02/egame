@@ -14,7 +14,14 @@ layout(push_constant) uniform PC
 
 void main()
 {
-	vec4 color = texture(inputImage, (vec2(gl_GlobalInvocationID.xy) + vec2(0.5)) * pixelSize);
-	color = max(color - threshold, vec4(0.0));
-	imageStore(outputImage, ivec2(gl_GlobalInvocationID.xy), color);
+	vec4 color = vec4(0.0);
+	for (int x = 0; x < 2; x++)
+	{
+		for (int y = 0; y < 2; y++)
+		{
+			color += texelFetch(inputImage, ivec2(gl_GlobalInvocationID.xy) * 2 + ivec2(x, y), 0);
+		}
+	}
+	
+	imageStore(outputImage, ivec2(gl_GlobalInvocationID.xy), max((color / 4.0) - threshold, vec4(0.0)));
 }

@@ -2,18 +2,10 @@
 
 #include "AbstractionHL.hpp"
 #include "Model.hpp"
-#include "../API.hpp"
+#include "IMaterial.hpp"
 
 namespace eg
 {
-	class EG_API IMaterial
-	{
-	public:
-		virtual size_t PipelineHash() const = 0;
-		virtual bool BindPipeline(CommandContext& cmdCtx, void* drawArgs) const = 0;
-		virtual bool BindMaterial(CommandContext& cmdCtx, void* drawArgs) const = 0;
-	};
-	
 	class EG_API MeshBatch
 	{
 	public:

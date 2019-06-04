@@ -11,6 +11,7 @@
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
 #include "Graphics/MeshBatch.hpp"
+#include "Graphics/MeshBatchOrdered.hpp"
 #include "Graphics/PBR/BRDFIntegrationMap.hpp"
 #include "Graphics/PBR/IrradianceMapGenerator.hpp"
 #include "Graphics/PBR/SPFMapGenerator.hpp"
