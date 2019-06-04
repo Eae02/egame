@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef EG_WEB
+
 #include "../API.hpp"
 
 namespace eg
@@ -42,3 +44,5 @@ namespace eg
 		void* m_handle = nullptr;
 	};
 }
+
+#endif

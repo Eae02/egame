@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "RenderPasses.hpp"
 
 #include <list>
@@ -163,3 +164,5 @@ namespace eg::graphics_api::vk
 		}
 	}
 }
+
+#endif

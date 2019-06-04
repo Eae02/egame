@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef EG_NO_VULKAN
+
 #include "Common.hpp"
 
 namespace eg::graphics_api::vk
@@ -50,3 +52,5 @@ namespace eg::graphics_api::vk
 		return reinterpret_cast<Texture*>(handle);
 	}
 }
+
+#endif

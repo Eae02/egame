@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Common.hpp"
 #include "DSLCache.hpp"
 #include "Pipeline.hpp"
@@ -186,3 +187,5 @@ namespace eg::graphics_api::vk
 			set, 1, &ds->descriptorSet, 0, nullptr);
 	}
 }
+
+#endif

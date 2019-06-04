@@ -1,9 +1,9 @@
 #include "ParticleManager.hpp"
 #include "ParticleEmitterInstance.hpp"
+#include "../../SIMD.hpp"
 
 #include <bitset>
 #include <ctime>
-#include <smmintrin.h>
 
 namespace eg
 {
@@ -34,7 +34,9 @@ namespace eg
 			float dt = m_currentTime - lastSimTime;
 			lastSimTime = m_currentTime;
 			
+#ifdef EG_HAS_SIMD
 			__m128 dt4 = _mm_set1_ps(dt);
+#endif
 			
 			int particleCount = 0;
 			
@@ -47,6 +49,7 @@ namespace eg
 				int numDead = 0;
 				int deadIndices[PARTICLES_PER_PAGE];
 				
+#ifdef EG_HAS_SIMD
 				__m128* rotationM = reinterpret_cast<__m128*>(page->rotation);
 				__m128* angularVelocityM = reinterpret_cast<__m128*>(page->angularVelocity);
 				__m128* lifeProgressM = reinterpret_cast<__m128*>(page->lifeProgress);
@@ -68,6 +71,17 @@ namespace eg
 						}
 					}
 				}
+#else
+				//Increases life progress
+				for (int i = numAlive - 1; i >= 0; i--)
+				{
+					page->lifeProgress[i] += page->oneOverLifeTime[i] * dt;
+					if (page->lifeProgress[i] >= 1.0f)
+					{
+						deadIndices[numDead++] = i;
+					}
+				}
+#endif
 				
 				//Removes dead particles
 				for (int i = 0; i < numDead; i++)
@@ -92,6 +106,7 @@ namespace eg
 				page->livingParticles = numAlive;
 				numAliveDiv4 = (numAlive + 3) / 4;
 				
+#ifdef EG_HAS_SIMD
 				//Updates rotation and writes current size and opacity
 				__m128* initialOpacityM = reinterpret_cast<__m128*>(page->initialOpacity);
 				__m128* deltaOpacityM = reinterpret_cast<__m128*>(page->deltaOpacity);
@@ -119,6 +134,21 @@ namespace eg
 					page->position[i] = _mm_add_ps(page->position[i], _mm_mul_ps(vel, dt4));
 					page->velocity[i] = vel;
 				}
+#else
+				glm::vec4 deltaVelGravity = m_gravity * (dt * page->emitterType->gravity);
+				float deltaVelDragFactor = -dt * page->emitterType->drag;
+				for (int i = 0; i < numAlive; i++)
+				{
+					page->rotation[i] += page->angularVelocity[i] * dt;
+					page->currentOpacity[i] = (page->initialOpacity[i] + page->deltaOpacity[i] * page->lifeProgress[i]) * 255;
+					page->currentSize[i] = page->initialSize[i] + (page->deltaSize[i] * page->lifeProgress[i]);
+					
+					page->velocity[i] += deltaVelDragFactor * page->velocity[i];
+					page->velocity[i] += deltaVelGravity;
+					
+					page->position[i] += page->velocity[i] * dt;
+				}
+#endif
 				
 				particleCount += numAlive;
 			}
@@ -160,8 +190,13 @@ namespace eg
 					glm::vec4 position(TransformV3(std::visit(Vec3GenVisitor, emitter.type->positionGenerator), 1), 1);
 					glm::vec4 velocity(TransformV3(std::visit(Vec3GenVisitor, emitter.type->velocityGenerator), 0), 0);
 					
+#ifdef EG_HAS_SIMD
 					page->position[idx] = _mm_loadu_ps(&position.x);
 					page->velocity[idx] = _mm_loadu_ps(&velocity.x);
+#else
+					page->position[idx] = position;
+					page->velocity[idx] = velocity;
+#endif
 					
 					page->oneOverLifeTime[idx] = 1.0f / emitter.type->lifeTime(m_random);
 					page->lifeProgress[idx] = 0;
@@ -196,7 +231,7 @@ namespace eg
 					bool draw = true;
 					for (int p = 0; p < 6; p++)
 					{
-						float dst = _mm_cvtss_f32(_mm_dp_ps(page->position[i], m_frustumPlanes[p], 0xFF));
+						float dst = sse::Dot(page->position[i], m_frustumPlanes[p]);
 						if (dst < -page->currentSize[i])
 						{
 							draw = false;
@@ -206,11 +241,16 @@ namespace eg
 					
 					if (draw)
 					{
-						float depth = _mm_cvtss_f32(_mm_dp_ps(page->position[i], m_cameraForward, 0xFF));
+						float depth = sse::Dot(page->position[i], m_cameraForward);
 						particleDepths.emplace_back(depth, particleInstances.size());
 						
 						ParticleInstance& instance = particleInstances.emplace_back();
+#ifdef EG_HAS_SSE
 						_mm_storeu_ps(instance.position, page->position[i]);
+#else
+						for (int j = 0; j < 3; j++)
+							instance.position[j] = page->position[i][j];
+#endif
 						instance.size = page->currentSize[i];
 						instance.opacity = (uint8_t)glm::clamp(page->currentOpacity[i], 0.0f, 255.0f);
 						instance.additiveBlend = HasFlag(page->emitterType->flags, ParticleFlags::BlendAdditive) ? 0xFF : 0;
@@ -373,18 +413,26 @@ namespace eg
 		for (int i = 0; i < 6; i++)
 		{
 			const Plane& p = frustum.GetPlane(i);
+#ifdef EG_HAS_SIMD
 			setBuf[0] = p.GetNormal().x;
 			setBuf[1] = p.GetNormal().y;
 			setBuf[2] = p.GetNormal().z;
 			setBuf[3] = -p.GetDistance();
 			m_frustumPlanes[i] = _mm_load_ps(setBuf);
+#else
+			m_frustumPlanes[i] = glm::vec4(p.GetNormal(), -p.GetDistance());
+#endif
 		}
 		
+#ifdef EG_HAS_SIMD
 		setBuf[0] = cameraForward.x;
 		setBuf[1] = cameraForward.y;
 		setBuf[2] = cameraForward.z;
 		setBuf[3] = 0.0f;
 		m_cameraForward = _mm_load_ps(setBuf);
+#else
+		m_cameraForward = glm::vec4(cameraForward, 0.0f);
+#endif
 		
 		m_currentTime += dt;
 		
@@ -393,9 +441,6 @@ namespace eg
 		{
 			m_btEmitters[i].alive = m_mtEmitters[i].alive;
 			m_btEmitters[i].transform = m_mtEmitters[i].transform;
-			
-			//if (!m_mtEmitters[i].alive)
-			//	std::cout << "Emitter Dead" << std::endl;
 		}
 		
 		//Removes dead emitters

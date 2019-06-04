@@ -1,3 +1,4 @@
+#include <spirv_glsl.hpp>
 #include "Pipeline.hpp"
 #include "../../MainThreadInvoke.hpp"
 
@@ -113,6 +114,8 @@ namespace eg::graphics_api::gl
 		
 		program = glCreateProgram();
 		
+		std::vector<std::string> glslCodeStages;
+		
 		//Updates the bindings used by resources and uploads code to shader modules
 		for (uint32_t i = 0; i < numShaderModules; i++)
 		{
@@ -134,7 +137,13 @@ namespace eg::graphics_api::gl
 			ProcessResources(shResources.storage_images);
 			
 			spirv_cross::CompilerGLSL::Options options = spvCompilers[i]->get_common_options();
+#ifdef EG_GLES
+			options.version = 300;
+			options.es = true;
+			options.fragment.default_float_precision = spirv_cross::CompilerGLSL::Options::Highp;
+#else
 			options.version = 430;
+#endif
 			spvCompilers[i]->set_common_options(options);
 			std::string glslCode = spvCompilers[i]->compile();
 			
@@ -184,6 +193,7 @@ namespace eg::graphics_api::gl
 			}
 			
 			glAttachShader(program, shaderModules[i]);
+			glslCodeStages.push_back(std::move(glslCode));
 		}
 		
 		glLinkProgram(program);
@@ -200,7 +210,14 @@ namespace eg::graphics_api::gl
 			glGetProgramInfoLog(program, infoLogLen, nullptr, infoLog.data());
 			infoLog.back() = '\0';
 			
-			EG_PANIC("Shader program failed to link: " << infoLog.data());
+			std::cout << "Shader program failed to link: \n\n --- Info Log --- \n" << infoLog.data();
+			
+			for (const std::string& code : glslCodeStages)
+			{
+				std::cout << "\n\n --- GLSL ---\n" << code;
+			}
+			
+			std::abort();
 		}
 		
 		//Processes push constant blocks
@@ -258,6 +275,7 @@ namespace eg::graphics_api::gl
 						{
 							std::cout << "Push constant uniform not found: '" << name <<
 							          "' (expected '" << uniformName << "'). All uniforms:\n";
+#ifndef EG_GLES
 							GLint numUniforms;
 							glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &numUniforms);
 							for (int u = 0; u < numUniforms; u++)
@@ -267,6 +285,9 @@ namespace eg::graphics_api::gl
 								                       uniformNameBuffer);
 								std::cout << "  " << uniformNameBuffer << "\n";
 							}
+#else
+							std::cout << "  Not implemented in GLES\n";
+#endif
 							std::cout << std::flush;
 						}
 						

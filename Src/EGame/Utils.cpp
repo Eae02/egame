@@ -4,7 +4,10 @@
 #include <sstream>
 #include <iomanip>
 #include <stack>
+
+#ifndef EG_WEB
 #include <SDL.h>
+#endif
 
 namespace eg
 {
@@ -77,7 +80,9 @@ namespace eg
 	{
 		std::cerr << message << std::endl;
 		
+#ifndef EG_WEB
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Runtime Error", message.c_str(), nullptr);
+#endif
 		
 		std::abort();
 	}

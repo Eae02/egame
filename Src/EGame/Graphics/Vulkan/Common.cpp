@@ -1,3 +1,5 @@
+#ifndef EG_NO_VULKAN
+
 #include "Common.hpp"
 
 namespace eg
@@ -266,3 +268,5 @@ namespace eg::graphics_api::vk
 		}
 	}
 }
+
+#endif

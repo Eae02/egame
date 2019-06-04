@@ -1,7 +1,7 @@
 #pragma once
 
-#include <emmintrin.h>
 #include "Span.hpp"
+#include "SIMD.hpp"
 
 namespace eg
 {
@@ -78,10 +78,12 @@ namespace eg
 			return reinterpret_cast<const float*>(m_positions.get());
 		}
 		
+#ifdef EG_HAS_SIMD
 		const __m128* VerticesM128() const
 		{
 			return reinterpret_cast<const __m128*>(m_positions.get());
 		}
+#endif
 		
 		glm::vec3 Vertex(uint32_t i) const
 		{

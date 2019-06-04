@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Sampler.hpp"
 #include "Translation.hpp"
 
@@ -79,3 +80,5 @@ namespace eg::graphics_api::vk
 	
 	void DestroySampler(SamplerHandle sampler) { }
 }
+
+#endif

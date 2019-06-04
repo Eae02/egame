@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "ShaderModule.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
@@ -99,3 +100,4 @@ namespace eg::graphics_api::vk
 		UnwrapShaderModule(handle)->UnRef();
 	}
 }
+#endif

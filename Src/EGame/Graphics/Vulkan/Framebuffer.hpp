@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef EG_NO_VULKAN
+
 #include "Common.hpp"
 #include "../Abstraction.hpp"
 
@@ -19,3 +21,5 @@ namespace eg::graphics_api::vk
 	
 	extern FramebufferFormat currentFBFormat;
 }
+
+#endif

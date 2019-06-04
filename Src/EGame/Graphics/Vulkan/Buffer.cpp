@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Buffer.hpp"
 #include "Pipeline.hpp"
 #include "Translation.hpp"
@@ -275,3 +276,5 @@ namespace eg::graphics_api::vk
 		vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
 	}
 }
+
+#endif

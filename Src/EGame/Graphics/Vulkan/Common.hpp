@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef EG_NO_VULKAN
+
 #include "../Graphics.hpp"
 #include "../Abstraction.hpp"
 #include "../../Log.hpp"
@@ -165,3 +167,5 @@ namespace eg::graphics_api::vk
 		return fence;
 	}
 }
+
+#endif

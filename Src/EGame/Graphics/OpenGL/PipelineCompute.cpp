@@ -26,11 +26,13 @@ namespace eg::graphics_api::gl
 		spirv_cross::CompilerGLSL* spvCompilerPtr = &computeShaderModule->spvCompiler;
 		pipeline->Initialize(1, &spvCompilerPtr, &pipeline->shaderModule);
 		
+#ifndef EG_WEB
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_PROGRAM, pipeline->program, -1, createInfo.label);
 			glObjectLabel(GL_SHADER, pipeline->shaderModule, -1, createInfo.label);
 		}
+#endif
 		
 		return WrapPipeline(pipeline);
 	}

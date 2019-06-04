@@ -77,6 +77,20 @@ namespace eg
 			Span<const GlyphRange> glyphRanges, int atlasWidth = -1, int atlasHeight = -1);
 		
 		/**
+		 * Creates an atlas by rendering a font file stored in memory.
+		 * Any format supported by FreeType can be rendered.
+		 * @param data The font file contents in memory.
+		 * @param size The font size to render at.
+		 * @param glyphRanges A list of glyph ranges to include in the atlas,
+		 * must be in sorted in ascending order of start and not have any overlap.
+		 * @param atlasWidth Hint for the width of the output atlas.
+		 * @param atlasHeight Hint for the height of the output atlas.
+		 * @return The rendered font atlas, or none if an error occurred.
+		 */
+		static std::optional<FontAtlas> Render(Span<const char> data, uint32_t size,
+			Span<const GlyphRange> glyphRanges, int atlasWidth = -1, int atlasHeight = -1);
+		
+		/**
 		 * Creates a font atlas from an FNT file.
 		 * @param path The path to the FNT file.
 		 * @return The font atlas, or none if an error occurred.
@@ -127,6 +141,9 @@ namespace eg
 		}
 		
 	private:
+		static std::optional<FontAtlas> RenderFreeType(void* face, int loadState, std::string_view fontName,
+			uint32_t size, Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight);
+		
 		int m_size;
 		float m_lineHeight;
 		float m_spaceAdvance;

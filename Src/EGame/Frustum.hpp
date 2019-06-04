@@ -3,8 +3,6 @@
 #include "Plane.hpp"
 #include "API.hpp"
 
-#include <emmintrin.h>
-
 namespace eg
 {
 	class EG_API Frustum

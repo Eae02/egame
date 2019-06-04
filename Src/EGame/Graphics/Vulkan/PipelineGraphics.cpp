@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Common.hpp"
 #include "RenderPasses.hpp"
 #include "ShaderModule.hpp"
@@ -477,3 +478,5 @@ namespace eg::graphics_api::vk
 		vkCmdDrawIndexed(GetCB(cc), numIndices, numInstances, firstIndex, firstVertex, firstInstance);
 	}
 }
+
+#endif

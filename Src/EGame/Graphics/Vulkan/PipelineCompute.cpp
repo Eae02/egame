@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Pipeline.hpp"
 #include "ShaderModule.hpp"
 #include "../../Alloc/ObjectPool.hpp"
@@ -69,3 +70,5 @@ namespace eg::graphics_api::vk
 		vkCmdDispatch(cb, sizeX, sizeY, sizeZ);
 	}
 }
+
+#endif

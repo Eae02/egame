@@ -1,6 +1,17 @@
 #include "RenderDoc.hpp"
 #include "../Log.hpp"
 
+#ifdef EG_WEB
+namespace eg::renderdoc
+{
+	void Init() { }
+	bool IsPresent() { return false; }
+	void CaptureNextFrame() { }
+	void StartCapture() { }
+	void EndCapture() { }
+}
+#else
+
 #include <renderdoc.h>
 
 #if defined(_WIN32)
@@ -61,3 +72,5 @@ namespace eg::renderdoc
 			renderDocAPI->EndFrameCapture(nullptr, nullptr);
 	}
 }
+
+#endif

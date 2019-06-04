@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "VulkanMain.hpp"
 #include "Texture.hpp"
 #include "Common.hpp"
@@ -376,3 +377,5 @@ namespace eg::graphics_api::vk
 		return res;
 	}
 }
+
+#endif

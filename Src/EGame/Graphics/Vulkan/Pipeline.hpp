@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef EG_NO_VULKAN
+
 #include "Common.hpp"
 #include "../../Alloc/LinearAllocator.hpp"
 
@@ -35,3 +37,5 @@ namespace eg::graphics_api::vk
 		return reinterpret_cast<PipelineHandle>(pipeline);
 	}
 }
+
+#endif

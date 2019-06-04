@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Translation.hpp"
 
 namespace eg::graphics_api::vk
@@ -276,3 +277,5 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE;
 	}
 }
+
+#endif

@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Pipeline.hpp"
 #include "DSLCache.hpp"
 #include "ShaderModule.hpp"
@@ -94,3 +95,5 @@ namespace eg::graphics_api::vk
 		}
 	}
 }
+
+#endif

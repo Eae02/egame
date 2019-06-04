@@ -43,6 +43,16 @@ private:
 	eg::Pipeline m_pipeline;
 };
 
+#ifdef __EMSCRIPTEN__
+extern "C" void WebMain()
+{
+	eg::RunConfig runConfig;
+	runConfig.gameName = "EGame Sandbox";
+	runConfig.flags = eg::RunFlags::DevMode | eg::RunFlags::DefaultFramebufferSRGB;
+	
+	eg::Run<Game>(runConfig);
+}
+#else
 int main(int argc, char** argv)
 {
 	eg::RunConfig runConfig;
@@ -60,3 +70,4 @@ int main(int argc, char** argv)
 	
 	return eg::Run<Game>(runConfig);
 }
+#endif

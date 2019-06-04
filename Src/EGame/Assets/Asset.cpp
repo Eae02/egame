@@ -280,6 +280,9 @@ namespace eg
 	
 	static bool LoadAssetsYAML(const std::string& path, AssetDirectory& mountDir)
 	{
+#ifdef EG_WEB
+		return false;
+#else
 		std::string yamlPath = path + "/Assets.yaml";
 		std::ifstream yamlStream(yamlPath, std::ios::binary);
 		if (!yamlStream)
@@ -384,6 +387,7 @@ namespace eg
 		}
 		
 		return true;
+#endif
 	}
 	
 	static bool LoadAssetsEAP(const std::string& path, AssetDirectory& mountDir)
@@ -477,6 +481,9 @@ namespace eg
 		}
 	}
 	
+#ifdef EG_WEB
+	void LoadAssetGenLibrary() { }
+#else
 	static DynamicLibrary assetGenLibrary;
 	
 	void LoadAssetGenLibrary()
@@ -498,6 +505,7 @@ namespace eg
 		
 		reinterpret_cast<void(*)()>(initSym)();
 	}
+#endif
 	
 	const Asset* detail::FindAsset(std::string_view name)
 	{

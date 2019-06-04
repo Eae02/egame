@@ -4,11 +4,11 @@
 #include "../AbstractionHL.hpp"
 #include "../../API.hpp"
 #include "../../Frustum.hpp"
+#include "../../SIMD.hpp"
 
 #include <thread>
 #include <condition_variable>
 #include <chrono>
-#include <emmintrin.h>
 
 namespace eg
 {
@@ -53,8 +53,12 @@ namespace eg
 		
 		void SetGravity(glm::vec3 gravity)
 		{
+#ifdef EG_HAS_SIMD
 			alignas(16) float setBuf[4] = { gravity.x, gravity.y, gravity.z, 0.0f };
 			m_gravity = _mm_load_ps(setBuf);
+#else
+			m_gravity = glm::vec4(gravity, 0.0f);
+#endif
 		}
 		
 		void SetTextureSize(int width, int height)
@@ -94,8 +98,8 @@ namespace eg
 		{
 			const ParticleEmitterType* emitterType;
 			uint32_t livingParticles;
-			__m128 position[PARTICLES_PER_PAGE];
-			__m128 velocity[PARTICLES_PER_PAGE];
+			m128 position[PARTICLES_PER_PAGE];
+			m128 velocity[PARTICLES_PER_PAGE];
 			uint8_t textureVariants[PARTICLES_PER_PAGE];
 			alignas(16) float lifeProgress[PARTICLES_PER_PAGE];
 			alignas(16) float oneOverLifeTime[PARTICLES_PER_PAGE];
@@ -139,10 +143,10 @@ namespace eg
 		std::vector<Emitter> m_mtEmitters;
 		
 		float m_currentTime = 0;
-		__m128 m_frustumPlanes[6];
-		__m128 m_cameraForward;
+		m128 m_frustumPlanes[6];
+		m128 m_cameraForward;
 		
-		__m128 m_gravity;
+		m128 m_gravity;
 		
 		int m_textureWidth = 1;
 		int m_textureHeight = 1;

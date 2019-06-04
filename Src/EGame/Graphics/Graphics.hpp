@@ -8,12 +8,7 @@ namespace eg
 	{
 		OpenGL,
 		Vulkan,
-		
-#if defined(__linux__)
 		Preferred = OpenGL
-#elif defined(_WIN32)
-		Preferred = OpenGL
-#endif
 	};
 	
 	namespace detail

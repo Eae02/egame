@@ -18,6 +18,8 @@ namespace eg
 		static void LoadDevFont();
 		static void UnloadDevFont();
 		
+		static bool IsDevFontLoaded();
+		
 		static const SpriteFont& DevFont();
 		
 	private:

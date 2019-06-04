@@ -42,11 +42,17 @@ namespace eg
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
 			return eg::graphics_api::gl::Initialize(initArguments);
+			
+#ifndef EG_NO_VULKAN
 		case GraphicsAPI::Vulkan:
 #define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::vk::name;
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
 			return eg::graphics_api::vk::Initialize(initArguments);
+#endif
+			
+		default:
+			break;
 		}
 		
 		return false;

@@ -1,5 +1,7 @@
 #pragma once
 
+#ifndef EG_NO_VULKAN
+
 #include "../Abstraction.hpp"
 
 namespace eg::graphics_api::vk
@@ -10,3 +12,5 @@ namespace eg::graphics_api::vk
 #include "../AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
 }
+
+#endif

@@ -27,7 +27,7 @@ namespace eg
 			return *this;
 		}
 		
-		void* Allocate(size_t size, size_t alignment = alignof(max_align_t));
+		void* Allocate(size_t size, size_t alignment = alignof(std::max_align_t));
 		
 		template <typename  T>
 		inline T* AllocateArray(size_t len)

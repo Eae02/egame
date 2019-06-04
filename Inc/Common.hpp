@@ -2,6 +2,8 @@
 
 #ifdef __cplusplus
 
+#include <cstdarg>
+#include <cstdio>
 #include <algorithm>
 #include <memory>
 #include <utility>

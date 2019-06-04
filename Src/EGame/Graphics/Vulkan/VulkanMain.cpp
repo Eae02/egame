@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "VulkanMain.hpp"
 #include "Common.hpp"
 #include "Sampler.hpp"
@@ -850,3 +851,5 @@ namespace eg::graphics_api::vk
 		}
 	}
 }
+
+#endif

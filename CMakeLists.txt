@@ -3,13 +3,11 @@ project(EGame)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
-find_package(SDL2 REQUIRED)
-find_package(OpenGL REQUIRED)
-find_package(ZLIB REQUIRED)
-find_package(Threads REQUIRED)
-find_package(Freetype REQUIRED)
-find_package(GLSLang REQUIRED)
-find_package(Catch2 REQUIRED)
+set(BUILD_DIR_NAME ${CMAKE_BUILD_TYPE})
+if(${CMAKE_CXX_COMPILER} MATCHES "emcc$")
+	set(TARGET_WEB TRUE)
+	set(BUILD_DIR_NAME ${BUILD_DIR_NAME}Web)
+endif()
 
 option(YAML_CPP_BUILD_TOOLS "" OFF)
 option(YAML_CPP_BUILD_TESTS "" OFF)
@@ -34,30 +32,44 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 
 add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c)
-add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
-add_executable(EGTest ${TEST_SOURCE_FILES})
 
-target_link_libraries(EGame
+target_link_libraries(EGame PUBLIC yaml-cpp)
+
+if (NOT TARGET_WEB)
+	find_package(OpenGL REQUIRED)
+	find_package(ZLIB REQUIRED)
+	find_package(Threads REQUIRED)
+	find_package(Freetype REQUIRED)
+	find_package(SDL2 REQUIRED)
+	find_package(GLSLang REQUIRED)
+	find_package(Catch2 REQUIRED)
+		
+	target_link_libraries(EGame
 	PUBLIC
 		Threads::Threads
-		yaml-cpp
 	PRIVATE
 		SDL2::SDL2
 		OpenGL::GL
 		ZLIB::ZLIB
 		Freetype::Freetype
 	)
-
-target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
+	
+	add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
+	add_executable(EGTest ${TEST_SOURCE_FILES})
+	
+	target_link_libraries(EGame PRIVATE SDL2::SDL2)
+	
+	target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
+	
+	target_include_directories(EGameAssetGen PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+	)
+endif()
 
 target_include_directories(EGame
 	PUBLIC
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>
-)
-
-target_include_directories(EGameAssetGen PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 )
 
 target_include_directories(EGame SYSTEM
@@ -79,9 +91,9 @@ target_compile_options(EGame
 	PRIVATE
 		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
 
-set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${CMAKE_BUILD_TYPE})
+set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${BUILD_DIR_NAME})
 
-set_target_properties(EGame EGSandbox EGameAssetGen EGTest PROPERTIES
+set_target_properties(EGame EGSandbox PROPERTIES
 	CXX_STANDARD 17
 	ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
 	LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
@@ -91,12 +103,12 @@ set_target_properties(EGame EGSandbox EGameAssetGen EGTest PROPERTIES
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 	target_compile_options(yaml-cpp PRIVATE -fPIC)
 	target_link_libraries(EGame PRIVATE dl)
-	set_target_properties(EGame EGameAssetGen PROPERTIES
+	set_target_properties(EGame PROPERTIES
 		CXX_VISIBILITY_PRESET hidden
 		INSTALL_RPATH "$ORIGIN"
 		BUILD_WITH_INSTALL_RPATH TRUE
 	)
-	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp> -msse4.1)
+	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
 	target_link_libraries(EGame PRIVATE shlwapi.lib)
@@ -105,9 +117,33 @@ endif()
 set_target_properties(EGame PROPERTIES DEFINE_SYMBOL "EG_BUILDING_LIB")
 
 add_dependencies(EGSandbox EGame)
-add_dependencies(EGameAssetGen EGame)
-add_dependencies(EGTest EGameAssetGen EGame)
 target_link_libraries(EGSandbox EGame)
-target_link_libraries(EGTest Catch2::Catch2 EGameAssetGen EGame)
+
+if (TARGET_WEB)
+	set(EMCC_FLAGS "-s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -s FORCE_FILESYSTEM=1 -s FETCH=1")
+	
+	if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+		set(EMCC_FLAGS "${EMCC_FLAGS} -g")
+	endif()
+	
+	target_compile_options(EGame PUBLIC -DEG_WEB PRIVATE -DEG_NO_VULKAN -s USE_ZLIB=1)
+	set_target_properties(EGame PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
+	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
+	target_link_libraries(EGame PRIVATE ${FREETYPE_PATH}/libfreetype.a)
+	target_include_directories(EGame PRIVATE ${FREETYPE_PATH}/include ${FREETYPE_PATH}/include/config)
+	message("Targeting Web")
+else()
+	target_compile_options(EGame PRIVATE -msse4.1)
+	add_dependencies(EGameAssetGen EGame)
+	add_dependencies(EGTest EGameAssetGen EGame)
+	target_link_libraries(EGTest Catch2::Catch2 EGameAssetGen EGame)
+	
+	set_target_properties(EGameAssetGen EGTest PROPERTIES
+		CXX_STANDARD 17
+		ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
+		LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
+		RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}
+	)
+endif()
 
 export(TARGETS EGame FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${CMAKE_BUILD_TYPE}/EGameTargets.cmake)

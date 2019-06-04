@@ -4,7 +4,6 @@
 #include "../Platform/FileSystem.hpp"
 
 #include <fstream>
-#include <charconv>
 #include <utf8.h>
 #include <stb_rect_pack.h>
 #include <stb_image.h>
@@ -30,9 +29,65 @@ namespace eg
 	
 	static FT_Library ftLibrary = nullptr;
 	
+	static inline bool MaybeInitFreeType()
+	{
+		if (ftLibrary == nullptr)
+		{
+			if (FT_Init_FreeType(&ftLibrary))
+			{
+				Log(LogLevel::Error, "fnt", "Error initializing FreeType.");
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	static inline void WriteFreeTypeError(int error, std::string_view fontName)
+	{
+		
+	}
+	
+	std::optional<FontAtlas> FontAtlas::Render(Span<const char> data, uint32_t size,
+		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
+	{
+		if (!MaybeInitFreeType())
+			return { };
+		
+		FT_Face face;
+		FT_Error loadState = FT_New_Memory_Face(ftLibrary, reinterpret_cast<const FT_Byte*>(data.data()),
+			data.SizeBytes(), 0, &face);
+		
+		return RenderFreeType(face, loadState, "memory", size, glyphRanges, atlasWidth, atlasHeight);
+	}
+	
 	std::optional<FontAtlas> FontAtlas::Render(const std::string& fontPath, uint32_t size,
 		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
+		if (!MaybeInitFreeType())
+			return { };
+		
+		FT_Face face;
+		FT_Error loadState = FT_New_Face(ftLibrary, fontPath.c_str(), 0, &face);
+		
+		return RenderFreeType(face, loadState, fontPath, size, glyphRanges, atlasWidth, atlasHeight);
+	}
+	
+	std::optional<FontAtlas> FontAtlas::RenderFreeType(void* faceVP, int loadState, std::string_view fontName,
+		uint32_t size, Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
+	{
+		if (loadState != 0)
+		{
+			if (loadState == FT_Err_Unknown_File_Format)
+				Log(LogLevel::Error, "fnt", "Font '{0}' has an unknown file format.", fontName);
+			else if (loadState == FT_Err_Cannot_Open_Stream)
+				Log(LogLevel::Error, "fnt", "Cannot open font file: '{0}'.", fontName);
+			else
+				Log(LogLevel::Error, "fnt", "Unknown error reading font: '{0}'.", fontName);
+			return {};
+		}
+		
+		FT_Face face = reinterpret_cast<FT_Face>(faceVP);
+		
 		for (size_t i = 1; i < glyphRanges.size(); i++)
 		{
 			if (glyphRanges[i].start <= glyphRanges[i - 1].end)
@@ -40,28 +95,6 @@ namespace eg
 				Log(LogLevel::Error, "fnt", "Glyph ranges overlap or were not provided in ascending order.");
 				return {};
 			}
-		}
-		
-		if (ftLibrary == nullptr)
-		{
-			if (FT_Init_FreeType(&ftLibrary))
-			{
-				Log(LogLevel::Error, "fnt", "Error initializing FreeType.");
-				return {};
-			}
-		}
-		
-		FT_Face face;
-		FT_Error loadState = FT_New_Face(ftLibrary, fontPath.c_str(), 0, &face);
-		if (loadState != 0)
-		{
-			if (loadState == FT_Err_Unknown_File_Format)
-				Log(LogLevel::Error, "fnt", "Font '{0}' has an unknown file format.", fontPath);
-			else if (loadState == FT_Err_Cannot_Open_Stream)
-				Log(LogLevel::Error, "fnt", "Cannot open font file: '{0}'.", fontPath);
-			else
-				Log(LogLevel::Error, "fnt", "Unknown error reading font: '{0}'.", fontPath);
-			return {};
 		}
 		
 		FT_Set_Pixel_Sizes(face, 0, size);
@@ -72,7 +105,7 @@ namespace eg
 		
 		if (FT_Load_Char(face, ' ', FT_LOAD_DEFAULT) != 0)
 		{
-			Log(LogLevel::Error, "fnt", "'{0}' does not contain the space character.", fontPath);
+			Log(LogLevel::Error, "fnt", "'{0}' does not contain the space character.", fontName);
 			FT_Done_Face(face);
 			return {};
 		}
@@ -96,7 +129,7 @@ namespace eg
 					size_t glyphUTF8Len = utf8::unchecked::utf32to8(&c, &c + 1, glyphUTF8) - glyphUTF8;
 					
 					Log(LogLevel::Error, "fnt", "Failed to load glyph {0} ({1}) from '{2}'",
-					    std::string_view(glyphUTF8, glyphUTF8Len), c, fontPath);
+					    std::string_view(glyphUTF8, glyphUTF8Len), c, fontName);
 					continue;
 				}
 				
@@ -221,12 +254,16 @@ namespace eg
 					if (part.size() >= partName.size() && part.compare(0, partName.size(), partName) == 0 &&
 					    part[partName.size()] == '=')
 					{
-						int value;
-						const char* partEnd = part.data() + part.size();
-						auto res = std::from_chars(&part[partName.size() + 1], partEnd, value);
-						if (res.ptr != partEnd)
+						std::string partS(&part[partName.size() + 1], part.data() + part.size());
+						
+						try
+						{
+							return std::stoi(partS);
+						}
+						catch (const std::exception& ex)
+						{
 							return -1;
-						return value;
+						}
 					}
 				}
 				return -1;

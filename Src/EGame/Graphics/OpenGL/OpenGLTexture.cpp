@@ -7,7 +7,9 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
 
+#ifndef EG_WEB
 #include <GL/glext.h>
+#endif
 
 namespace eg::graphics_api::gl
 {
@@ -86,15 +88,17 @@ namespace eg::graphics_api::gl
 		auto borderColor = TranslateBorderColor(description.borderColor);
 		
 		GLuint sampler;
-		glCreateSamplers(1, &sampler);
+		glGenSamplers(1, &sampler);
 		
 		glSamplerParameteri(sampler, GL_TEXTURE_MIN_FILTER, GetMinFilter(description));
 		glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, GetMagFilter(description.magFilter));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, TranslateWrapMode(description.wrapU));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, TranslateWrapMode(description.wrapV));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, TranslateWrapMode(description.wrapW));
-		glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY, ClampMaxAnistropy(description.maxAnistropy));
+		glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, ClampMaxAnistropy(description.maxAnistropy));
+#ifndef EG_GLES
 		glSamplerParameterf(sampler, GL_TEXTURE_LOD_BIAS, description.mipLodBias);
+#endif
 		glSamplerParameterfv(sampler, GL_TEXTURE_BORDER_COLOR, borderColor.data());
 		
 		if (description.enableCompare)
@@ -137,14 +141,16 @@ namespace eg::graphics_api::gl
 		EG_UNREACHABLE
 	}
 	
-	static void InitTexture(GLuint texture, const TextureCreateInfo& createInfo)
+	static void InitTexture(const Texture& texture, const TextureCreateInfo& createInfo)
 	{
+#ifndef EG_WEB
 		if (createInfo.label != nullptr)
 		{
-			glObjectLabel(GL_TEXTURE, texture, -1, createInfo.label);
+			glObjectLabel(GL_TEXTURE, texture.texture, -1, createInfo.label);
 		}
+#endif
 		
-		glTextureParameteri(texture, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
+		glTexParameteri(texture.type, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
 		
 		if (createInfo.defaultSamplerDescription != nullptr && createInfo.sampleCount == 1)
 		{
@@ -152,33 +158,41 @@ namespace eg::graphics_api::gl
 			
 			auto borderColor = TranslateBorderColor(samplerDesc.borderColor);
 			
-			glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GetMinFilter(samplerDesc));
-			glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GetMagFilter(samplerDesc.magFilter));
-			glTextureParameteri(texture, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
-			glTextureParameteri(texture, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
-			glTextureParameteri(texture, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
-			glTextureParameterf(texture, GL_TEXTURE_MAX_ANISOTROPY, ClampMaxAnistropy(samplerDesc.maxAnistropy));
-			glTextureParameterf(texture, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
-			glTextureParameterfv(texture, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+			glTexParameteri(texture.type, GL_TEXTURE_MIN_FILTER, GetMinFilter(samplerDesc));
+			glTexParameteri(texture.type, GL_TEXTURE_MAG_FILTER, GetMagFilter(samplerDesc.magFilter));
+			glTexParameteri(texture.type, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
+			glTexParameteri(texture.type, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
+			glTexParameteri(texture.type, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
+			glTexParameterf(texture.type, GL_TEXTURE_MAX_ANISOTROPY_EXT, ClampMaxAnistropy(samplerDesc.maxAnistropy));
+			
+#ifndef EG_WEB
+			glTexParameterfv(texture.type, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+#endif
+			
+#ifndef EG_GLES
+			glTexParameterf(texture.type, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
+#endif
 			
 			if (samplerDesc.enableCompare)
 			{
-				glTextureParameteri(texture, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-				glTextureParameteri(texture, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(samplerDesc.compareOp));
+				glTexParameteri(texture.type, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+				glTexParameteri(texture.type, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(samplerDesc.compareOp));
 			}
 		}
 		
-		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_R, TranslateSwizzle(createInfo.swizzleR, GL_RED));
-		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_G, TranslateSwizzle(createInfo.swizzleG, GL_GREEN));
-		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_B, TranslateSwizzle(createInfo.swizzleB, GL_BLUE));
-		glTextureParameteri(texture, GL_TEXTURE_SWIZZLE_A, TranslateSwizzle(createInfo.swizzleA, GL_ALPHA));
+#ifndef EG_WEB
+		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_R, TranslateSwizzle(createInfo.swizzleR, GL_RED));
+		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_G, TranslateSwizzle(createInfo.swizzleG, GL_GREEN));
+		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_B, TranslateSwizzle(createInfo.swizzleB, GL_BLUE));
+		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_A, TranslateSwizzle(createInfo.swizzleA, GL_ALPHA));
+#endif
 	}
 	
 	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		texture->type = createInfo.sampleCount == 1 ? GL_TEXTURE_2D : GL_TEXTURE_2D_MULTISAMPLE;
-		glCreateTextures(texture->type, 1, &texture->texture);
+		glGenTextures(1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 2;
@@ -189,18 +203,24 @@ namespace eg::graphics_api::gl
 		texture->arrayLayers = 1;
 		texture->currentUsage = TextureUsage::Undefined;
 		
+		glBindTexture(texture->type, texture->texture);
+		
 		GLenum format = TranslateFormat(createInfo.format);
 		if (createInfo.sampleCount == 1)
 		{
-			glTextureStorage2D(texture->texture, createInfo.mipLevels, format, createInfo.width, createInfo.height);
+			glTexStorage2D(texture->type, createInfo.mipLevels, format, createInfo.width, createInfo.height);
 		}
 		else
 		{
-			glTextureStorage2DMultisample(texture->texture, createInfo.sampleCount, format,
+#ifdef EG_WEB
+			EG_PANIC("Multisampling is not supported in WebGL")
+#else
+			glTexStorage2DMultisample(texture->type, createInfo.sampleCount, format,
 				createInfo.width, createInfo.height, GL_FALSE);
+#endif
 		}
 		
-		InitTexture(texture->texture, createInfo);
+		InitTexture(*texture, createInfo);
 		
 		return reinterpret_cast<TextureHandle>(texture);
 	}
@@ -209,7 +229,7 @@ namespace eg::graphics_api::gl
 	{
 		Texture* texture = texturePool.New();
 		texture->type = createInfo.sampleCount == 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
-		glCreateTextures(texture->type, 1, &texture->texture);
+		glGenTextures(1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 3;
@@ -220,20 +240,25 @@ namespace eg::graphics_api::gl
 		texture->arrayLayers = createInfo.arrayLayers;
 		texture->currentUsage = TextureUsage::Undefined;
 		
+		glBindTexture(texture->type, texture->texture);
+		
 		GLenum format = TranslateFormat(createInfo.format);
 		if (createInfo.sampleCount == 1)
 		{
-			glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
+			glTexStorage3D(texture->type, createInfo.mipLevels, format,
 				createInfo.width, createInfo.height, createInfo.arrayLayers);
 		}
 		else
 		{
-			glTextureStorage3DMultisample(texture->texture, createInfo.sampleCount, format,
+#ifdef EG_WEB
+			EG_PANIC("Multisampling is not supported in WebGL")
+#else
+			glTexStorage3DMultisample(texture->type, createInfo.sampleCount, format,
 				createInfo.width, createInfo.height, createInfo.arrayLayers, GL_FALSE);
+#endif
 		}
 		
-		
-		InitTexture(texture->texture, createInfo);
+		InitTexture(*texture, createInfo);
 		
 		return reinterpret_cast<TextureHandle>(texture);
 	}
@@ -242,7 +267,7 @@ namespace eg::graphics_api::gl
 	{
 		Texture* texture = texturePool.New();
 		texture->type = GL_TEXTURE_CUBE_MAP;
-		glCreateTextures(texture->type, 1, &texture->texture);
+		glGenTextures(1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 3;
@@ -253,11 +278,12 @@ namespace eg::graphics_api::gl
 		texture->arrayLayers = 6;
 		texture->currentUsage = TextureUsage::Undefined;
 		
-		GLenum format = TranslateFormat(createInfo.format);
-		glTextureStorage2D(texture->texture, createInfo.mipLevels, format,
-		                   createInfo.width, createInfo.width);
+		glBindTexture(texture->type, texture->texture);
 		
-		InitTexture(texture->texture, createInfo);
+		GLenum format = TranslateFormat(createInfo.format);
+		glTexStorage2D(texture->type, createInfo.mipLevels, format, createInfo.width, createInfo.width);
+		
+		InitTexture(*texture, createInfo);
 		
 		return reinterpret_cast<TextureHandle>(texture);
 	}
@@ -266,7 +292,7 @@ namespace eg::graphics_api::gl
 	{
 		Texture* texture = texturePool.New();
 		texture->type = GL_TEXTURE_CUBE_MAP_ARRAY;
-		glCreateTextures(texture->type, 1, &texture->texture);
+		glGenTextures(1, &texture->texture);
 		
 		texture->format = createInfo.format;
 		texture->dim = 3;
@@ -277,11 +303,13 @@ namespace eg::graphics_api::gl
 		texture->arrayLayers = 6 * createInfo.arrayLayers;
 		texture->currentUsage = TextureUsage::Undefined;
 		
+		glBindTexture(texture->type, texture->texture);
+		
 		GLenum format = TranslateFormat(createInfo.format);
-		glTextureStorage3D(texture->texture, createInfo.mipLevels, format,
+		glTexStorage3D(texture->texture, createInfo.mipLevels, format,
 		                   createInfo.width, createInfo.width, texture->arrayLayers);
 		
-		InitTexture(texture->texture, createInfo);
+		InitTexture(*texture, createInfo);
 		
 		return reinterpret_cast<TextureHandle>(texture);
 	}
@@ -295,6 +323,10 @@ namespace eg::graphics_api::gl
 			return texture;
 		}
 		
+#ifdef EG_GLES
+		eg::Log(LogLevel::Error, "gl", "Texture views not supported in GLES");
+		return texture;
+#else
 		for (const TextureView& view : views)
 		{
 			if (view.subresource == resolvedSubresource)
@@ -319,6 +351,7 @@ namespace eg::graphics_api::gl
 		view.subresource = resolvedSubresource;
 		
 		return view.texture;
+#endif
 	}
 	
 	static std::pair<Format, GLenum> compressedUploadFormats[] =
@@ -380,30 +413,32 @@ namespace eg::graphics_api::gl
 		const bool isCompressed = IsCompressedFormat(texture->format);
 		const uint32_t imageBytes = GetImageByteSize(range.sizeX, range.sizeY, texture->format);
 		
+		glBindTexture(texture->type, texture->texture);
+		
 		switch (texture->dim)
 		{
 		case 2:
 			if (isCompressed)
 			{
-				glCompressedTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
+				glCompressedTexSubImage2D(texture->type, range.mipLevel, range.offsetX, range.offsetY,
 					range.sizeX, range.sizeY, format, imageBytes, offsetPtr);
 			}
 			else
 			{
-				glTextureSubImage2D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
-				                    range.sizeX, range.sizeY, format, type, offsetPtr);
+				glTexSubImage2D(texture->type, range.mipLevel, range.offsetX, range.offsetY,
+				                range.sizeX, range.sizeY, format, type, offsetPtr);
 			}
 			break;
 		case 3:
 			if (isCompressed)
 			{
-				glCompressedTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY,
+				glCompressedTexSubImage3D(texture->type, range.mipLevel, range.offsetX, range.offsetY,
 					range.offsetZ, range.sizeX, range.sizeY, range.sizeZ, format, imageBytes * range.sizeZ, offsetPtr);
 			}
 			else
 			{
-				glTextureSubImage3D(texture->texture, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
-				                    range.sizeX, range.sizeY, range.sizeZ, format, type, offsetPtr);
+				glTexSubImage3D(texture->type, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
+				                range.sizeX, range.sizeY, range.sizeZ, format, type, offsetPtr);
 			}
 			break;
 		}
@@ -413,7 +448,9 @@ namespace eg::graphics_api::gl
 	
 	void GenerateMipmaps(CommandContextHandle, TextureHandle handle)
 	{
-		glGenerateTextureMipmap(UnwrapTexture(handle)->texture);
+		Texture* texture = UnwrapTexture(handle);
+		glBindTexture(texture->type, texture->texture);
+		glGenerateMipmap(texture->texture);
 	}
 	
 	void DestroyTexture(TextureHandle handle)
@@ -432,7 +469,9 @@ namespace eg::graphics_api::gl
 	{
 		uint32_t glBinding = ResolveBinding(set, binding);
 		glBindSampler(glBinding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
-		glBindTextureUnit(glBinding, UnwrapTexture(texture)->GetView(subresource));
+		glActiveTexture(GL_TEXTURE0 + glBinding);
+		Texture* tex = UnwrapTexture(texture);
+		glBindTexture(tex->type, tex->GetView(subresource));
 	}
 	
 	void Texture::BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource)
@@ -448,8 +487,9 @@ namespace eg::graphics_api::gl
 		GLenum target = GetFormatType(format) == FormatTypes::DepthStencil ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 		
 		hasBlitFBO = true;
-		glCreateFramebuffers(1, &blitFBO);
-		glNamedFramebufferTexture(blitFBO, target, texture, 0);
+		glGenFramebuffers(1, &blitFBO);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, blitFBO);
+		glFramebufferTexture(GL_READ_FRAMEBUFFER, target, texture, 0);
 	}
 	
 	void BindStorageImage(CommandContextHandle, TextureHandle textureHandle, uint32_t set, uint32_t binding,
@@ -460,8 +500,12 @@ namespace eg::graphics_api::gl
 	
 	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const Color& color)
 	{
+#ifdef EG_GLES
+		Log(LogLevel::Error, "gl", "ClearColorTexture not available in GLES");
+#else
 		const Texture* texture = UnwrapTexture(handle);
 		glClearTexImage(texture->texture, mipLevel, GL_RGBA, GL_FLOAT, &color.r);
+#endif
 	}
 	
 	void ResolveTexture(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle, const ResolveRegion& region)
@@ -476,8 +520,10 @@ namespace eg::graphics_api::gl
 		if (GetFormatType(src->format) == FormatTypes::DepthStencil)
 			blitBuffer = GL_DEPTH_BUFFER_BIT;
 		
-		glBlitNamedFramebuffer(src->blitFBO, dst->blitFBO,
-			region.srcOffset.x, region.srcOffset.y, region.srcOffset.x + region.width, region.srcOffset.y + region.height,
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, src->blitFBO);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst->blitFBO);
+		
+		glBlitFramebuffer(region.srcOffset.x, region.srcOffset.y, region.srcOffset.x + region.width, region.srcOffset.y + region.height,
 			region.dstOffset.x, region.dstOffset.y, region.dstOffset.x + region.width, region.dstOffset.y + region.height,
 			blitBuffer, GL_NEAREST);
 	}

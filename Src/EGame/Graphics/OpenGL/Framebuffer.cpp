@@ -45,22 +45,27 @@ namespace eg::graphics_api::gl
 	{
 		Texture* texture = UnwrapTexture(attachment.texture);
 		
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+		
 		if ((texture->type == GL_TEXTURE_2D_ARRAY || texture->type == GL_TEXTURE_CUBE_MAP_ARRAY ||
 		     texture->type == GL_TEXTURE_CUBE_MAP) && attachment.subresource.numArrayLayers == 1)
 		{
-			glNamedFramebufferTextureLayer(framebuffer, target, texture->texture,
+			glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, target, texture->texture,
 				attachment.subresource.mipLevel, attachment.subresource.firstArrayLayer);
 		}
 		else
 		{
-			glNamedFramebufferTexture(framebuffer, target, texture->GetView(attachment.subresource.AsSubresource()), 0);
+			glFramebufferTexture(GL_READ_FRAMEBUFFER, target,
+				texture->GetView(attachment.subresource.AsSubresource()), 0);
 		}
 	}
 	
 	FramebufferHandle CreateFramebuffer(const FramebufferCreateInfo& createInfo)
 	{
 		Framebuffer* framebuffer = framebuffers.New();
-		glCreateFramebuffers(1, &framebuffer->framebuffer);
+		glGenFramebuffers(1, &framebuffer->framebuffer);
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
 		
 		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
 		framebuffer->hasDepth = false;
@@ -124,7 +129,7 @@ namespace eg::graphics_api::gl
 		
 		if (!createInfo.colorAttachments.Empty())
 		{
-			glNamedFramebufferDrawBuffers(framebuffer->framebuffer, (GLsizei)createInfo.colorAttachments.size(),
+			glDrawBuffers((GLsizei)createInfo.colorAttachments.size(),
 				drawBuffers);
 		}
 		
@@ -135,7 +140,7 @@ namespace eg::graphics_api::gl
 			
 			auto& fboPair = framebuffer->resolveFBOs.emplace_back();
 			fboPair.mask = GL_COLOR_BUFFER_BIT;
-			glCreateFramebuffers(2, fboPair.framebuffers);
+			glGenFramebuffers(2, fboPair.framebuffers);
 			AttachTexture(GL_COLOR_ATTACHMENT0, fboPair.framebuffers[0], createInfo.colorAttachments[i]);
 			AttachTexture(GL_COLOR_ATTACHMENT0, fboPair.framebuffers[1], createInfo.colorResolveAttachments[i]);
 		}
@@ -144,7 +149,7 @@ namespace eg::graphics_api::gl
 		{
 			auto& fboPair = framebuffer->resolveFBOs.emplace_back();
 			fboPair.mask = GL_DEPTH_BUFFER_BIT;
-			glCreateFramebuffers(2, fboPair.framebuffers);
+			glGenFramebuffers(2, fboPair.framebuffers);
 			AttachTexture(GL_DEPTH_ATTACHMENT, fboPair.framebuffers[0], createInfo.depthStencilAttachment);
 			AttachTexture(GL_DEPTH_ATTACHMENT, fboPair.framebuffers[1], createInfo.depthStencilResolveAttachment);
 		}
@@ -179,8 +184,10 @@ namespace eg::graphics_api::gl
 			hasStencil = defaultFramebufferHasStencil;
 			forceClear = !hasWrittenToBackBuffer;
 			
+#ifndef EG_GLES
 			SetEnabled<GL_FRAMEBUFFER_SRGB>(srgbBackBuffer);
 			SetEnabled<GL_MULTISAMPLE>(false);
+#endif
 			
 			SetViewport(cc, 0, 0, drawableWidth, drawableHeight);
 			SetScissor(cc, 0, 0, drawableWidth, drawableHeight);
@@ -197,8 +204,10 @@ namespace eg::graphics_api::gl
 			hasStencil = framebuffer->hasStencil;
 			forceClear = false;
 			
+#ifndef EG_GLES
 			SetEnabled<GL_FRAMEBUFFER_SRGB>(true);
 			SetEnabled<GL_MULTISAMPLE>(framebuffer->multisampled);
+#endif
 			
 			SetViewport(cc, 0, 0, framebuffer->width, framebuffer->height);
 			SetScissor(cc, 0, 0, framebuffer->width, framebuffer->height);
@@ -242,7 +251,7 @@ namespace eg::graphics_api::gl
 				{
 					if (beginInfo.framebuffer == nullptr)
 					{
-						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
+						invalidateAttachments[numInvalidateAttachments++] = GL_COLOR;
 					}
 					else
 					{
@@ -283,7 +292,7 @@ namespace eg::graphics_api::gl
 			{
 				if (beginInfo.framebuffer == nullptr)
 				{
-					invalidateAttachments[numInvalidateAttachments++] = GL_BACK_LEFT;
+					invalidateAttachments[numInvalidateAttachments++] = GL_COLOR;
 				}
 				else
 				{
@@ -310,9 +319,10 @@ namespace eg::graphics_api::gl
 		{
 			for (const auto& resolveFBO : currentFramebuffer->resolveFBOs)
 			{
-				glBlitNamedFramebuffer(resolveFBO.framebuffers[0], resolveFBO.framebuffers[1], 0, 0,
-					currentFramebuffer->width, currentFramebuffer->height, 0, 0, currentFramebuffer->width,
-					currentFramebuffer->height, resolveFBO.mask, GL_NEAREST);
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, resolveFBO.framebuffers[0]);
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, resolveFBO.framebuffers[1]);
+				glBlitFramebuffer(0, 0, currentFramebuffer->width, currentFramebuffer->height, 0, 0,
+					currentFramebuffer->width, currentFramebuffer->height, resolveFBO.mask, GL_NEAREST);
 			}
 		}
 	}

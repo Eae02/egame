@@ -104,7 +104,8 @@ namespace eg::graphics_api::gl
 					dsBinding.offset, dsBinding.range);
 				break;
 			case BindingType::Texture:
-				glBindTextureUnit(binding.glBinding, dsBinding.texture->GetView(dsBinding.subresource));
+				glActiveTexture(GL_TEXTURE0 + binding.glBinding);
+				glBindTexture(dsBinding.texture->type, dsBinding.texture->GetView(dsBinding.subresource));
 				glBindSampler(binding.glBinding, dsBinding.bufferOrSampler);
 				break;
 			case BindingType::StorageImage:

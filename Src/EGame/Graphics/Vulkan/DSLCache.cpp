@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "DSLCache.hpp"
 
 namespace eg::graphics_api::vk
@@ -141,3 +142,5 @@ namespace eg::graphics_api::vk
 		return cachedSetLayouts.empty();
 	}
 }
+
+#endif

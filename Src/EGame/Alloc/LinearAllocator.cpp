@@ -55,7 +55,7 @@ namespace eg
 	
 	LinearAllocator::Pool* LinearAllocator::AllocatePool(size_t size)
 	{
-		size_t dataBeginOffset = RoundToNextMultiple(sizeof(Pool), alignof(max_align_t));
+		size_t dataBeginOffset = RoundToNextMultiple(sizeof(Pool), alignof(std::max_align_t));
 		
 		Pool* pool = static_cast<Pool*>(std::malloc(dataBeginOffset + size));
 		pool->memory = reinterpret_cast<char*>(pool) + dataBeginOffset;

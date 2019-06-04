@@ -1,3 +1,4 @@
+#ifndef EG_NO_VULKAN
 #include "Common.hpp"
 #include "Buffer.hpp"
 #include "../Abstraction.hpp"
@@ -99,3 +100,5 @@ namespace eg::graphics_api::vk
 		vkCmdEndQuery(GetCB(cctx), queryPool->pool, query);
 	}
 }
+
+#endif

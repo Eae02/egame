@@ -1,6 +1,12 @@
 #include "GameController.hpp"
 #include "Log.hpp"
 
+#ifdef EG_WEB
+namespace eg
+{
+	void LoadGameControllers() { }
+}
+#else
 #include <SDL.h>
 
 namespace eg
@@ -42,3 +48,4 @@ namespace eg
 		}
 	}
 }
+#endif

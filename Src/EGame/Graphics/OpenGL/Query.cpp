@@ -18,13 +18,7 @@ namespace eg::graphics_api::gl
 		QueryPool* pool = static_cast<QueryPool*>(poolMemory);
 		pool->size = queryCount;
 		
-		switch (type)
-		{
-		case QueryType::Timestamp: pool->target = GL_TIMESTAMP; break;
-		case QueryType::Occlusion: pool->target = GL_SAMPLES_PASSED; break;
-		}
-		
-		glCreateQueries(pool->target, queryCount, pool->queries);
+		glGenQueries(queryCount, pool->queries);
 		
 		return reinterpret_cast<QueryPoolHandle>(pool);
 	}
@@ -60,14 +54,15 @@ namespace eg::graphics_api::gl
 			
 			if constexpr (CheckAvail)
 			{
-				GLint available;
-				glGetQueryObjectiv(queryPool->queries[queryIndex], GL_QUERY_RESULT_AVAILABLE, &available);
+				GLuint available;
+				glGetQueryObjectuiv(queryPool->queries[queryIndex], GL_QUERY_RESULT_AVAILABLE, &available);
 				if (!available)
 					return false;
 			}
 			
-			glGetQueryObjectui64v(queryPool->queries[queryIndex], GL_QUERY_RESULT_NO_WAIT,
-				static_cast<uint64_t*>(data) + i);
+			GLuint result;
+			glGetQueryObjectuiv(queryPool->queries[queryIndex], GL_QUERY_RESULT, &result);
+			static_cast<uint64_t*>(data)[i] = result;
 		}
 		
 		return true;
@@ -86,16 +81,34 @@ namespace eg::graphics_api::gl
 	void CopyQueryResults(CommandContextHandle, QueryPoolHandle queryPoolHandle,
 		uint32_t firstQuery, uint32_t numQueries, BufferHandle dstBufferHandle, uint64_t dstOffset)
 	{
+#ifdef EG_GLES
+		static bool hasWarned = false;
+		if (!hasWarned)
+		{
+			Log(LogLevel::Error, "gl", "CopyQueryResults is not available in GLES");
+			hasWarned = true;
+		}
+#else
 		glBindBuffer(GL_QUERY_BUFFER, UnwrapBuffer(dstBufferHandle)->buffer);
 		_GetQueryResults<false>(queryPoolHandle, firstQuery, numQueries, reinterpret_cast<void*>(dstOffset));
 		glBindBuffer(GL_QUERY_BUFFER, 0);
+#endif
 	}
 	
 	void WriteTimestamp(CommandContextHandle, QueryPoolHandle queryPoolHandle, uint32_t query)
 	{
+#ifdef EG_GLES
+		static bool hasWarned = false;
+		if (!hasWarned)
+		{
+			Log(LogLevel::Error, "gl", "WriteTimestamp is not available in GLES");
+			hasWarned = true;
+		}
+#else
 		QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
 		CheckQueryIndex(*queryPool, query);
 		glQueryCounter(queryPool->queries[query], GL_TIMESTAMP);
+#endif
 	}
 	
 	void BeginQuery(CommandContextHandle, QueryPoolHandle queryPoolHandle, uint32_t query)

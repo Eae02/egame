@@ -1,8 +1,6 @@
 #include "Utils.hpp"
 #include "../../Utils.hpp"
 
-#include <GL/glext.h>
-
 namespace eg::graphics_api::gl
 {
 	GLenum TranslateFormat(Format format)
@@ -127,10 +125,12 @@ namespace eg::graphics_api::gl
 	
 	void MaybeInsertBarrier(GLenum barrier)
 	{
+#ifndef EG_WEB
 		if (!Contains(insertedBarriers, barrier))
 		{
 			glMemoryBarrier(barrier);
 			insertedBarriers.push_back(barrier);
 		}
+#endif
 	}
 }

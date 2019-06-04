@@ -2,9 +2,6 @@
 #include "Sphere.hpp"
 #include "AABB.hpp"
 
-#include <emmintrin.h>
-#include <smmintrin.h>
-
 namespace eg
 {
 	static Plane CreateFrustumPlane(const glm::vec3& p1, const glm::vec3& p2,
