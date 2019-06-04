@@ -25,21 +25,6 @@ namespace eg::graphics_api::vk
 		texturePool.Delete(this);
 	}
 	
-	static VkComponentSwizzle TranslateCompSwizzle(SwizzleMode swizzle)
-	{
-		switch (swizzle)
-		{
-		case SwizzleMode::Identity: return VK_COMPONENT_SWIZZLE_IDENTITY;
-		case SwizzleMode::One: return VK_COMPONENT_SWIZZLE_ONE;
-		case SwizzleMode::Zero: return VK_COMPONENT_SWIZZLE_ZERO;
-		case SwizzleMode::R: return VK_COMPONENT_SWIZZLE_R;
-		case SwizzleMode::G: return VK_COMPONENT_SWIZZLE_G;
-		case SwizzleMode::B: return VK_COMPONENT_SWIZZLE_B;
-		case SwizzleMode::A: return VK_COMPONENT_SWIZZLE_A;
-		}
-		EG_UNREACHABLE;
-	}
-	
 	static void InitializeImage(Texture& texture, const TextureCreateInfo& createInfo, VkImageType imageType,
 		VkImageViewType viewType, const VkExtent3D& extent, uint32_t arrayLayers)
 	{
@@ -94,11 +79,6 @@ namespace eg::graphics_api::vk
 			SetObjectName(reinterpret_cast<uint64_t>(texture.image), VK_OBJECT_TYPE_IMAGE, createInfo.label);
 		}
 		
-		texture.componentMapping.r = TranslateCompSwizzle(createInfo.swizzleR);
-		texture.componentMapping.g = TranslateCompSwizzle(createInfo.swizzleG);
-		texture.componentMapping.b = TranslateCompSwizzle(createInfo.swizzleB);
-		texture.componentMapping.a = TranslateCompSwizzle(createInfo.swizzleA);
-		
 		//Creates the default sampler
 		if (createInfo.defaultSamplerDescription != nullptr)
 		{
@@ -129,7 +109,6 @@ namespace eg::graphics_api::vk
 		viewCreateInfo.subresourceRange.levelCount = resolvedSubresource.numMipLevels;
 		viewCreateInfo.subresourceRange.baseArrayLayer = resolvedSubresource.firstArrayLayer;
 		viewCreateInfo.subresourceRange.layerCount = resolvedSubresource.numArrayLayers;
-		viewCreateInfo.components = componentMapping;
 		
 		TextureView& view = views.emplace_back();
 		CheckRes(vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &view.view));

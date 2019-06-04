@@ -1,4 +1,4 @@
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 #include "Core.hpp"
 #include "Graphics/AbstractionHL.hpp"
 #include "InputState.hpp"
@@ -251,20 +251,6 @@ namespace eg
 	
 	void PlatformStartFrame()
 	{
-		auto ButtonDownEvent = [&] (Button button, bool isRepeat)
-		{
-			if (!isRepeat && button != Button::Unknown && !detail::currentIS->IsButtonDown(button))
-				detail::currentIS->OnButtonDown(button);
-			RaiseEvent<ButtonEvent>({ button, true, isRepeat });
-		};
-		
-		auto ButtonUpEvent = [&] (Button button, bool isRepeat)
-		{
-			if (!isRepeat && button != Button::Unknown && detail::currentIS->IsButtonDown(button))
-				detail::currentIS->OnButtonUp(button);
-			RaiseEvent<ButtonEvent>({ button, false, isRepeat });
-		};
-		
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
 		{
@@ -274,7 +260,7 @@ namespace eg
 				shouldClose = true;
 				break;
 			case SDL_KEYDOWN:
-				ButtonDownEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
+				detail::ButtonDownEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
 				
 				if (RelativeMouseModeActive() && DevMode() && !event.key.repeat &&
 				    event.key.keysym.scancode == SDL_SCANCODE_F10)
@@ -284,18 +270,18 @@ namespace eg
 				}
 				break;
 			case SDL_KEYUP:
-				ButtonUpEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
+				detail::ButtonUpEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
 				break;
 			case SDL_CONTROLLERBUTTONDOWN:
 				if (SDL_GameControllerFromInstanceID(event.cbutton.which) == activeController)
 				{
-					ButtonDownEvent(TranslateSDLControllerButton(event.cbutton.button), false);
+					detail::ButtonDownEvent(TranslateSDLControllerButton(event.cbutton.button), false);
 				}
 				break;
 			case SDL_CONTROLLERBUTTONUP:
 				if (SDL_GameControllerFromInstanceID(event.cbutton.which) == activeController)
 				{
-					ButtonUpEvent(TranslateSDLControllerButton(event.cbutton.button), false);
+					detail::ButtonUpEvent(TranslateSDLControllerButton(event.cbutton.button), false);
 				}
 				break;
 			case SDL_CONTROLLERAXISMOTION:
@@ -315,10 +301,10 @@ namespace eg
 				AddGameController(SDL_GameControllerFromInstanceID(event.cdevice.which));
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				ButtonDownEvent(TranslateSDLMouseButton(event.button.button), false);
+				detail::ButtonDownEvent(TranslateSDLMouseButton(event.button.button), false);
 				break;
 			case SDL_MOUSEBUTTONUP:
-				ButtonUpEvent(TranslateSDLMouseButton(event.button.button), false);
+				detail::ButtonUpEvent(TranslateSDLMouseButton(event.button.button), false);
 				break;
 			case SDL_MOUSEMOTION:
 				if (firstMouseMotionEvent)

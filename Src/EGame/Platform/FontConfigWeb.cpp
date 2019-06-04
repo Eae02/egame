@@ -1,4 +1,4 @@
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 
 #include "FontConfig.hpp"
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 
 #include "../API.hpp"
 

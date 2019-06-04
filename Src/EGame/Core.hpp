@@ -3,6 +3,7 @@
 #include "API.hpp"
 #include "Graphics/Graphics.hpp"
 #include "Graphics/Format.hpp"
+#include "InputState.hpp"
 
 namespace eg
 {
@@ -43,6 +44,9 @@ namespace eg
 		extern EG_API std::string gameName;
 		extern EG_API std::string_view exeDirPath;
 		extern EG_API uint64_t frameIndex;
+		
+		void ButtonDownEvent(Button button, bool isRepeat);
+		void ButtonUpEvent(Button button, bool isRepeat);
 	}
 	
 	inline uint64_t FrameIdx()

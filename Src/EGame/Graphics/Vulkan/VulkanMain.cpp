@@ -630,6 +630,8 @@ namespace eg::graphics_api::vk
 		deviceInfo.geometryShader = ctx.deviceFeatures.geometryShader;
 		deviceInfo.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
 		deviceInfo.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
+		deviceInfo.maxMSAA = ctx.deviceLimits.sampledImageColorSampleCounts;
+		deviceInfo.computeShader = true;
 		deviceInfo.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
 		deviceInfo.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
 		deviceInfo.timerTicksPerNS = ctx.deviceLimits.timestampPeriod;

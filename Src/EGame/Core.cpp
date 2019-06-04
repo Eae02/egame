@@ -53,6 +53,20 @@ namespace eg
 	
 	high_resolution_clock::time_point lastFrameBeginTime;
 	
+	void detail::ButtonDownEvent(Button button, bool isRepeat)
+	{
+		if (!isRepeat && button != Button::Unknown && !detail::currentIS->IsButtonDown(button))
+			detail::currentIS->OnButtonDown(button);
+		RaiseEvent<ButtonEvent>({ button, true, isRepeat });
+	}
+	
+	void detail::ButtonUpEvent(Button button, bool isRepeat)
+	{
+		if (!isRepeat && button != Button::Unknown && detail::currentIS->IsButtonDown(button))
+			detail::currentIS->OnButtonUp(button);
+		RaiseEvent<ButtonEvent>({ button, false, isRepeat });
+	}
+	
 	void RunFrame(IGame& game)
 	{
 		auto frameBeginTime = high_resolution_clock::now();

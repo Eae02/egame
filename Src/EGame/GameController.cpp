@@ -1,7 +1,7 @@
 #include "GameController.hpp"
 #include "Log.hpp"
 
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 namespace eg
 {
 	void LoadGameControllers() { }

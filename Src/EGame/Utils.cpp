@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <stack>
 
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 #include <SDL.h>
 #endif
 
@@ -80,7 +80,7 @@ namespace eg
 	{
 		std::cerr << message << std::endl;
 		
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Runtime Error", message.c_str(), nullptr);
 #endif
 		

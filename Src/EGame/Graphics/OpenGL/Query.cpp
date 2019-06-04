@@ -71,6 +71,10 @@ namespace eg::graphics_api::gl
 	bool GetQueryResults(QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries,
 		uint64_t dataSize, void* data)
 	{
+#ifdef EG_GLES
+		return true;
+#endif
+		
 		if (dataSize < sizeof(uint64_t) * numQueries)
 		{
 			EG_PANIC("GetQueryResults: dataSize too small")

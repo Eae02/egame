@@ -1,7 +1,7 @@
 #include "RenderDoc.hpp"
 #include "../Log.hpp"
 
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 namespace eg::renderdoc
 {
 	void Init() { }

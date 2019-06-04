@@ -5,7 +5,7 @@
 #include <fstream>
 #include <utf8.h>
 
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten/fetch.h>
 #endif
@@ -24,14 +24,10 @@ namespace eg
 		texCreateInfo.mipLevels = 1;
 		texCreateInfo.defaultSamplerDescription = &samplerDescription;
 		texCreateInfo.format = Format::R8_UNorm;
-		texCreateInfo.swizzleR = SwizzleMode::One;
-		texCreateInfo.swizzleG = SwizzleMode::One;
-		texCreateInfo.swizzleB = SwizzleMode::One;
-		texCreateInfo.swizzleA = SwizzleMode::R;
 		m_texture = Texture::Create2D(texCreateInfo);
 		
 		const size_t uploadBytes = AtlasWidth() * AtlasHeight();
-		Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite, uploadBytes, nullptr);
+		Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite | BufferFlags::HostAllocate, uploadBytes, nullptr);
 		void* uploadMem = uploadBuffer.Map(0, uploadBytes);
 		std::memcpy(uploadMem, AtlasData(), uploadBytes);
 		uploadBuffer.Flush(0, uploadBytes);
@@ -61,7 +57,7 @@ namespace eg
 		if (s_devFont != nullptr)
 			return;
 		
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		emscripten_fetch_attr_t attr;
 		emscripten_fetch_attr_init(&attr);
 		std::strcpy(attr.requestMethod, "GET");

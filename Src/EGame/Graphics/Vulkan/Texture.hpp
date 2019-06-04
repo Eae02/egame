@@ -26,7 +26,6 @@ namespace eg::graphics_api::vk
 		uint32_t sampleCount;
 		VkFormat format;
 		VkImageAspectFlags aspectFlags;
-		VkComponentMapping componentMapping;
 		VkSampler defaultSampler;
 		bool autoBarrier;
 		std::string viewLabel;

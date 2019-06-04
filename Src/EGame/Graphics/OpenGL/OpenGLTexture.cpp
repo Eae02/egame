@@ -7,7 +7,7 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
 
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 #include <GL/glext.h>
 #endif
 
@@ -118,32 +118,9 @@ namespace eg::graphics_api::gl
 		});
 	}
 	
-	static GLenum TranslateSwizzle(SwizzleMode mode, GLenum identity)
-	{
-		switch (mode)
-		{
-		case SwizzleMode::Identity:
-			return identity;
-		case SwizzleMode::One:
-			return GL_ONE;
-		case SwizzleMode::Zero:
-			return GL_ZERO;
-		case SwizzleMode::R:
-			return GL_RED;
-		case SwizzleMode::G:
-			return GL_GREEN;
-		case SwizzleMode::B:
-			return GL_BLUE;
-		case SwizzleMode::A:
-			return GL_ALPHA;
-		}
-		
-		EG_UNREACHABLE
-	}
-	
 	static void InitTexture(const Texture& texture, const TextureCreateInfo& createInfo)
 	{
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_TEXTURE, texture.texture, -1, createInfo.label);
@@ -165,7 +142,7 @@ namespace eg::graphics_api::gl
 			glTexParameteri(texture.type, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
 			glTexParameterf(texture.type, GL_TEXTURE_MAX_ANISOTROPY_EXT, ClampMaxAnistropy(samplerDesc.maxAnistropy));
 			
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 			glTexParameterfv(texture.type, GL_TEXTURE_BORDER_COLOR, borderColor.data());
 #endif
 			
@@ -179,13 +156,6 @@ namespace eg::graphics_api::gl
 				glTexParameteri(texture.type, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(samplerDesc.compareOp));
 			}
 		}
-		
-#ifndef EG_WEB
-		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_R, TranslateSwizzle(createInfo.swizzleR, GL_RED));
-		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_G, TranslateSwizzle(createInfo.swizzleG, GL_GREEN));
-		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_B, TranslateSwizzle(createInfo.swizzleB, GL_BLUE));
-		glTexParameteri(texture.type, GL_TEXTURE_SWIZZLE_A, TranslateSwizzle(createInfo.swizzleA, GL_ALPHA));
-#endif
 	}
 	
 	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
@@ -212,7 +182,7 @@ namespace eg::graphics_api::gl
 		}
 		else
 		{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 			EG_PANIC("Multisampling is not supported in WebGL")
 #else
 			glTexStorage2DMultisample(texture->type, createInfo.sampleCount, format,
@@ -250,7 +220,7 @@ namespace eg::graphics_api::gl
 		}
 		else
 		{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 			EG_PANIC("Multisampling is not supported in WebGL")
 #else
 			glTexStorage3DMultisample(texture->type, createInfo.sampleCount, format,
@@ -403,9 +373,21 @@ namespace eg::graphics_api::gl
 	void SetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
 		BufferHandle bufferHandle, uint64_t offset)
 	{
-		void* offsetPtr = (void*)(uintptr_t)offset;
+		void* offsetPtr = nullptr;
+		const Buffer* buffer = UnwrapBuffer(bufferHandle);
 		
-		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, reinterpret_cast<const Buffer*>(bufferHandle)->buffer);
+#ifdef EG_GLES
+		if (buffer->isHostBuffer)
+		{
+			offsetPtr = buffer->persistentMapping + offset;
+		}
+#endif
+		
+		if (offsetPtr == nullptr)
+		{
+			offsetPtr = (void*)(uintptr_t)offset;
+			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer);
+		}
 		
 		Texture* texture = UnwrapTexture(handle);
 		auto[format, type] = GetUploadFormat(texture->format);
@@ -476,7 +458,9 @@ namespace eg::graphics_api::gl
 	
 	void Texture::BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource)
 	{
+#ifndef __EMSCRIPTEN__
 		glBindImageTexture(glBinding, GetView(subresource), 0, GL_TRUE, 0, GL_READ_WRITE, TranslateFormat(format));
+#endif
 	}
 	
 	void Texture::MaybeInitBlitFBO()
@@ -489,7 +473,7 @@ namespace eg::graphics_api::gl
 		hasBlitFBO = true;
 		glGenFramebuffers(1, &blitFBO);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, blitFBO);
-		glFramebufferTexture(GL_READ_FRAMEBUFFER, target, texture, 0);
+		glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target, GL_TEXTURE_2D, texture, 0);
 	}
 	
 	void BindStorageImage(CommandContextHandle, TextureHandle textureHandle, uint32_t set, uint32_t binding,

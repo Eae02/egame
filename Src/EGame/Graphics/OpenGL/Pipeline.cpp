@@ -380,7 +380,7 @@ namespace eg::graphics_api::gl
 	{
 		for (const PushConstantMember& pushConst : currentPipeline->pushConstants)
 		{
-			if (pushConst.offset < offset && pushConst.offset >= offset + range)
+			if (pushConst.offset < offset || pushConst.offset >= offset + range)
 				continue;
 			
 			switch (pushConst.baseType)

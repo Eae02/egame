@@ -125,7 +125,7 @@ namespace eg::graphics_api::gl
 	
 	void MaybeInsertBarrier(GLenum barrier)
 	{
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		if (!Contains(insertedBarriers, barrier))
 		{
 			glMemoryBarrier(barrier);

@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 #define EG_HAS_SIMD
 #include <emmintrin.h>
 #include <smmintrin.h>

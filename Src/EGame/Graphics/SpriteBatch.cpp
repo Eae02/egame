@@ -68,10 +68,11 @@ namespace eg
 		m_vertices.clear();
 	}
 	
-	void SpriteBatch::InitBatch(const Texture& texture)
+	void SpriteBatch::InitBatch(const Texture& texture, bool redToAlpha)
 	{
 		bool needsNewBatch = true;
-		if (!m_batches.empty() && m_batches.back().texture.handle == texture.handle)
+		if (!m_batches.empty() && m_batches.back().texture.handle == texture.handle &&
+			m_batches.back().redToAlpha == redToAlpha)
 		{
 			if (!m_batches.back().enableScissor && m_scissorStack.empty())
 			{
@@ -87,6 +88,7 @@ namespace eg
 		if (needsNewBatch)
 		{
 			Batch& batch = m_batches.emplace_back();
+			batch.redToAlpha = redToAlpha;
 			batch.texture = texture;
 			batch.firstIndex = static_cast<uint32_t>(m_indices.size());
 			batch.numIndices = 0;
@@ -111,22 +113,22 @@ namespace eg
 	}
 	
 	void SpriteBatch::Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color,
-		const Rectangle& texRectangle, float scale, FlipFlags flipFlags, float rotation, glm::vec2 origin)
+		const Rectangle& texRectangle, float scale, SpriteFlags spriteFlags, float rotation, glm::vec2 origin)
 	{
-		InitBatch(texture);
+		InitBatch(texture, HasFlag(spriteFlags, SpriteFlags::RedToAlpha));
 		
 		AddQuadIndices();
 		
 		float uOffsets[] = { 0, texRectangle.w };
 		float vOffsets[] = { 0, texRectangle.h };
 		
-		if ((int)flipFlags & (int)FlipFlags::FlipX)
+		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
 		{
 			std::swap(uOffsets[0], uOffsets[1]);
 			origin.x = texRectangle.w - origin.x;
 		}
 		
-		if ((int)flipFlags & (int)FlipFlags::FlipY)
+		if ((int)spriteFlags & (int)SpriteFlags::FlipY)
 		{
 			std::swap(vOffsets[0], vOffsets[1]);
 			origin.y = texRectangle.h - origin.y;
@@ -153,18 +155,18 @@ namespace eg
 	}
 	
 	void SpriteBatch::Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color,
-		const Rectangle& texRectangle, FlipFlags flipFlags)
+		const Rectangle& texRectangle, SpriteFlags spriteFlags)
 	{
-		InitBatch(texture);
+		InitBatch(texture, HasFlag(spriteFlags, SpriteFlags::RedToAlpha));
 		
 		AddQuadIndices();
 		
 		float uOffsets[] = { 0, texRectangle.w };
 		float vOffsets[] = { texRectangle.h, 0 };
 		
-		if ((int)flipFlags & (int)FlipFlags::FlipX)
+		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
 			std::swap(uOffsets[0], uOffsets[1]);
-		if ((int)flipFlags & (int)FlipFlags::FlipY)
+		if ((int)spriteFlags & (int)SpriteFlags::FlipY)
 			std::swap(vOffsets[0], vOffsets[1]);
 		
 		for (int x = 0; x < 2; x++)
@@ -189,7 +191,7 @@ namespace eg
 	
 	void SpriteBatch::DrawLine(const glm::vec2& begin, const glm::vec2& end, const ColorLin& color, float width)
 	{
-		InitBatch(whitePixelTexture);
+		InitBatch(whitePixelTexture, false);
 		
 		AddQuadIndices();
 		
@@ -208,7 +210,7 @@ namespace eg
 	
 	void SpriteBatch::DrawRect(const Rectangle& rectangle, const ColorLin& color)
 	{
-		InitBatch(whitePixelTexture);
+		InitBatch(whitePixelTexture, false);
 		
 		AddQuadIndices();
 		
@@ -273,7 +275,7 @@ namespace eg
 			
 			Rectangle srcRectangle(fontChar->textureX, fontChar->textureY, fontChar->width, fontChar->height);
 			
-			Draw(font.Tex(), rectangle, color, srcRectangle, FlipFlags::Normal);
+			Draw(font.Tex(), rectangle, color, srcRectangle, SpriteFlags::RedToAlpha);
 			
 			x += fontChar->xAdvance + kerning;
 			sizeOut->y = std::max(sizeOut->y, rectangle.h);
@@ -337,6 +339,9 @@ namespace eg
 		
 		for (const Batch& batch : m_batches)
 		{
+			int32_t pc = batch.redToAlpha;
+			DC.PushConstants(64, sizeof(pc), &pc);
+			
 			if (batch.enableScissor)
 				DC.SetScissor(batch.scissor.x, batch.scissor.y, batch.scissor.width, batch.scissor.height);
 			else

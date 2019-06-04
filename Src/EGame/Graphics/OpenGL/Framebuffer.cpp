@@ -55,8 +55,13 @@ namespace eg::graphics_api::gl
 		}
 		else
 		{
+#ifdef EG_GLES
+			glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target, GL_TEXTURE_2D,
+				texture->GetView(attachment.subresource.AsSubresource()), 0);
+#else
 			glFramebufferTexture(GL_READ_FRAMEBUFFER, target,
 				texture->GetView(attachment.subresource.AsSubresource()), 0);
+#endif
 		}
 	}
 	

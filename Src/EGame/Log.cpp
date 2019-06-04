@@ -80,8 +80,12 @@ namespace eg
 		
 		if (level != LogLevel::Info)
 		{
+#ifdef __EMSCRIPTEN__
+			std::cout << messageStr << std::endl;
+#else
 			std::lock_guard<std::mutex> lock(stdoutLogMutex);
 			std::cout << levelColorStrings[(int)level] << messageStr << "\x1b[0m" << std::endl;
+#endif
 		}
 	}
 }

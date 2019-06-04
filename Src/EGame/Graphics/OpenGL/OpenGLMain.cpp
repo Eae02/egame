@@ -11,7 +11,7 @@
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF
 
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 #include <EGL/egl.h>
 #else
 #include <SDL.h>
@@ -19,7 +19,7 @@
 
 namespace eg::graphics_api::gl
 {
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 	static EGLDisplay eglDisplay;
 	static EGLSurface eglSurface;
 	static EGLContext eglContext;
@@ -50,7 +50,7 @@ namespace eg::graphics_api::gl
 	
 	static GLVendor glVendor;
 	
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 	static void OpenGLMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
 	                                  const GLchar* message, const void* userData)
 	{
@@ -97,7 +97,7 @@ namespace eg::graphics_api::gl
 	}
 #endif
 	
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 	static std::vector<std::string_view> supportedExtensions;
 	
 	bool IsExtensionSupported(const char* name)
@@ -113,7 +113,7 @@ namespace eg::graphics_api::gl
 	
 	bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 		
 		eglInitialize(eglDisplay, nullptr, nullptr);
@@ -122,14 +122,32 @@ namespace eg::graphics_api::gl
 		int numEglConfigs;
 		eglGetConfigs(eglDisplay, &eglConfig, 1, &numEglConfigs);
 		
-		eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, 0, nullptr);
-		if (eglSurface == EGL_NO_SURFACE)
-			return false;
+		std::vector<EGLint> surfaceAttribs = { EGL_CONTEXT_CLIENT_VERSION, 3 };
+		if (initArguments.defaultFramebufferSRGB)
+		{
+			surfaceAttribs.push_back(EGL_COLORSPACE);
+			surfaceAttribs.push_back(EGL_COLORSPACE_sRGB);
+		}
+		surfaceAttribs.push_back(EGL_NONE);
+		surfaceAttribs.push_back(EGL_NONE);
 		
-		EGLint contextAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE, EGL_NONE };
-		eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttribs);
-		if (eglContext == EGL_NO_CONTEXT)
+		eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, 0, surfaceAttribs.data());
+		if (eglSurface == EGL_NO_SURFACE)
+		{
+			std::cout << "eglCreateWindowSurface failed: " << std::hex << eglGetError() << std::endl;
 			return false;
+		}
+		
+		std::vector<EGLint> contextAttribs = { EGL_CONTEXT_CLIENT_VERSION, 3 };
+		contextAttribs.push_back(EGL_NONE);
+		contextAttribs.push_back(EGL_NONE);
+		
+		eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttribs.data());
+		if (eglContext == EGL_NO_CONTEXT)
+		{
+			std::cout << "eglCreateContext failed: " << std::hex << eglGetError() << std::endl;
+			return false;
+		}
 		
 		if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
 			return false;
@@ -220,7 +238,7 @@ namespace eg::graphics_api::gl
 		else
 			glVendor = GLVendor::Unknown;
 		
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		glDebugMessageCallback(OpenGLMessageCallback, nullptr);
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
@@ -257,6 +275,7 @@ namespace eg::graphics_api::gl
 		deviceInfo.maxTessellationPatchSize = 0;
 		deviceInfo.maxMSAA = 1;
 		deviceInfo.maxClipDistances = 0;
+		deviceInfo.computeShader = false;
 #else
 		for (int i = 0; i < 3; i++)
 		{
@@ -272,6 +291,7 @@ namespace eg::graphics_api::gl
 		deviceInfo.maxMSAA = (uint32_t)GetIntegerLimit(GL_MAX_SAMPLES);
 		deviceInfo.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
 		deviceInfo.tessellation = true;
+		deviceInfo.computeShader = true;
 		deviceInfo.persistentMappedBuffers = true;
 		deviceInfo.textureCubeMapArray = true;
 		deviceInfo.blockTextureCompression =
@@ -282,7 +302,7 @@ namespace eg::graphics_api::gl
 	
 	void Shutdown()
 	{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		eglDestroyContext(eglDisplay, eglContext);
 		eglDestroySurface(eglDisplay, eglSurface);
 #else
@@ -299,7 +319,7 @@ namespace eg::graphics_api::gl
 	
 	bool IsLoadingComplete()
 	{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		return true;
 #else
 		GLenum status = glClientWaitSync(loadFence, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
@@ -314,7 +334,7 @@ namespace eg::graphics_api::gl
 	
 	void GetDrawableSize(int& width, int& height)
 	{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		eglQuerySurface(eglDisplay, eglSurface, EGL_WIDTH, &width);
 		eglQuerySurface(eglDisplay, eglSurface, EGL_HEIGHT, &height);
 #else
@@ -326,7 +346,7 @@ namespace eg::graphics_api::gl
 	{
 		GetDrawableSize(drawableWidth, drawableHeight);
 		
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		if (fences[CFrameIdx()])
 		{
 			glClientWaitSync(fences[CFrameIdx()], GL_SYNC_FLUSH_COMMANDS_BIT, UINT64_MAX);
@@ -341,7 +361,7 @@ namespace eg::graphics_api::gl
 	
 	void EndFrame()
 	{
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		fences[CFrameIdx()] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		SDL_GL_SwapWindow(glWindow);
 #endif

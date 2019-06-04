@@ -42,11 +42,6 @@ namespace eg
 		return true;
 	}
 	
-	static inline void WriteFreeTypeError(int error, std::string_view fontName)
-	{
-		
-	}
-	
 	std::optional<FontAtlas> FontAtlas::Render(Span<const char> data, uint32_t size,
 		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{

@@ -280,7 +280,7 @@ namespace eg
 	
 	static bool LoadAssetsYAML(const std::string& path, AssetDirectory& mountDir)
 	{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		return false;
 #else
 		std::string yamlPath = path + "/Assets.yaml";
@@ -481,7 +481,7 @@ namespace eg
 		}
 	}
 	
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 	void LoadAssetGenLibrary() { }
 #else
 	static DynamicLibrary assetGenLibrary;

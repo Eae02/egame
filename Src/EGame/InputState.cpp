@@ -2,7 +2,11 @@
 #include "Utils.hpp"
 #include "Log.hpp"
 
+#ifdef __EMSCRIPTEN__
+
+#else
 #include <SDL.h>
+#endif
 
 namespace eg
 {
@@ -350,7 +354,11 @@ namespace eg
 	void SetRelativeMouseMode(bool relMouseMode)
 	{
 		g_relMouseMode = relMouseMode;
+#ifdef __EMSCRIPTEN__
+		
+#else
 		SDL_SetRelativeMouseMode((SDL_bool)relMouseMode);
+#endif
 	}
 	
 	bool RelativeMouseModeActive()

@@ -339,17 +339,6 @@ namespace eg
 		const char* label = nullptr;
 	};
 	
-	enum class SwizzleMode
-	{
-		Identity,
-		One,
-		Zero,
-		R,
-		G,
-		B,
-		A
-	};
-	
 	enum class WrapMode
 	{
 		Repeat,
@@ -426,10 +415,6 @@ namespace eg
 		uint32_t sampleCount = 1;
 		Format format = Format::Undefined;
 		const SamplerDescription* defaultSamplerDescription = nullptr;
-		SwizzleMode swizzleR = SwizzleMode::Identity;
-		SwizzleMode swizzleG = SwizzleMode::Identity;
-		SwizzleMode swizzleB = SwizzleMode::Identity;
-		SwizzleMode swizzleA = SwizzleMode::Identity;
 		const char* label = nullptr;
 	};
 	
@@ -605,6 +590,7 @@ namespace eg
 		uint32_t maxComputeWorkGroupInvocations;
 		DepthRange depthRange;
 		bool geometryShader;
+		bool computeShader;
 		bool tessellation;
 		bool persistentMappedBuffers;
 		bool textureCubeMapArray;

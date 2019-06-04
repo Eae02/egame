@@ -140,7 +140,7 @@ namespace eg::graphics_api::gl
 			currentIOGroup++;
 #endif
 			
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 			if (createInfo.label != nullptr)
 			{
 				std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[(int)expectedStage] });
@@ -159,7 +159,7 @@ namespace eg::graphics_api::gl
 		glGenVertexArrays(1, &pipeline->vertexArray);
 		glBindVertexArray(pipeline->vertexArray);
 		
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_PROGRAM, pipeline->program, -1, createInfo.label);
@@ -204,10 +204,11 @@ namespace eg::graphics_api::gl
 		pipeline->maxVertexBinding = 0;
 		for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
 		{
+			pipeline->vertexBindings[i] = createInfo.vertexBindings[i];
 			if (createInfo.vertexBindings[i].stride != UINT32_MAX)
 			{
 				pipeline->maxVertexBinding = i + 1;
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 				glVertexBindingDivisor(i, (GLuint)createInfo.vertexBindings[i].inputRate);
 #endif
 			}
@@ -378,7 +379,7 @@ namespace eg::graphics_api::gl
 		
 		InitScissorTest();
 		
-#ifndef EG_WEB
+#ifndef __EMSCRIPTEN__
 		if (minSampleShading != curState.minSampleShading)
 		{
 			glMinSampleShading(minSampleShading);
@@ -404,7 +405,7 @@ namespace eg::graphics_api::gl
 			std::copy_n(blendConstants, 4, curState.blendConstants);
 		}
 		
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		if (curState.colorWriteMasks[0] != colorWriteMasks[0])
 		{
 			glColorMask(HasFlag(colorWriteMasks[0], ColorWriteMask::R),
@@ -459,7 +460,7 @@ namespace eg::graphics_api::gl
 	
 	inline void MaybeUpdateVAO(uint32_t firstVertex)
 	{
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		if (firstVertex != currentFirstVertex)
 			updateVAOBindings = true;
 #endif
@@ -475,7 +476,7 @@ namespace eg::graphics_api::gl
 			if (pipeline->vertexBindings[i].stride == UINT32_MAX)
 				continue;
 			
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 			glBindBuffer(GL_ARRAY_BUFFER, vertexBuffers[i].first);
 			for (uint32_t j = 0; j < MAX_VERTEX_ATTRIBUTES; j++)
 			{
@@ -561,7 +562,7 @@ namespace eg::graphics_api::gl
 		if (firstInstance != 0)
 			Log(LogLevel::Error, "gl", "Draw with firstInstance is not supported in GLES");
 		
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 		glDrawElementsInstanced(static_cast<const GraphicsPipeline*>(currentPipeline)->topology,
 			numIndices, indexType, (void*)indexOffset, numInstances);
 #else

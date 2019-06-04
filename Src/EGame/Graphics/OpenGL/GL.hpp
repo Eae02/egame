@@ -4,7 +4,7 @@
 #define APIENTRY __stdcall
 #endif
 
-#ifdef EG_WEB
+#ifdef __EMSCRIPTEN__
 
 #include <GLES3/gl32.h>
 #include <GLES3/gl2ext.h>
