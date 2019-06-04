@@ -19,26 +19,29 @@ namespace eg
 			return a.order < b.order;
 		});
 		
-		eg::UploadBuffer uploadBuffer = eg::GetTemporaryUploadBuffer(m_totalInstanceData);
-		
-		char* instanceDataOut = static_cast<char*>(uploadBuffer.Map());
-		for (const Instance& instance : m_instances)
+		if (m_totalInstanceData != 0)
 		{
-			std::memcpy(instanceDataOut, instance.data, instance.dataSize);
-			instanceDataOut += instance.dataSize;
+			eg::UploadBuffer uploadBuffer = eg::GetTemporaryUploadBuffer(m_totalInstanceData);
+			
+			char* instanceDataOut = static_cast<char*>(uploadBuffer.Map());
+			for (const Instance& instance : m_instances)
+			{
+				std::memcpy(instanceDataOut, instance.data, instance.dataSize);
+				instanceDataOut += instance.dataSize;
+			}
+			
+			uploadBuffer.Flush();
+			
+			if (m_totalInstanceData > m_instanceDataCapacity)
+			{
+				m_instanceDataCapacity = eg::RoundToNextMultiple(m_totalInstanceData, 1024);
+				m_instanceDataBuffer = eg::Buffer(eg::BufferFlags::CopyDst | eg::BufferFlags::VertexBuffer,
+					m_instanceDataCapacity, nullptr);
+			}
+			
+			cmdCtx.CopyBuffer(uploadBuffer.buffer, m_instanceDataBuffer, uploadBuffer.offset, 0, m_totalInstanceData);
+			m_instanceDataBuffer.UsageHint(eg::BufferUsage::VertexBuffer);
 		}
-		
-		uploadBuffer.Flush();
-		
-		if (m_totalInstanceData > m_instanceDataCapacity)
-		{
-			m_instanceDataCapacity = eg::RoundToNextMultiple(m_totalInstanceData, 1024);
-			m_instanceDataBuffer = eg::Buffer(eg::BufferFlags::CopyDst | eg::BufferFlags::VertexBuffer,
-				m_instanceDataCapacity, nullptr);
-		}
-		
-		cmdCtx.CopyBuffer(uploadBuffer.buffer, m_instanceDataBuffer, uploadBuffer.offset, 0, m_totalInstanceData);
-		m_instanceDataBuffer.UsageHint(eg::BufferUsage::VertexBuffer);
 	}
 	
 	void MeshBatchOrdered::Draw(CommandContext& cmdCtx, void* drawArgs)
