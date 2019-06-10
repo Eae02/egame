@@ -9,7 +9,6 @@ layout(rgba16f, binding=1) writeonly uniform image2D outputImage;
 layout(push_constant) uniform PC
 {
 	vec4 threshold;
-	vec2 pixelSize;
 };
 
 void main()

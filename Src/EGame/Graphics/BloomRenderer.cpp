@@ -95,11 +95,7 @@ namespace eg
 			DC.BindTexture(inputTexture, 0, 0, &m_inputSampler);
 			DC.BindStorageImage(renderTarget.m_mainTexture, 0, 1, { 0, 0, 1 });
 			
-			const float pc[] = {
-				threshold.r, threshold.g, threshold.b, 0.0f,
-				1.0f / renderTarget.m_mainTexture.Width(),
-				1.0f / renderTarget.m_mainTexture.Height()
-			};
+			const float pc[] = { threshold.r, threshold.g, threshold.b, 0.0f };
 			DC.PushConstants(0, sizeof(pc), pc);
 			
 			Dispatch(renderTarget.m_mainTexture.Width(), renderTarget.m_mainTexture.Height());
@@ -113,6 +109,8 @@ namespace eg
 		}
 		
 		//Downscales the main texture
+		const float pc0[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		DC.PushConstants(0, sizeof(pc0), pc0);
 		for (uint32_t l = 1; l < renderTarget.m_mainTexture.MipLevels(); l++)
 		{
 			DC.BindTexture(renderTarget.m_mainTexture, 0, 0, &m_inputSampler, { l - 1, 1, 0, 1 });
@@ -120,9 +118,6 @@ namespace eg
 			
 			uint32_t outWidth = renderTarget.m_mainTexture.Width() >> l;
 			uint32_t outHeight = renderTarget.m_mainTexture.Height() >> l;
-			
-			const float pc[] = { 0.0f, 0.0f, 0.0f, 0.0f, 1.0f / outWidth, 1.0f / outHeight };
-			DC.PushConstants(0, sizeof(pc), pc);
 			
 			Dispatch(outWidth, outHeight);
 			
