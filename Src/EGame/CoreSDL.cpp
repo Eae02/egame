@@ -243,6 +243,8 @@ namespace eg
 			RunFrame(*game);
 		}
 		
+		game.reset();
+		
 		CoreUninitialize();
 		
 		SDL_DestroyWindow(sdlWindow);

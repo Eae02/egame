@@ -641,6 +641,17 @@ namespace eg::graphics_api::vk
 		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupSize, 3, deviceInfo.maxComputeWorkGroupSize);
 	}
 	
+	GraphicsMemoryStat GetMemoryStat()
+	{
+		VmaStats vmaStats;
+		vmaCalculateStats(ctx.allocator, &vmaStats);
+		GraphicsMemoryStat stat;
+		stat.allocatedBytes = vmaStats.total.usedBytes;
+		stat.numBlocks = vmaStats.total.blockCount;
+		stat.unusedRanges = vmaStats.total.unusedRangeCount;
+		return stat;
+	}
+	
 	void DestroyCachedDescriptorSets();
 	
 	void Shutdown()

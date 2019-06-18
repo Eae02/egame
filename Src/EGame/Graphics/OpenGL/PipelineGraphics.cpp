@@ -1,7 +1,6 @@
 #include "OpenGL.hpp"
 #include "Utils.hpp"
 #include "Pipeline.hpp"
-#include "Translation.hpp"
 #include "OpenGLBuffer.hpp"
 #include "OpenGLTexture.hpp"
 #include "../Graphics.hpp"
@@ -27,6 +26,28 @@ namespace eg::graphics_api::gl
 		GLenum dstAlphaFactor;
 	};
 	
+	struct GLStencilState
+	{
+		GLenum failOp;
+		GLenum passOp;
+		GLenum depthFailOp;
+		GLenum compareOp;
+		uint32_t compareMask;
+		uint32_t writeMask;
+		uint32_t reference;
+	};
+	
+	inline void TranslateStencilState(GLStencilState& output, const StencilState& input)
+	{
+		output.failOp = TranslateStencilOp(input.failOp);
+		output.passOp = TranslateStencilOp(input.passOp);
+		output.depthFailOp = TranslateStencilOp(input.depthFailOp);
+		output.compareOp = TranslateCompareOp(input.compareOp);
+		output.compareMask = input.compareMask;
+		output.writeMask = input.writeMask;
+		output.reference = input.reference;
+	}
+	
 	struct GraphicsPipeline : AbstractPipeline
 	{
 		uint32_t numShaderModules;
@@ -43,6 +64,9 @@ namespace eg::graphics_api::gl
 		bool enableScissorTest;
 		bool enableDepthTest;
 		bool enableDepthWrite;
+		bool enableStencilTest;
+		GLStencilState frontStencilState;
+		GLStencilState backStencilState;
 		BlendState blend[8];
 		float blendConstants[4];
 		ColorWriteMask colorWriteMasks[8];
@@ -156,9 +180,10 @@ namespace eg::graphics_api::gl
 		
 		pipeline->Initialize(pipeline->numShaderModules, spvCompilers, pipeline->shaderModules);
 		
+		// ** Sets up VAOs **
+		
 		glGenVertexArrays(1, &pipeline->vertexArray);
 		glBindVertexArray(pipeline->vertexArray);
-		
 #ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
@@ -201,6 +226,7 @@ namespace eg::graphics_api::gl
 		}
 #endif
 		
+		//Sets up vertex bindings
 		pipeline->maxVertexBinding = 0;
 		for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
 		{
@@ -217,8 +243,15 @@ namespace eg::graphics_api::gl
 		pipeline->enableScissorTest = createInfo.enableScissorTest;
 		pipeline->enableDepthTest = createInfo.enableDepthTest;
 		pipeline->enableDepthWrite = createInfo.enableDepthWrite;
+		pipeline->enableStencilTest = createInfo.enableStencilTest;
 		pipeline->topology = Translate(createInfo.topology);
 		pipeline->patchSize = createInfo.patchControlPoints;
+		
+		if (createInfo.enableStencilTest)
+		{
+			TranslateStencilState(pipeline->backStencilState, createInfo.backStencilState);
+			TranslateStencilState(pipeline->frontStencilState, createInfo.frontStencilState);
+		}
 		
 		std::copy_n(createInfo.blendConstants, 4, pipeline->blendConstants);
 		
@@ -276,6 +309,10 @@ namespace eg::graphics_api::gl
 		GLint patchSize = 0;
 		uint32_t numClipDistances = 0;
 		uint32_t numCullDistances = 0;
+		uint32_t stencilReferenceFront = 0;
+		uint32_t stencilReferenceBack = 0;
+		uint32_t stencilCompareMaskFront = 0;
+		uint32_t stencilCompareMaskBack = 0;
 		float minSampleShading = 0;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
@@ -318,6 +355,60 @@ namespace eg::graphics_api::gl
 			currentScissor[2] = w;
 			currentScissor[3] = h;
 			scissorOutOfDate = true;
+		}
+	}
+	
+	void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
+	{
+		auto* graphicsPipeline = static_cast<const GraphicsPipeline*>(currentPipeline);
+		
+		int type = (int)kind & STENCIL_VALUE_MASK_VALUE;
+		if (type == STENCIL_VALUE_WRITE_MASK)
+		{
+			GLenum face = 0;
+			switch ((int)kind & 0b1100)
+			{
+			case 0b1000: face = GL_BACK; break;
+			case 0b0100: face = GL_FRONT; break;
+			case 0b1100: face = GL_FRONT_AND_BACK; break;
+			default: EG_UNREACHABLE; break;
+			}
+			
+			glStencilMaskSeparate(face, val);
+		}
+		else
+		{
+			if ((int)kind & STENCIL_VALUE_MASK_BACK)
+			{
+				uint32_t newReference = curState.stencilReferenceBack;
+				uint32_t newCompareMask = curState.stencilCompareMaskBack;
+				
+				if (type == STENCIL_VALUE_COMPARE_MASK)
+					newCompareMask = val;
+				else if (type == STENCIL_VALUE_REFERENCE)
+					newReference = val;
+				
+				glStencilFuncSeparate(GL_BACK, graphicsPipeline->backStencilState.compareOp, newReference, newCompareMask);
+				
+				curState.stencilReferenceBack = newReference;
+				curState.stencilCompareMaskBack = newCompareMask;
+			}
+			
+			if ((int)kind & STENCIL_VALUE_MASK_FRONT)
+			{
+				uint32_t newReference = curState.stencilReferenceFront;
+				uint32_t newCompareMask = curState.stencilCompareMaskFront;
+				
+				if (type == STENCIL_VALUE_COMPARE_MASK)
+					newCompareMask = val;
+				else if (type == STENCIL_VALUE_REFERENCE)
+					newReference = val;
+				
+				glStencilFuncSeparate(GL_FRONT, graphicsPipeline->frontStencilState.compareOp, newReference, newCompareMask);
+				
+				curState.stencilReferenceFront = newReference;
+				curState.stencilCompareMaskFront = newCompareMask;
+			}
 		}
 	}
 	
@@ -365,6 +456,40 @@ namespace eg::graphics_api::gl
 		
 		SetEnabled<GL_CULL_FACE>(enableFaceCull);
 		SetEnabled<GL_DEPTH_TEST>(enableDepthTest);
+		SetEnabled<GL_STENCIL_TEST>(enableStencilTest);
+		
+		if (enableStencilTest)
+		{
+			if (backStencilState.failOp == frontStencilState.failOp && 
+			    backStencilState.passOp == frontStencilState.passOp &&
+			    backStencilState.depthFailOp == frontStencilState.depthFailOp)
+			{
+				glStencilOp(backStencilState.failOp, backStencilState.depthFailOp, backStencilState.passOp);
+			}
+			else
+			{
+				glStencilOpSeparate(GL_BACK, backStencilState.failOp, backStencilState.depthFailOp, backStencilState.passOp);
+				glStencilOpSeparate(GL_FRONT, frontStencilState.failOp, frontStencilState.depthFailOp, frontStencilState.passOp);
+			}
+			
+			if (backStencilState.writeMask == frontStencilState.writeMask)
+			{
+				glStencilMask(backStencilState.writeMask);
+			}
+			else
+			{
+				glStencilMaskSeparate(GL_BACK, backStencilState.writeMask);
+				glStencilMaskSeparate(GL_FRONT, frontStencilState.writeMask);
+			}
+			
+			glStencilFuncSeparate(GL_BACK, backStencilState.compareOp, backStencilState.reference, backStencilState.compareMask);
+			glStencilFuncSeparate(GL_FRONT, frontStencilState.compareOp, frontStencilState.reference, frontStencilState.compareMask);
+			
+			curState.stencilCompareMaskBack = backStencilState.compareMask;
+			curState.stencilCompareMaskFront = frontStencilState.compareMask;
+			curState.stencilReferenceBack = backStencilState.reference;
+			curState.stencilReferenceFront = frontStencilState.reference;
+		}
 		
 		while (numClipDistances > curState.numClipDistances)
 		{

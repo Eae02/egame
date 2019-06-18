@@ -72,8 +72,8 @@ namespace eg::graphics_api::vk
 			if (!sizeSet)
 			{
 				sizeSet = true;
-				vkCreateInfo.width = texture->extent.width;
-				vkCreateInfo.height = texture->extent.height;
+				vkCreateInfo.width = texture->extent.width >> attachment.subresource.mipLevel;
+				vkCreateInfo.height = texture->extent.height >> attachment.subresource.mipLevel;
 				vkCreateInfo.layers = layers;
 				
 				//sampleCount should not be set for resolve attachments, but won't since these are processed last.
@@ -264,7 +264,15 @@ namespace eg::graphics_api::vk
 			if (framebufferS->depthStencilAttachment != nullptr)
 			{
 				currentFBFormat.depthStencilFormat = framebufferS->depthStencilAttachment->format;
-				if (framebufferS->depthStencilAttachment->autoBarrier)
+				if (beginInfo.sampledDepthStencil)
+				{
+					depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+					if (framebufferS->depthStencilAttachment->autoBarrier)
+					{
+						framebufferS->depthStencilAttachment->currentStageFlags = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+					}
+				}
+				else if (framebufferS->depthStencilAttachment->autoBarrier)
 				{
 					depthStencilImageLayout = framebufferS->depthStencilAttachment->CurrentLayout();
 					framebufferS->depthStencilAttachment->currentUsage = TextureUsage::FramebufferAttachment;
@@ -289,14 +297,18 @@ namespace eg::graphics_api::vk
 		RenderPassDescription renderPassDescription;
 		if (currentFBFormat.depthStencilFormat != VK_FORMAT_UNDEFINED)
 		{
+			renderPassDescription.depthStencilReadOnly = beginInfo.sampledDepthStencil; 
+			
 			renderPassDescription.depthAttachment.format = currentFBFormat.depthStencilFormat;
 			renderPassDescription.depthAttachment.samples = currentFBFormat.sampleCount;
 			renderPassDescription.depthAttachment.loadOp = TranslateLoadOp(beginInfo.depthLoadOp);
+			renderPassDescription.depthAttachment.stencilLoadOp = TranslateLoadOp(beginInfo.stencilLoadOp);
 			renderPassDescription.depthAttachment.initialLayout = depthStencilImageLayout;
 			
 			if (beginInfo.depthLoadOp == AttachmentLoadOp::Load && changeLoadToClear)
 			{
 				renderPassDescription.depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				renderPassDescription.depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 				clearValues[0].depthStencil.depth = 1.0f;
 				clearValues[0].depthStencil.stencil = 0;
 			}

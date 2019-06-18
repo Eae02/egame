@@ -139,6 +139,8 @@ namespace eg::graphics_api::vk
 		
 		if (std::strstr(callbackData->pMessage, "can result in undefined behavior if this memory is used by the device. Only GENERAL or PREINITIALIZED should be used."))
 			return VK_FALSE;
+		if (std::strstr(callbackData->pMessage, "All child objects created on device must have been destroyed prior to destroying device"))
+			return VK_FALSE;
 		
 		std::cerr << "Vk[" << callbackData->messageIdNumber << " " << callbackData->pMessageIdName << "]: \n" <<
 			callbackData->pMessage << std::endl;

@@ -30,7 +30,10 @@ namespace eg::graphics_api::vk
 		for (const RenderPass& renderPass : renderPasses)
 		{
 			if (!renderPass.description.depthAttachment.Equals(description.depthAttachment, allowCompatible) ||
-			    (!allowCompatible && !renderPass.description.resolveDepthAttachment.Equals(description.resolveDepthAttachment, true)))
+			    (!allowCompatible && (
+			        !renderPass.description.resolveDepthAttachment.Equals(description.resolveDepthAttachment, true) ||
+			        renderPass.description.depthStencilReadOnly != description.depthStencilReadOnly
+			        )))
 			{
 				continue;
 			}
@@ -72,8 +75,8 @@ namespace eg::graphics_api::vk
 			attachmentDesc.samples = (VkSampleCountFlagBits)attachment.samples;
 			attachmentDesc.loadOp = attachment.loadOp;
 			attachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attachmentDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			attachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			attachmentDesc.stencilLoadOp = attachment.stencilLoadOp;
+			attachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attachmentDesc.initialLayout = attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ? attachment.initialLayout : VK_IMAGE_LAYOUT_UNDEFINED;
 			attachmentDesc.finalLayout = finalLayout;
 		};
@@ -82,13 +85,20 @@ namespace eg::graphics_api::vk
 		VkAttachmentReference2KHR depthStencilAttachmentRef;
 		if (description.depthAttachment.format != VK_FORMAT_UNDEFINED)
 		{
+			VkImageLayout layout = description.depthStencilReadOnly ? 
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			
 			depthStencilAttachmentRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
 			depthStencilAttachmentRef.pNext = nullptr;
 			depthStencilAttachmentRef.attachment = createInfo.attachmentCount;
-			depthStencilAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthStencilAttachmentRef.layout = layout;
 			depthStencilAttachmentRef.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+			if (HasStencil(description.depthAttachment.format))
+				depthStencilAttachmentRef.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+			
 			subpassDescription.pDepthStencilAttachment = &depthStencilAttachmentRef;
-			AddAttachment(description.depthAttachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+			AddAttachment(description.depthAttachment, layout);
 		}
 		
 		//Adds color attachments

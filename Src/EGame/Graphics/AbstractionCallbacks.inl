@@ -58,6 +58,7 @@ XM_ABSCALLBACK(DispatchCompute, void, (CommandContextHandle ctx, uint32_t sizeX,
 
 XM_ABSCALLBACK(SetViewport, void, (CommandContextHandle ctx, float x, float y, float w, float h))
 XM_ABSCALLBACK(SetScissor, void, (CommandContextHandle, int x, int y, int w, int h))
+XM_ABSCALLBACK(SetStencilValue, void, (CommandContextHandle, StencilValue kind, uint32_t val))
 XM_ABSCALLBACK(BeginRenderPass, void, (CommandContextHandle ctx, const RenderPassBeginInfo& beginInfo))
 XM_ABSCALLBACK(EndRenderPass, void, (CommandContextHandle ctx))
 

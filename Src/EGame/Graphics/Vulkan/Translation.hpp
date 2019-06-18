@@ -12,6 +12,7 @@ namespace eg::graphics_api::vk
 	VkCullModeFlags TranslateCullMode(CullMode mode);
 	VkFormat TranslateFormat(Format format);
 	VkCompareOp TranslateCompareOp(CompareOp op);
+	VkStencilOp TranslateStencilOp(StencilOp op);
 	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags);
 	VkShaderStageFlags TranslateShaderStage(ShaderAccessFlags accessFlags);
 	VkDescriptorType TranslateBindingType(BindingType bindingType);

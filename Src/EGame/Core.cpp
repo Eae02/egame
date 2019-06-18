@@ -14,6 +14,7 @@
 #include "Profiling/ProfilerPane.hpp"
 
 #include <iostream>
+#include <iomanip>
 #include <list>
 
 using namespace std::chrono;
@@ -247,6 +248,25 @@ namespace eg
 		
 		if (runConfig.initialize)
 			runConfig.initialize();
+		
+		console::AddCommand("gmem", 0, [&] (Span<const std::string_view> args)
+		{
+			if (gal::GetMemoryStat == nullptr)
+			{
+				console::Write(console::WarnColor, "gmem is not supported by this graphics API");
+			}
+			else
+			{
+				GraphicsMemoryStat memStat = gal::GetMemoryStat();
+				
+				std::ostringstream msgStream;
+				msgStream << "Graphics memory info: " <<
+					std::setprecision(2) << std::fixed << (memStat.allocatedBytes / (1024.0 * 1024.0)) << " MiB in use, " <<
+					memStat.numBlocks << " blocks, " << memStat.unusedRanges << " unused ranges";
+				std::string msg = msgStream.str();
+				console::Write(console::InfoColor, msg);
+			}
+		});
 		
 		for (CallbackNode* node = onInit; node != nullptr; node = node->next)
 		{

@@ -11,6 +11,7 @@ namespace eg::graphics_api::vk
 		VkFormat format = VK_FORMAT_UNDEFINED;
 		uint32_t samples = 1;
 		VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		VkAttachmentLoadOp stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //Only used if loadOp is set to load
 		
 		bool Equals(const RenderPassAttachment& other, bool checkCompatible) const;
@@ -20,6 +21,7 @@ namespace eg::graphics_api::vk
 	{
 		RenderPassDescription() = default;
 		
+		bool depthStencilReadOnly = false;
 		RenderPassAttachment depthAttachment;
 		uint32_t numColorAttachments;
 		RenderPassAttachment colorAttachments[8];

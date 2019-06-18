@@ -24,6 +24,8 @@ namespace eg
 {
 	namespace gal
 	{
+		GraphicsMemoryStat (*GetMemoryStat)();
+		
 #define XM_ABSCALLBACK(name, ret, params) ret (*name)params;
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
@@ -48,6 +50,7 @@ namespace eg
 #define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::vk::name;
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
+			gal::GetMemoryStat = &eg::graphics_api::vk::GetMemoryStat;
 			return eg::graphics_api::vk::Initialize(initArguments);
 #endif
 			
@@ -61,6 +64,10 @@ namespace eg
 	void DestroyGraphicsAPI()
 	{
 		gal::Shutdown();
+		
+#define XM_ABSCALLBACK(name, ret, params) gal::name = nullptr;
+#include "AbstractionCallbacks.inl"
+#undef XM_ABSCALLBACK
 	}
 	
 	template <>

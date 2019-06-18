@@ -4,7 +4,7 @@ namespace eg
 {
 	Plane::Plane(const glm::vec3& normal, float distance)
 	{
-		const float nLength = normal.length();
+		const float nLength = glm::length(normal);
 		m_distance = distance / nLength;
 		m_normal = normal / nLength;
 	}

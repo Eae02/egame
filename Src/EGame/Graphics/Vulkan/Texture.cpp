@@ -90,13 +90,15 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
-	VkImageView Texture::GetView(const TextureSubresource& subresource)
+	VkImageView Texture::GetView(const TextureSubresource& subresource, VkImageAspectFlags _aspectFlags)
 	{
+		if (_aspectFlags == 0)
+			_aspectFlags = aspectFlags;
 		TextureSubresource resolvedSubresource = subresource.ResolveRem(numMipLevels, numArrayLayers);
 		
 		for (const TextureView& view : views)
 		{
-			if (view.subresource == resolvedSubresource)
+			if (view.subresource == resolvedSubresource && view.aspectFlags == _aspectFlags)
 				return view.view;
 		}
 		
@@ -104,7 +106,7 @@ namespace eg::graphics_api::vk
 		viewCreateInfo.viewType = viewType;
 		viewCreateInfo.image = image;
 		viewCreateInfo.format = format;
-		viewCreateInfo.subresourceRange.aspectMask = aspectFlags;
+		viewCreateInfo.subresourceRange.aspectMask = _aspectFlags;
 		viewCreateInfo.subresourceRange.baseMipLevel = resolvedSubresource.firstMipLevel;
 		viewCreateInfo.subresourceRange.levelCount = resolvedSubresource.numMipLevels;
 		viewCreateInfo.subresourceRange.baseArrayLayer = resolvedSubresource.firstArrayLayer;
@@ -467,7 +469,7 @@ namespace eg::graphics_api::vk
 		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
 		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource);
+		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT));
 		imageInfo.sampler = sampler;
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		

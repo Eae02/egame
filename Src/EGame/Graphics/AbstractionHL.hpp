@@ -611,6 +611,11 @@ namespace eg
 			gal::SetScissor(Handle(), x, y, w, h);
 		}
 		
+		void SetStencilValue(StencilValue kind, uint32_t val)
+		{
+			gal::SetStencilValue(Handle(), kind, val);
+		}
+		
 		void BeginRenderPass(const RenderPassBeginInfo& beginInfo)
 		{
 			gal::BeginRenderPass(Handle(), beginInfo);

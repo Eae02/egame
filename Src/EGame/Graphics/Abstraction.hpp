@@ -266,6 +266,49 @@ namespace eg
 			: shaderModule(_shaderModule) { }
 	};
 	
+	enum class StencilOp
+	{
+		Keep,
+		Zero,
+		Replace,
+		IncrementAndClamp,
+		DecrementAndClamp,
+		Invert,
+		IncrementAndWrap,
+		DecrementAndWrap
+	};
+	
+	struct StencilState
+	{
+		StencilOp failOp;
+		StencilOp passOp;
+		StencilOp depthFailOp;
+		CompareOp compareOp;
+		uint32_t compareMask;
+		uint32_t writeMask;
+		uint32_t reference;
+	};
+	
+	static constexpr int STENCIL_VALUE_MASK_VALUE   = 0b0011;
+	static constexpr int STENCIL_VALUE_COMPARE_MASK = 0b0000;
+	static constexpr int STENCIL_VALUE_WRITE_MASK   = 0b0001;
+	static constexpr int STENCIL_VALUE_REFERENCE    = 0b0010;
+	static constexpr int STENCIL_VALUE_MASK_BACK    = 0b1000;
+	static constexpr int STENCIL_VALUE_MASK_FRONT   = 0b0100;
+	
+	enum class StencilValue
+	{
+		FrontCompareMask = 0b0100,
+		FrontWriteMask   = 0b0101,
+		FrontReference   = 0b0110,
+		BackCompareMask  = 0b1000,
+		BackWriteMask    = 0b1001,
+		BackReference    = 0b1010,
+		CompareMask      = 0b1100,
+		WriteMask        = 0b1101,
+		Reference        = 0b1110
+	};
+	
 	struct GraphicsPipelineCreateInfo
 	{
 		//Shader stages
@@ -281,6 +324,14 @@ namespace eg
 		bool enableDepthWrite = false;
 		bool enableDepthClamp = false;
 		CompareOp depthCompare = CompareOp::Less;
+		
+		//Stencil
+		bool enableStencilTest = false;
+		StencilState frontStencilState;
+		StencilState backStencilState;
+		bool dynamicStencilCompareMask = false;
+		bool dynamicStencilWriteMask = false;
+		bool dynamicStencilReference = false;
 		
 		//Multisampling
 		bool enableAlphaToCoverage = false;
@@ -565,6 +616,7 @@ namespace eg
 		FramebufferHandle framebuffer;
 		AttachmentLoadOp depthLoadOp = AttachmentLoadOp::Discard;
 		AttachmentLoadOp stencilLoadOp = AttachmentLoadOp::Discard;
+		bool sampledDepthStencil = false;
 		float depthClearValue = 1.0f;
 		uint8_t stencilClearValue = 0;
 		RenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
@@ -624,10 +676,19 @@ namespace eg
 	
 	void DestroyGraphicsAPI();
 	
+	struct GraphicsMemoryStat
+	{
+		uint64_t allocatedBytes;
+		uint32_t numBlocks;
+		uint32_t unusedRanges;
+	};
+	
 	namespace gal
 	{
 #define XM_ABSCALLBACK(name, ret, params) extern EG_API ret (*name)params;
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
+		
+		extern EG_API GraphicsMemoryStat (*GetMemoryStat)();
 	}
 }

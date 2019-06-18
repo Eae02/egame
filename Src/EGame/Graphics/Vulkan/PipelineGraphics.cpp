@@ -31,6 +31,10 @@ namespace eg::graphics_api::vk
 		bool enableSampleShading;
 		float minSampleShading;
 		
+		bool dynamicStencilCompareMask;
+		bool dynamicStencilWriteMask;
+		bool dynamicStencilReference;
+		
 		uint32_t numStages;
 		VkPipelineShaderStageCreateInfo shaderStageCI[5];
 		VkVertexInputBindingDescription vertexBindings[MAX_VERTEX_BINDINGS];
@@ -75,6 +79,17 @@ namespace eg::graphics_api::vk
 		}
 		
 		gfxPipelinesPool.Delete(this);
+	}
+	
+	inline void TranslateStencilState(const StencilState& in, VkStencilOpState& out)
+	{
+		out.failOp = TranslateStencilOp(in.failOp);
+		out.passOp = TranslateStencilOp(in.passOp);
+		out.depthFailOp = TranslateStencilOp(in.depthFailOp);
+		out.compareOp = TranslateCompareOp(in.compareOp);
+		out.compareMask = in.compareMask;
+		out.writeMask = in.writeMask;
+		out.reference = in.reference;
 	}
 	
 	PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
@@ -181,17 +196,26 @@ namespace eg::graphics_api::vk
 			/* depthWriteEnable      */ static_cast<VkBool32>(createInfo.enableDepthWrite),
 			/* depthCompareOp        */ TranslateCompareOp(createInfo.depthCompare),
 			/* depthBoundsTestEnable */ VK_FALSE,
-			/* stencilTestEnable     */ VK_FALSE,
+			/* stencilTestEnable     */ static_cast<VkBool32>(createInfo.enableStencilTest),
 			/* front                 */ { },
 			/* back                  */ { },
 			/* minDepthBounds        */ 0,
 			/* maxDepthBounds        */ 0
 		};
 		
+		if (createInfo.enableStencilTest)
+		{
+			TranslateStencilState(createInfo.backStencilState, pipeline->depthStencilStateCI.back);
+			TranslateStencilState(createInfo.frontStencilState, pipeline->depthStencilStateCI.front);
+		}
+		
 		pipeline->enableAlphaToCoverage = createInfo.enableAlphaToCoverage;
 		pipeline->enableAlphaToOne = createInfo.enableAlphaToOne;
 		pipeline->enableSampleShading = createInfo.enableSampleShading;
 		pipeline->minSampleShading = createInfo.minSampleShading;
+		pipeline->dynamicStencilCompareMask = createInfo.dynamicStencilCompareMask;
+		pipeline->dynamicStencilWriteMask = createInfo.dynamicStencilWriteMask;
+		pipeline->dynamicStencilReference = createInfo.dynamicStencilReference;
 		
 		pipeline->colorBlendStateCI = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
 		std::copy_n(createInfo.blendConstants, 4, pipeline->colorBlendStateCI.blendConstants);
@@ -283,16 +307,6 @@ namespace eg::graphics_api::vk
 		/* pScissors     */ &g_dummyScissor
 	};
 	
-	static const VkDynamicState g_dynamicState[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-	static const VkPipelineDynamicStateCreateInfo g_dynamicStateCI =
-	{
-		/* sType             */ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-		/* pNext             */ nullptr,
-		/* flags             */ 0,
-		/* dynamicStateCount */ ArrayLen(g_dynamicState),
-		/* pDynamicStates    */ g_dynamicState
-	};
-	
 	VkPipeline MaybeCreatePipelineFramebufferVariant(const FramebufferFormat& format, GraphicsPipeline& pipeline, bool warn)
 	{
 		auto it = std::lower_bound(pipeline.pipelines.begin(), pipeline.pipelines.end(), format.hash,
@@ -342,6 +356,24 @@ namespace eg::graphics_api::vk
 			/* patchControlPoints */ pipeline.patchControlPoints
 		};
 		
+		VkDynamicState dynamicState[5] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		uint32_t dynamicStateCount = 2;
+		if (pipeline.dynamicStencilCompareMask)
+			dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK;
+		if (pipeline.dynamicStencilWriteMask)
+			dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK;
+		if (pipeline.dynamicStencilReference)
+			dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+		
+		const VkPipelineDynamicStateCreateInfo dynamicStateCI =
+		{
+			/* sType             */ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+			/* pNext             */ nullptr,
+			/* flags             */ 0,
+			/* dynamicStateCount */ dynamicStateCount,
+			/* pDynamicStates    */ dynamicState
+		};
+		
 		VkGraphicsPipelineCreateInfo vkCreateInfo =
 		{
 			/* sType               */ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -357,7 +389,7 @@ namespace eg::graphics_api::vk
 			/* pMultisampleState   */ &multisampleState,
 			/* pDepthStencilState  */ &pipeline.depthStencilStateCI,
 			/* pColorBlendState    */ &pipeline.colorBlendStateCI,
-			/* pDynamicState       */ &g_dynamicStateCI,
+			/* pDynamicState       */ &dynamicStateCI,
 			/* layout              */ pipeline.pipelineLayout,
 			/* renderPass          */ GetRenderPass(renderPassDescription, true),
 			/* subpass             */ 0,
@@ -449,6 +481,25 @@ namespace eg::graphics_api::vk
 			state.scissor.extent.height = std::min(h, (int)state.framebufferH - state.scissor.offset.y);
 			state.scissorOutOfDate = true;
 		}
+	}
+	
+	void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
+	{
+		CommandContextState& state = GetCtxState(cc);
+		
+		VkStencilFaceFlags faceFlags = 0;
+		if ((int)kind & 0b0100)
+			faceFlags |= VK_STENCIL_FACE_FRONT_BIT;
+		if ((int)kind & 0b1000)
+			faceFlags |= VK_STENCIL_FACE_BACK_BIT;
+		
+		int type = (int)kind & 0b11;
+		if (type == 0)
+			vkCmdSetStencilCompareMask(GetCB(cc), faceFlags, val);
+		else if (type == 1)
+			vkCmdSetStencilWriteMask(GetCB(cc), faceFlags, val);
+		else if (type == 2)
+			vkCmdSetStencilReference(GetCB(cc), faceFlags, val);
 	}
 	
 	void GraphicsPipeline::Bind(CommandContextHandle cc)

@@ -230,6 +230,22 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
+	VkStencilOp TranslateStencilOp(StencilOp op)
+	{
+		switch (op)
+		{
+		case StencilOp::Keep: return VK_STENCIL_OP_KEEP;
+		case StencilOp::Zero: return VK_STENCIL_OP_ZERO;
+		case StencilOp::Replace: return VK_STENCIL_OP_REPLACE;
+		case StencilOp::IncrementAndClamp: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+		case StencilOp::DecrementAndClamp: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+		case StencilOp::Invert: return VK_STENCIL_OP_INVERT;
+		case StencilOp::IncrementAndWrap: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+		case StencilOp::DecrementAndWrap: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+		}
+		EG_UNREACHABLE
+	}
+	
 	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags)
 	{
 		VkAccessFlags flags = 0;
