@@ -11,6 +11,8 @@ namespace eg
 	EG_API std::vector<char> Compress(const void* data, size_t dataSize);
 	EG_API bool Decompress(const void* input, size_t inputSize, void* output, size_t outputSize);
 	
+	EG_API std::vector<char> Base64Decode(std::string_view in);
+	
 	EG_API std::vector<char> ReadStreamContents(std::istream& stream);
 	
 	class EG_API MemoryStreambuf : public std::streambuf

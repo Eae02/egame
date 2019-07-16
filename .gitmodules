@@ -22,3 +22,6 @@
 [submodule "Deps/utfcpp"]
 	path = Deps/utfcpp
 	url = https://github.com/ledger/utfcpp.git
+[submodule "Deps/json"]
+	path = Deps/json
+	url = https://github.com/nlohmann/json.git

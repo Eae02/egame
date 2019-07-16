@@ -266,7 +266,10 @@ namespace eg::asset_gen
 					std::copy_n(&texCoords[verticesP[i].texCoord].x, 2, vertices[i].texCoord);
 					glm::vec3 n = normals[verticesP[i].normal];
 					for (int j = 0; j < 3; j++)
+					{
 						vertices[i].normal[j] = FloatToSNorm(n[j]);
+					}
+					*reinterpret_cast<uint32_t*>(vertices[i].color) = 0;
 				}
 				
 				//Generates tangents for the vertices

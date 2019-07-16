@@ -86,6 +86,13 @@ namespace eg::graphics_api::vk
 		vkCmdWriteTimestamp(GetCB(cctx), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool->pool, query);
 	}
 	
+	void ResetQueries(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries)
+	{
+		QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
+		RefResource(cctx, *queryPool);
+		vkCmdResetQueryPool(GetCB(cctx), queryPool->pool, firstQuery, numQueries);
+	}
+	
 	void BeginQuery(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query)
 	{
 		QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);

@@ -69,7 +69,7 @@ namespace eg
 				spriteBatch.DrawText(font, cursor.CurrentName(), glm::vec2(labelX, y), eg::ColorLin(1, 1, 1, 0.8f));
 				
 				char valueBuffer[40];
-				snprintf(valueBuffer, sizeof(valueBuffer), "%.2fms", cursor.CurrentValue() * 1E-6f);
+				snprintf(valueBuffer, sizeof(valueBuffer), "%.2f ms", cursor.CurrentValue() * 1E-6f);
 				
 				glm::vec2 valueExt = font.GetTextExtents(valueBuffer);
 				
@@ -81,6 +81,15 @@ namespace eg
 				StepY(1.1f);
 			}
 		};
+		
+		int fps = 1E9f / m_lastResult.GetCPUTimerCursor().CurrentValue();
+		char fpsBuffer[40];
+		snprintf(fpsBuffer, sizeof(fpsBuffer), "FPS: %.2d Hz", fps);
+		glm::vec2 fpsExt = font.GetTextExtents(fpsBuffer);
+		spriteBatch.DrawText(font, fpsBuffer, glm::vec2(minX + PADDING, y),
+			eg::ColorLin(1, 1, 1, 1.0f));
+		
+		StepY(1.2f);
 		
 		spriteBatch.DrawText(font, "CPU Timers:", glm::vec2(minX + PADDING, y), eg::ColorLin(1, 1, 1, 1));
 		StepY(1.2f);

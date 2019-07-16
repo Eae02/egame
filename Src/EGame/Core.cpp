@@ -45,7 +45,7 @@ namespace eg
 	
 	static std::list<Profiler> profilers;
 	static std::vector<Profiler*> availProfilers;
-	static std::vector<Profiler*> pendingProfilers;
+	static std::vector<std::pair<Profiler*, uint64_t>> pendingProfilers;
 	static std::unique_ptr<ProfilerPane> profilerPane;
 	
 	bool shouldClose = false;
@@ -108,7 +108,10 @@ namespace eg
 		
 		while (!pendingProfilers.empty())
 		{
-			Profiler* profiler = pendingProfilers.front();
+			auto [profiler, profilerFrame] = pendingProfilers.front();
+			if (profilerFrame + MAX_CONCURRENT_FRAMES > FrameIdx())
+				break;
+			
 			std::optional<ProfilingResults> result = profiler->GetResults();
 			if (!result.has_value())
 				break;
@@ -160,7 +163,7 @@ namespace eg
 		
 		if (DevMode())
 		{
-			pendingProfilers.push_back(Profiler::current);
+			pendingProfilers.emplace_back(Profiler::current, FrameIdx());
 		}
 		
 		detail::cFrameIdx = (detail::cFrameIdx + 1) % MAX_CONCURRENT_FRAMES;

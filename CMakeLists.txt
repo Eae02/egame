@@ -64,6 +64,7 @@ if (NOT TARGET_WEB)
 	
 	target_include_directories(EGameAssetGen PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/json/include
 	)
 endif()
 

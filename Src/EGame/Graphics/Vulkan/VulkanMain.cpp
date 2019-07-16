@@ -2,6 +2,7 @@
 #include "VulkanMain.hpp"
 #include "Common.hpp"
 #include "Sampler.hpp"
+#include "Buffer.hpp"
 #include "Translation.hpp"
 #include "RenderPasses.hpp"
 #include "../RenderDoc.hpp"
@@ -658,6 +659,8 @@ namespace eg::graphics_api::vk
 	{
 		vkDeviceWaitIdle(ctx.device);
 		
+		ProcessPendingInitBuffers(true);
+		
 		DestroyCachedDescriptorSets();
 		DestroySamplers();
 		DestroyRenderPasses();
@@ -756,6 +759,8 @@ namespace eg::graphics_api::vk
 		VkFence fence = ctx.frameQueueFences[CFrameIdx()];
 		CheckRes(vkWaitForFences(ctx.device, 1, &fence, VK_TRUE, UINT64_MAX));
 		CheckRes(vkResetFences(ctx.device, 1, &fence));
+		
+		ProcessPendingInitBuffers(false);
 		
 		ctx.referencedResources[CFrameIdx()].Release();
 		

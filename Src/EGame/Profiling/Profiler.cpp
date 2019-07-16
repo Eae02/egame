@@ -64,6 +64,8 @@ namespace eg
 			m_queryPools.emplace_back(QueryType::Timestamp, QUERIES_PER_POOL);
 		}
 		
+		DC.ResetQueries(m_queryPools[poolIndex], (index % TIMERS_PER_POOL) * 2, 2);
+		
 		DC.WriteTimestamp(m_queryPools[poolIndex], (index % TIMERS_PER_POOL) * 2);
 		
 		return GPUTimer(this, index);

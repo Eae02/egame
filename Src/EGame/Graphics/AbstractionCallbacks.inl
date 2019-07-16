@@ -74,5 +74,6 @@ XM_ABSCALLBACK(GetQueryResults, bool, (QueryPoolHandle queryPool, uint32_t first
 XM_ABSCALLBACK(CopyQueryResults, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle,
 	uint32_t firstQuery, uint32_t numQueries, BufferHandle dstBufferHandle, uint64_t dstOffset))
 XM_ABSCALLBACK(WriteTimestamp, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))
+XM_ABSCALLBACK(ResetQueries, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries))
 XM_ABSCALLBACK(BeginQuery, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))
 XM_ABSCALLBACK(EndQuery, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))

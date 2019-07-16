@@ -626,6 +626,11 @@ namespace eg
 			gal::EndRenderPass(Handle());
 		}
 		
+		void ResetQueries(QueryPoolRef pool, uint32_t firstQuery, uint32_t numQueries)
+		{
+			gal::ResetQueries(Handle(), pool.handle, firstQuery, numQueries);
+		}
+		
 		void BeginQuery(QueryPoolRef pool, uint32_t query)
 		{
 			gal::BeginQuery(Handle(), pool.handle, query);

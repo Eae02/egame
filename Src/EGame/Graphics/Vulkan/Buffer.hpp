@@ -35,6 +35,8 @@ namespace eg::graphics_api::vk
 	{
 		return reinterpret_cast<Buffer*>(handle);
 	}
+	
+	void ProcessPendingInitBuffers(bool destroyAll);
 }
 
 #endif

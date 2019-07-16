@@ -5,6 +5,11 @@
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
+namespace eg::detail
+{
+	extern uint64_t frameIndex;
+}
+
 namespace eg::graphics_api::vk
 {
 	static ConcurrentObjectPool<Buffer> bufferPool;
@@ -13,6 +18,30 @@ namespace eg::graphics_api::vk
 	{
 		vmaDestroyBuffer(ctx.allocator, buffer, allocation);
 		bufferPool.Delete(this);
+	}
+	
+	struct PendingInitBuffer
+	{
+		VkBuffer buffer;
+		VmaAllocation allocation;
+		uint64_t destroyFrame;
+	};
+	
+	static std::vector<PendingInitBuffer> pendingInitBuffers;
+	
+	void ProcessPendingInitBuffers(bool destroyAll)
+	{
+		for (int64_t i = pendingInitBuffers.size() - 1; i >= 0; i--)
+		{
+			if (destroyAll || detail::frameIndex >= pendingInitBuffers[i].destroyFrame)
+			{
+				vkDestroyBuffer(ctx.device, pendingInitBuffers[i].buffer, nullptr);
+				vmaFreeMemory(ctx.allocator, pendingInitBuffers[i].allocation);
+				
+				pendingInitBuffers[i] = pendingInitBuffers.back();
+				pendingInitBuffers.pop_back();
+			}
+		}
 	}
 	
 	BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
@@ -97,9 +126,28 @@ namespace eg::graphics_api::vk
 				}
 				else
 				{
-					//TODO: Copy initial data
-					eg::Log(LogLevel::Warning, "vk", "Initial data parameter for buffers is not yet supported in "
-					        "vulkan for buffers larger than 64KiB.");
+					VkBufferCreateInfo initBufferCI = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+					initBufferCI.size = createInfo.size;
+					initBufferCI.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+					
+					VmaAllocationCreateInfo initBufferAllocCI = { };
+					initBufferAllocCI.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+					initBufferAllocCI.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+					
+					VkBuffer initBuffer;
+					VmaAllocation initAllocation;
+					
+					VmaAllocationInfo allocationInfo;
+					CheckRes(vmaCreateBuffer(ctx.allocator, &initBufferCI, &initBufferAllocCI, &initBuffer,
+						&initAllocation, &allocationInfo));
+					
+					std::memcpy(allocationInfo.pMappedData, createInfo.initialData, createInfo.size);
+					vmaFlushAllocation(ctx.allocator, initAllocation, 0, createInfo.size);
+					
+					VkBufferCopy bufferCopyReg = { 0, 0, createInfo.size };
+					vkCmdCopyBuffer(GetCB(nullptr), initBuffer, buffer->buffer, 1, &bufferCopyReg);
+					
+					pendingInitBuffers.push_back({ initBuffer, initAllocation, detail::frameIndex + MAX_CONCURRENT_FRAMES });
 				}
 			}
 		}

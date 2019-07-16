@@ -3,7 +3,7 @@
 
 namespace eg
 {
-	const AssetFormat ModelAssetFormat { "EG::Model", 1 };
+	const AssetFormat ModelAssetFormat { "EG::Model", 2 };
 	
 	std::vector<detail::ModelVertexType> detail::modelVertexTypes;
 	

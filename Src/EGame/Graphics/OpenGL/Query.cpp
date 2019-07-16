@@ -115,6 +115,11 @@ namespace eg::graphics_api::gl
 #endif
 	}
 	
+	void ResetQueries(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries)
+	{
+		
+	}
+	
 	void BeginQuery(CommandContextHandle, QueryPoolHandle queryPoolHandle, uint32_t query)
 	{
 		QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);

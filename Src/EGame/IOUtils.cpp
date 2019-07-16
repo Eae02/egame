@@ -54,22 +54,22 @@ namespace eg
 		std::array<char, 256> outBuffer;
 		std::array<char, 256> inBuffer;
 		
-		long bytesLeft = compressedSize;
-		long outputBytesLeft = outputSize;
+		long charsLeft = compressedSize;
+		long outputcharsLeft = outputSize;
 		
 		char* outputPtr = reinterpret_cast<char*>(output);
 		
-		//Inflates the data 256 bytes at a time
+		//Inflates the data 256 chars at a time
 		do
 		{
-			long bytesToRead = std::min<long>(inBuffer.size(), bytesLeft);
-			input.read(inBuffer.data(), bytesToRead);
+			long charsToRead = std::min<long>(inBuffer.size(), charsLeft);
+			input.read(inBuffer.data(), charsToRead);
 			
-			assert(input.gcount() == bytesToRead);
+			assert(input.gcount() == charsToRead);
 			
-			bytesLeft -= bytesToRead;
+			charsLeft -= charsToRead;
 			
-			inflateStream.avail_in = static_cast<uInt>(bytesToRead);
+			inflateStream.avail_in = static_cast<uInt>(charsToRead);
 			inflateStream.next_in = reinterpret_cast<Bytef*>(inBuffer.data());
 			
 			if (inflateStream.avail_in == 0)
@@ -88,18 +88,18 @@ namespace eg
 				if (status == Z_DATA_ERROR || status == Z_NEED_DICT)
 					return false;
 				
-				long bytesDecompressed = static_cast<long>(outBuffer.size()) - static_cast<long>(inflateStream.avail_out);
-				if (outputBytesLeft < bytesDecompressed)
+				long charsDecompressed = static_cast<long>(outBuffer.size()) - static_cast<long>(inflateStream.avail_out);
+				if (outputcharsLeft < charsDecompressed)
 					return false;
 				
-				std::copy_n(outBuffer.begin(), bytesDecompressed, outputPtr);
+				std::copy_n(outBuffer.begin(), charsDecompressed, outputPtr);
 				
-				outputPtr += bytesDecompressed;
-				outputBytesLeft -= bytesDecompressed;
+				outputPtr += charsDecompressed;
+				outputcharsLeft -= charsDecompressed;
 			}
 			while (inflateStream.avail_out == 0);
 		}
-		while (status != Z_STREAM_END && bytesLeft > 0);
+		while (status != Z_STREAM_END && charsLeft > 0);
 		
 		inflateEnd(&inflateStream);
 		return true;
@@ -118,9 +118,9 @@ namespace eg
 		}
 		
 		std::list<std::array<char, 256>> compressedData;
-		uInt lastPageUnusedBytes;
+		uInt lastPageUnusedchars;
 		
-		//Deflates and writes the data 256 bytes at a time
+		//Deflates and writes the data 256 chars at a time
 		while (true)
 		{
 			auto& outBuffer = compressedData.emplace_back();
@@ -133,19 +133,19 @@ namespace eg
 			
 			if (deflateStream.avail_out != 0)
 			{
-				lastPageUnusedBytes = deflateStream.avail_out;
+				lastPageUnusedchars = deflateStream.avail_out;
 				break;
 			}
 		}
 		
 		deflateEnd(&deflateStream);
 		
-		BinWrite<uint64_t>(output, compressedData.size() * 256 - lastPageUnusedBytes);
+		BinWrite<uint64_t>(output, compressedData.size() * 256 - lastPageUnusedchars);
 		std::for_each(compressedData.begin(), std::prev(compressedData.end()), [&] (const std::array<char, 256>& page)
 		{
 			output.write(page.data(), page.size());
 		});
-		output.write(compressedData.back().data(), 256 - lastPageUnusedBytes);
+		output.write(compressedData.back().data(), 256 - lastPageUnusedchars);
 	}
 	
 	std::vector<char> Compress(const void* data, size_t dataSize)
@@ -163,7 +163,7 @@ namespace eg
 		std::vector<char> output;
 		char outBuffer[256];
 		
-		//Deflates and writes the data 256 bytes at a time
+		//Deflates and writes the data 256 chars at a time
 		while (true)
 		{
 			deflateStream.avail_out = sizeof(outBuffer);
@@ -203,5 +203,34 @@ namespace eg
 		if (status == Z_MEM_ERROR || status == Z_STREAM_ERROR)
 			std::abort();
 		return status == Z_STREAM_END;
+	}
+	
+	static const char* Base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	
+	std::vector<char> Base64Decode(std::string_view in)
+	{
+		std::vector<char> out;
+		
+		std::vector<int> translate(256, -1);
+		for (int i = 0; i < 64; i++)
+		{
+			translate[Base64Chars[i]] = i;
+		}
+		
+		int val = 0;
+		int valb = -8;
+		for (char c : in)
+		{
+			if (translate[c] == -1)
+				break;
+			val = (val << 6) + translate[c];
+			valb += 6;
+			if (valb >= 0)
+			{
+				out.push_back(char((val >> valb) & 0xFF));
+				valb -= 8;
+			}
+		}
+		return out;
 	}
 }

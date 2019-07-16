@@ -13,6 +13,7 @@ namespace eg
 		float texCoord[2];
 		int8_t normal[4];
 		int8_t tangent[4];
+		uint8_t color[4];
 	};
 #pragma pack(pop)
 }
