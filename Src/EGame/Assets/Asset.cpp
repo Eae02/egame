@@ -477,7 +477,7 @@ namespace eg
 		//First, tries to load assets from a YAML list. If that fails, attempts to load from an EAP.
 		if (!LoadAssetsYAML(path, *mountDir) && !LoadAssetsEAP(path, *mountDir))
 		{
-			EG_PANIC("Failed to load assets from '{0}'. Both '{0}.eap' and '{0}/Assets.yaml' failed to load.");
+			EG_PANIC("Failed to load assets from '" << path << "'.\nBoth '" << path << ".eap' and '" << path << "/Assets.yaml' failed to load.");
 		}
 	}
 	
