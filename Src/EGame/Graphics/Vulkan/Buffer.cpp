@@ -137,11 +137,11 @@ namespace eg::graphics_api::vk
 					VkBuffer initBuffer;
 					VmaAllocation initAllocation;
 					
-					VmaAllocationInfo allocationInfo;
+					VmaAllocationInfo initAllocationInfo;
 					CheckRes(vmaCreateBuffer(ctx.allocator, &initBufferCI, &initBufferAllocCI, &initBuffer,
-						&initAllocation, &allocationInfo));
+						&initAllocation, &initAllocationInfo));
 					
-					std::memcpy(allocationInfo.pMappedData, createInfo.initialData, createInfo.size);
+					std::memcpy(initAllocationInfo.pMappedData, createInfo.initialData, createInfo.size);
 					vmaFlushAllocation(ctx.allocator, initAllocation, 0, createInfo.size);
 					
 					VkBufferCopy bufferCopyReg = { 0, 0, createInfo.size };
