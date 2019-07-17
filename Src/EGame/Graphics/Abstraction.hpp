@@ -464,30 +464,12 @@ namespace eg
 		TextureFlags flags = TextureFlags::None;
 		uint32_t mipLevels = 0;
 		uint32_t sampleCount = 1;
+		uint32_t width = 0;
+		uint32_t height = 0;
+		uint32_t arrayLayers = 1;
 		Format format = Format::Undefined;
 		const SamplerDescription* defaultSamplerDescription = nullptr;
 		const char* label = nullptr;
-	};
-	
-	struct Texture2DCreateInfo : TextureCreateInfo
-	{
-		uint32_t width = 0;
-		uint32_t height = 0;
-	};
-	
-	struct Texture2DArrayCreateInfo : Texture2DCreateInfo
-	{
-		uint32_t arrayLayers = 0;
-	};
-	
-	struct TextureCubeCreateInfo : TextureCreateInfo
-	{
-		uint32_t width;
-	};
-	
-	struct TextureCubeArrayCreateInfo : TextureCubeCreateInfo
-	{
-		uint32_t arrayLayers = 0;
 	};
 	
 	enum class UniformType

@@ -23,10 +23,11 @@ namespace eg
 	
 	enum
 	{
-		TF_LinearFiltering = 0x1,
-		TF_Anistropy = 0x2,
-		TF_UseGlobalScale = 0x4,
-		TF_ArrayTexture = 0x8
+		TF_LinearFiltering = 1,
+		TF_Anistropy = 2,
+		TF_UseGlobalScale = 4,
+		TF_ArrayTexture = 8,
+		TF_CubeMap = 16
 	};
 	
 	bool Texture2DLoader(const AssetLoadContext& loadContext)
@@ -40,7 +41,9 @@ namespace eg
 		
 		uint32_t mipShift = std::min((uint32_t)header->mipShifts[(int)TextureAssetQuality], header->numMipLevels - 1);
 		
-		Texture2DArrayCreateInfo createInfo;
+		Texture* texture;
+		
+		TextureCreateInfo createInfo;
 		createInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample;
 		createInfo.defaultSamplerDescription = &sampler;
 		createInfo.width = header->width >> mipShift;
@@ -49,8 +52,9 @@ namespace eg
 		createInfo.arrayLayers = header->numLayers;
 		createInfo.mipLevels = header->numMipLevels - mipShift;
 		
-		Texture* texture;
-		if (header->flags & TF_ArrayTexture)
+		if (header->flags & TF_CubeMap)
+			texture = &loadContext.CreateResult<Texture>(Texture::CreateCube(createInfo));
+		else if (header->flags & TF_ArrayTexture)
 			texture = &loadContext.CreateResult<Texture>(Texture::Create2DArray(createInfo));
 		else
 			texture = &loadContext.CreateResult<Texture>(Texture::Create2D(createInfo));

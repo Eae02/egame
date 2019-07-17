@@ -19,11 +19,17 @@ namespace eg::asset_gen
 		
 		bool AddLayer(std::istream& imageStream);
 		
-		void Write(std::ostream& stream) const;
+		[[nodiscard]]
+		bool Write(std::ostream& stream) const;
 		
 		void SetIsArrayTexture(bool isArrayTexture)
 		{
 			m_isArrayTexture = isArrayTexture;
+		}
+		
+		void SetIsCubeMap(bool isCubeMap)
+		{
+			m_isCubeMap = isCubeMap;
 		}
 		
 	private:
@@ -42,6 +48,7 @@ namespace eg::asset_gen
 		int m_mipShiftHigh = 0;
 		
 		bool m_isArrayTexture = false;
+		bool m_isCubeMap = false;
 		bool m_dxtHighQuality = false;
 		bool m_dxtDither = false;
 		bool m_linearFiltering = true;

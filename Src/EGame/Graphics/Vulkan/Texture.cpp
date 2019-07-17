@@ -129,7 +129,7 @@ namespace eg::graphics_api::vk
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
-	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
+	TextureHandle CreateTexture2D(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		
@@ -139,7 +139,7 @@ namespace eg::graphics_api::vk
 		return WrapTexture(texture);
 	}
 	
-	TextureHandle CreateTexture2DArray(const Texture2DArrayCreateInfo& createInfo)
+	TextureHandle CreateTexture2DArray(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		
@@ -149,7 +149,7 @@ namespace eg::graphics_api::vk
 		return WrapTexture(texture);
 	}
 	
-	TextureHandle CreateTextureCube(const TextureCubeCreateInfo& createInfo)
+	TextureHandle CreateTextureCube(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		
@@ -159,7 +159,7 @@ namespace eg::graphics_api::vk
 		return WrapTexture(texture);
 	}
 	
-	TextureHandle CreateTextureCubeArray(const TextureCubeArrayCreateInfo& createInfo)
+	TextureHandle CreateTextureCubeArray(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		
@@ -322,6 +322,8 @@ namespace eg::graphics_api::vk
 			copyRegion.imageSubresource.baseArrayLayer = 0;
 			copyRegion.imageSubresource.layerCount = 1;
 			break;
+		case VK_IMAGE_VIEW_TYPE_CUBE:
+		case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
 		case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
 			copyRegion.imageOffset.z = 0;
 			copyRegion.imageExtent.depth = 1;

@@ -7,7 +7,7 @@ namespace eg
 {
 	BloomRenderer::RenderTarget::RenderTarget(uint32_t inputWidth, uint32_t inputHeight, uint32_t levels)
 	{
-		Texture2DCreateInfo textureCI;
+		TextureCreateInfo textureCI;
 		textureCI.width = inputWidth / 2;
 		textureCI.height = inputHeight / 2;
 		textureCI.mipLevels = levels;

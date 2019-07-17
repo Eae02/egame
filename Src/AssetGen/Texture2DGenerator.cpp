@@ -18,7 +18,6 @@ namespace eg::asset_gen
 		bool Generate(AssetGenerateContext& generateContext) override
 		{
 			Texture2DWriter textureWriter;
-			textureWriter.SetIsArrayTexture(false);
 			
 			textureWriter.ParseYAMLSettings(generateContext.YAMLNode());
 			
@@ -33,9 +32,7 @@ namespace eg::asset_gen
 			if (!textureWriter.AddLayer(stream))
 				return false;
 			
-			textureWriter.Write(generateContext.outputStream);
-			
-			return true;
+			return textureWriter.Write(generateContext.outputStream);
 		}
 	};
 	

@@ -44,7 +44,7 @@ namespace eg
 		
 		ImageLoader loader(stream);
 		
-		Texture2DCreateInfo createInfo;
+		TextureCreateInfo createInfo;
 		createInfo.width = (uint32_t)loader.Width();
 		createInfo.height = (uint32_t)loader.Height();
 		createInfo.mipLevels = mipLevels == 0 ? MaxMipLevels(std::max(createInfo.width, createInfo.height)) : mipLevels;

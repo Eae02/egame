@@ -348,7 +348,7 @@ namespace eg::asset_gen
 		return true;
 	}
 	
-	void Texture2DWriter::Write(std::ostream& stream) const
+	bool Texture2DWriter::Write(std::ostream& stream) const
 	{
 		Format realFormat = m_format;
 		if (m_isSRGB)
@@ -366,8 +366,20 @@ namespace eg::asset_gen
 				break;
 			default:
 				Log(LogLevel::Error, "as", "sRGB is not supported for the selected format.");
-				break;
+				return false;
 			}
+		}
+		
+		if (m_isCubeMap && (m_numLayers % 6) != 0)
+		{
+			Log(LogLevel::Error, "as", "Cube map textures must have a layer count that is a multiple of 6.");
+			return false;
+		}
+		
+		if (m_isCubeMap && m_width != m_height)
+		{
+			Log(LogLevel::Error, "as", "Cube map textures must have width = height.");
+			return false;
 		}
 		
 		BinWrite(stream, (uint32_t)m_numLayers);
@@ -376,7 +388,8 @@ namespace eg::asset_gen
 		uint32_t flags = (uint32_t)m_linearFiltering |
 			(uint32_t)m_anisotropicFiltering << 1U |
 			(uint32_t)m_useGlobalDownscale << 2U |
-			(uint32_t)m_isArrayTexture << 3U;
+			(uint32_t)m_isArrayTexture << 3U |
+			(uint32_t)m_isCubeMap << 4U;
 		BinWrite(stream, (uint8_t)flags);
 		
 		BinWrite(stream, (uint8_t)m_mipShiftLow);
@@ -391,5 +404,7 @@ namespace eg::asset_gen
 		{
 			stream.write(reinterpret_cast<const char*>(data.data()), data.size());
 		}
+		
+		return true;
 	}
 }

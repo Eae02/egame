@@ -10,7 +10,7 @@ namespace eg
 		samplerDescription.wrapV = WrapMode::ClampToEdge;
 		samplerDescription.wrapW = WrapMode::ClampToEdge;
 		
-		Texture2DCreateInfo textureCI;
+		TextureCreateInfo textureCI;
 		textureCI.width = resolution;
 		textureCI.height = resolution;
 		textureCI.flags = TextureFlags::StorageImage | TextureFlags::ShaderSample;

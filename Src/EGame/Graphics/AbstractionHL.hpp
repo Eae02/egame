@@ -242,7 +242,7 @@ namespace eg
 		static Texture Load(std::istream& stream, LoadFormat format, uint32_t mipLevels = 0,
 			class CommandContext* commandContext = nullptr);
 		
-		static Texture Create2D(const Texture2DCreateInfo& createInfo)
+		static Texture Create2D(const TextureCreateInfo& createInfo)
 		{
 			Texture texture(gal::CreateTexture2D(createInfo));
 			texture.m_width = createInfo.width;
@@ -254,7 +254,7 @@ namespace eg
 			return texture;
 		}
 		
-		static Texture Create2DArray(const Texture2DArrayCreateInfo& createInfo)
+		static Texture Create2DArray(const TextureCreateInfo& createInfo)
 		{
 			Texture texture(gal::CreateTexture2DArray(createInfo));
 			texture.m_width = createInfo.width;
@@ -266,7 +266,7 @@ namespace eg
 			return texture;
 		}
 		
-		static Texture CreateCube(const TextureCubeCreateInfo& createInfo)
+		static Texture CreateCube(const TextureCreateInfo& createInfo)
 		{
 			Texture texture(gal::CreateTextureCube(createInfo));
 			texture.m_width = createInfo.width;
@@ -278,7 +278,7 @@ namespace eg
 			return texture;
 		}
 		
-		static Texture CreateCubeArray(const TextureCubeArrayCreateInfo& createInfo)
+		static Texture CreateCubeArray(const TextureCreateInfo& createInfo)
 		{
 			Texture texture(gal::CreateTextureCubeArray(createInfo));
 			texture.m_width = createInfo.width;

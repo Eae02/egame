@@ -19,15 +19,42 @@ namespace eg::asset_gen
 			
 			textureWriter.ParseYAMLSettings(generateContext.YAMLNode());
 			
-			for (const YAML::Node& layerNode : generateContext.YAMLNode()["layers"])
+			bool isCubeMap = generateContext.YAMLNode()["cubeMap"].as<bool>(false);
+			textureWriter.SetIsCubeMap(isCubeMap);
+			
+			std::vector<std::string> layerNames;
+			
+			if (isCubeMap && generateContext.YAMLNode()["faces"].IsDefined())
 			{
-				std::string layerRelPath = layerNode.as<std::string>();
-				std::string layerAbsPath = generateContext.FileDependency(layerRelPath);
+				const char* faceNames[] = { "+x", "-x", "+y", "-y", "+z", "-z" };
+				for (const char* faceName : faceNames)
+				{
+					std::string path = generateContext.YAMLNode()["faces"][faceName].as<std::string>();
+					if (path.empty())
+					{
+						eg::Log(eg::LogLevel::Error, "as", "Empty or not specified cube map face '{0}'.", faceName);
+						return false;
+					}
+					layerNames.push_back(std::move(path));
+				}
+			}
+			else
+			{
+				for (const YAML::Node& layerNode : generateContext.YAMLNode()["layers"])
+				{
+					layerNames.push_back(layerNode.as<std::string>());
+				}
+			}
+			
+			for (const std::string& layerName : layerNames)
+			{
+				std::string layerAbsPath = generateContext.FileDependency(layerName);
 				
 				std::ifstream layerStream(layerAbsPath, std::ios::binary);
 				if (!layerStream)
 				{
-					Log(LogLevel::Error, "as", "Error opening texture layer file for reading: '{0}'.", layerAbsPath);
+					Log(LogLevel::Error, "as", "Error opening texture layer file for reading: '{0}'.",
+					    layerAbsPath);
 					return false;
 				}
 				
@@ -37,9 +64,7 @@ namespace eg::asset_gen
 				}
 			}
 			
-			textureWriter.Write(generateContext.outputStream);
-			
-			return true;
+			return textureWriter.Write(generateContext.outputStream);
 		}
 	};
 	

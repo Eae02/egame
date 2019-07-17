@@ -32,7 +32,7 @@ namespace eg
 		spritePipeline = eg::Pipeline::Create(pipelineCI);
 		
 		SamplerDescription whiteTexSamplerDesc;
-		Texture2DCreateInfo whiteTexCreateInfo;
+		TextureCreateInfo whiteTexCreateInfo;
 		whiteTexCreateInfo.width = 1;
 		whiteTexCreateInfo.height = 1;
 		whiteTexCreateInfo.mipLevels = 1;

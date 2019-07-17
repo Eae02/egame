@@ -158,7 +158,7 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	TextureHandle CreateTexture2D(const Texture2DCreateInfo& createInfo)
+	TextureHandle CreateTexture2D(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		texture->type = createInfo.sampleCount == 1 ? GL_TEXTURE_2D : GL_TEXTURE_2D_MULTISAMPLE;
@@ -195,7 +195,7 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
-	TextureHandle CreateTexture2DArray(const Texture2DArrayCreateInfo& createInfo)
+	TextureHandle CreateTexture2DArray(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		texture->type = createInfo.sampleCount == 1 ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D_MULTISAMPLE_ARRAY;
@@ -233,7 +233,7 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
-	TextureHandle CreateTextureCube(const TextureCubeCreateInfo& createInfo)
+	TextureHandle CreateTextureCube(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		texture->type = GL_TEXTURE_CUBE_MAP;
@@ -258,7 +258,7 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
-	TextureHandle CreateTextureCubeArray(const TextureCubeArrayCreateInfo& createInfo)
+	TextureHandle CreateTextureCubeArray(const TextureCreateInfo& createInfo)
 	{
 		Texture* texture = texturePool.New();
 		texture->type = GL_TEXTURE_CUBE_MAP_ARRAY;

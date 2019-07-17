@@ -17,7 +17,7 @@ namespace eg
 	{
 		SamplerDescription samplerDescription;
 		
-		Texture2DCreateInfo texCreateInfo;
+		TextureCreateInfo texCreateInfo;
 		texCreateInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample;
 		texCreateInfo.width = AtlasWidth();
 		texCreateInfo.height = AtlasHeight();
