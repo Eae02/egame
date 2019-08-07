@@ -164,14 +164,35 @@ namespace eg::graphics_api::gl
 			return;
 		}
 #endif
+		buffer->ChangeUsage(BufferUsage::CopyDst);
+		
 		BindTempBuffer(buffer->buffer);
 		glBufferSubData(TEMP_BUFFER_BINDING, offset, size, data);
+	}
+	
+	void FillBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
+	{
+		Buffer* buffer = UnwrapBuffer(handle);
+#ifdef EG_GLES
+		if (buffer->isHostBuffer)
+		{
+			std::memset(buffer->persistentMapping + offset, data, size);
+			return;
+		}
+#endif
+		buffer->ChangeUsage(BufferUsage::CopyDst);
+		
+		BindTempBuffer(buffer->buffer);
+		glClearBufferData(TEMP_BUFFER_BINDING, GL_R32UI, GL_RED, GL_UNSIGNED_INT, &data);
 	}
 	
 	void CopyBuffer(CommandContextHandle, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
 	{
 		Buffer* srcBuffer = UnwrapBuffer(src);
 		Buffer* dstBuffer = UnwrapBuffer(dst);
+		
+		srcBuffer->ChangeUsage(BufferUsage::CopySrc);
+		dstBuffer->ChangeUsage(BufferUsage::CopyDst);
 		
 #ifdef EG_GLES
 		if (srcBuffer->isHostBuffer && !dstBuffer->isHostBuffer)
@@ -204,6 +225,58 @@ namespace eg::graphics_api::gl
 		glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBinding(set, binding), buffer->buffer, offset, range);
 	}
 	
-	void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags) { }
-	void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier) { }
+	void BindStorageBuffer(CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding,
+		uint64_t offset, uint64_t range)
+	{
+		Buffer* buffer = UnwrapBuffer(handle);
+		glBindBufferRange(GL_SHADER_STORAGE_BUFFER, ResolveBinding(set, binding), buffer->buffer, offset, range);
+	}
+	
+	inline void MaybeBarrierAfterSSBO(BufferUsage newUsage)
+	{
+		switch (newUsage)
+		{
+		case BufferUsage::Undefined:break;
+		case BufferUsage::CopySrc:
+		case BufferUsage::CopyDst:
+			MaybeInsertBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+			break;
+		case BufferUsage::VertexBuffer:
+			MaybeInsertBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+			break;
+		case BufferUsage::IndexBuffer:
+			MaybeInsertBarrier(GL_ELEMENT_ARRAY_BARRIER_BIT);
+			break;
+		case BufferUsage::UniformBuffer:
+			MaybeInsertBarrier(GL_UNIFORM_BARRIER_BIT);
+			break;
+		case BufferUsage::StorageBufferRead:
+		case BufferUsage::StorageBufferWrite:
+		case BufferUsage::StorageBufferReadWrite:
+			MaybeInsertBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+			break;
+		}
+	}
+	
+	void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags)
+	{
+		UnwrapBuffer(handle)->ChangeUsage(newUsage);
+	}
+	
+	void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier)
+	{
+		if (barrier.oldUsage == BufferUsage::StorageBufferWrite || barrier.oldUsage == BufferUsage::StorageBufferReadWrite)
+		{
+			MaybeBarrierAfterSSBO(barrier.newUsage);
+		}
+	}
+	
+	void Buffer::ChangeUsage(BufferUsage newUsage)
+	{
+		if (currentUsage == BufferUsage::StorageBufferWrite || currentUsage == BufferUsage::StorageBufferReadWrite)
+		{
+			MaybeBarrierAfterSSBO(newUsage);
+		}
+		currentUsage = newUsage;
+	}
 }

@@ -77,6 +77,7 @@ namespace eg::graphics_api::gl
 			
 			const spirv_cross::ShaderResources& resources = spvCompiler->get_shader_resources();
 			ProcessResources(resources.uniform_buffers, BindingType::UniformBuffer);
+			ProcessResources(resources.storage_buffers, BindingType::StorageBuffer);
 			ProcessResources(resources.sampled_images, BindingType::Texture);
 			ProcessResources(resources.storage_images, BindingType::StorageImage);
 		});
@@ -87,12 +88,17 @@ namespace eg::graphics_api::gl
 		uint32_t nextTextureBinding = 0;
 		uint32_t nextStorageImageBinding = 0;
 		uint32_t nextUniformBufferBinding = 0;
+		uint32_t nextStorageBufferBinding = 0;
 		for (uint32_t i = 0; i < bindings.size(); i++)
 		{
 			uint32_t set = bindings[i].set;
 			if (i == 0 || bindings[i - 1].set != set)
 			{
-				sets[set] = { 0, 0, 0, 0, nextUniformBufferBinding, nextTextureBinding, nextStorageImageBinding };
+				sets[set] = { };
+				sets[set].firstUniformBuffer = nextUniformBufferBinding;
+				sets[set].firstStorageBuffer = nextStorageBufferBinding;
+				sets[set].firstTexture = nextTextureBinding;
+				sets[set].firstStorageImage = nextStorageImageBinding;
 			}
 			sets[set].maxBinding = std::max(sets[set].maxBinding, bindings[i].binding);
 			switch (bindings[i].type)
@@ -100,6 +106,10 @@ namespace eg::graphics_api::gl
 			case BindingType::UniformBuffer:
 				sets[set].numUniformBuffers++;
 				bindings[i].glBinding = nextUniformBufferBinding++;
+				break;
+			case BindingType::StorageBuffer:
+				sets[set].numStorageBuffers++;
+				bindings[i].glBinding = nextStorageBufferBinding++;
 				break;
 			case BindingType::Texture:
 				sets[set].numTextures++;
@@ -165,6 +175,7 @@ namespace eg::graphics_api::gl
 			};
 			
 			ResetResources(shResources.uniform_buffers, BindingType::UniformBuffer);
+			ResetResources(shResources.storage_buffers, BindingType::StorageBuffer);
 			ResetResources(shResources.sampled_images, BindingType::Texture);
 			ResetResources(shResources.storage_images, BindingType::StorageImage);
 			

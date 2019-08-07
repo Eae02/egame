@@ -46,4 +46,14 @@ namespace eg
 		m_viewMatrix = invRotation * glm::translate(glm::mat4(1.0f), -m_position);
 		m_invViewMatrix = glm::translate(glm::mat4(1.0f), m_position) * rotation;
 	}
+	
+	void FlyCamera::SetView(const glm::vec3& position, const glm::vec3& lookAt)
+	{
+		m_position = position;
+		m_velocity = glm::vec3(0.0f);
+		
+		glm::vec3 look = glm::normalize(lookAt - position);
+		m_pitch = -std::asin(look.y);
+		m_yaw = std::atan2(look.z, look.x) + HALF_PI;
+	}
 }

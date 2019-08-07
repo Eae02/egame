@@ -20,6 +20,7 @@ namespace eg::graphics_api::gl
 		int dim;
 		uint32_t width;
 		uint32_t height;
+		uint32_t depth;
 		uint32_t mipLevels;
 		uint32_t arrayLayers;
 		uint32_t sampleCount;
@@ -33,6 +34,8 @@ namespace eg::graphics_api::gl
 		void BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource);
 		
 		GLuint GetView(const TextureSubresource& subresource);
+		
+		void ChangeUsage(TextureUsage newUsage);
 	};
 	
 	inline Texture* UnwrapTexture(TextureHandle handle)

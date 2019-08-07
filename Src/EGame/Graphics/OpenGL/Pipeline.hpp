@@ -25,9 +25,11 @@ namespace eg::graphics_api::gl
 	{
 		uint32_t maxBinding;
 		uint32_t numUniformBuffers;
+		uint32_t numStorageBuffers;
 		uint32_t numTextures;
 		uint32_t numStorageImages;
 		uint32_t firstUniformBuffer;
+		uint32_t firstStorageBuffer;
 		uint32_t firstTexture;
 		uint32_t firstStorageImage;
 	};

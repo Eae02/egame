@@ -290,6 +290,18 @@ namespace eg
 			return texture;
 		}
 		
+		static Texture Create3D(const TextureCreateInfo& createInfo)
+		{
+			Texture texture(gal::CreateTexture3D(createInfo));
+			texture.m_width = createInfo.width;
+			texture.m_height = createInfo.width;
+			texture.m_depth = createInfo.depth;
+			texture.m_mipLevels = createInfo.mipLevels;
+			texture.m_arrayLayers = 1;
+			texture.m_format = createInfo.format;
+			return texture;
+		}
+		
 		uint32_t Width() const
 		{
 			return m_width;
@@ -434,6 +446,11 @@ namespace eg
 			gal::BindUniformBufferDS(buffer.handle, handle, binding, offset, range);
 		}
 		
+		void BindStorageBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
+		{
+			gal::BindStorageBufferDS(buffer.handle, handle, binding, offset, range);
+		}
+		
 		DescriptorSetHandle handle;
 	};
 	
@@ -497,9 +514,19 @@ namespace eg
 			gal::SetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 		}
 		
+		void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const glm::ivec4& color)
+		{
+			gal::ClearColorTexture(Handle(), texture.handle, mipLevel, &color);
+		}
+		
+		void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const glm::vec4& color)
+		{
+			gal::ClearColorTexture(Handle(), texture.handle, mipLevel, &color);
+		}
+		
 		void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const Color& color)
 		{
-			gal::ClearColorTexture(Handle(), texture.handle, mipLevel, color);
+			gal::ClearColorTexture(Handle(), texture.handle, mipLevel, &color);
 		}
 		
 		void GenerateMipmaps(TextureRef texture)
@@ -542,6 +569,11 @@ namespace eg
 			gal::UpdateBuffer(Handle(), buffer.handle, offset, size, data);
 		}
 		
+		void FillBuffer(BufferRef buffer, uint64_t offset, uint64_t size, uint32_t data)
+		{
+			gal::FillBuffer(Handle(), buffer.handle, offset, size, data);
+		}
+		
 		void BindVertexBuffer(uint32_t binding, BufferRef buffer, uint32_t offset)
 		{
 			gal::BindVertexBuffer(Handle(), binding, buffer.handle, offset);
@@ -555,6 +587,11 @@ namespace eg
 		void BindUniformBuffer(BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
 		{
 			gal::BindUniformBuffer(Handle(), buffer.handle, set, binding, offset, range);
+		}
+		
+		void BindStorageBuffer(BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+		{
+			gal::BindStorageBuffer(Handle(), buffer.handle, set, binding, offset, range);
 		}
 		
 		void BindDescriptorSet(DescriptorSetRef descriptorSet, uint32_t setIndex)

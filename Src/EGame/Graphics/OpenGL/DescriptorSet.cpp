@@ -86,6 +86,16 @@ namespace eg::graphics_api::gl
 		set->bindings[binding].range = range;
 	}
 	
+	void BindStorageBufferDS(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding,
+		uint64_t offset, uint64_t range)
+	{
+		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
+		EG_ASSERT(binding <= set->maxBinding);
+		set->bindings[binding].bufferOrSampler = UnwrapBuffer(buffer)->buffer;
+		set->bindings[binding].offset = offset;
+		set->bindings[binding].range = range;
+	}
+	
 	void BindDescriptorSet(CommandContextHandle, uint32_t set, DescriptorSetHandle handle)
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(handle);
@@ -101,6 +111,10 @@ namespace eg::graphics_api::gl
 			{
 			case BindingType::UniformBuffer:
 				glBindBufferRange(GL_UNIFORM_BUFFER, binding.glBinding, dsBinding.bufferOrSampler,
+					dsBinding.offset, dsBinding.range);
+				break;
+			case BindingType::StorageBuffer:
+				glBindBufferRange(GL_SHADER_STORAGE_BUFFER, binding.glBinding, dsBinding.bufferOrSampler,
 					dsBinding.offset, dsBinding.range);
 				break;
 			case BindingType::Texture:

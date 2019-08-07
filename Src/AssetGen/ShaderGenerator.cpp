@@ -124,6 +124,7 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 				{ "vertex", EShLangVertex },
 				{ "fragment", EShLangFragment },
 				{ "geometry", EShLangGeometry },
+				{ "compute", EShLangCompute },
 				{ "tess-control", EShLangTessControl },
 				{ "tess-eval", EShLangTessEvaluation }
 			};
@@ -163,6 +164,9 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 				{ ".gs.glsl", EShLangGeometry },
 				{ ".geom", EShLangGeometry },
 				{ ".geom.glsl", EShLangGeometry },
+				{ ".cs.glsl", EShLangCompute },
+				{ ".comp", EShLangCompute },
+				{ ".comp.glsl", EShLangCompute },
 				{ ".tcs.glsl", EShLangTessControl },
 				{ ".tesc", EShLangTessControl },
 				{ ".tesc.glsl", EShLangTessControl },
@@ -248,6 +252,7 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			case EShLangVertex: egStage = ShaderStage::Vertex; break;
 			case EShLangFragment: egStage = ShaderStage::Fragment; break;
 			case EShLangGeometry: egStage = ShaderStage::Geometry; break;
+			case EShLangCompute: egStage = ShaderStage::Compute; break;
 			case EShLangTessControl: egStage = ShaderStage::TessControl; break;
 			case EShLangTessEvaluation: egStage = ShaderStage::TessEvaluation; break;
 			default: EG_UNREACHABLE break;

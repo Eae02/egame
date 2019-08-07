@@ -2,6 +2,7 @@
 #include "../Utils.hpp"
 #include "../Log.hpp"
 #include "../Platform/FileSystem.hpp"
+#include "../Platform/DynamicLibrary.hpp"
 
 #include <fstream>
 #include <utf8.h>
@@ -27,13 +28,47 @@ namespace eg
 	const GlyphRange GlyphRange::LatinSupplement { 0x80, 0xFF };
 	const GlyphRange GlyphRange::LatinExtended { 0x100, 0x24F };
 	
+#ifndef __EMSCRIPTEN__
+	static DynamicLibrary ftDynLibrary;
+#endif
+	
 	static FT_Library ftLibrary = nullptr;
+	
+	namespace ft
+	{
+#define DEF_FREETYPE_FUNC(name) decltype(&FT_ ## name) name;
+		DEF_FREETYPE_FUNC(Init_FreeType)
+		DEF_FREETYPE_FUNC(New_Memory_Face)
+		DEF_FREETYPE_FUNC(New_Face)
+		DEF_FREETYPE_FUNC(Set_Pixel_Sizes)
+		DEF_FREETYPE_FUNC(Load_Char)
+		DEF_FREETYPE_FUNC(Done_Face)
+	}
 	
 	static inline bool MaybeInitFreeType()
 	{
 		if (ftLibrary == nullptr)
 		{
-			if (FT_Init_FreeType(&ftLibrary))
+#ifdef __EMSCRIPTEN__
+			#define LOAD_FREETYPE_FUNC(name) ft::name = &::FT_ ## name;
+#else
+			std::string libName = DynamicLibrary::PlatformFormat("freetype");
+			if (!ftDynLibrary.Open(libName.c_str()))
+			{
+				Log(LogLevel::Error, "fnt", "Failed to load FreeType library.");
+				return false;
+			}
+			
+#define LOAD_FREETYPE_FUNC(name) ft::name = reinterpret_cast<decltype(ft::name)>(ftDynLibrary.GetSymbol("FT_" #name));
+#endif
+			LOAD_FREETYPE_FUNC(Init_FreeType)
+			LOAD_FREETYPE_FUNC(New_Memory_Face)
+			LOAD_FREETYPE_FUNC(New_Face)
+			LOAD_FREETYPE_FUNC(Set_Pixel_Sizes)
+			LOAD_FREETYPE_FUNC(Load_Char)
+			LOAD_FREETYPE_FUNC(Done_Face)
+			
+			if (ft::Init_FreeType(&ftLibrary))
 			{
 				Log(LogLevel::Error, "fnt", "Error initializing FreeType.");
 				return false;
@@ -49,7 +84,7 @@ namespace eg
 			return { };
 		
 		FT_Face face;
-		FT_Error loadState = FT_New_Memory_Face(ftLibrary, reinterpret_cast<const FT_Byte*>(data.data()),
+		FT_Error loadState = ft::New_Memory_Face(ftLibrary, reinterpret_cast<const FT_Byte*>(data.data()),
 			data.SizeBytes(), 0, &face);
 		
 		return RenderFreeType(face, loadState, "memory", size, glyphRanges, atlasWidth, atlasHeight);
@@ -62,7 +97,7 @@ namespace eg
 			return { };
 		
 		FT_Face face;
-		FT_Error loadState = FT_New_Face(ftLibrary, fontPath.c_str(), 0, &face);
+		FT_Error loadState = ft::New_Face(ftLibrary, fontPath.c_str(), 0, &face);
 		
 		return RenderFreeType(face, loadState, fontPath, size, glyphRanges, atlasWidth, atlasHeight);
 	}
@@ -92,16 +127,16 @@ namespace eg
 			}
 		}
 		
-		FT_Set_Pixel_Sizes(face, 0, size);
+		ft::Set_Pixel_Sizes(face, 0, size);
 		
 		FontAtlas atlas;
 		atlas.m_size = (int)size;
 		atlas.m_lineHeight = (float)size;
 		
-		if (FT_Load_Char(face, ' ', FT_LOAD_DEFAULT) != 0)
+		if (ft::Load_Char(face, ' ', FT_LOAD_DEFAULT) != 0)
 		{
 			Log(LogLevel::Error, "fnt", "'{0}' does not contain the space character.", fontName);
-			FT_Done_Face(face);
+			ft::Done_Face(face);
 			return {};
 		}
 		atlas.m_spaceAdvance = face->glyph->advance.x / 64.0f;
@@ -118,7 +153,7 @@ namespace eg
 		{
 			for (uint32_t c = range.start; c <= range.end; c++)
 			{
-				if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+				if (ft::Load_Char(face, c, FT_LOAD_RENDER))
 				{
 					char glyphUTF8[4];
 					size_t glyphUTF8Len = utf8::unchecked::utf32to8(&c, &c + 1, glyphUTF8) - glyphUTF8;
@@ -152,7 +187,7 @@ namespace eg
 			}
 		}
 		
-		FT_Done_Face(face);
+		ft::Done_Face(face);
 		
 		//Calculates the size of the atlas
 		auto GetInitialSize = [](int res)

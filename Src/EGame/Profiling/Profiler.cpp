@@ -53,18 +53,17 @@ namespace eg
 	GPUTimer Profiler::StartGPUTimer(std::string name)
 	{
 		size_t index = m_gpuTimers.size();
+		const size_t poolIndex = index / TIMERS_PER_POOL;
+		if (poolIndex >= m_queryPools.size())
+		{
+			m_addQueryPool = true;
+			return GPUTimer();
+		}
+		
 		TimerEntry& entry = m_gpuTimers.emplace_back();
 		entry.name = std::move(name);
 		entry.parentTimer = m_lastGPUTimer;
 		m_lastGPUTimer = index;
-		
-		const size_t poolIndex = index / TIMERS_PER_POOL;
-		if (poolIndex >= m_queryPools.size())
-		{
-			m_queryPools.emplace_back(QueryType::Timestamp, QUERIES_PER_POOL);
-		}
-		
-		DC.ResetQueries(m_queryPools[poolIndex], (index % TIMERS_PER_POOL) * 2, 2);
 		
 		DC.WriteTimestamp(m_queryPools[poolIndex], (index % TIMERS_PER_POOL) * 2);
 		
@@ -122,6 +121,20 @@ namespace eg
 			
 			if (!avail)
 				return { };
+		}
+		
+		if (m_addQueryPool)
+		{
+			m_addQueryPool = false;
+			m_queryPools.emplace_back(eg::QueryType::Timestamp, QUERIES_PER_POOL);
+			eg::DC.ResetQueries(m_queryPools.back(), 0, QUERIES_PER_POOL);
+		}
+		
+		for (size_t i = 0; i * TIMERS_PER_POOL < m_gpuTimers.size(); i++)
+		{
+			uint32_t firstTimestamp = i * QUERIES_PER_POOL;
+			uint32_t lastTimestamp = std::min<uint32_t>(numTimestamps, (i + 1) * QUERIES_PER_POOL);
+			eg::DC.ResetQueries(m_queryPools[i], 0, lastTimestamp - firstTimestamp);
 		}
 		
 		ProfilingResults results;

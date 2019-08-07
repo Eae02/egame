@@ -169,6 +169,16 @@ namespace eg::graphics_api::vk
 		return WrapTexture(texture);
 	}
 	
+	TextureHandle CreateTexture3D(const TextureCreateInfo& createInfo)
+	{
+		Texture* texture = texturePool.New();
+		
+		InitializeImage(*texture, createInfo, VK_IMAGE_TYPE_3D, VK_IMAGE_VIEW_TYPE_3D,
+			{ createInfo.width, createInfo.height, createInfo.depth }, 1);
+		
+		return WrapTexture(texture);
+	}
+	
 	void DestroyTexture(TextureHandle handle)
 	{
 		UnwrapTexture(handle)->UnRef();
@@ -322,6 +332,10 @@ namespace eg::graphics_api::vk
 			copyRegion.imageSubresource.baseArrayLayer = 0;
 			copyRegion.imageSubresource.layerCount = 1;
 			break;
+		case VK_IMAGE_VIEW_TYPE_3D:
+			copyRegion.imageSubresource.baseArrayLayer = 0;
+			copyRegion.imageSubresource.layerCount = 1;
+			break;
 		case VK_IMAGE_VIEW_TYPE_CUBE:
 		case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
 		case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
@@ -336,7 +350,7 @@ namespace eg::graphics_api::vk
 		vkCmdCopyBufferToImage(cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 	}
 	
-	void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t mipLevel, const Color& color)
+	void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t mipLevel, const void* color)
 	{
 		Texture* texture = UnwrapTexture(handle);
 		RefResource(cc, *texture);
@@ -353,7 +367,7 @@ namespace eg::graphics_api::vk
 		subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 		
 		vkCmdClearColorImage(cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		                     reinterpret_cast<const VkClearColorValue*>(&color.r), 1, &subresourceRange);
+		                     reinterpret_cast<const VkClearColorValue*>(color), 1, &subresourceRange);
 	}
 	
 	void ResolveTexture(CommandContextHandle cc, TextureHandle srcHandle, TextureHandle dstHandle, const ResolveRegion& region)

@@ -106,6 +106,7 @@ namespace eg
 		int m_lastCPUTimer = -1;
 		
 		std::vector<QueryPool> m_queryPools;
+		bool m_addQueryPool = false;
 		
 		std::vector<TimerEntry> m_gpuTimers;
 		int m_lastGPUTimer = -1;

@@ -67,7 +67,8 @@ namespace eg
 		CopyDst       = 64,  //Allows copy operations to the buffer from other buffers.
 		VertexBuffer  = 128, //The buffer can be used as a vertex buffer.
 		IndexBuffer   = 256, //The buffer can be used as an index buffer.
-		UniformBuffer = 512  //The buffer can be used as a uniform buffer.
+		UniformBuffer = 512, //The buffer can be used as a uniform buffer.
+		StorageBuffer = 1024 //The buffer can be used as a shader storage buffer.
 	};
 	
 	EG_BIT_FIELD(BufferFlags)
@@ -79,7 +80,10 @@ namespace eg
 		CopyDst,
 		VertexBuffer,
 		IndexBuffer,
-		UniformBuffer
+		UniformBuffer,
+		StorageBufferRead,
+		StorageBufferWrite,
+		StorageBufferReadWrite,
 	};
 	
 	struct BufferBarrier
@@ -361,6 +365,7 @@ namespace eg
 	enum class BindingType
 	{
 		UniformBuffer,
+		StorageBuffer,
 		Texture,
 		StorageImage
 	};
@@ -466,6 +471,7 @@ namespace eg
 		uint32_t sampleCount = 1;
 		uint32_t width = 0;
 		uint32_t height = 0;
+		uint32_t depth = 0;
 		uint32_t arrayLayers = 1;
 		Format format = Format::Undefined;
 		const SamplerDescription* defaultSamplerDescription = nullptr;

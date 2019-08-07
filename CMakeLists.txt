@@ -9,9 +9,7 @@ if(${CMAKE_CXX_COMPILER} MATCHES "emcc$")
 	set(BUILD_DIR_NAME ${BUILD_DIR_NAME}Web)
 endif()
 
-option(YAML_CPP_BUILD_TOOLS "" OFF)
-option(YAML_CPP_BUILD_TESTS "" OFF)
-add_subdirectory(Deps/yaml-cpp)
+file(GLOB_RECURSE YAML_SOURCE_FILES Deps/yaml-cpp/src/*.cpp)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
@@ -31,42 +29,51 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   add_compile_options(/wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
 endif()
 
+add_library(yaml-cpp STATIC ${YAML_SOURCE_FILES})
 add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c)
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
-target_link_libraries(EGame PUBLIC yaml-cpp)
-
 if (NOT TARGET_WEB)
-	find_package(OpenGL REQUIRED)
 	find_package(ZLIB REQUIRED)
 	find_package(Threads REQUIRED)
 	find_package(Freetype REQUIRED)
-	find_package(SDL2 REQUIRED)
 	find_package(GLSLang REQUIRED)
 	find_package(Catch2 REQUIRED)
-		
+	find_package(PkgConfig REQUIRED)
+	
+	pkg_check_modules(SDL2 REQUIRED sdl2)
+	
 	target_link_libraries(EGame
 	PUBLIC
-		Threads::Threads
+		${CMAKE_THREAD_LIBS_INIT}
 	PRIVATE
-		SDL2::SDL2
-		OpenGL::GL
-		ZLIB::ZLIB
-		Freetype::Freetype
+		${SDL2_LIBRARIES}
+		${ZLIB_LIBRARIES}
+		${CMAKE_DL_LIBS}
 	)
 	
 	add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
 	add_executable(EGTest ${TEST_SOURCE_FILES})
 	
-	target_link_libraries(EGame PRIVATE SDL2::SDL2)
-	
 	target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
+	
+	target_include_directories(EGame PRIVATE
+		${FREETYPE_INCLUDE_DIRS}
+		${ZLIB_INCLUDE_DIRS}
+		${SDL2_INCLUDE_DIRS}
+	)
+	
+	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER})
 	
 	target_include_directories(EGameAssetGen PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/json/include
 	)
 endif()
+
+target_link_libraries(EGame PUBLIC yaml-cpp)
+
+target_include_directories(yaml-cpp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/include)
 
 target_include_directories(EGame
 	PUBLIC
@@ -76,6 +83,7 @@ target_include_directories(EGame
 target_include_directories(EGame SYSTEM
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/glm
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/include
 	PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/Inc
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
@@ -102,13 +110,12 @@ set_target_properties(EGame EGSandbox PROPERTIES
 )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-	target_compile_options(yaml-cpp PRIVATE -fPIC)
-	target_link_libraries(EGame PRIVATE dl)
 	set_target_properties(EGame PROPERTIES
 		CXX_VISIBILITY_PRESET hidden
 		INSTALL_RPATH "$ORIGIN"
 		BUILD_WITH_INSTALL_RPATH TRUE
 	)
+	target_compile_options(yaml-cpp PRIVATE -fPIC)
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
@@ -149,4 +156,4 @@ else()
 	)
 endif()
 
-export(TARGETS EGame FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_DIR_NAME}/EGameTargets.cmake)
+export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_DIR_NAME}/EGameTargets.cmake)

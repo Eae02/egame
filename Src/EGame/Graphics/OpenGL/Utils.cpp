@@ -56,6 +56,7 @@ namespace eg::graphics_api::gl
 		case Format::Depth32: return GL_DEPTH_COMPONENT32F;
 		case Format::Depth24Stencil8: return GL_DEPTH24_STENCIL8;
 		case Format::Depth32Stencil8: return GL_DEPTH32F_STENCIL8;
+		case Format::Undefined: break;
 		}
 		EG_UNREACHABLE
 	}

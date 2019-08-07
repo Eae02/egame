@@ -178,6 +178,29 @@ namespace eg::graphics_api::vk
 		vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
 	}
 	
+	void BindStorageBufferDS(BufferHandle bufferHandle, DescriptorSetHandle setHandle,
+		uint32_t binding, uint64_t offset, uint64_t range)
+	{
+		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
+		Buffer* buffer = UnwrapBuffer(bufferHandle);
+		
+		ds->AssignResource(binding, buffer);
+		
+		VkDescriptorBufferInfo bufferInfo;
+		bufferInfo.buffer = buffer->buffer;
+		bufferInfo.offset = offset;
+		bufferInfo.range = range;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		writeDS.descriptorCount = 1;
+		writeDS.dstSet = ds->descriptorSet;
+		writeDS.dstBinding = binding;
+		writeDS.pBufferInfo = &bufferInfo;
+		
+		vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
+	}
+	
 	void BindDescriptorSet(CommandContextHandle cc, uint32_t set, DescriptorSetHandle handle)
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(handle);

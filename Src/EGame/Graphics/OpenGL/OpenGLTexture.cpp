@@ -168,6 +168,7 @@ namespace eg::graphics_api::gl
 		texture->dim = 2;
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
+		texture->depth = 1;
 		texture->mipLevels = createInfo.mipLevels;
 		texture->sampleCount = createInfo.sampleCount;
 		texture->arrayLayers = 1;
@@ -205,6 +206,7 @@ namespace eg::graphics_api::gl
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.height;
+		texture->depth = 1;
 		texture->mipLevels = createInfo.mipLevels;
 		texture->sampleCount = createInfo.sampleCount;
 		texture->arrayLayers = createInfo.arrayLayers;
@@ -243,8 +245,9 @@ namespace eg::graphics_api::gl
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
+		texture->depth = 1;
 		texture->mipLevels = createInfo.mipLevels;
-		texture->sampleCount = createInfo.sampleCount;
+		texture->sampleCount = 1;
 		texture->arrayLayers = 6;
 		texture->currentUsage = TextureUsage::Undefined;
 		
@@ -268,8 +271,9 @@ namespace eg::graphics_api::gl
 		texture->dim = 3;
 		texture->width = createInfo.width;
 		texture->height = createInfo.width;
+		texture->depth = 1;
 		texture->mipLevels = createInfo.mipLevels;
-		texture->sampleCount = createInfo.sampleCount;
+		texture->sampleCount = 1;
 		texture->arrayLayers = 6 * createInfo.arrayLayers;
 		texture->currentUsage = TextureUsage::Undefined;
 		
@@ -278,6 +282,32 @@ namespace eg::graphics_api::gl
 		GLenum format = TranslateFormat(createInfo.format);
 		glTexStorage3D(texture->texture, createInfo.mipLevels, format,
 		                   createInfo.width, createInfo.width, texture->arrayLayers);
+		
+		InitTexture(*texture, createInfo);
+		
+		return reinterpret_cast<TextureHandle>(texture);
+	}
+	
+	TextureHandle CreateTexture3D(const TextureCreateInfo& createInfo)
+	{
+		Texture* texture = texturePool.New();
+		texture->type = GL_TEXTURE_3D;
+		glGenTextures(1, &texture->texture);
+		
+		texture->format = createInfo.format;
+		texture->dim = 3;
+		texture->width = createInfo.width;
+		texture->height = createInfo.height;
+		texture->depth = createInfo.depth;
+		texture->mipLevels = 1;
+		texture->sampleCount = 1;
+		texture->arrayLayers = 1;
+		texture->currentUsage = TextureUsage::Undefined;
+		
+		glBindTexture(texture->type, texture->texture);
+		
+		GLenum format = TranslateFormat(createInfo.format);
+		glTexStorage3D(texture->type, createInfo.mipLevels, format, createInfo.width, createInfo.height, createInfo.depth);
 		
 		InitTexture(*texture, createInfo);
 		
@@ -392,6 +422,8 @@ namespace eg::graphics_api::gl
 		Texture* texture = UnwrapTexture(handle);
 		auto[format, type] = GetUploadFormat(texture->format);
 		
+		texture->ChangeUsage(TextureUsage::CopyDst);
+		
 		const bool isCompressed = IsCompressedFormat(texture->format);
 		const uint32_t imageBytes = GetImageByteSize(range.sizeX, range.sizeY, texture->format);
 		
@@ -482,13 +514,14 @@ namespace eg::graphics_api::gl
 		UnwrapTexture(textureHandle)->BindAsStorageImage(ResolveBinding(set, binding), subresource.AsSubresource());
 	}
 	
-	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const Color& color)
+	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const void* color)
 	{
 #ifdef EG_GLES
 		Log(LogLevel::Error, "gl", "ClearColorTexture not available in GLES");
 #else
 		const Texture* texture = UnwrapTexture(handle);
-		glClearTexImage(texture->texture, mipLevel, GL_RGBA, GL_FLOAT, &color.r);
+		auto [format, type] = GetUploadFormat(texture->format);
+		glClearTexImage(texture->texture, mipLevel, format, type, color);
 #endif
 	}
 	
@@ -545,13 +578,16 @@ namespace eg::graphics_api::gl
 	
 	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 	{
-		Texture* texture = UnwrapTexture(handle);
-		
-		if (texture->currentUsage == TextureUsage::ILSWrite || texture->currentUsage == TextureUsage::ILSReadWrite)
+		UnwrapTexture(handle)->ChangeUsage(newUsage);
+	}
+	
+	void Texture::ChangeUsage(TextureUsage newUsage)
+	{
+		if (currentUsage == TextureUsage::ILSWrite || currentUsage == TextureUsage::ILSReadWrite)
 		{
 			MaybeBarrierAfterILS(newUsage);
 		}
 		
-		texture->currentUsage = newUsage;
+		currentUsage = newUsage;
 	}
 }

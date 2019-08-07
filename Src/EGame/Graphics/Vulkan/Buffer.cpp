@@ -67,6 +67,8 @@ namespace eg::graphics_api::vk
 			vkCreateInfo.usage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 		if (HasFlag(createInfo.flags, BufferFlags::UniformBuffer))
 			vkCreateInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		if (HasFlag(createInfo.flags, BufferFlags::StorageBuffer))
+			vkCreateInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 		
 		const bool wantsMap = HasFlag(createInfo.flags, BufferFlags::MapWrite) ||
 			HasFlag(createInfo.flags, BufferFlags::MapRead);
@@ -137,11 +139,11 @@ namespace eg::graphics_api::vk
 					VkBuffer initBuffer;
 					VmaAllocation initAllocation;
 					
-					VmaAllocationInfo allocationInfo;
+					VmaAllocationInfo initAllocationInfo;
 					CheckRes(vmaCreateBuffer(ctx.allocator, &initBufferCI, &initBufferAllocCI, &initBuffer,
-						&initAllocation, &allocationInfo));
+						&initAllocation, &initAllocationInfo));
 					
-					std::memcpy(allocationInfo.pMappedData, createInfo.initialData, createInfo.size);
+					std::memcpy(initAllocationInfo.pMappedData, createInfo.initialData, createInfo.size);
 					vmaFlushAllocation(ctx.allocator, initAllocation, 0, createInfo.size);
 					
 					VkBufferCopy bufferCopyReg = { 0, 0, createInfo.size };
@@ -181,6 +183,9 @@ namespace eg::graphics_api::vk
 		case BufferUsage::VertexBuffer: return VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
 		case BufferUsage::IndexBuffer: return VK_ACCESS_INDEX_READ_BIT;
 		case BufferUsage::UniformBuffer: return VK_ACCESS_UNIFORM_READ_BIT;
+		case BufferUsage::StorageBufferRead: return VK_ACCESS_SHADER_READ_BIT;
+		case BufferUsage::StorageBufferWrite: return VK_ACCESS_SHADER_WRITE_BIT;
+		case BufferUsage::StorageBufferReadWrite: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 		}
 		EG_UNREACHABLE
 	}
@@ -194,7 +199,11 @@ namespace eg::graphics_api::vk
 		case BufferUsage::CopyDst: return VK_PIPELINE_STAGE_TRANSFER_BIT;
 		case BufferUsage::VertexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 		case BufferUsage::IndexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-		case BufferUsage::UniformBuffer: return TranslateShaderAccess(shaderAccessFlags);
+		case BufferUsage::UniformBuffer:
+		case BufferUsage::StorageBufferRead:
+		case BufferUsage::StorageBufferWrite:
+		case BufferUsage::StorageBufferReadWrite:
+			return TranslateShaderAccess(shaderAccessFlags);
 		}
 		EG_UNREACHABLE
 	}
@@ -248,6 +257,16 @@ namespace eg::graphics_api::vk
 		
 		vkCmdPipelineBarrier(cb, GetBarrierStageFlags(barrier.oldUsage, barrier.oldAccess),
 		                     GetBarrierStageFlags(barrier.newUsage, barrier.newAccess), 0, 0, nullptr, 1, &vkBarrier, 0, nullptr);
+	}
+	
+	void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
+	{
+		Buffer* buffer = UnwrapBuffer(handle);
+		RefResource(cc, *buffer);
+		
+		VkCommandBuffer cb = GetCB(cc);
+		buffer->AutoBarrier(cb, BufferUsage::CopyDst);
+		vkCmdFillBuffer(cb, buffer->buffer, offset, size, data);
 	}
 	
 	void UpdateBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
@@ -316,6 +335,36 @@ namespace eg::graphics_api::vk
 		
 		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		writeDS.dstBinding = binding;
+		writeDS.dstSet = VK_NULL_HANDLE;
+		writeDS.descriptorCount = 1;
+		writeDS.pBufferInfo = &bufferInfo;
+		
+		vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
+	}
+	
+	void BindStorageBuffer(CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set,
+		uint32_t binding, uint64_t offset, uint64_t range)
+	{
+		Buffer* buffer = UnwrapBuffer(bufferHandle);
+		RefResource(cc, *buffer);
+		
+		if (buffer->autoBarrier && buffer->currentUsage != BufferUsage::StorageBufferRead && 
+			buffer->currentUsage != BufferUsage::StorageBufferWrite &&
+			buffer->currentUsage != BufferUsage::StorageBufferReadWrite)
+		{
+			EG_PANIC("Buffer not in the correct usage state when binding as a storage buffer, did you forget to call UsageHint?");
+		}
+		
+		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
+		
+		VkDescriptorBufferInfo bufferInfo;
+		bufferInfo.buffer = buffer->buffer;
+		bufferInfo.offset = offset;
+		bufferInfo.range = range;
+		
+		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		writeDS.dstBinding = binding;
 		writeDS.dstSet = VK_NULL_HANDLE;
 		writeDS.descriptorCount = 1;

@@ -10,9 +10,12 @@ namespace eg::graphics_api::gl
 		GLuint buffer;
 		uint64_t size;
 		char* persistentMapping;
+		BufferUsage currentUsage;
 #ifdef EG_GLES
 		bool isHostBuffer;
 #endif
+		
+		void ChangeUsage(BufferUsage newUsage);
 	};
 	
 	inline Buffer* UnwrapBuffer(BufferHandle handle)
