@@ -62,13 +62,14 @@ namespace eg
 		ManualBarrier = 2,   //Barriers will be inserted manually (also disables automatic barriers).
 		MapWrite      = 4,   //The buffer can be mapped for writing.
 		MapRead       = 8,   //The buffer can be mapped for reading.
-		Update        = 16,  //The buffer can be updated.
-		CopySrc       = 32,  //Allows copy operations from the buffer to other buffers and textures.
-		CopyDst       = 64,  //Allows copy operations to the buffer from other buffers.
-		VertexBuffer  = 128, //The buffer can be used as a vertex buffer.
-		IndexBuffer   = 256, //The buffer can be used as an index buffer.
-		UniformBuffer = 512, //The buffer can be used as a uniform buffer.
-		StorageBuffer = 1024 //The buffer can be used as a shader storage buffer.
+		Download      = 16,  //The buffer can be used to download data from the GPU.
+		Update        = 32,  //The buffer can be updated.
+		CopySrc       = 64,  //Allows copy operations from the buffer to other buffers and textures.
+		CopyDst       = 128, //Allows copy operations to the buffer from other buffers.
+		VertexBuffer  = 256, //The buffer can be used as a vertex buffer.
+		IndexBuffer   = 512, //The buffer can be used as an index buffer.
+		UniformBuffer = 1024,//The buffer can be used as a uniform buffer.
+		StorageBuffer = 2048 //The buffer can be used as a shader storage buffer.
 	};
 	
 	EG_BIT_FIELD(BufferFlags)

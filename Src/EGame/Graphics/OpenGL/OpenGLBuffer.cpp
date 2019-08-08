@@ -75,8 +75,8 @@ namespace eg::graphics_api::gl
 		}
 		if (HasFlag(createInfo.flags, BufferFlags::MapRead))
 		{
-			storageFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT;
-			mapFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT;
+			storageFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+			mapFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 		}
 		if (HasFlag(createInfo.flags, BufferFlags::Update))
 		{

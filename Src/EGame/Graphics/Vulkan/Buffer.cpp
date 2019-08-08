@@ -70,16 +70,27 @@ namespace eg::graphics_api::vk
 		if (HasFlag(createInfo.flags, BufferFlags::StorageBuffer))
 			vkCreateInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 		
-		const bool wantsMap = HasFlag(createInfo.flags, BufferFlags::MapWrite) ||
+		const bool wantsMap =
+			HasFlag(createInfo.flags, BufferFlags::MapWrite) ||
 			HasFlag(createInfo.flags, BufferFlags::MapRead);
 		
 		VmaAllocationCreateInfo allocationCreateInfo = { };
+		
 		if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
-			allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+		{
+			if (HasFlag(createInfo.flags, BufferFlags::Download))
+				allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
+			else
+				allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+		}
 		else if (wantsMap)
+		{
 			allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+		}
 		else
+		{
 			allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		}
 		
 		if (wantsMap)
 		{
