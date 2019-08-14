@@ -120,6 +120,7 @@ namespace eg::graphics_api::vk
 			SetObjectName(reinterpret_cast<uint64_t>(view.view), VK_OBJECT_TYPE_IMAGE_VIEW, viewLabel.c_str());
 		}
 		
+		view.aspectFlags = _aspectFlags;
 		view.subresource = resolvedSubresource;
 		return view.view;
 	}
