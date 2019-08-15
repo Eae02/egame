@@ -85,6 +85,7 @@ namespace eg
 		StorageBufferRead,
 		StorageBufferWrite,
 		StorageBufferReadWrite,
+		HostRead
 	};
 	
 	struct BufferBarrier

@@ -197,6 +197,7 @@ namespace eg::graphics_api::vk
 		case BufferUsage::StorageBufferRead: return VK_ACCESS_SHADER_READ_BIT;
 		case BufferUsage::StorageBufferWrite: return VK_ACCESS_SHADER_WRITE_BIT;
 		case BufferUsage::StorageBufferReadWrite: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+		case BufferUsage::HostRead: return VK_ACCESS_HOST_READ_BIT;
 		}
 		EG_UNREACHABLE
 	}
@@ -210,6 +211,7 @@ namespace eg::graphics_api::vk
 		case BufferUsage::CopyDst: return VK_PIPELINE_STAGE_TRANSFER_BIT;
 		case BufferUsage::VertexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 		case BufferUsage::IndexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+		case BufferUsage::HostRead: return VK_PIPELINE_STAGE_HOST_BIT;
 		case BufferUsage::UniformBuffer:
 		case BufferUsage::StorageBufferRead:
 		case BufferUsage::StorageBufferWrite:
