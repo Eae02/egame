@@ -63,7 +63,7 @@ namespace eg
 			const Rectangle& texRectangle, SpriteFlags flipFlags);
 		
 		void DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-			const ColorLin& color, float size = 16, glm::vec2* sizeOut = nullptr);
+			const ColorLin& color, float scale = 1, float lineSpacing = 0, glm::vec2* sizeOut = nullptr);
 		
 		void DrawText(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
 			const ColorLin& color, float scale = 1, glm::vec2* sizeOut = nullptr);

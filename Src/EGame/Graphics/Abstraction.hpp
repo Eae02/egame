@@ -668,6 +668,7 @@ namespace eg
 	struct GraphicsMemoryStat
 	{
 		uint64_t allocatedBytes;
+		uint64_t allocatedBytesGPU;
 		uint32_t numBlocks;
 		uint32_t unusedRanges;
 	};

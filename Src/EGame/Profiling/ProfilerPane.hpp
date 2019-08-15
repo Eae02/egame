@@ -32,6 +32,8 @@ namespace eg
 		
 		std::vector<TimerHistory> m_timerHistories;
 		
+		std::vector<std::string> m_timerGraphs;
+		
 		int FindTimerHistory(std::string_view name, bool isGPU) const;
 	};
 }

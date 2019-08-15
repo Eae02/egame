@@ -225,7 +225,7 @@ namespace eg
 	}
 	
 	void SpriteBatch::DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-		const ColorLin& color, float size, glm::vec2* sizeOut)
+		const ColorLin& color, float scale, float lineSpacing, glm::vec2* sizeOut)
 	{
 		float maxW = 0;
 		float yOffset = 0;
@@ -233,8 +233,8 @@ namespace eg
 		IterateStringParts(text, '\n', [&] (std::string_view line)
 		{
 			glm::vec2 lineSize;
-			DrawText(font, line, glm::vec2(position.x, position.y - size - yOffset), color, size, &lineSize);
-			yOffset += lineSize.y;
+			DrawText(font, line, glm::vec2(position.x, position.y - scale - yOffset), color, scale, &lineSize);
+			yOffset += font.LineHeight() * scale + lineSpacing;
 			maxW = std::max(maxW, lineSize.x);
 		});
 		

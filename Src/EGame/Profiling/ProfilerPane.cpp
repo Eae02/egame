@@ -1,12 +1,13 @@
 #include "ProfilerPane.hpp"
 #include "../Graphics/SpriteBatch.hpp"
 #include "../Graphics/SpriteFont.hpp"
+#include "Memory.hpp"
 
 namespace eg
 {
 	ProfilerPane::ProfilerPane()
 	{
-		
+		m_timerGraphs.push_back("");
 	}
 	
 	void ProfilerPane::AddFrameResult(ProfilingResults results)
@@ -43,8 +44,8 @@ namespace eg
 			return;
 		
 		float minX = screenWidth * 0.75f;
-		float minY = screenHeight * 0.25f;
-		float maxY = screenHeight * 0.75f;
+		float minY = screenHeight * 0.05f;
+		float maxY = screenHeight * 0.95f;
 		
 		eg::Rectangle paneRect(minX, minY, screenWidth - minX, maxY - minY);
 		spriteBatch.DrawRect(paneRect, ColorLin(ColorSRGB(0.2f, 0.2f, 0.25f, 0.75f)));
@@ -82,14 +83,25 @@ namespace eg
 			}
 		};
 		
-		int fps = 1E9f / m_lastResult.GetCPUTimerCursor().CurrentValue();
-		char fpsBuffer[40];
-		snprintf(fpsBuffer, sizeof(fpsBuffer), "FPS: %.2d Hz", fps);
-		glm::vec2 fpsExt = font.GetTextExtents(fpsBuffer);
-		spriteBatch.DrawText(font, fpsBuffer, glm::vec2(minX + PADDING, y),
-			eg::ColorLin(1, 1, 1, 1.0f));
+		double fps = 1E9 / m_lastResult.GetCPUTimerCursor().CurrentValue();
+		double memUsage = GetMemoryUsageRSS() / (1024.0 * 1024.0);
 		
-		StepY(1.2f);
+		float gpuMemoryUsage = 0;
+		if (gal::GetMemoryStat)
+		{
+			GraphicsMemoryStat memoryStat = gal::GetMemoryStat();
+			gpuMemoryUsage = memoryStat.allocatedBytesGPU / (1024.0 * 1024.0);
+		}
+		
+		char topTextBuffer[1024];
+		snprintf(topTextBuffer, sizeof(topTextBuffer),
+			"FPS: %.2f Hz\nMemory Usage (RSS): %.2f MiB\nGPU Memory Usage: %.2f MiB", fps, memUsage, gpuMemoryUsage);
+		glm::vec2 topTextSize;
+		spriteBatch.DrawTextMultiline(font, topTextBuffer, glm::vec2(minX + PADDING, y),
+		                              eg::ColorLin(1, 1, 1, 1.0f), 1.0f, 0.5f, &topTextSize);
+		
+		y -= topTextSize.y;
+		StepY(0.4f);
 		
 		spriteBatch.DrawText(font, "CPU Timers:", glm::vec2(minX + PADDING, y), eg::ColorLin(1, 1, 1, 1));
 		StepY(1.2f);

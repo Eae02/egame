@@ -651,6 +651,16 @@ namespace eg::graphics_api::vk
 		stat.allocatedBytes = vmaStats.total.usedBytes;
 		stat.numBlocks = vmaStats.total.blockCount;
 		stat.unusedRanges = vmaStats.total.unusedRangeCount;
+		
+		stat.allocatedBytesGPU = 0;
+		for (uint32_t h = 0; h < ctx.memoryProperties.memoryHeapCount; h++)
+		{
+			if (ctx.memoryProperties.memoryHeaps[h].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+			{
+				stat.allocatedBytesGPU += vmaStats.memoryHeap[h].usedBytes;
+			}
+		}
+		
 		return stat;
 	}
 	

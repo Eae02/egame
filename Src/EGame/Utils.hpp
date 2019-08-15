@@ -226,6 +226,15 @@ namespace eg
 	
 	EG_API void SplitString(std::string_view string, char delimiter, std::vector<std::string_view>& partsOut);
 	
+	template <typename T, typename U>
+	inline T AnimateTo(T value, T target, U step)
+	{
+		if (value < target)
+			return glm::min(value + step, target);
+		else
+			return glm::max(value - step, target);
+	}
+	
 	template <typename CollectionTp, typename ItemTp>
 	inline bool Contains(const CollectionTp& collection, const ItemTp& item)
 	{
