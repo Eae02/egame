@@ -13,7 +13,21 @@
 
 namespace eg::console
 {
+	class EG_API CompletionsList
+	{
+	public:
+		CompletionsList(std::string_view prefix, std::vector<std::string>& completions)
+			: m_prefix(prefix), m_completions(&completions) { }
+		
+		void Add(std::string_view completion);
+		
+	private:
+		std::string_view m_prefix;
+		std::vector<std::string>* m_completions;
+	};
+	
 	using CommandCallback = std::function<void(Span<const std::string_view>)>;
+	using CompletionProviderCallback = std::function<void(Span<const std::string_view> prevWords, CompletionsList& list)>;
 	
 	EG_API extern const ColorLin InfoColor;
 	EG_API extern const ColorLin WarnColor;
@@ -23,6 +37,8 @@ namespace eg::console
 	EG_API void Destroy();
 	
 	EG_API void AddCommand(std::string_view name, int minArgs, CommandCallback callback);
+	
+	EG_API void SetCompletionProvider(std::string_view command, int arg, CompletionProviderCallback callback);
 	
 	EG_API void Write(const ColorLin& color, std::string_view text);
 	

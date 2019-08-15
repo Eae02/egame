@@ -26,6 +26,8 @@ namespace eg
 			m_cursorPos = 0;
 		}
 		
+		void InsertText(std::string_view text);
+		
 		std::string_view Text() const
 		{
 			return { m_data.data(), m_data.size() };
@@ -49,6 +51,16 @@ namespace eg
 		float FontScale() const
 		{
 			return m_fontScale;
+		}
+		
+		int CursorPos() const
+		{
+			return m_cursorPos;
+		}
+		
+		float TextWidth() const
+		{
+			return m_font->GetTextExtents(Text()).x * m_fontScale;
 		}
 		
 	private:

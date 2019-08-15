@@ -4,6 +4,13 @@
 
 namespace eg
 {
+	void TextEdit::InsertText(std::string_view text)
+	{
+		m_data.insert(m_data.begin() + m_cursorPos, text.begin(), text.end());
+		m_cursorPos += text.size();
+		m_cursorBlinkProgress = 0;
+	}
+	
 	void TextEdit::Update(float dt, bool enabled)
 	{
 		constexpr float BLINK_TIME = 0.3f;
@@ -11,9 +18,7 @@ namespace eg
 		
 		if (enabled && !InputtedText().empty())
 		{
-			m_data.insert(m_data.begin() + m_cursorPos, InputtedText().begin(), InputtedText().end());
-			m_cursorPos += InputtedText().size();
-			m_cursorBlinkProgress = 0;
+			InsertText(InputtedText());
 		}
 		
 		m_buttonEventListener.ProcessAll([&] (const ButtonEvent& event)

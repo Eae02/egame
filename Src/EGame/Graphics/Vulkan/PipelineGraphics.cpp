@@ -477,8 +477,8 @@ namespace eg::graphics_api::vk
 		{
 			state.scissor.offset.x = std::max<int>(x, 0);
 			state.scissor.offset.y = std::max<int>(state.framebufferH - (y + h), 0);
-			state.scissor.extent.width = std::min(w, (int)state.framebufferW - x);
-			state.scissor.extent.height = std::min(h, (int)state.framebufferH - state.scissor.offset.y);
+			state.scissor.extent.width = glm::clamp(w, 0, (int)state.framebufferW - x);
+			state.scissor.extent.height = glm::clamp(h, 0, (int)state.framebufferH - state.scissor.offset.y);
 			state.scissorOutOfDate = true;
 		}
 	}
