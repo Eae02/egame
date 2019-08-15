@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <mutex>
+#include <typeindex>
 
 #include "Span.hpp"
 #include "Utils.hpp"
@@ -34,4 +35,11 @@ namespace eg::console
 	
 	void Update(float dt);
 	void Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight);
+}
+
+namespace eg
+{
+	EG_API float* TweakVarFloat(std::string name, float value, float min = -INFINITY, float max = INFINITY) noexcept;
+	EG_API int* TweakVarInt(std::string name, int value, int min = INT_MIN, int max = INT_MAX) noexcept;
+	EG_API std::string* TweakVarStr(std::string name, std::string value) noexcept;
 }

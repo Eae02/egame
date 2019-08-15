@@ -12,7 +12,7 @@
 #undef max
 #endif
 
-namespace eg::console
+namespace eg
 {
 	struct Command
 	{
@@ -49,15 +49,19 @@ namespace eg::console
 	
 	static ConsoleContext* ctx = nullptr;
 	
-	const ColorLin InfoColor = ColorLin(ColorSRGB::FromHex(0xD1E0E6));
-	const ColorLin WarnColor = ColorLin(ColorSRGB::FromHex(0xF0B173));
-	const ColorLin ErrorColor = ColorLin(ColorSRGB::FromHex(0xF55161));
+	const ColorLin console::InfoColor = ColorLin(ColorSRGB::FromHex(0xD1E0E6));
+	const ColorLin console::WarnColor = ColorLin(ColorSRGB::FromHex(0xF0B173));
+	const ColorLin console::ErrorColor = ColorLin(ColorSRGB::FromHex(0xF55161));
 	
-	void Init()
+	static void RegisterTweakCommands();
+	
+	void console::Init()
 	{
 		if (ctx != nullptr)
 			return;
 		ctx = new ConsoleContext;
+		
+		RegisterTweakCommands();
 		
 #ifdef _WIN32
 		HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -73,13 +77,13 @@ namespace eg::console
 #endif
 	}
 	
-	void Destroy()
+	void console::Destroy()
 	{
 		delete ctx;
 		ctx = nullptr;
 	}
 	
-	void Write(const ColorLin& color, std::string_view text)
+	void console::Write(const ColorLin& color, std::string_view text)
 	{
 		if (ctx == nullptr)
 			return;
@@ -96,7 +100,7 @@ namespace eg::console
 		});
 	}
 	
-	void Clear()
+	void console::Clear()
 	{
 		if (ctx == nullptr)
 			return;
@@ -108,24 +112,24 @@ namespace eg::console
 		ctx->scroll = 0;
 	}
 	
-	bool IsShown()
+	bool console::IsShown()
 	{
 		return ctx != nullptr && ctx->shown;
 	}
 	
-	void Show()
+	void console::Show()
 	{
 		if (ctx != nullptr)
 			ctx->shown = true;
 	}
 	
-	void Hide()
+	void console::Hide()
 	{
 		if (ctx != nullptr)
 			ctx->shown = false;
 	}
 	
-	void Update(float dt)
+	void console::Update(float dt)
 	{
 		if (ctx == nullptr)
 			return;
@@ -204,7 +208,7 @@ namespace eg::console
 		}
 	}
 	
-	void Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
+	void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 	{
 		if (ctx == nullptr || ctx->showProgress < 0.000001f)
 			return;
@@ -261,10 +265,139 @@ namespace eg::console
 		spriteBatch.PopScissor();
 	}
 	
-	void AddCommand(std::string_view name, int minArgs, CommandCallback callback)
+	void console::AddCommand(std::string_view name, int minArgs, CommandCallback callback)
 	{
 		if (ctx == nullptr)
 			return;
 		ctx->commands.push_back({name, minArgs, std::move(callback)});
+	}
+	
+	enum class TweakVarType
+	{
+		Float,
+		Int,
+		String
+	};
+	
+	struct TweakVar
+	{
+		std::string name;
+		TweakVarType type;
+		
+		float valueF;
+		int valueI;
+		std::string valueS;
+		float minF;
+		float maxF;
+		int minI;
+		int maxI;
+	};
+	
+	static std::array<TweakVar, 1024> tweakVars;
+	static size_t numTweakVars;
+	
+	inline TweakVar* AddTweakVar(std::string name, TweakVarType type) noexcept
+	{
+		if (numTweakVars == tweakVars.size())
+			EG_PANIC("Too many tweak variables");
+		TweakVar* var = &tweakVars[numTweakVars++];
+		var->name = std::move(name);
+		var->type = type;
+		return var;
+	}
+	
+	float* TweakVarFloat(std::string name, float value, float min, float max) noexcept
+	{
+		 TweakVar* var = AddTweakVar(std::move(name), TweakVarType::Float);
+		 var->valueF = value;
+		 var->minF = min;
+		 var->maxF = max;
+		 return &var->valueF;
+	}
+	
+	int* TweakVarInt(std::string name, int value, int min, int max) noexcept
+	{
+		 TweakVar* var = AddTweakVar(std::move(name), TweakVarType::Int);
+		 var->valueI = value;
+		 var->minI = min;
+		 var->maxI = max;
+		 return &var->valueI;
+	}
+	
+	std::string* TweakVarStr(std::string name, std::string value) noexcept
+	{
+		TweakVar* var = AddTweakVar(std::move(name), TweakVarType::Int);
+		var->valueS = std::move(value);
+		return &var->valueS;
+	}
+	
+	static void RegisterTweakCommands()
+	{
+		console::AddCommand("set", 2, [] (Span<const std::string_view> args)
+		{
+			auto varsEnd = tweakVars.begin() + numTweakVars;
+			auto it = std::find_if(tweakVars.begin(), varsEnd, [&] (const TweakVar& v) { return v.name == args[0]; });
+			if (it == varsEnd)
+			{
+				std::string msg = Concat({ "Tweakable variable not found: '", args[0], "'." });
+				console::Write(console::WarnColor, msg);
+			}
+			else if (it->type == TweakVarType::Float)
+			{
+				try
+				{
+					it->valueF = glm::clamp(std::stof(std::string(args[1])), it->minF, it->maxF);
+				}
+				catch (...)
+				{
+					std::string msg = Concat({ "Cannot parse: '", args[1], "' as float." });
+					console::Write(console::WarnColor, msg);
+				}
+			}
+			else if (it->type == TweakVarType::Int)
+			{
+				try
+				{
+					it->valueI = glm::clamp(std::stoi(std::string(args[1])), it->minI, it->maxI);
+				}
+				catch (...)
+				{
+					std::string msg = Concat({ "Cannot parse: '", args[1], "' as int." });
+					console::Write(console::WarnColor, msg);
+				}
+			}
+			else if (it->type == TweakVarType::String)
+			{
+				it->valueS = args[1];
+			}
+		});
+		
+		console::AddCommand("lsvar", 0, [] (Span<const std::string_view> args)
+		{
+			if (numTweakVars == 0)
+			{
+				console::Write(console::ErrorColor, "There are no tweakable variables");
+				return;
+			}
+			
+			static const char* typeNames[] = { "flt", "int", "str" };
+			std::vector<std::string> lines(numTweakVars);
+			for (size_t i = 0; i < numTweakVars; i++)
+			{
+				std::ostringstream stream;
+				stream << "  " << tweakVars[i].name << " [" << typeNames[(int)tweakVars[i].type] << "]: ";
+				if (tweakVars[i].type == TweakVarType::Float)
+					stream << tweakVars[i].valueF;
+				else if (tweakVars[i].type == TweakVarType::Int)
+					stream << tweakVars[i].valueI;
+				else if (tweakVars[i].type == TweakVarType::String)
+					stream << tweakVars[i].valueS;
+				lines[i] = stream.str();
+			}
+			std::sort(lines.begin(), lines.end());
+			console::Write(console::InfoColor, "Tweakable variables:");
+			for (const std::string& line : lines)
+				console::Write(console::InfoColor, line);
+		});
 	}
 }
