@@ -150,6 +150,7 @@ namespace eg::graphics_api::gl
 			
 			const spirv_cross::ShaderResources& shResources = spvCompilers[i].get_shader_resources();
 			ProcessResources(shResources.uniform_buffers);
+			ProcessResources(shResources.storage_buffers);
 			ProcessResources(shResources.sampled_images);
 			ProcessResources(shResources.storage_images);
 			
