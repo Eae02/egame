@@ -48,6 +48,8 @@ namespace eg::graphics_api::gl
 		IntelOpenSource
 	};
 	
+	static std::string rendererName;
+	static std::string vendorName;
 	static GLVendor glVendor;
 	
 #ifndef __EMSCRIPTEN__
@@ -111,9 +113,14 @@ namespace eg::graphics_api::gl
 	}
 #endif
 	
+	static DepthRange depthRange = DepthRange::NegOneToOne;
+	
 	bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
 #ifdef __EMSCRIPTEN__
+		if (initArguments.forceDepthZeroOne)
+			return false;
+		
 		eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 		
 		eglInitialize(eglDisplay, nullptr, nullptr);
@@ -174,7 +181,7 @@ namespace eg::graphics_api::gl
 		
 		srgbBackBuffer = initArguments.defaultFramebufferSRGB;
 		
-		const char* requiredExtensions[] = 
+		std::vector<const char*> requiredExtensions = 
 		{
 			"GL_ARB_buffer_storage",
 			"GL_ARB_clear_texture",
@@ -190,6 +197,11 @@ namespace eg::graphics_api::gl
 		
 		glWindow = initArguments.window;
 		
+		if (initArguments.forceDepthZeroToOne)
+		{
+			requiredExtensions.push_back("GL_ARB_clip_control");
+		}
+		
 		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 #endif
 		
@@ -201,9 +213,17 @@ namespace eg::graphics_api::gl
 				messageStream << "Required OpenGL extension " << ext << " is not supported by your graphics driver.";
 				std::string message = messageStream.str();
 				std::cout << message << std::endl;
-				//SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL", message.c_str(), nullptr);
+#ifdef __EMSCRIPTEN__
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL", message.c_str(), nullptr);
+#endif
 				return false;
 			}
+		}
+		
+		if (initArguments.forceDepthZeroToOne)
+		{
+			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+			depthRange = DepthRange::ZeroToOne;
 		}
 		
 		if (initArguments.defaultDepthStencilFormat == Format::Depth32 ||
@@ -230,7 +250,7 @@ namespace eg::graphics_api::gl
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnistropyF);
 		maxAnistropy = (int)maxAnistropyF;
 		
-		std::string_view vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+		vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 		if (vendorName == "Intel Open Source Technology Center")
 			glVendor = GLVendor::IntelOpenSource;
 		else if (vendorName == "NVIDIA Corporation")
@@ -238,14 +258,15 @@ namespace eg::graphics_api::gl
 		else
 			glVendor = GLVendor::Unknown;
 		
+		rendererName = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+		
 #ifndef __EMSCRIPTEN__
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		glDebugMessageCallback(OpenGLMessageCallback, nullptr);
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 #endif
 		
-		const char* rendererName = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
-		Log(LogLevel::Info, "gl", "Using OpenGL renderer: '{0}'", rendererName);
+		Log(LogLevel::Info, "gl", "Using OpenGL renderer: '{0}', by vendor: '{1}'", rendererName, vendorName);
 		
 		return true;
 	}
@@ -260,22 +281,24 @@ namespace eg::graphics_api::gl
 		};
 		
 		deviceInfo.uniformBufferAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
-		deviceInfo.geometryShader = true;
+		deviceInfo.geometryShader             = true;
 		deviceInfo.concurrentResourceCreation = false;
-		deviceInfo.depthRange = DepthRange::NegOneToOne;
-		deviceInfo.timerTicksPerNS = 1.0f;
+		deviceInfo.depthRange                 = depthRange;
+		deviceInfo.timerTicksPerNS            = 1.0f;
+		deviceInfo.deviceName                 = rendererName;
+		deviceInfo.deviceVendorName           = vendorName;
 		
 #ifdef EG_GLES
 		deviceInfo.blockTextureCompression =
 			Contains(supportedExtensions, "GL_EXT_texture_compression_s3tc") &&
 			Contains(supportedExtensions, "GL_ARB_texture_compression_rgtc");
-		deviceInfo.persistentMappedBuffers = false;
-		deviceInfo.tessellation = false;
-		deviceInfo.textureCubeMapArray = false;
+		deviceInfo.persistentMappedBuffers  = false;
+		deviceInfo.tessellation             = false;
+		deviceInfo.textureCubeMapArray      = false;
 		deviceInfo.maxTessellationPatchSize = 0;
-		deviceInfo.maxMSAA = 1;
-		deviceInfo.maxClipDistances = 0;
-		deviceInfo.computeShader = false;
+		deviceInfo.maxMSAA                  = 1;
+		deviceInfo.maxClipDistances         = 0;
+		deviceInfo.computeShader            = false;
 #else
 		for (int i = 0; i < 3; i++)
 		{
@@ -287,14 +310,14 @@ namespace eg::graphics_api::gl
 		}
 		deviceInfo.maxComputeWorkGroupInvocations = GetIntegerLimit(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS);
 		
-		deviceInfo.maxClipDistances = (uint32_t)GetIntegerLimit(GL_MAX_CLIP_DISTANCES);
-		deviceInfo.maxMSAA = (uint32_t)GetIntegerLimit(GL_MAX_SAMPLES);
+		deviceInfo.maxClipDistances         = (uint32_t)GetIntegerLimit(GL_MAX_CLIP_DISTANCES);
+		deviceInfo.maxMSAA                  = (uint32_t)GetIntegerLimit(GL_MAX_SAMPLES);
 		deviceInfo.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
-		deviceInfo.tessellation = true;
-		deviceInfo.computeShader = true;
-		deviceInfo.persistentMappedBuffers = true;
-		deviceInfo.textureCubeMapArray = true;
-		deviceInfo.blockTextureCompression =
+		deviceInfo.tessellation             = true;
+		deviceInfo.computeShader            = true;
+		deviceInfo.persistentMappedBuffers  = true;
+		deviceInfo.textureCubeMapArray      = true;
+		deviceInfo.blockTextureCompression  =
 			SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
 			SDL_GL_ExtensionSupported("GL_ARB_texture_compression_rgtc");
 #endif

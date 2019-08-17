@@ -638,6 +638,9 @@ namespace eg
 		bool blockTextureCompression;
 		float timerTicksPerNS;
 		bool concurrentResourceCreation;
+		
+		std::string_view deviceName;
+		std::string_view deviceVendorName;
 	};
 	
 	template <>
@@ -649,6 +652,7 @@ namespace eg
 		Format defaultDepthStencilFormat;
 		bool defaultFramebufferSRGB;
 		bool enableVSync;
+		bool forceDepthZeroToOne;
 	};
 	
 	namespace detail

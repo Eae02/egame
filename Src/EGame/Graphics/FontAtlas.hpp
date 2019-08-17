@@ -133,6 +133,8 @@ namespace eg
 		
 		glm::vec2 GetTextExtents(std::string_view text) const;
 		
+		std::string WordWrap(std::string_view text, float maxWidth) const;
+		
 	protected:
 		void FreeAtlasData()
 		{

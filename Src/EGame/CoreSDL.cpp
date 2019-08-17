@@ -213,6 +213,7 @@ namespace eg
 		apiInitArguments.window = sdlWindow;
 		apiInitArguments.enableVSync = HasFlag(runConfig.flags, RunFlags::VSync);
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
+		apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
 		apiInitArguments.defaultDepthStencilFormat = defaultDSFormat;
 		
 		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))

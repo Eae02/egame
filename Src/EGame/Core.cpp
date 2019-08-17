@@ -271,6 +271,15 @@ namespace eg
 			}
 		});
 		
+		console::AddCommand("gpuinfo", 0, [&] (Span<const std::string_view> args)
+		{
+			std::ostringstream msgStream;
+			msgStream << "GPU Name:   " << GetGraphicsDeviceInfo().deviceName <<
+			           "\nGPU Vendor: " << GetGraphicsDeviceInfo().deviceVendorName;
+			std::string msg = msgStream.str();
+			console::Write(console::InfoColor, msg);
+		});
+		
 		for (CallbackNode* node = onInit; node != nullptr; node = node->next)
 		{
 			node->callback();

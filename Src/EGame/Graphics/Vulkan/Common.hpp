@@ -80,6 +80,8 @@ namespace eg::graphics_api::vk
 		VkPhysicalDeviceLimits deviceLimits;
 		VkPhysicalDeviceFeatures deviceFeatures;
 		VkPhysicalDevice physDevice;
+		std::string deviceName;
+		std::string_view deviceVendorName;
 		VkDevice device;
 		VkQueue mainQueue;
 		VkQueue backgroundQueue;

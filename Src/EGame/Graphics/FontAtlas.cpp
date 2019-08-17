@@ -442,6 +442,58 @@ namespace eg
 		return glm::vec2(x, extentsY);
 	}
 	
+	std::string FontAtlas::WordWrap(std::string_view text, float maxWidth) const
+	{
+		std::string result;
+		
+		int64_t lineBegin = 0;
+		int64_t lastBreak = -1;
+		
+		float x = 0;
+		uint32_t prev = 0;
+		for (auto it = text.begin(); it != text.end();)
+		{
+			const uint32_t c = utf8::unchecked::next(it);
+			
+			if (c == '\n')
+			{
+				result.append(text.begin() + lineBegin, it);
+				lineBegin = it - text.begin();
+				lastBreak = -1;
+				x = 0;
+				continue;
+			}
+			
+			if (c == ' ')
+			{
+				lastBreak = it - text.begin();
+			}
+			
+			const Character* fontChar = GetCharacter(c);
+			if (fontChar == nullptr)
+				continue;
+			
+			const int kerning = GetKerning(prev, c);
+			
+			x += fontChar->xAdvance + kerning;
+			if (x > maxWidth && lastBreak != -1)
+			{
+				if (!result.empty())
+					result.push_back('\n');
+				result.append(text.begin() + lineBegin, text.begin() + lastBreak);
+				lineBegin = lastBreak;
+				lastBreak = -1;
+				x = 0;
+			}
+			
+			prev = c;
+		}
+		
+		result.append(text.begin() + lineBegin, text.end());
+		
+		return result;
+	}
+	
 	FontAtlas::AtlasData::AtlasData(const struct FontAtlas::AtlasData& other) noexcept
 		: width(other.width), height(other.height)
 	{

@@ -252,6 +252,20 @@ namespace eg::graphics_api::vk
 		VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME
 	};
 	
+	std::string_view GetVendorName(uint32_t id)
+	{
+		switch (id)
+		{
+		case 0x1002: return "AMD";
+		case 0x1010: return "ImgTec";
+		case 0x10DE: return "Nvidia";
+		case 0x13B5: return "ARM";
+		case 0x5143: return "Qualcomm";
+		case 0x8086: return "Intel";
+		default:     return "Unknown";
+		}
+	}
+	
 	bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
 		if (volkInitialize() != VK_SUCCESS)
@@ -412,8 +426,8 @@ namespace eg::graphics_api::vk
 			{
 				if (!requiredExtensionsSeen[i])
 				{
-					Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the {1} extension",
-						deviceProperties.deviceName, REQUIRED_DEVICE_EXTENSIONS[i]);
+					Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not support the "
+						"{1} extension", deviceProperties.deviceName, REQUIRED_DEVICE_EXTENSIONS[i]);
 					hasAllExtensions = false;
 					break;
 				}
@@ -423,6 +437,8 @@ namespace eg::graphics_api::vk
 				continue;
 			
 			ctx.physDevice = physicalDevice;
+			ctx.deviceName = deviceProperties.deviceName;
+			ctx.deviceVendorName = GetVendorName(deviceProperties.vendorID);
 			
 			Log(LogLevel::Info, "vk", "Using vulkan device: '{0}'", deviceProperties.deviceName);
 			
@@ -626,19 +642,22 @@ namespace eg::graphics_api::vk
 	
 	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	{
-		deviceInfo.uniformBufferAlignment = ctx.deviceLimits.minUniformBufferOffsetAlignment;
-		deviceInfo.depthRange = DepthRange::ZeroToOne;
-		deviceInfo.tessellation = ctx.deviceFeatures.tessellationShader;
-		deviceInfo.geometryShader = ctx.deviceFeatures.geometryShader;
-		deviceInfo.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
-		deviceInfo.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
-		deviceInfo.maxMSAA = ctx.deviceLimits.sampledImageColorSampleCounts;
-		deviceInfo.computeShader = true;
-		deviceInfo.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
-		deviceInfo.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
-		deviceInfo.timerTicksPerNS = ctx.deviceLimits.timestampPeriod;
-		deviceInfo.concurrentResourceCreation = true;
+		deviceInfo.uniformBufferAlignment         = ctx.deviceLimits.minUniformBufferOffsetAlignment;
+		deviceInfo.depthRange                     = DepthRange::ZeroToOne;
+		deviceInfo.tessellation                   = ctx.deviceFeatures.tessellationShader;
+		deviceInfo.geometryShader                 = ctx.deviceFeatures.geometryShader;
+		deviceInfo.maxTessellationPatchSize       = ctx.deviceLimits.maxTessellationPatchSize;
+		deviceInfo.maxClipDistances               = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
+		deviceInfo.maxMSAA                        = ctx.deviceLimits.sampledImageColorSampleCounts;
+		deviceInfo.computeShader                  = true;
+		deviceInfo.textureCubeMapArray            = ctx.deviceFeatures.imageCubeArray;
+		deviceInfo.blockTextureCompression        = ctx.deviceFeatures.textureCompressionBC;
+		deviceInfo.timerTicksPerNS                = ctx.deviceLimits.timestampPeriod;
+		deviceInfo.concurrentResourceCreation     = true;
 		deviceInfo.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations;
+		deviceInfo.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations;
+		deviceInfo.deviceName                     = ctx.deviceName;
+		deviceInfo.deviceVendorName               = ctx.deviceVendorName;
 		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupCount, 3, deviceInfo.maxComputeWorkGroupCount);
 		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupSize, 3, deviceInfo.maxComputeWorkGroupSize);
 	}
