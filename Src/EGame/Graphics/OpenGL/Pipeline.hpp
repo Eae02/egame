@@ -43,7 +43,7 @@ namespace eg::graphics_api::gl
 		std::vector<MappedBinding> bindings;
 		PipelineDescriptorSet sets[MAX_DESCRIPTOR_SETS];
 		
-		void Initialize(uint32_t numShaderModules, spirv_cross::CompilerGLSL** spvCompilers, GLuint* shaderModules);
+		void Initialize(uint32_t numShaderModules, spirv_cross::CompilerGLSL* spvCompilers, GLuint* shaderModules);
 		
 		virtual void Free() = 0;
 		
@@ -52,7 +52,7 @@ namespace eg::graphics_api::gl
 	
 	extern const AbstractPipeline* currentPipeline;
 	
-	void SetSpecializationConstants(const ShaderStageInfo& stageInfo);
+	void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::CompilerGLSL& compiler);
 	
 	uint32_t ResolveBinding(const AbstractPipeline& pipeline, uint32_t set, uint32_t binding);
 	

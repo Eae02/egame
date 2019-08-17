@@ -32,40 +32,47 @@ namespace eg::graphics_api::gl
 		pipeline->Bind();
 	}
 	
-	void SetSpecializationConstants(const ShaderStageInfo& stageInfo)
+	void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::CompilerGLSL& compiler)
 	{
 		ShaderModule& shaderModule = *UnwrapShaderModule(stageInfo.shaderModule);
-		shaderModule.ResetSpecializationConstants();
 		
 		const char* dataChar = reinterpret_cast<const char*>(stageInfo.specConstantsData);
 		
-		for (const SpecializationConstantEntry& entry : stageInfo.specConstants)
+		for (spirv_cross::SpecializationConstant& specConst : compiler.get_specialization_constants())
 		{
-			for (spirv_cross::SpecializationConstant& specConst : shaderModule.spvCompiler.get_specialization_constants())
+			spirv_cross::SPIRConstant& spirConst = compiler.get_constant(specConst.id);
+			if (specConst.constant_id == 500)
 			{
-				spirv_cross::SPIRConstant& spirConst = shaderModule.spvCompiler.get_constant(specConst.id);
-				if (specConst.constant_id == entry.constantID)
+				spirConst.m.c[0].r[0].u32 = 1;
+			}
+			else
+			{
+				for (const SpecializationConstantEntry& entry : stageInfo.specConstants)
 				{
-					std::memcpy(spirConst.m.c[0].r, dataChar + entry.offset, entry.size);
+					if (specConst.constant_id == entry.constantID)
+					{
+						std::memcpy(spirConst.m.c[0].r, dataChar + entry.offset, entry.size);
+						break;
+					}
 				}
 			}
 		}
 	}
 	
-	void AbstractPipeline::Initialize(uint32_t numShaderModules, spirv_cross::CompilerGLSL** spvCompilers,
+	void AbstractPipeline::Initialize(uint32_t numShaderModules, spirv_cross::CompilerGLSL* spvCompilers,
 		GLuint* shaderModules)
 	{
 		//Detects resources used in shaders
 		std::for_each(spvCompilers, spvCompilers + numShaderModules,
-			[&] (const spirv_cross::CompilerGLSL* spvCompiler)
+			[&] (const spirv_cross::CompilerGLSL& spvCompiler)
 		{
 			auto ProcessResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
 			                             BindingType type)
 			{
 				for (const spirv_cross::Resource& res : resources)
 				{
-					const uint32_t set = spvCompiler->get_decoration(res.id, spv::DecorationDescriptorSet);
-					const uint32_t binding = spvCompiler->get_decoration(res.id, spv::DecorationBinding);
+					const uint32_t set = spvCompiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+					const uint32_t binding = spvCompiler.get_decoration(res.id, spv::DecorationBinding);
 					bool exists = std::any_of(bindings.begin(), bindings.end(),
 						[&] (const MappedBinding& mb) { return mb.set == set && mb.binding == binding; });
 					if (!exists)
@@ -75,7 +82,7 @@ namespace eg::graphics_api::gl
 				}
 			};
 			
-			const spirv_cross::ShaderResources& resources = spvCompiler->get_shader_resources();
+			const spirv_cross::ShaderResources& resources = spvCompiler.get_shader_resources();
 			ProcessResources(resources.uniform_buffers, BindingType::UniformBuffer);
 			ProcessResources(resources.storage_buffers, BindingType::StorageBuffer);
 			ProcessResources(resources.sampled_images, BindingType::Texture);
@@ -133,20 +140,20 @@ namespace eg::graphics_api::gl
 			{
 				for (const spirv_cross::Resource& res : resources)
 				{
-					const uint32_t set = spvCompilers[i]->get_decoration(res.id, spv::DecorationDescriptorSet);
-					const uint32_t binding = spvCompilers[i]->get_decoration(res.id, spv::DecorationBinding);
+					const uint32_t set = spvCompilers[i].get_decoration(res.id, spv::DecorationDescriptorSet);
+					const uint32_t binding = spvCompilers[i].get_decoration(res.id, spv::DecorationBinding);
 					auto it = std::lower_bound(bindings.begin(), bindings.end(), MappedBinding { set, binding });
-					spvCompilers[i]->set_decoration(res.id, spv::DecorationDescriptorSet, 0);
-					spvCompilers[i]->set_decoration(res.id, spv::DecorationBinding, it->glBinding);
+					spvCompilers[i].set_decoration(res.id, spv::DecorationDescriptorSet, 0);
+					spvCompilers[i].set_decoration(res.id, spv::DecorationBinding, it->glBinding);
 				}
 			};
 			
-			const spirv_cross::ShaderResources& shResources = spvCompilers[i]->get_shader_resources();
+			const spirv_cross::ShaderResources& shResources = spvCompilers[i].get_shader_resources();
 			ProcessResources(shResources.uniform_buffers);
 			ProcessResources(shResources.sampled_images);
 			ProcessResources(shResources.storage_images);
 			
-			spirv_cross::CompilerGLSL::Options options = spvCompilers[i]->get_common_options();
+			spirv_cross::CompilerGLSL::Options options = spvCompilers[i].get_common_options();
 #ifdef EG_GLES
 			options.version = 300;
 			options.es = true;
@@ -154,30 +161,8 @@ namespace eg::graphics_api::gl
 #else
 			options.version = 430;
 #endif
-			spvCompilers[i]->set_common_options(options);
-			std::string glslCode = spvCompilers[i]->compile();
-			
-			auto ResetResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources, BindingType type)
-			{
-				for (const spirv_cross::Resource& res : resources)
-				{
-					const uint32_t glBinding = spvCompilers[i]->get_decoration(res.id, spv::DecorationBinding);
-					for (const MappedBinding& mb : bindings)
-					{
-						if (mb.glBinding == glBinding && mb.type == type)
-						{
-							spvCompilers[i]->set_decoration(res.id, spv::DecorationDescriptorSet, mb.set);
-							spvCompilers[i]->set_decoration(res.id, spv::DecorationBinding, mb.binding);
-							break;
-						}
-					}
-				}
-			};
-			
-			ResetResources(shResources.uniform_buffers, BindingType::UniformBuffer);
-			ResetResources(shResources.storage_buffers, BindingType::StorageBuffer);
-			ResetResources(shResources.sampled_images, BindingType::Texture);
-			ResetResources(shResources.storage_images, BindingType::StorageImage);
+			spvCompilers[i].set_common_options(options);
+			std::string glslCode = spvCompilers[i].compile();
 			
 			const GLchar* glslCodeC = glslCode.c_str();
 			const GLint glslCodeLen = (GLint)glslCode.size();
@@ -233,26 +218,26 @@ namespace eg::graphics_api::gl
 		
 		//Processes push constant blocks
 		std::for_each(spvCompilers, spvCompilers + numShaderModules,
-			[&] (const spirv_cross::CompilerGLSL* spvCrossCompiler)
+			[&] (const spirv_cross::CompilerGLSL& spvCrossCompiler)
 		{
-			const spirv_cross::ShaderResources& resources = spvCrossCompiler->get_shader_resources();
+			const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
 			
 			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
 			{
-				const SPIRType& type = spvCrossCompiler->get_type(pcBlock.base_type_id);
+				const SPIRType& type = spvCrossCompiler.get_type(pcBlock.base_type_id);
 				uint32_t numMembers = (uint32_t)type.member_types.size();
 				
-				std::string blockName = spvCrossCompiler->get_name(pcBlock.id);
+				std::string blockName = spvCrossCompiler.get_name(pcBlock.id);
 				if (blockName.empty())
 				{
-					blockName = spvCrossCompiler->get_fallback_name(pcBlock.id);
+					blockName = spvCrossCompiler.get_fallback_name(pcBlock.id);
 				}
 				
-				auto activeRanges = spvCrossCompiler->get_active_buffer_ranges(pcBlock.id);
+				auto activeRanges = spvCrossCompiler.get_active_buffer_ranges(pcBlock.id);
 				
 				for (uint32_t i = 0; i < numMembers; i++)
 				{
-					const SPIRType& memberType = spvCrossCompiler->get_type(type.member_types[i]);
+					const SPIRType& memberType = spvCrossCompiler.get_type(type.member_types[i]);
 					
 					//Only process supported base types
 					static const SPIRType::BaseType supportedBaseTypes[] = 
@@ -262,7 +247,7 @@ namespace eg::graphics_api::gl
 					if (!Contains(supportedBaseTypes, memberType.basetype))
 						continue;
 					
-					const uint32_t offset = spvCrossCompiler->type_struct_member_offset(type, i);
+					const uint32_t offset = spvCrossCompiler.type_struct_member_offset(type, i);
 					
 					bool active = false;
 					for (const spirv_cross::BufferRange& range : activeRanges)
@@ -277,7 +262,7 @@ namespace eg::graphics_api::gl
 						continue;
 					
 					//Gets the name and uniform location of this member
-					const std::string& name = spvCrossCompiler->get_member_name(type.self, i);
+					const std::string& name = spvCrossCompiler.get_member_name(type.self, i);
 					std::string uniformName = Concat({ blockName, ".", name });
 					int location = glGetUniformLocation(program, uniformName.c_str());
 					if (location == -1)

@@ -120,10 +120,12 @@ namespace eg::graphics_api::gl
 		
 		pipeline->minSampleShading = createInfo.enableSampleShading ? createInfo.minSampleShading : 0.0f;
 		
-		spirv_cross::CompilerGLSL* spvCompilers[5];
+		auto* spvCompilers = static_cast<spirv_cross::CompilerGLSL*>(alloca(sizeof(spirv_cross::CompilerGLSL) * 5));
 		
 		//Attaches shaders to the pipeline's program
+#ifdef EG_GLES
 		uint32_t currentIOGroup = 0;
+#endif
 		auto MaybeAddStage = [&] (const ShaderStageInfo& stageInfo, ShaderStage expectedStage)
 		{
 			if (stageInfo.shaderModule == nullptr)
@@ -134,9 +136,11 @@ namespace eg::graphics_api::gl
 			{
 				EG_PANIC("Shader stage mismatch")
 			}
-			spvCompilers[pipeline->numShaderModules] = &module->spvCompiler;
 			
-			SetSpecializationConstants(stageInfo);
+			void* compilerMem = spvCompilers + pipeline->numShaderModules;
+			spirv_cross::CompilerGLSL* compiler = new (compilerMem) spirv_cross::CompilerGLSL(module->parsedIR);
+			
+			SetSpecializationConstants(stageInfo, *compiler);
 			
 			GLuint shader = glCreateShader(ShaderTypes[(int)expectedStage]);
 			pipeline->shaderModules[pipeline->numShaderModules] = shader;
@@ -179,6 +183,12 @@ namespace eg::graphics_api::gl
 		MaybeAddStage(createInfo.fragmentShader, eg::ShaderStage::Fragment);
 		
 		pipeline->Initialize(pipeline->numShaderModules, spvCompilers, pipeline->shaderModules);
+		
+		for (uint32_t i = 0; i < pipeline->numShaderModules; i++)
+		{
+			spvCompilers[i].~CompilerGLSL();
+		}
+		spvCompilers = nullptr;
 		
 		// ** Sets up VAOs **
 		
