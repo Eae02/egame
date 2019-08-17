@@ -179,7 +179,7 @@ namespace eg
 			
 			//Saves the current completion text so it can be restored later
 			std::string currentCompletion;
-			if (ctx->completions.size() > ctx->currentCompletion)
+			if ((int)ctx->completions.size() > ctx->currentCompletion)
 				currentCompletion = ctx->completions[ctx->currentCompletion];
 			
 			//Updates command completion
@@ -203,7 +203,7 @@ namespace eg
 						CompletionProviderCallback& callback = cmd->completionProviders[ctx->commandParts.size() - 2];
 						if (callback != nullptr)
 						{
-							callback(Span<const std::string_view>(ctx->commandParts.data() + 1, ctx->commandParts.size()), completionsList);
+							callback(ctx->commandParts, completionsList);
 						}
 					}
 				}
