@@ -485,8 +485,6 @@ namespace eg::graphics_api::vk
 	
 	void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
 	{
-		CommandContextState& state = GetCtxState(cc);
-		
 		VkStencilFaceFlags faceFlags = 0;
 		if ((int)kind & 0b0100)
 			faceFlags |= VK_STENCIL_FACE_FRONT_BIT;

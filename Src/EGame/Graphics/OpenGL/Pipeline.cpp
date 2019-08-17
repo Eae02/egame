@@ -34,8 +34,6 @@ namespace eg::graphics_api::gl
 	
 	void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::CompilerGLSL& compiler)
 	{
-		ShaderModule& shaderModule = *UnwrapShaderModule(stageInfo.shaderModule);
-		
 		const char* dataChar = reinterpret_cast<const char*>(stageInfo.specConstantsData);
 		
 		for (spirv_cross::SpecializationConstant& specConst : compiler.get_specialization_constants())

@@ -289,6 +289,7 @@ namespace eg::graphics_api::vk
 		case BindingType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		case BindingType::Texture: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		case BindingType::StorageImage: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		case BindingType::StorageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		}
 		EG_UNREACHABLE;
 	}
