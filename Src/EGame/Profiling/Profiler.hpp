@@ -20,6 +20,24 @@ namespace eg
 			Stop();
 		}
 		
+		CPUTimer(CPUTimer&& other) noexcept
+			: m_profiler(other.m_profiler), m_index(other.m_index)
+		{
+			other.m_profiler = nullptr;
+		}
+		
+		CPUTimer& operator=(CPUTimer&& other) noexcept
+		{
+			Stop();
+			m_profiler = other.m_profiler;
+			m_index = other.m_index;
+			other.m_profiler = nullptr;
+			return *this;
+		}
+		
+		CPUTimer(const CPUTimer& other) = delete;
+		CPUTimer& operator=(const CPUTimer& other) = delete;
+		
 		void Stop();
 		
 	private:
@@ -42,6 +60,24 @@ namespace eg
 		{
 			Stop();
 		}
+		
+		GPUTimer(GPUTimer&& other) noexcept
+			: m_profiler(other.m_profiler), m_index(other.m_index)
+		{
+			other.m_profiler = nullptr;
+		}
+		
+		GPUTimer& operator=(GPUTimer&& other) noexcept
+		{
+			Stop();
+			m_profiler = other.m_profiler;
+			m_index = other.m_index;
+			other.m_profiler = nullptr;
+			return *this;
+		}
+		
+		GPUTimer(const GPUTimer& other) = delete;
+		GPUTimer& operator=(const GPUTimer& other) = delete;
 		
 		void Stop();
 		
@@ -112,17 +148,56 @@ namespace eg
 		int m_lastGPUTimer = -1;
 	};
 	
-	inline CPUTimer StartCPUTimer(std::string name)
+	template <typename T>
+	inline T StartTimer(std::string name);
+	
+	template <>
+	inline CPUTimer StartTimer(std::string name)
 	{
 		if (Profiler::current != nullptr)
 			return Profiler::current->StartCPUTimer(std::move(name));
 		return CPUTimer();
 	}
 	
-	inline GPUTimer StartGPUTimer(std::string name)
+	template <>
+	inline GPUTimer StartTimer(std::string name)
 	{
 		if (Profiler::current != nullptr)
 			return Profiler::current->StartGPUTimer(std::move(name));
 		return GPUTimer();
 	}
+	
+	inline CPUTimer StartCPUTimer(std::string name)
+	{
+		return StartTimer<CPUTimer>(std::move(name));
+	}
+	
+	inline GPUTimer StartGPUTimer(std::string name)
+	{
+		return StartTimer<GPUTimer>(std::move(name));
+	}
+	
+	template <typename TimerTP>
+	class MultiStageTimer
+	{
+	public:
+		MultiStageTimer() = default;
+		
+		void StartStage(std::string name)
+		{
+			m_timer.Stop();
+			m_timer = StartTimer<TimerTP>(std::move(name));
+		}
+		
+		void Stop()
+		{
+			m_timer.Stop();
+		}
+		
+	private:
+		TimerTP m_timer;
+	};
+	
+	using MultiStageGPUTimer = MultiStageTimer<GPUTimer>;
+	using MultiStageCPUTimer = MultiStageTimer<CPUTimer>;
 }
