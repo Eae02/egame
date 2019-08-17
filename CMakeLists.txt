@@ -115,6 +115,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STRE
 		INSTALL_RPATH "$ORIGIN"
 		BUILD_WITH_INSTALL_RPATH TRUE
 	)
+	set_source_files_properties(Src/EGame/Collision.cpp PROPERTIES COMPILE_FLAGS "-O3")
 	target_compile_options(yaml-cpp PRIVATE -fPIC)
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")

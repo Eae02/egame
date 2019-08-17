@@ -8,6 +8,7 @@
 
 #include <glslang/Public/ShaderLang.h>
 #include <SPIRV/GlslangToSpv.h>
+#include <spirv-tools/optimizer.hpp>
 #include <fstream>
 
 namespace eg::asset_gen
@@ -298,13 +299,35 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 					return false;
 				}
 				
-				std::vector<uint32_t> spirvCode;
-				glslang::GlslangToSpv(*program.getIntermediate(*lang), spirvCode);
+				//Generates SPIRV
+				std::vector<uint32_t> unoptimizedSpirvCode;
+				glslang::GlslangToSpv(*program.getIntermediate(*lang), unoptimizedSpirvCode);
 				
-				uint32_t codeSize = spirvCode.size() * sizeof(uint32_t);
+				//Optimizes SPIRV
+				std::vector<uint32_t> optimizedSpirvCode;
+				spvtools::Optimizer optimizer(SPV_ENV_VULKAN_1_0);
+				optimizer.SetMessageConsumer([&] (spv_message_level_t messageLevel, const char*, const spv_position_t& pos, const char* message)
+				{
+					LogLevel logLevel;
+					if (messageLevel == SPV_MSG_INTERNAL_ERROR || messageLevel == SPV_MSG_ERROR)
+						logLevel = LogLevel::Error;
+					else if (messageLevel == SPV_MSG_WARNING)
+						logLevel = LogLevel::Warning;
+					else
+						return;
+					Log(logLevel, "as", "Shader opt [{0}:{1} @ {2}:{3}]: {4}", sourcePath, variant, pos.line, pos.column, message);
+				});
+				optimizer.RegisterSizePasses();
+				if (!optimizer.Run(unoptimizedSpirvCode.data(), unoptimizedSpirvCode.size(), &optimizedSpirvCode))
+				{
+					Log(LogLevel::Warning, "as", "Shader ({0}:{1}) failed to optimize.", sourcePath, variant);
+					optimizedSpirvCode = unoptimizedSpirvCode;
+				}
+				
+				uint32_t codeSize = optimizedSpirvCode.size() * sizeof(uint32_t);
 				BinWrite(generateContext.outputStream, eg::HashFNV1a32(variant));
 				BinWrite(generateContext.outputStream, codeSize);
-				generateContext.outputStream.write((char*)spirvCode.data(), codeSize);
+				generateContext.outputStream.write((char*)optimizedSpirvCode.data(), codeSize);
 			}
 			
 			return true;
