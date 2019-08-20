@@ -4,7 +4,9 @@
 #include "../Utils.hpp"
 
 #define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
+#include <windows.h>
+
+#undef min
 
 namespace eg
 {
@@ -50,7 +52,7 @@ namespace eg
 			if (fontFileName.empty() || valueNameSize < shortestNameLen)
 			{
 				//Checks if this registry entry's name starts with the font name.
-				if (StringEqualCaseInsensitive({ name, nameLen }, { valueName, min(nameLen, valueNameSize) }))
+				if (StringEqualCaseInsensitive({ name, nameLen }, { valueName, std::min<size_t>(nameLen, valueNameSize) }))
 				{
 					fontFileName.assign(reinterpret_cast<LPSTR>(valueData), valueDataSize);
 					shortestNameLen = valueNameSize;
@@ -63,6 +65,9 @@ namespace eg
 		
 		if (fontFileName.empty())
 			return { };
+		
+		if (fontFileName.size() >= 2 && fontFileName[1] == ':')
+			return fontFileName;
 		
 		char windowsDirPath[MAX_PATH];
 		GetWindowsDirectory(windowsDirPath, MAX_PATH);

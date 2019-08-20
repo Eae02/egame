@@ -45,17 +45,17 @@ namespace eg
 	
 	static std::unique_ptr<SpriteFont> s_devFont;
 	
-	static GlyphRange devFontRanges[] = 
-	{
-		GlyphRange::ASCII,
-		GlyphRange::LatinSupplement,
-		GlyphRange::LatinExtended
-	};
-	
 	void SpriteFont::LoadDevFont()
 	{
 		if (s_devFont != nullptr)
 			return;
+		
+		const GlyphRange devFontRanges[] = 
+		{
+			GlyphRange::ASCII,
+			GlyphRange::LatinSupplement,
+			GlyphRange::LatinExtended
+		};
 		
 #ifdef __EMSCRIPTEN__
 		emscripten_fetch_attr_t attr;

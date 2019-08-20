@@ -26,7 +26,7 @@ namespace eg
 
 	void* DynamicLibrary::GetSymbol(const char* name) const
 	{
-		return GetProcAddress(reinterpret_cast<HMODULE>(m_handle), name);
+		return reinterpret_cast<void*>(GetProcAddress(reinterpret_cast<HMODULE>(m_handle), name));
 	}
 
 	std::string DynamicLibrary::PlatformFormat(std::string_view name)

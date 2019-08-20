@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.12)
 project(EGame)
 
+option(BUILD_TESTS "Whether or not to build tests. Tests require catch2." ON)
+option(BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
+
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
-set(BUILD_DIR_NAME ${CMAKE_BUILD_TYPE})
-if(${CMAKE_CXX_COMPILER} MATCHES "emcc$")
-	set(TARGET_WEB TRUE)
-	set(BUILD_DIR_NAME ${BUILD_DIR_NAME}Web)
-endif()
+set(BUILD_NAME ${CMAKE_BUILD_TYPE}-${CMAKE_SYSTEM_NAME})
+set(OUT_DIR ${CMAKE_SOURCE_DIR}/Bin/${BUILD_NAME})
 
 file(GLOB_RECURSE YAML_SOURCE_FILES Deps/yaml-cpp/src/*.cpp)
 
@@ -37,8 +37,6 @@ if (NOT TARGET_WEB)
 	find_package(ZLIB REQUIRED)
 	find_package(Threads REQUIRED)
 	find_package(Freetype REQUIRED)
-	find_package(GLSLang REQUIRED)
-	find_package(Catch2 REQUIRED)
 	find_package(PkgConfig REQUIRED)
 	
 	pkg_check_modules(SDL2 REQUIRED sdl2)
@@ -52,23 +50,46 @@ if (NOT TARGET_WEB)
 		${CMAKE_DL_LIBS}
 	)
 	
-	add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
-	add_executable(EGTest ${TEST_SOURCE_FILES})
-	
-	target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
-	
 	target_include_directories(EGame PRIVATE
 		${FREETYPE_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
 		${SDL2_INCLUDE_DIRS}
 	)
 	
-	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER})
+	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER} -msse4.1)
 	
-	target_include_directories(EGameAssetGen PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/json/include
-	)
+	if (BUILD_TESTS)
+		find_package(Catch2 REQUIRED)
+		
+		add_executable(EGTest ${TEST_SOURCE_FILES})
+		
+		add_dependencies(EGTest EGame)
+		target_link_libraries(EGTest Catch2::Catch2 EGame)
+		
+		set_target_properties(EGTest PROPERTIES
+			CXX_STANDARD 17
+			RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}
+		)
+	endif()
+	
+	if (BUILD_ASSETGEN)
+		find_package(GLSLang REQUIRED)
+		
+		add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
+		
+		add_dependencies(EGameAssetGen EGame)
+		target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
+		
+		target_include_directories(EGameAssetGen PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+			${CMAKE_CURRENT_SOURCE_DIR}/Deps/json/include
+		)
+		
+		set_target_properties(EGameAssetGen PROPERTIES
+			CXX_STANDARD 17
+			LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
+		)
+	endif()
 endif()
 
 target_link_libraries(EGame PUBLIC yaml-cpp)
@@ -100,8 +121,6 @@ target_compile_options(EGame
 	PRIVATE
 		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
 
-set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${BUILD_DIR_NAME})
-
 set_target_properties(EGame EGSandbox PROPERTIES
 	CXX_STANDARD 17
 	ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
@@ -110,16 +129,20 @@ set_target_properties(EGame EGSandbox PROPERTIES
 )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-	set_target_properties(EGame PROPERTIES
-		CXX_VISIBILITY_PRESET hidden
-		INSTALL_RPATH "$ORIGIN"
-		BUILD_WITH_INSTALL_RPATH TRUE
-	)
 	set_source_files_properties(Src/EGame/Collision.cpp PROPERTIES COMPILE_FLAGS "-O3")
 	target_compile_options(yaml-cpp PRIVATE -fPIC)
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
+endif()
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+	set_target_properties(EGame PROPERTIES
+		CXX_VISIBILITY_PRESET hidden
+		INSTALL_RPATH "$ORIGIN"
+		BUILD_WITH_INSTALL_RPATH TRUE
+	)
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
 	target_link_libraries(EGame PRIVATE shlwapi.lib)
 endif()
 
@@ -142,19 +165,6 @@ if (TARGET_WEB)
 	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
 	target_link_libraries(EGame PRIVATE ${FREETYPE_PATH}/libfreetype.a)
 	target_include_directories(EGame PRIVATE ${FREETYPE_PATH}/include ${FREETYPE_PATH}/include/config)
-	message("Targeting Web")
-else()
-	target_compile_options(EGame PRIVATE -msse4.1)
-	add_dependencies(EGameAssetGen EGame)
-	add_dependencies(EGTest EGameAssetGen EGame)
-	target_link_libraries(EGTest Catch2::Catch2 EGameAssetGen EGame)
-	
-	set_target_properties(EGameAssetGen EGTest PROPERTIES
-		CXX_STANDARD 17
-		ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
-		LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
-		RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}
-	)
 endif()
 
-export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_DIR_NAME}/EGameTargets.cmake)
+export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)

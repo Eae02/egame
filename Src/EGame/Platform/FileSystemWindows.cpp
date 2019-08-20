@@ -1,11 +1,16 @@
 #ifdef _WIN32
 
-#include "FileSystem.hpp"
-#include "../Utils.hpp"
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#endif
 
 #define WIN32_LEAN_AND_MEAN
 #define WINVER 0x0600
 #define _WIN32_WINNT 0x0600
+
+#include "FileSystem.hpp"
+#include "../Utils.hpp"
+
 #include <windows.h>
 #include <shlobj.h>
 #include <shlwapi.h>

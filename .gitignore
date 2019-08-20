@@ -4,9 +4,7 @@
 .vscode
 .idea
 Install
-CMake/Debug
-CMake/DebugWeb
-CMake/Release
+CMake/*/EGameTargets.cmake
 Src/Shaders/**/*.h
 Src/Sandbox/SandboxAssets/.AssetCache
 Bin
