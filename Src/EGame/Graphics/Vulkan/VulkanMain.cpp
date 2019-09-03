@@ -109,6 +109,8 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
+	static SDL_Window* vulkanWindow;
+	
 	static void CreateSwapchain()
 	{
 		vkQueueWaitIdle(ctx.mainQueue);
@@ -117,12 +119,18 @@ namespace eg::graphics_api::vk
 		CheckRes(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.physDevice, ctx.surface, &capabilities));
 		ctx.surfaceExtent = capabilities.currentExtent;
 		
+		if (ctx.surfaceExtent.width == 0xFFFFFFFF)
+		{
+			SDL_GetWindowSize(vulkanWindow, reinterpret_cast<int*>(&ctx.surfaceExtent.width),
+			                  reinterpret_cast<int*>(&ctx.surfaceExtent.height));
+		}
+		
 		VkSwapchainCreateInfoKHR swapchainCreateInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 		swapchainCreateInfo.surface = ctx.surface;
 		swapchainCreateInfo.minImageCount = std::max<uint32_t>(capabilities.minImageCount, 3);
 		swapchainCreateInfo.imageFormat = ctx.surfaceFormat.format;
 		swapchainCreateInfo.imageColorSpace = ctx.surfaceFormat.colorSpace;
-		swapchainCreateInfo.imageExtent = capabilities.currentExtent;
+		swapchainCreateInfo.imageExtent = ctx.surfaceExtent;
 		swapchainCreateInfo.imageArrayLayers = 1;
 		swapchainCreateInfo.preTransform = capabilities.currentTransform;
 		swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -439,6 +447,7 @@ namespace eg::graphics_api::vk
 			ctx.physDevice = physicalDevice;
 			ctx.deviceName = deviceProperties.deviceName;
 			ctx.deviceVendorName = GetVendorName(deviceProperties.vendorID);
+			vulkanWindow = initArguments.window;
 			
 			Log(LogLevel::Info, "vk", "Using vulkan device: '{0}'", deviceProperties.deviceName);
 			
