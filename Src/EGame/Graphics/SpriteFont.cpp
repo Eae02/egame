@@ -1,14 +1,11 @@
 #include "SpriteFont.hpp"
 #include "../Utils.hpp"
 #include "../Platform/FontConfig.hpp"
+#include "../../Assets/DevFont.fnt.h"
+#include "../../Assets/DevFont.png.h"
 
 #include <fstream>
 #include <utf8.h>
-
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#include <emscripten/fetch.h>
-#endif
 
 namespace eg
 {
@@ -50,63 +47,16 @@ namespace eg
 		if (s_devFont != nullptr)
 			return;
 		
-		const GlyphRange devFontRanges[] = 
+		if (std::optional<FontAtlas> atlas = FontAtlas::FromFNTMemory(
+			Span<const char>(reinterpret_cast<const char*>(DevFont_fnt), DevFont_fnt_len),
+			Span<const char>(reinterpret_cast<const char*>(DevFont_png), DevFont_png_len)))
 		{
-			GlyphRange::ASCII,
-			GlyphRange::LatinSupplement,
-			GlyphRange::LatinExtended
-		};
-		
-#ifdef __EMSCRIPTEN__
-		emscripten_fetch_attr_t attr;
-		emscripten_fetch_attr_init(&attr);
-		std::strcpy(attr.requestMethod, "GET");
-		attr.attributes = EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
-		attr.onsuccess = [] (emscripten_fetch_t* fetch)
-		{
-			Span<const char> dataSpan(fetch->data, fetch->numBytes);
-			if (std::optional<FontAtlas> atlas = FontAtlas::Render(dataSpan, 14, devFontRanges))
-			{
-				s_devFont = std::make_unique<SpriteFont>(std::move(*atlas));
-				Log(LogLevel::Info, "fnt", "Loaded dev font (atlas size: {0}x{1})",
-					s_devFont->AtlasWidth(), s_devFont->AtlasHeight());
-			}
-			
-			emscripten_fetch_close(fetch);
-		};
-		attr.onerror = [] (emscripten_fetch_t* fetch)
-		{
-			EG_PANIC("Dev font failed to load");
-			emscripten_fetch_close(fetch);
-		};
-		emscripten_fetch(&attr, "https://fontlibrary.org/assets/fonts/source-code-pro/8733444bf1b52108e4cad8cfcbc40e15/cc35f676db8d665e341971d0c290c03c/SourceCodeProRegular.ttf");
-#else
-		const char* devFontNames[] =
-		{
-			"Source Code Pro",
-			"Ubuntu Mono",
-			"Droid Sans Mono",
-			"DejaVu Sans Mono",
-			"Consolas"
-		};
-		
-		for (const char* devFontName : devFontNames)
-		{
-			std::string fontPath = GetFontPathByName(devFontName);
-			if (!fontPath.empty())
-			{
-				if (std::optional<FontAtlas> atlas = FontAtlas::Render(fontPath, 14, devFontRanges))
-				{
-					s_devFont = std::make_unique<SpriteFont>(std::move(*atlas));
-					Log(LogLevel::Info, "fnt", "Loaded dev font '{0}' (atlas size: {1}x{2})", fontPath,
-						s_devFont->AtlasWidth(), s_devFont->AtlasHeight());
-				}
-				return;
-			}
+			s_devFont = std::make_unique<SpriteFont>(std::move(*atlas));
 		}
-		
-		Log(LogLevel::Warning, "fnt", "Dev font failed to load: no suitable font was found");
-#endif
+		else
+		{
+			Log(LogLevel::Warning, "fnt", "Dev font failed to load");
+		}
 	}
 	
 	bool SpriteFont::IsDevFontLoaded()

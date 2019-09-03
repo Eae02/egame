@@ -5,12 +5,15 @@
 #include "../Platform/DynamicLibrary.hpp"
 
 #include <fstream>
+#include <string_view>
 #include <utf8.h>
 #include <stb_rect_pack.h>
 #include <stb_image.h>
 
+#ifndef __EMSCRIPTEN__
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#endif
 
 namespace eg
 {
@@ -30,7 +33,6 @@ namespace eg
 	
 #ifndef __EMSCRIPTEN__
 	static DynamicLibrary ftDynLibrary;
-#endif
 	
 	static FT_Library ftLibrary = nullptr;
 	
@@ -49,18 +51,7 @@ namespace eg
 	{
 		if (ftLibrary == nullptr)
 		{
-#ifdef __EMSCRIPTEN__
-			#define LOAD_FREETYPE_FUNC(name) ft::name = &::FT_ ## name;
-#else
-			std::string libName = DynamicLibrary::PlatformFormat("freetype");
-			if (!ftDynLibrary.Open(libName.c_str()))
-			{
-				Log(LogLevel::Error, "fnt", "Failed to load FreeType library.");
-				return false;
-			}
-			
-#define LOAD_FREETYPE_FUNC(name) ft::name = reinterpret_cast<decltype(ft::name)>(ftDynLibrary.GetSymbol("FT_" #name));
-#endif
+			#define LOAD_FREETYPE_FUNC(name) ft::name = reinterpret_cast<decltype(ft::name)>(ftDynLibrary.GetSymbol("FT_" #name));
 			LOAD_FREETYPE_FUNC(Init_FreeType)
 			LOAD_FREETYPE_FUNC(New_Memory_Face)
 			LOAD_FREETYPE_FUNC(New_Face)
@@ -76,10 +67,14 @@ namespace eg
 		}
 		return true;
 	}
+#endif
 	
 	std::optional<FontAtlas> FontAtlas::Render(Span<const char> data, uint32_t size,
 		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
+#ifdef __EMSCRIPTEN__
+		return { };
+#else
 		if (!MaybeInitFreeType())
 			return { };
 		
@@ -88,11 +83,15 @@ namespace eg
 			data.SizeBytes(), 0, &face);
 		
 		return RenderFreeType(face, loadState, "memory", size, glyphRanges, atlasWidth, atlasHeight);
+#endif
 	}
 	
 	std::optional<FontAtlas> FontAtlas::Render(const std::string& fontPath, uint32_t size,
 		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
+#ifdef __EMSCRIPTEN__
+		return { };
+#else
 		if (!MaybeInitFreeType())
 			return { };
 		
@@ -100,8 +99,10 @@ namespace eg
 		FT_Error loadState = ft::New_Face(ftLibrary, fontPath.c_str(), 0, &face);
 		
 		return RenderFreeType(face, loadState, fontPath, size, glyphRanges, atlasWidth, atlasHeight);
+#endif
 	}
 	
+#ifndef __EMSCRIPTEN__
 	std::optional<FontAtlas> FontAtlas::RenderFreeType(void* faceVP, int loadState, std::string_view fontName,
 		uint32_t size, Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
@@ -237,16 +238,11 @@ namespace eg
 		
 		return atlas;
 	}
+#endif
 	
-	std::optional<FontAtlas> FontAtlas::FromFNT(const std::string& path)
+	template <typename ReadLineCB, typename LoadImageCB>
+	std::optional<FontAtlas> FontAtlas::FromFNTInternal(ReadLineCB readLineCB, LoadImageCB loadImage, std::string_view name)
 	{
-		std::ifstream stream(path, std::ios::binary);
-		if (!stream.good())
-		{
-			Log(LogLevel::Error, "fnt", "Error opening font file '{0}'", path);
-			return { };
-		}
-		
 		FontAtlas atlas;
 		
 		std::vector<std::string_view> parts;
@@ -255,11 +251,11 @@ namespace eg
 		
 		auto PrintMalformatted = [&]
 		{
-			Log(LogLevel::Error, "fnt", "Malformatted font file '{0}'", path);
+			Log(LogLevel::Error, "fnt", "Malformatted font file '{0}'", name);
 		};
 		
 		std::string line;
-		while (std::getline(stream, line))
+		while (readLineCB(line))
 		{
 			std::string_view lineView = TrimString(line);
 			if (lineView.empty())
@@ -292,11 +288,11 @@ namespace eg
 						}
 						catch (const std::exception& ex)
 						{
-							return -1;
+							return INT_MIN;
 						}
 					}
 				}
-				return -1;
+				return INT_MIN;
 			};
 			
 			if (IsCommand("common"))
@@ -304,7 +300,7 @@ namespace eg
 				atlas.m_lineHeight = GetPartValueI("lineHeight");
 				atlas.m_size = GetPartValueI("base");
 				
-				if (atlas.m_lineHeight == -1 || atlas.m_size == -1)
+				if (atlas.m_lineHeight == INT_MIN || atlas.m_size == INT_MIN)
 				{
 					PrintMalformatted();
 					return { };
@@ -312,7 +308,7 @@ namespace eg
 				
 				if (GetPartValueI("pages") > 1)
 				{
-					Log(LogLevel::Error, "fnt", "{0}: Multipage FNT is not supported.", path);
+					Log(LogLevel::Error, "fnt", "{0}: Multipage FNT is not supported.", name);
 				}
 			}
 			else if (IsCommand("page"))
@@ -345,11 +341,17 @@ namespace eg
 				const int xOffset = GetPartValueI("xoffset");
 				const int yOffset = GetPartValueI("yoffset");
 				const int xAdvance = GetPartValueI("xadvance");
-				if (id == -1 || x == -1 || y == -1 || width == -1 || height == -1 ||
-				    xOffset == -1 || yOffset == -1 || xAdvance == -1)
+				if (id == INT_MIN || x == INT_MIN || y == INT_MIN || width == INT_MIN || height == INT_MIN ||
+				    xOffset == INT_MIN || yOffset == INT_MIN || xAdvance == INT_MIN)
 				{
 					PrintMalformatted();
 					return {};
+				}
+				
+				if (id == ' ')
+				{
+					atlas.m_spaceAdvance = xAdvance;
+					continue;
 				}
 				
 				Character& character = atlas.m_characters.emplace_back();
@@ -359,14 +361,14 @@ namespace eg
 				character.width = (uint16_t)width;
 				character.height = (uint16_t)height;
 				character.xOffset = xOffset;
-				character.yOffset = yOffset;
+				character.yOffset = atlas.m_lineHeight - yOffset;
 				character.xAdvance = xAdvance;
 			}
 			else if (IsCommand("kerning"))
 			{
 				const int first = GetPartValueI("first");
 				const int second = GetPartValueI("second");
-				if (first == -1 || second == -1)
+				if (first == INT_MIN || second == INT_MIN)
 				{
 					PrintMalformatted();
 					return {};
@@ -376,16 +378,8 @@ namespace eg
 			}
 		}
 		
-		std::string fullImagePath = std::string(ParentPath(path)) + imageFileName;
-		atlas.m_atlasData.data = stbi_load(fullImagePath.c_str(), reinterpret_cast<int*>(&atlas.m_atlasData.width),
-			reinterpret_cast<int*>(&atlas.m_atlasData.height), nullptr, 1);
-		
-		if (atlas.m_atlasData.data == nullptr)
-		{
-			Log(LogLevel::Error, "fnt", "Error loading image file '{0}' referenced by '{1}': {2}",
-				imageFileName, path, stbi_failure_reason());
+		if (!loadImage(imageFileName, atlas.m_atlasData))
 			return { };
-		}
 		
 		std::sort(atlas.m_characters.begin(), atlas.m_characters.end(), [&] (const Character& a, const Character& b)
 		{
@@ -395,6 +389,75 @@ namespace eg
 		std::sort(atlas.m_kerningPairs.begin(), atlas.m_kerningPairs.end(), KerningPairCompare());
 		
 		return atlas;
+	}
+	
+	std::optional<FontAtlas> FontAtlas::FromFNTMemory(Span<const char> fntData, Span<const char> imgData)
+	{
+		size_t curDataPos = 0;
+		std::string_view dataStr(fntData.data(), fntData.size());
+		
+		return FromFNTInternal(
+			[&] (std::string& lineOut) {
+				if (curDataPos == dataStr.size())
+					return false;
+				size_t endLn = dataStr.find('\n', curDataPos);
+				if (endLn == std::string_view::npos)
+				{
+					lineOut = dataStr.substr(curDataPos);
+					curDataPos = dataStr.size();
+				}
+				else
+				{
+					lineOut = dataStr.substr(curDataPos, endLn);
+					curDataPos = endLn + 1;
+				}
+				return true;
+			},
+			[&] (const std::string& imageName, struct AtlasData& data)
+			{
+				data.data = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(imgData.data()), imgData.size(),
+					reinterpret_cast<int*>(&data.width), reinterpret_cast<int*>(&data.height), nullptr, 1);
+				
+				if (data.data == nullptr)
+				{
+					Log(LogLevel::Error, "fnt", "Error loading image file from memory: {0}", stbi_failure_reason());
+					return false;
+				}
+				
+				return true;
+			},
+			"memory"
+		);
+	}
+	
+	std::optional<FontAtlas> FontAtlas::FromFNT(const std::string& path)
+	{
+		std::ifstream stream(path, std::ios::binary);
+		if (!stream.good())
+		{
+			Log(LogLevel::Error, "fnt", "Error opening font file '{0}'", path);
+			return { };
+		}
+		
+		return FromFNTInternal(
+			[&] (std::string& lineOut) { return (bool)std::getline(stream, lineOut); },
+			[&] (const std::string& imageName, struct AtlasData& data)
+			{
+				std::string fullImagePath = std::string(ParentPath(path)) + imageName;
+				data.data = stbi_load(fullImagePath.c_str(), reinterpret_cast<int*>(&data.width),
+					reinterpret_cast<int*>(&data.height), nullptr, 1);
+				
+				if (data.data == nullptr)
+				{
+					Log(LogLevel::Error, "fnt", "Error loading image file '{0}' referenced by '{1}': {2}",
+						imageName, path, stbi_failure_reason());
+					return false;
+				}
+				
+				return true;
+			},
+			path
+		);
 	}
 	
 	const Character* FontAtlas::GetCharacter(uint32_t c) const
@@ -428,6 +491,11 @@ namespace eg
 		for (auto it = text.begin(); it != text.end();)
 		{
 			const uint32_t c = utf8::unchecked::next(it);
+			if (c == ' ')
+			{
+				x += m_spaceAdvance;
+				continue;
+			}
 			
 			const Character* fontChar = GetCharacter(c);
 			if (fontChar == nullptr)

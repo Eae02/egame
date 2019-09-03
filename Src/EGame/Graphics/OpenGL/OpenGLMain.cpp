@@ -118,7 +118,7 @@ namespace eg::graphics_api::gl
 	bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
 #ifdef __EMSCRIPTEN__
-		if (initArguments.forceDepthZeroOne)
+		if (initArguments.forceDepthZeroToOne)
 			return false;
 		
 		eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -213,18 +213,20 @@ namespace eg::graphics_api::gl
 				messageStream << "Required OpenGL extension " << ext << " is not supported by your graphics driver.";
 				std::string message = messageStream.str();
 				std::cout << message << std::endl;
-#ifdef __EMSCRIPTEN__
+#ifndef __EMSCRIPTEN__
 				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL", message.c_str(), nullptr);
 #endif
 				return false;
 			}
 		}
 		
+#ifndef __EMSCRIPTEN__
 		if (initArguments.forceDepthZeroToOne)
 		{
 			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 			depthRange = DepthRange::ZeroToOne;
 		}
+#endif
 		
 		if (initArguments.defaultDepthStencilFormat == Format::Depth32 ||
 		    initArguments.defaultDepthStencilFormat == Format::Depth16)

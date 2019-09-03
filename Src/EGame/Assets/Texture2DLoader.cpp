@@ -36,7 +36,7 @@ namespace eg
 		
 		SamplerDescription sampler;
 		sampler.maxAnistropy = (header->flags & TF_Anistropy) ? 16 : 0;
-		auto filter = (header->flags & TF_Anistropy) ? eg::TextureFilter::Linear : eg::TextureFilter::Nearest;
+		auto filter = (header->flags & TF_LinearFiltering) ? eg::TextureFilter::Linear : eg::TextureFilter::Nearest;
 		sampler.minFilter = sampler.magFilter = filter;
 		
 		uint32_t mipShift = std::min((uint32_t)header->mipShifts[(int)TextureAssetQuality], header->numMipLevels - 1);

@@ -30,10 +30,10 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 
 add_library(yaml-cpp STATIC ${YAML_SOURCE_FILES})
-add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c)
+add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
-if (NOT TARGET_WEB)
+if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(ZLIB REQUIRED)
 	find_package(Threads REQUIRED)
 	find_package(Freetype REQUIRED)
@@ -121,6 +121,8 @@ target_compile_options(EGame
 	PRIVATE
 		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
 
+set_target_properties(yaml-cpp PROPERTIES CXX_STANDARD 17)
+
 set_target_properties(EGame EGSandbox PROPERTIES
 	CXX_STANDARD 17
 	ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
@@ -151,7 +153,7 @@ set_target_properties(EGame PROPERTIES DEFINE_SYMBOL "EG_BUILDING_LIB")
 add_dependencies(EGSandbox EGame)
 target_link_libraries(EGSandbox EGame)
 
-if (TARGET_WEB)
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	set(EMCC_FLAGS "-s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -s FORCE_FILESYSTEM=1 -s FETCH=1")
 	
 	if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
@@ -160,11 +162,11 @@ if (TARGET_WEB)
 		target_compile_options(EGSandbox PRIVATE -g4)
 	endif()
 	
+	set_target_properties(EGSandbox PROPERTIES OUTPUT_NAME game)
+	
 	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -s USE_ZLIB=1)
 	set_target_properties(EGame PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
 	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
-	target_link_libraries(EGame PRIVATE ${FREETYPE_PATH}/libfreetype.a)
-	target_include_directories(EGame PRIVATE ${FREETYPE_PATH}/include ${FREETYPE_PATH}/include/config)
 endif()
 
 export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)

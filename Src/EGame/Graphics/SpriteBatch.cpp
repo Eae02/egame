@@ -260,6 +260,11 @@ namespace eg
 		for (auto it = text.begin(); it != text.end();)
 		{
 			const uint32_t c = utf8::unchecked::next(it);
+			if (c == ' ')
+			{
+				x += font.SpaceAdvance();
+				continue;
+			}
 			
 			const Character* fontChar = font.GetCharacter(c);
 			if (fontChar == nullptr)

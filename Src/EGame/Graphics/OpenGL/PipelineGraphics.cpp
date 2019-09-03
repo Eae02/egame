@@ -148,21 +148,21 @@ namespace eg::graphics_api::gl
 			
 #ifdef EG_GLES
 			//Renames interface variables
-			for (uint32_t ivar : module->spvCompiler.get_active_interface_variables())
+			for (uint32_t ivar : compiler->get_active_interface_variables())
 			{
-				spv::StorageClass storageClass = module->spvCompiler.get_storage_class(ivar);
-				uint32_t location = module->spvCompiler.get_decoration(ivar, spv::DecorationLocation);
+				spv::StorageClass storageClass = compiler->get_storage_class(ivar);
+				uint32_t location = compiler->get_decoration(ivar, spv::DecorationLocation);
 				if (storageClass == spv::StorageClassInput && expectedStage != ShaderStage::Vertex)
 				{
 					std::ostringstream nameStream;
 					nameStream << "_io" << currentIOGroup << "_" << location;
-					module->spvCompiler.set_name(ivar, nameStream.str());
+					compiler->set_name(ivar, nameStream.str());
 				}
 				else if (storageClass == spv::StorageClassOutput && expectedStage != ShaderStage::Fragment)
 				{
 					std::ostringstream nameStream;
 					nameStream << "_io" << (currentIOGroup + 1) << "_" << location;
-					module->spvCompiler.set_name(ivar, nameStream.str());
+					compiler->set_name(ivar, nameStream.str());
 				}
 			}
 			currentIOGroup++;

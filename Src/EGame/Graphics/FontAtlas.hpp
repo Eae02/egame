@@ -4,6 +4,9 @@
 #include "../Span.hpp"
 #include "../Utils.hpp"
 
+#include <optional>
+#include <vector>
+
 namespace eg
 {
 	struct Character
@@ -97,6 +100,8 @@ namespace eg
 		 */
 		static std::optional<FontAtlas> FromFNT(const std::string& path);
 		
+		static std::optional<FontAtlas> FromFNTMemory(Span<const char> fntData, Span<const char> imgData);
+		
 		float LineHeight() const
 		{
 			return m_lineHeight;
@@ -143,6 +148,9 @@ namespace eg
 		}
 		
 	private:
+		template <typename ReadLineCB, typename LoadImageCB>
+		static std::optional<FontAtlas> FromFNTInternal(ReadLineCB readLineCB, LoadImageCB loadImage, std::string_view name);
+		
 		static std::optional<FontAtlas> RenderFreeType(void* face, int loadState, std::string_view fontName,
 			uint32_t size, Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight);
 		

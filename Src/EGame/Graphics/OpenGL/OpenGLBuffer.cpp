@@ -183,7 +183,13 @@ namespace eg::graphics_api::gl
 		buffer->ChangeUsage(BufferUsage::CopyDst);
 		
 		BindTempBuffer(buffer->buffer);
+#ifdef EG_GLES
+		std::vector<char> dataVec(size);
+		memset(dataVec.data(), data, size);
+		glBufferSubData(TEMP_BUFFER_BINDING, offset, size, dataVec.data());
+#else
 		glClearBufferData(TEMP_BUFFER_BINDING, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &data);
+#endif
 	}
 	
 	void CopyBuffer(CommandContextHandle, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
@@ -274,6 +280,7 @@ namespace eg::graphics_api::gl
 	
 	void Buffer::ChangeUsage(BufferUsage newUsage)
 	{
+#ifndef EG_GLES
 		if (currentUsage == BufferUsage::StorageBufferWrite || currentUsage == BufferUsage::StorageBufferReadWrite)
 		{
 			MaybeBarrierAfterSSBO(newUsage);
@@ -282,6 +289,7 @@ namespace eg::graphics_api::gl
 		{
 			MaybeInsertBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 		}
+#endif
 		currentUsage = newUsage;
 	}
 }

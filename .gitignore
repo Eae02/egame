@@ -7,5 +7,6 @@ Install
 CMake/*/EGameTargets.cmake
 Src/Shaders/**/*.h
 Src/Sandbox/SandboxAssets/.AssetCache
+Src/Font.h
 Bin
 *.gch
