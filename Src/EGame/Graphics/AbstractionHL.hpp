@@ -127,7 +127,7 @@ namespace eg
 	class EG_API BufferRef
 	{
 	public:
-		explicit BufferRef(BufferHandle _handle = nullptr)
+		BufferRef(BufferHandle _handle = nullptr)
 			: handle(_handle) { }
 		
 		void* Map(uint64_t offset, uint64_t range)
