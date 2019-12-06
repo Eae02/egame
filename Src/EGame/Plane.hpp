@@ -4,6 +4,7 @@
 
 namespace eg
 {
+	//Plane of points p satisfying the equation N * p = D
 	class EG_API Plane
 	{
 	public:
