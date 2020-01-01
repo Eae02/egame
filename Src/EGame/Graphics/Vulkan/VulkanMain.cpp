@@ -257,7 +257,8 @@ namespace eg::graphics_api::vk
 	{
 		VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
 		VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-		VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME
+		VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
+		VK_KHR_BIND_MEMORY_2_EXTENSION_NAME
 	};
 	
 	std::string_view GetVendorName(uint32_t id)
@@ -515,6 +516,7 @@ namespace eg::graphics_api::vk
 		const bool hasDedicatedAllocation =
 			OptionalExtensionAvailable(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME) &&
 			OptionalExtensionAvailable(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME) && !renderdoc::IsPresent();
+		const bool hasBindMemory2 = OptionalExtensionAvailable(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME);
 		
 		VkDeviceCreateInfo deviceCreateInfo =
 		{
@@ -586,6 +588,8 @@ namespace eg::graphics_api::vk
 		allocatorVulkanFunctions.vkFreeMemory = vkFreeMemory;
 		allocatorVulkanFunctions.vkMapMemory = vkMapMemory;
 		allocatorVulkanFunctions.vkUnmapMemory = vkUnmapMemory;
+		allocatorVulkanFunctions.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
+		allocatorVulkanFunctions.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
 		allocatorVulkanFunctions.vkBindBufferMemory = vkBindBufferMemory;
 		allocatorVulkanFunctions.vkBindImageMemory = vkBindImageMemory;
 		allocatorVulkanFunctions.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
@@ -594,6 +598,7 @@ namespace eg::graphics_api::vk
 		allocatorVulkanFunctions.vkDestroyBuffer = vkDestroyBuffer;
 		allocatorVulkanFunctions.vkCreateImage = vkCreateImage;
 		allocatorVulkanFunctions.vkDestroyImage = vkDestroyImage;
+		allocatorVulkanFunctions.vkCmdCopyBuffer = vkCmdCopyBuffer;
 		
 		VmaAllocatorCreateInfo allocatorCreateInfo = { };
 		allocatorCreateInfo.physicalDevice = ctx.physDevice;
@@ -605,6 +610,12 @@ namespace eg::graphics_api::vk
 			allocatorVulkanFunctions.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2KHR;
 			allocatorVulkanFunctions.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2KHR;
 			allocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
+		}
+		if (hasBindMemory2)
+		{
+			allocatorVulkanFunctions.vkBindBufferMemory2KHR = vkBindBufferMemory2KHR;
+			allocatorVulkanFunctions.vkBindImageMemory2KHR = vkBindImageMemory2KHR;
+			allocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
 		}
 		CheckRes(vmaCreateAllocator(&allocatorCreateInfo, &ctx.allocator));
 		
