@@ -16,8 +16,8 @@ namespace eg
 		uint16_t textureY;
 		uint16_t width;
 		uint16_t height;
-		int xOffset;
-		int yOffset;
+		int32_t xOffset;
+		int32_t yOffset;
 		float xAdvance;
 	};
 	
@@ -25,7 +25,7 @@ namespace eg
 	{
 		uint32_t first;
 		uint32_t second;
-		int amount;
+		int32_t amount;
 	};
 	
 	struct EG_API GlyphRange
@@ -101,6 +101,9 @@ namespace eg
 		static std::optional<FontAtlas> FromFNT(const std::string& path);
 		
 		static std::optional<FontAtlas> FromFNTMemory(Span<const char> fntData, Span<const char> imgData);
+		
+		void Serialize(std::ostream& stream) const;
+		static FontAtlas Deserialize(std::istream& stream);
 		
 		float LineHeight() const
 		{

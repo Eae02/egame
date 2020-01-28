@@ -3,6 +3,7 @@
 #include "../Log.hpp"
 #include "../Platform/FileSystem.hpp"
 #include "../Platform/DynamicLibrary.hpp"
+#include "../IOUtils.hpp"
 
 #include <fstream>
 #include <string_view>
@@ -51,6 +52,13 @@ namespace eg
 	{
 		if (ftLibrary == nullptr)
 		{
+			std::string name = DynamicLibrary::PlatformFormat("freetype");
+			if (!ftDynLibrary.Open(name.c_str()))
+			{
+				Log(LogLevel::Error, "fnt", "Error opening FreeType library.");
+				return false;
+			}
+			
 			#define LOAD_FREETYPE_FUNC(name) ft::name = reinterpret_cast<decltype(ft::name)>(ftDynLibrary.GetSymbol("FT_" #name));
 			LOAD_FREETYPE_FUNC(Init_FreeType)
 			LOAD_FREETYPE_FUNC(New_Memory_Face)
@@ -571,5 +579,43 @@ namespace eg
 			data = static_cast<uint8_t*>(std::malloc(dataSize));
 			std::memcpy(data, other.data, dataSize);
 		}
+	}
+	
+	void FontAtlas::Serialize(std::ostream& stream) const
+	{
+		BinWrite<uint32_t>(stream, m_size);
+		BinWrite<float>(stream, m_lineHeight);
+		BinWrite<float>(stream, m_spaceAdvance);
+		BinWrite(stream, (uint32_t)m_characters.size());
+		BinWrite(stream, (uint32_t)m_kerningPairs.size());
+		BinWrite(stream, (uint32_t)m_atlasData.width);
+		BinWrite(stream, (uint32_t)m_atlasData.height);
+		
+		stream.write(reinterpret_cast<const char*>(m_characters.data()), m_characters.size() * sizeof(Character));
+		stream.write(reinterpret_cast<const char*>(m_kerningPairs.data()), m_kerningPairs.size() * sizeof(KerningPair));
+		stream.write(reinterpret_cast<const char*>(m_atlasData.data), m_atlasData.width * m_atlasData.height);
+	}
+	
+	FontAtlas FontAtlas::Deserialize(std::istream& stream)
+	{
+		FontAtlas atlas;
+		atlas.m_size             = BinRead<uint32_t>(stream);
+		atlas.m_lineHeight       = BinRead<float>(stream);
+		atlas.m_spaceAdvance     = BinRead<float>(stream);
+		uint32_t numChars        = BinRead<uint32_t>(stream);
+		uint32_t numKerningPairs = BinRead<uint32_t>(stream);
+		atlas.m_atlasData.width  = BinRead<uint32_t>(stream);
+		atlas.m_atlasData.height = BinRead<uint32_t>(stream);
+		size_t dataBytes         = (size_t)atlas.m_atlasData.width * (size_t)atlas.m_atlasData.height;
+		
+		atlas.m_characters.resize(numChars);
+		atlas.m_kerningPairs.resize(numKerningPairs);
+		atlas.m_atlasData.data = (uint8_t*)std::malloc(dataBytes);
+		
+		stream.read(reinterpret_cast<char*>(atlas.m_characters.data()), numChars * sizeof(Character));
+		stream.read(reinterpret_cast<char*>(atlas.m_kerningPairs.data()), numKerningPairs * sizeof(KerningPair));
+		stream.read(reinterpret_cast<char*>(atlas.m_atlasData.data), dataBytes);
+		
+		return atlas;
 	}
 }

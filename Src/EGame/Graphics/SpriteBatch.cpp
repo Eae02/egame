@@ -225,7 +225,7 @@ namespace eg
 	}
 	
 	void SpriteBatch::DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-		const ColorLin& color, float scale, float lineSpacing, glm::vec2* sizeOut)
+		const ColorLin& color, float scale, float lineSpacing, glm::vec2* sizeOut, TextFlags flags)
 	{
 		float maxW = 0;
 		float yOffset = 0;
@@ -233,7 +233,7 @@ namespace eg
 		IterateStringParts(text, '\n', [&] (std::string_view line)
 		{
 			glm::vec2 lineSize;
-			DrawText(font, line, glm::vec2(position.x, position.y - scale - yOffset), color, scale, &lineSize);
+			DrawText(font, line, glm::vec2(position.x, position.y - scale - yOffset), color, scale, &lineSize, flags);
 			yOffset += font.LineHeight() * scale + lineSpacing;
 			maxW = std::max(maxW, lineSize.x);
 		});
@@ -246,7 +246,7 @@ namespace eg
 	}
 	
 	void SpriteBatch::DrawText(const SpriteFont& font, std::string_view text, const glm::vec2& position,
-		const ColorLin& color, float scale, glm::vec2* sizeOut)
+		const ColorLin& color, float scale, glm::vec2* sizeOut, TextFlags flags)
 	{
 		if (sizeOut == nullptr)
 		{
@@ -273,10 +273,16 @@ namespace eg
 			const int kerning = font.GetKerning(prev, c);
 			
 			Rectangle rectangle;
-			rectangle.x = std::round(position.x + (x + fontChar->xOffset + kerning) * scale);
-			rectangle.y = std::round(position.y - (0 - fontChar->yOffset + fontChar->height) * scale);
+			rectangle.x = position.x + (x + fontChar->xOffset + kerning) * scale;
+			rectangle.y = position.y - (0 - fontChar->yOffset + fontChar->height) * scale;
 			rectangle.w = fontChar->width * scale;
 			rectangle.h = fontChar->height * scale;
+			
+			if (!HasFlag(flags, TextFlags::NoPixelAlign))
+			{
+				rectangle.x = std::round(rectangle.x);
+				rectangle.y = std::round(rectangle.y);
+			}
 			
 			Rectangle srcRectangle(fontChar->textureX, fontChar->textureY, fontChar->width, fontChar->height);
 			

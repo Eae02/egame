@@ -69,6 +69,11 @@ namespace eg
 		{
 			return ColorLin(r * scale, g * scale, b * scale, a);
 		}
+		
+		static ColorLin Mix(const ColorLin& c0, const ColorLin& c1, float a)
+		{
+			return ColorLin(glm::mix(c0.r, c1.r, a), glm::mix(c0.g, c1.g, a), glm::mix(c0.b, c1.b, a), glm::mix(c0.a, c1.a, a));
+		}
 	};
 	
 	/**

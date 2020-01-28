@@ -19,6 +19,14 @@ namespace eg
 	
 	EG_BIT_FIELD(SpriteFlags)
 	
+	enum class TextFlags
+	{
+		None = 0,
+		NoPixelAlign = 1
+	};
+	
+	EG_BIT_FIELD(TextFlags)
+	
 	class EG_API SpriteBatch
 	{
 	public:
@@ -63,10 +71,10 @@ namespace eg
 			const Rectangle& texRectangle, SpriteFlags flipFlags);
 		
 		void DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-			const ColorLin& color, float scale = 1, float lineSpacing = 0, glm::vec2* sizeOut = nullptr);
+			const ColorLin& color, float scale = 1, float lineSpacing = 0, glm::vec2* sizeOut = nullptr, TextFlags flags = TextFlags::None);
 		
 		void DrawText(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-			const ColorLin& color, float scale = 1, glm::vec2* sizeOut = nullptr);
+			const ColorLin& color, float scale = 1, glm::vec2* sizeOut = nullptr, TextFlags flags = TextFlags::None);
 		
 		void DrawRectBorder(const Rectangle& rectangle, const ColorLin& color, float width = 1);
 		

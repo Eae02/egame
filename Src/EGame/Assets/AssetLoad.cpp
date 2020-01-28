@@ -2,6 +2,7 @@
 #include "ShaderModule.hpp"
 #include "Texture2DLoader.hpp"
 #include "ModelAsset.hpp"
+#include "SpriteFontLoader.hpp"
 #include "../Graphics/StdVertex.hpp"
 #include "../Graphics/Particles/ParticleEmitterType.hpp"
 #include "../Log.hpp"
@@ -58,6 +59,7 @@ namespace eg
 		RegisterAssetLoader("Texture2D", &Texture2DLoader, Texture2DAssetFormat);
 		RegisterAssetLoader("Model", &ModelAssetLoader, ModelAssetFormat);
 		RegisterAssetLoader("ParticleEmitter", &ParticleEmitterType::AssetLoader, ParticleEmitterType::AssetFormat);
+		RegisterAssetLoader("SpriteFont", &SpriteFontLoader, SpriteFontAssetFormat);
 		
 		DefineModelVertexType<StdVertex>();
 		
@@ -67,5 +69,6 @@ namespace eg
 		BindAssetExtension("gltf", "Model", "GLTFModel");
 		BindAssetExtension("glb", "Model", "GLTFModel");
 		BindAssetExtension("ype", "ParticleEmitter", "ParticleEmitter");
+		BindAssetExtension("ttf", "SpriteFont", "Font");
 	}
 }
