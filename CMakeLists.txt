@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 project(EGame)
 
-option(BUILD_TESTS "Whether or not to build tests. Tests require catch2." ON)
 option(BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
@@ -13,7 +12,6 @@ file(GLOB_RECURSE YAML_SOURCE_FILES Deps/yaml-cpp/src/*.cpp)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
-file(GLOB_RECURSE TEST_SOURCE_FILES Test/*.cpp)
 
 set(SPIRV_CROSS_SOURCE_FILES
 	Deps/spirv_cross/spirv_cross.cpp
@@ -57,20 +55,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	)
 	
 	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER} -msse4.1)
-	
-	if (BUILD_TESTS)
-		find_package(Catch2 REQUIRED)
-		
-		add_executable(EGTest ${TEST_SOURCE_FILES})
-		
-		add_dependencies(EGTest EGame)
-		target_link_libraries(EGTest Catch2::Catch2 EGame)
-		
-		set_target_properties(EGTest PROPERTIES
-			CXX_STANDARD 17
-			RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}
-		)
-	endif()
 	
 	if (BUILD_ASSETGEN)
 		find_package(GLSLang REQUIRED)

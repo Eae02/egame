@@ -73,5 +73,7 @@ namespace eg
 		
 		std::vector<char> m_data;
 		int m_cursorPos = 0;
+		
+		bool m_wasEnabled = false;
 	};
 }

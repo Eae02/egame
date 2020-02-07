@@ -1,6 +1,7 @@
 #include "TextEdit.hpp"
 
 #include <utf8.h>
+#include <SDL.h>
 
 namespace eg
 {
@@ -11,8 +12,25 @@ namespace eg
 		m_cursorBlinkProgress = 0;
 	}
 	
+	static int numTextEditEnabled = 0;
+	
 	void TextEdit::Update(float dt, bool enabled)
 	{
+		if (enabled && !m_wasEnabled)
+		{
+			std::cout << numTextEditEnabled << std::endl;
+			if (numTextEditEnabled == 0)
+				SDL_StartTextInput();
+			numTextEditEnabled++;
+		}
+		else if (!enabled && m_wasEnabled)
+		{
+			numTextEditEnabled--;
+			if (numTextEditEnabled == 0)
+				SDL_StopTextInput();
+		}
+		m_wasEnabled = enabled;
+		
 		constexpr float BLINK_TIME = 0.3f;
 		m_cursorBlinkProgress = std::fmod(m_cursorBlinkProgress + dt / BLINK_TIME, 2.0f);
 		

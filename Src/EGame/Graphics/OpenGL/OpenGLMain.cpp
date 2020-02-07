@@ -93,6 +93,9 @@ namespace eg::graphics_api::gl
 		
 		if (severity == GL_DEBUG_SEVERITY_HIGH || type == GL_DEBUG_TYPE_ERROR)
 		{
+			if (glVendor == GLVendor::IntelOpenSource && strstr(message, "used uninitialized"))
+				return;
+			
 			EG_DEBUG_BREAK
 			std::abort();
 		}
