@@ -470,15 +470,18 @@ namespace eg
 		return true;
 	}
 	
-	void LoadAssets(const std::string& path, std::string_view mountPath)
+	bool LoadAssets(const std::string& path, std::string_view mountPath)
 	{
 		AssetDirectory* mountDir = FindDirectory(&assetRootDir, mountPath, true);
 		
 		//First, tries to load assets from a YAML list. If that fails, attempts to load from an EAP.
 		if (!LoadAssetsYAML(path, *mountDir) && !LoadAssetsEAP(path, *mountDir))
 		{
-			EG_PANIC("Failed to load assets from '" << path << "'.\nBoth '" << path << ".eap' and '" << path << "/Assets.yaml' failed to load.");
+			Log(LogLevel::Error, "as", "Failed to load assets from '{0}'. Both '{0}.eap' and '{0}/Assets.yaml' failed to load.", path);
+			return false;
 		}
+		
+		return true;
 	}
 	
 #ifdef __EMSCRIPTEN__

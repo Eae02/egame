@@ -55,7 +55,9 @@ namespace eg
 		BindAssetExtension(extension, loader, "Default");
 	}
 	
-	EG_API void LoadAssets(const std::string& path, std::string_view mountPath);
+	//Attempts to load assets from path, mounting these at mountPath.
+	// Returns true if assets loaded successfully, false otherwise.
+	EG_API [[nodiscard]] bool LoadAssets(const std::string& path, std::string_view mountPath);
 	
 	EG_API void UnloadAssets();
 	
