@@ -266,17 +266,15 @@ namespace eg
 				continue;
 			}
 			
-			const Character* fontChar = font.GetCharacter(c);
-			if (fontChar == nullptr)
-				continue;
+			const Character& fontChar = font.GetCharacterOrDefault(c);
 			
 			const int kerning = font.GetKerning(prev, c);
 			
 			Rectangle rectangle;
-			rectangle.x = position.x + (x + fontChar->xOffset + kerning) * scale;
-			rectangle.y = position.y - (0 - fontChar->yOffset + fontChar->height) * scale;
-			rectangle.w = fontChar->width * scale;
-			rectangle.h = fontChar->height * scale;
+			rectangle.x = position.x + (x + fontChar.xOffset + kerning) * scale;
+			rectangle.y = position.y - (0 - fontChar.yOffset + fontChar.height) * scale;
+			rectangle.w = fontChar.width * scale;
+			rectangle.h = fontChar.height * scale;
 			
 			if (!HasFlag(flags, TextFlags::NoPixelAlign))
 			{
@@ -284,11 +282,11 @@ namespace eg
 				rectangle.y = std::round(rectangle.y);
 			}
 			
-			Rectangle srcRectangle(fontChar->textureX, fontChar->textureY, fontChar->width, fontChar->height);
+			Rectangle srcRectangle(fontChar.textureX, fontChar.textureY, fontChar.width, fontChar.height);
 			
 			Draw(font.Tex(), rectangle, color, srcRectangle, SpriteFlags::RedToAlpha);
 			
-			x += fontChar->xAdvance + kerning;
+			x += fontChar.xAdvance + kerning;
 			sizeOut->y = std::max(sizeOut->y, rectangle.h);
 		}
 		

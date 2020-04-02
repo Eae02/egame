@@ -228,6 +228,9 @@ namespace eg
 	}
 	
 	extern bool shouldClose;
+	extern bool hasCalledTextInputActive;
+	extern bool hasSetTextInputRect;
+	extern bool textInputActive;
 	
 	void CoreUninitialize();
 	void RunFrame(IGame& game);
@@ -241,7 +244,14 @@ namespace eg
 		
 		while (!shouldClose)
 		{
+			hasCalledTextInputActive = false;
+			hasSetTextInputRect = false;
 			RunFrame(*game);
+			if (!hasCalledTextInputActive && textInputActive)
+			{
+				textInputActive = false;
+				SDL_StopTextInput();
+			}
 		}
 		
 		game.reset();

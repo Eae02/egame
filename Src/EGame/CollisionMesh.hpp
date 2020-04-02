@@ -2,6 +2,7 @@
 
 #include "Span.hpp"
 #include "SIMD.hpp"
+#include "AABB.hpp"
 
 namespace eg
 {
@@ -29,6 +30,7 @@ namespace eg
 				mesh.m_positions[i * 4 + 3] = 0;
 			}
 			
+			mesh.InitAABB();
 			return mesh;
 		}
 		
@@ -51,6 +53,7 @@ namespace eg
 				mesh.m_positions[i * 4 + 3] = 0;
 			}
 			
+			mesh.InitAABB();
 			return mesh;
 		}
 		
@@ -95,10 +98,18 @@ namespace eg
 			return Vertex(m_indices[i]);
 		}
 		
+		const eg::AABB& BoundingBox() const
+		{
+			return m_aabb;
+		}
+		
 	private:
+		void InitAABB();
+		
 		uint32_t m_numIndices = 0;
 		uint32_t m_numVertices = 0;
 		std::unique_ptr<uint32_t[]> m_indices;
 		std::unique_ptr<float[]> m_positions;
+		AABB m_aabb;
 	};
 }

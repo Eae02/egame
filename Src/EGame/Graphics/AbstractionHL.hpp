@@ -9,6 +9,7 @@ namespace eg
 	class EG_API OwningRef : public W
 	{
 		using HandleT = std::decay_t<decltype(W::handle)>;
+		
 	public:
 		explicit OwningRef(HandleT _handle = nullptr)
 			: W(_handle) { }

@@ -1,6 +1,8 @@
 #include "CollisionMesh.hpp"
 #include "Ray.hpp"
 
+#pragma GCC optimize("Ofast")
+
 namespace eg
 {
 	int CollisionMesh::Intersect(const Ray& ray, float& distanceOut) const
@@ -95,5 +97,22 @@ namespace eg
 		{
 			std::swap(m_indices[i], m_indices[i + 1]);
 		}
+	}
+	
+	void CollisionMesh::InitAABB()
+	{
+		if (m_numVertices == 0)
+			return;
+		
+		__m128 min = VerticesM128()[0];
+		__m128 max = VerticesM128()[0];
+		for (uint32_t i = 1; i < m_numVertices; i++)
+		{
+			min = _mm_min_ps(VerticesM128()[i], min);
+			max = _mm_max_ps(VerticesM128()[i], max);
+		}
+		
+		m_aabb.min = glm::vec3(min[0], min[1], min[2]);
+		m_aabb.max = glm::vec3(max[0], max[1], max[2]);
 	}
 }

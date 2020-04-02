@@ -24,6 +24,8 @@ namespace eg
 		
 		bool Intersects(const AABB& other) const;
 		
+		AABB TransformedBoundingBox(const glm::mat4& transform) const;
+		
 		glm::vec3 NthVertex(int n) const;
 		
 		inline glm::vec3 Size() const

@@ -51,6 +51,7 @@ namespace eg
 	bool shouldClose = false;
 	
 	static float dt = 0;
+	static uint64_t maxFrameTimeNS = 0;
 	
 	high_resolution_clock::time_point lastFrameBeginTime;
 	
@@ -159,6 +160,15 @@ namespace eg
 		
 		gal::EndFrame();
 		
+		if (maxFrameTimeNS != 0)
+		{
+			uint64_t frameTimeNS = duration_cast<nanoseconds>(high_resolution_clock::now() - frameBeginTime).count();
+			if (frameTimeNS < maxFrameTimeNS)
+			{
+				std::this_thread::sleep_for(std::chrono::nanoseconds(maxFrameTimeNS - frameTimeNS));
+			}
+		}
+		
 		frameCPUTimer.Stop();
 		
 		if (DevMode())
@@ -173,6 +183,11 @@ namespace eg
 	
 	int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
 	{
+		if (runConfig.framerateCap != 0)
+		{
+			maxFrameTimeNS = 1000000000ULL / (uint64_t)runConfig.framerateCap;
+		}
+		
 		devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
 		createAssetPackage = HasFlag(runConfig.flags, RunFlags::CreateAssetPackage);
 		

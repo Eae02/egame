@@ -6,6 +6,7 @@
 #include "Utils.hpp"
 #include "API.hpp"
 #include "Span.hpp"
+#include "Rectangle.hpp"
 
 namespace eg
 {
@@ -246,6 +247,8 @@ namespace eg
 	
 	EG_API void SetRelativeMouseMode(bool relMouseMode);
 	EG_API bool RelativeMouseModeActive();
+	
+	EG_API void TextInputActive(const std::optional<Rectangle>& textInputRect = { });
 	
 	inline const std::string& InputtedText()
 	{

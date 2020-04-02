@@ -1,6 +1,7 @@
 #include "InputState.hpp"
 #include "Utils.hpp"
 #include "Log.hpp"
+#include "Graphics/Graphics.hpp"
 
 #ifdef __EMSCRIPTEN__
 
@@ -364,5 +365,29 @@ namespace eg
 	bool RelativeMouseModeActive()
 	{
 		return g_relMouseMode;
+	}
+	
+	bool hasCalledTextInputActive = false;
+	bool textInputActive = false;
+	bool hasSetTextInputRect = false;
+	
+	void TextInputActive(const std::optional<Rectangle>& textInputRect)
+	{
+		if (!textInputActive)
+		{
+			SDL_StartTextInput();
+			textInputActive = true;
+		}
+		if (!hasSetTextInputRect && textInputRect)
+		{
+			SDL_Rect rect;
+			rect.x = (int)textInputRect->x;
+			rect.y = (int)textInputRect->y;
+			rect.w = (int)std::ceil(textInputRect->w);
+			rect.h = (int)std::ceil(textInputRect->h);
+			SDL_SetTextInputRect(&rect);
+			hasSetTextInputRect = true;
+		}
+		hasCalledTextInputActive = true;
 	}
 }

@@ -16,6 +16,7 @@
 #include "Graphics/PBR/IrradianceMapGenerator.hpp"
 #include "Graphics/PBR/SPFMapGenerator.hpp"
 #include "Graphics/RenderDoc.hpp"
+#include "Graphics/ScreenRenderTexture.hpp"
 #include "Graphics/Particles/ParticleManager.hpp"
 #include "Graphics/Particles/ParticleEmitterInstance.hpp"
 #include "Graphics/Particles/ParticleEmitterType.hpp"

@@ -35,6 +35,7 @@ namespace eg
 		void (*initialize)() = nullptr;
 		RunFlags flags = RunFlags::None;
 		Format defaultDepthStencilFormat = Format::Depth16;
+		uint32_t framerateCap = 400;
 	};
 	
 	namespace detail

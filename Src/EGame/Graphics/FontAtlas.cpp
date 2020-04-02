@@ -32,6 +32,8 @@ namespace eg
 	const GlyphRange GlyphRange::LatinSupplement { 0x80, 0xFF };
 	const GlyphRange GlyphRange::LatinExtended { 0x100, 0x24F };
 	
+	static const uint32_t DefaultChar = 0x25A1; // white square: □
+	
 #ifndef __EMSCRIPTEN__
 	static DynamicLibrary ftDynLibrary;
 	
@@ -157,44 +159,50 @@ namespace eg
 		int totalHeight = 0;
 		const uint16_t PADDING = 2;
 		
+		auto RenderGlyph = [&] (uint32_t c)
+		{
+			if (ft::Load_Char(face, c, FT_LOAD_RENDER))
+			{
+				char glyphUTF8[4];
+				size_t glyphUTF8Len = utf8::unchecked::utf32to8(&c, &c + 1, glyphUTF8) - glyphUTF8;
+				
+				Log(LogLevel::Error, "fnt", "Failed to load glyph {0} ({1}) from '{2}'",
+					std::string_view(glyphUTF8, glyphUTF8Len), c, fontName);
+				return;
+			}
+			
+			stbrp_rect& rectangle = rectangles.emplace_back();
+			rectangle.id = (int)atlas.m_characters.size();
+			
+			Character& character = atlas.m_characters.emplace_back();
+			character.id = c;
+			character.width = (uint16_t)face->glyph->bitmap.width;
+			character.height = (uint16_t)face->glyph->bitmap.rows;
+			character.xOffset = face->glyph->bitmap_left;
+			character.yOffset = face->glyph->bitmap_top;
+			character.xAdvance = face->glyph->advance.x / 64.0f;
+			
+			rectangle.w = character.width + PADDING;
+			rectangle.h = character.height + PADDING;
+			
+			const size_t bitmapSize = face->glyph->bitmap.width * face->glyph->bitmap.rows;
+			std::unique_ptr<uint8_t[]> bitmapCopy = std::make_unique<uint8_t[]>(bitmapSize);
+			std::memcpy(bitmapCopy.get(), face->glyph->bitmap.buffer, bitmapSize);
+			bitmapCopies.push_back(std::move(bitmapCopy));
+			
+			totalWidth += rectangle.w;
+			totalHeight += rectangle.h;
+		};
+		
 		//Renders glyphs
 		for (const GlyphRange& range : glyphRanges)
 		{
 			for (uint32_t c = range.start; c <= range.end; c++)
 			{
-				if (ft::Load_Char(face, c, FT_LOAD_RENDER))
-				{
-					char glyphUTF8[4];
-					size_t glyphUTF8Len = utf8::unchecked::utf32to8(&c, &c + 1, glyphUTF8) - glyphUTF8;
-					
-					Log(LogLevel::Error, "fnt", "Failed to load glyph {0} ({1}) from '{2}'",
-					    std::string_view(glyphUTF8, glyphUTF8Len), c, fontName);
-					continue;
-				}
-				
-				stbrp_rect& rectangle = rectangles.emplace_back();
-				rectangle.id = (int)atlas.m_characters.size();
-				
-				Character& character = atlas.m_characters.emplace_back();
-				character.id = c;
-				character.width = (uint16_t)face->glyph->bitmap.width;
-				character.height = (uint16_t)face->glyph->bitmap.rows;
-				character.xOffset = face->glyph->bitmap_left;
-				character.yOffset = face->glyph->bitmap_top;
-				character.xAdvance = face->glyph->advance.x / 64.0f;
-				
-				rectangle.w = character.width + PADDING;
-				rectangle.h = character.height + PADDING;
-				
-				const size_t bitmapSize = face->glyph->bitmap.width * face->glyph->bitmap.rows;
-				std::unique_ptr<uint8_t[]> bitmapCopy = std::make_unique<uint8_t[]>(bitmapSize);
-				std::memcpy(bitmapCopy.get(), face->glyph->bitmap.buffer, bitmapSize);
-				bitmapCopies.push_back(std::move(bitmapCopy));
-				
-				totalWidth += rectangle.w;
-				totalHeight += rectangle.h;
+				RenderGlyph(c);
 			}
 		}
+		RenderGlyph(DefaultChar);
 		
 		ft::Done_Face(face);
 		
@@ -396,6 +404,12 @@ namespace eg
 		
 		std::sort(atlas.m_kerningPairs.begin(), atlas.m_kerningPairs.end(), KerningPairCompare());
 		
+		if (atlas.GetCharacter(DefaultChar) == nullptr)
+		{
+			eg::Log(eg::LogLevel::Error, "fnt", "{0}: Default character (U+25A1) not included.", name);
+			return {};
+		}
+		
 		return atlas;
 	}
 	
@@ -468,6 +482,13 @@ namespace eg
 		);
 	}
 	
+	const Character& FontAtlas::GetCharacterOrDefault(uint32_t c) const
+	{
+		if (const Character* ch = GetCharacter(c))
+			return *ch;
+		return *GetCharacter(DefaultChar);
+	}
+	
 	const Character* FontAtlas::GetCharacter(uint32_t c) const
 	{
 		auto it = std::lower_bound(m_characters.begin(), m_characters.end(), c, [&] (const Character& a, uint32_t b)
@@ -505,14 +526,12 @@ namespace eg
 				continue;
 			}
 			
-			const Character* fontChar = GetCharacter(c);
-			if (fontChar == nullptr)
-				continue;
+			const Character& fontChar = GetCharacterOrDefault(c);
 			
 			const int kerning = GetKerning(prev, c);
 			
-			x += fontChar->xAdvance + kerning;
-			extentsY = std::max(extentsY, fontChar->height);
+			x += fontChar.xAdvance + kerning;
+			extentsY = std::max(extentsY, fontChar.height);
 		}
 		
 		return glm::vec2(x, extentsY);
@@ -545,13 +564,9 @@ namespace eg
 				lastBreak = it - text.begin();
 			}
 			
-			const Character* fontChar = GetCharacter(c);
-			if (fontChar == nullptr)
-				continue;
-			
 			const int kerning = GetKerning(prev, c);
 			
-			x += fontChar->xAdvance + kerning;
+			x += GetCharacterOrDefault(c).xAdvance + kerning;
 			if (x > maxWidth && lastBreak != -1)
 			{
 				if (!result.empty())

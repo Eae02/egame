@@ -137,6 +137,8 @@ namespace eg
 		
 		const Character* GetCharacter(uint32_t c) const;
 		
+		const Character& GetCharacterOrDefault(uint32_t c) const;
+		
 		int GetKerning(uint32_t first, uint32_t second) const;
 		
 		glm::vec2 GetTextExtents(std::string_view text) const;

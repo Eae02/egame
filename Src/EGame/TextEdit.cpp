@@ -12,25 +12,8 @@ namespace eg
 		m_cursorBlinkProgress = 0;
 	}
 	
-	static int numTextEditEnabled = 0;
-	
 	void TextEdit::Update(float dt, bool enabled)
 	{
-		if (enabled && !m_wasEnabled)
-		{
-			std::cout << numTextEditEnabled << std::endl;
-			if (numTextEditEnabled == 0)
-				SDL_StartTextInput();
-			numTextEditEnabled++;
-		}
-		else if (!enabled && m_wasEnabled)
-		{
-			numTextEditEnabled--;
-			if (numTextEditEnabled == 0)
-				SDL_StopTextInput();
-		}
-		m_wasEnabled = enabled;
-		
 		constexpr float BLINK_TIME = 0.3f;
 		m_cursorBlinkProgress = std::fmod(m_cursorBlinkProgress + dt / BLINK_TIME, 2.0f);
 		
@@ -115,16 +98,26 @@ namespace eg
 				break;
 			}
 		});
+		
+		m_wasEnabled = enabled;
 	}
 	
 	void TextEdit::Draw(const glm::vec2& position, SpriteBatch& spriteBatch, const ColorLin& color) const
 	{
 		spriteBatch.DrawText(*m_font, Text(), position, color, m_fontScale, nullptr);
 		
+		const int cursorX = (int)(position.x + m_font->GetTextExtents(Text().substr(0, (size_t)m_cursorPos)).x * m_fontScale);
+		
+		if (m_wasEnabled)
+		{
+			float fontH = m_font->Size() * m_fontScale;
+			TextInputActive(eg::Rectangle(cursorX, CurrentResolutionY() - position.y, 100, fontH));
+		}
+		
 		if (m_cursorBlinkProgress < 1)
 		{
 			const float CURSOR_EXTRA_H = 2;
-			const int cursorX = (int)(position.x + m_font->GetTextExtents(Text().substr(0, (size_t)m_cursorPos)).x * m_fontScale);
+			
 			spriteBatch.DrawLine(glm::vec2(cursorX, position.y - CURSOR_EXTRA_H),
 				glm::vec2(cursorX, position.y + m_font->Size() * m_fontScale + CURSOR_EXTRA_H), color);
 		}

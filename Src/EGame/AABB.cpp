@@ -37,4 +37,28 @@ namespace eg
 		const bool useZ2 = n >= 4;
 		return { useX2 ? max.x : min.x, useY2 ? max.y : min.y, useZ2 ? max.z : min.z };
 	}
+	
+	AABB AABB::TransformedBoundingBox(const glm::mat4& transform) const
+	{
+		AABB other;
+		other.min = glm::vec3(INFINITY);
+		other.max = glm::vec3(-INFINITY);
+		
+		auto ProcessVertex = [&] (float x, float y, float z)
+		{
+			glm::vec3 v(transform * glm::vec4(x, y, z, 1));
+			other.min = glm::min(other.min, v);
+			other.max = glm::max(other.max, v);
+		};
+		ProcessVertex(min.x, min.y, min.z);
+		ProcessVertex(max.x, min.y, min.z);
+		ProcessVertex(min.x, max.y, min.z);
+		ProcessVertex(max.x, max.y, min.z);
+		ProcessVertex(min.x, min.y, max.z);
+		ProcessVertex(max.x, min.y, max.z);
+		ProcessVertex(min.x, max.y, max.z);
+		ProcessVertex(max.x, max.y, max.z);
+		
+		return other;
+	}
 }

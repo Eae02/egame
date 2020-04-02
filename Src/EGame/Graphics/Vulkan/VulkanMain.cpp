@@ -603,6 +603,7 @@ namespace eg::graphics_api::vk
 		VmaAllocatorCreateInfo allocatorCreateInfo = { };
 		allocatorCreateInfo.physicalDevice = ctx.physDevice;
 		allocatorCreateInfo.device = ctx.device;
+		allocatorCreateInfo.instance = ctx.instance;
 		allocatorCreateInfo.pVulkanFunctions = &allocatorVulkanFunctions;
 		
 		if (hasDedicatedAllocation)
