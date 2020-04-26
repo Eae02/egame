@@ -309,11 +309,43 @@ namespace eg::graphics_api::vk
 		}
 		instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 		
+		//Enumerates instance layers
+		uint32_t availableInstanceLayers;
+		vkEnumerateInstanceLayerProperties(&availableInstanceLayers, nullptr);
+		std::vector<VkLayerProperties> layerProperties(availableInstanceLayers);
+		vkEnumerateInstanceLayerProperties(&availableInstanceLayers, layerProperties.data());
+		auto IsLayerSupported = [&] (const char* name)
+		{
+			for (VkLayerProperties& layer : layerProperties)
+			{
+				if (std::strcmp(layer.layerName, name) == 0)
+					return true;
+			}
+			return false;
+		};
+		
+		std::vector<const char*> enabledValidationLayers;
+		auto MaybeEnableValidationLayer = [&] (const char* name)
+		{
+			if (IsLayerSupported(name))
+			{
+				enabledValidationLayers.push_back(name);
+				return true;
+			}
+			return false;
+		};
+		
 		ctx.hasDebugUtils = false;
 		if (DevMode() && InstanceExtensionSupported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
 		{
 			ctx.hasDebugUtils = true;
 			instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+			
+			if (!MaybeEnableValidationLayer("VK_LAYER_KHRONOS_validation") &&
+				!MaybeEnableValidationLayer("VK_LAYER_LUNARG_standard_validation"))
+			{
+				eg::Log(eg::LogLevel::Warning, "vk", "Could not enable validation layers, no supported layer found.");
+			}
 		}
 		
 		VkApplicationInfo applicationInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
@@ -322,15 +354,14 @@ namespace eg::graphics_api::vk
 		applicationInfo.apiVersion = VK_API_VERSION_1_0;
 		
 		//Creates the instance
-		const char* standardValidationLayerName = "VK_LAYER_LUNARG_standard_validation";
 		const VkInstanceCreateInfo instanceCreateInfo =
 		{
 			/* sType                   */ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 			/* pNext                   */ nullptr,
 			/* flags                   */ 0,
 			/* pApplicationInfo        */ &applicationInfo,
-			/* enabledLayerCount       */ (uint32_t)(DevMode() ? 1 : 0),
-			/* ppEnabledLayerNames     */ &standardValidationLayerName,
+			/* enabledLayerCount       */ (uint32_t)enabledValidationLayers.size(),
+			/* ppEnabledLayerNames     */ enabledValidationLayers.data(),
 			/* enabledExtensionCount   */ (uint32_t)instanceExtensions.size(),
 			/* ppEnabledExtensionNames */ instanceExtensions.data()
 		};

@@ -12,6 +12,7 @@
 #include "GameController.hpp"
 #include "Profiling/Profiler.hpp"
 #include "Profiling/ProfilerPane.hpp"
+#include "RotationGizmo.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -238,6 +239,7 @@ namespace eg
 		
 		SpriteBatch::InitStatic();
 		TranslationGizmo::InitStatic();
+		RotationGizmo::InitStatic();
 		if (DevMode())
 		{
 			SpriteFont::LoadDevFont();
@@ -337,6 +339,7 @@ namespace eg
 		SpriteFont::UnloadDevFont();
 		SpriteBatch::DestroyStatic();
 		TranslationGizmo::DestroyStatic();
+		RotationGizmo::DestroyStatic();
 		UnloadAssets();
 		DestroyUploadBuffers();
 		DestroyGraphicsAPI();
