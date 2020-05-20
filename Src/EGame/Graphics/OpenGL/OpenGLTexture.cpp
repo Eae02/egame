@@ -429,9 +429,26 @@ namespace eg::graphics_api::gl
 		
 		glBindTexture(texture->type, texture->texture);
 		
-		switch (texture->dim)
+		if (texture->type == GL_TEXTURE_CUBE_MAP)
 		{
-		case 2:
+			for (int l = 0; l < range.sizeZ; l++)
+			{
+				GLenum glLayer = GL_TEXTURE_CUBE_MAP_POSITIVE_X + l + range.offsetZ;
+				void* layerOffsetPtr = (char*)offsetPtr + imageBytes * l;
+				if (isCompressed)
+				{
+					glCompressedTexSubImage2D(glLayer, range.mipLevel, range.offsetX, range.offsetY,
+						range.sizeX, range.sizeY, format, imageBytes, layerOffsetPtr);
+				}
+				else
+				{
+					glTexSubImage2D(glLayer, range.mipLevel, range.offsetX, range.offsetY,
+						range.sizeX, range.sizeY, format, type, layerOffsetPtr);
+				}
+			}
+		}
+		else if (texture->dim == 2)
+		{
 			if (isCompressed)
 			{
 				glCompressedTexSubImage2D(texture->type, range.mipLevel, range.offsetX, range.offsetY,
@@ -442,8 +459,9 @@ namespace eg::graphics_api::gl
 				glTexSubImage2D(texture->type, range.mipLevel, range.offsetX, range.offsetY,
 				                range.sizeX, range.sizeY, format, type, offsetPtr);
 			}
-			break;
-		case 3:
+		}
+		else if (texture->dim == 3)
+		{
 			if (isCompressed)
 			{
 				glCompressedTexSubImage3D(texture->type, range.mipLevel, range.offsetX, range.offsetY,
@@ -454,7 +472,6 @@ namespace eg::graphics_api::gl
 				glTexSubImage3D(texture->type, range.mipLevel, range.offsetX, range.offsetY, range.offsetZ,
 				                range.sizeX, range.sizeY, range.sizeZ, format, type, offsetPtr);
 			}
-			break;
 		}
 		
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);

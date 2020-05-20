@@ -2,6 +2,8 @@
 
 #include "Utils.hpp"
 
+#include <algorithm>
+
 namespace eg
 {
 	template <typename T>

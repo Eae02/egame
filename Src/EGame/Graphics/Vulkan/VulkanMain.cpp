@@ -520,6 +520,7 @@ namespace eg::graphics_api::vk
 		enabledDeviceFeatures.shaderCullDistance = ctx.deviceFeatures.shaderCullDistance;
 		enabledDeviceFeatures.textureCompressionBC = ctx.deviceFeatures.textureCompressionBC;
 		enabledDeviceFeatures.fragmentStoresAndAtomics = ctx.deviceFeatures.fragmentStoresAndAtomics;
+		enabledDeviceFeatures.wideLines = ctx.deviceFeatures.wideLines;
 		
 		uint32_t numEnabledDeviceExtensions = ArrayLen(REQUIRED_DEVICE_EXTENSIONS);
 		const char* enabledDeviceExtensions[32];

@@ -187,6 +187,13 @@ namespace eg::graphics_api::vk
 			/* lineWidth               */ 1.0f
 		};
 		
+		if (ctx.deviceFeatures.wideLines)
+		{
+			pipeline->rasterizationStateCI.lineWidth = glm::clamp(createInfo.lineWidth,
+				ctx.deviceLimits.lineWidthRange[0], ctx.deviceLimits.lineWidthRange[1]
+			);
+		}
+		
 		pipeline->depthStencilStateCI =
 		{
 			/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,

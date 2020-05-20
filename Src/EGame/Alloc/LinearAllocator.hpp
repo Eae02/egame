@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../API.hpp"
+#include <cstring>
 
 namespace eg
 {

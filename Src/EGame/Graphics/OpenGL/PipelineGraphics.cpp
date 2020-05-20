@@ -53,6 +53,7 @@ namespace eg::graphics_api::gl
 		uint32_t numShaderModules;
 		GLuint shaderModules[5];
 		GLuint vertexArray;
+		bool wireframe;
 		bool enableFaceCull;
 		GLenum frontFace;
 		GLenum cullFace;
@@ -61,6 +62,7 @@ namespace eg::graphics_api::gl
 		GLint patchSize;
 		uint32_t numClipDistances;
 		float minSampleShading;
+		float lineWidth;
 		bool enableScissorTest;
 		bool enableDepthTest;
 		bool enableDepthWrite;
@@ -255,7 +257,9 @@ namespace eg::graphics_api::gl
 		pipeline->enableDepthWrite = createInfo.enableDepthWrite;
 		pipeline->enableStencilTest = createInfo.enableStencilTest;
 		pipeline->topology = Translate(createInfo.topology);
+		pipeline->wireframe = createInfo.wireframe;
 		pipeline->patchSize = createInfo.patchControlPoints;
+		pipeline->lineWidth = createInfo.lineWidth;
 		
 		if (createInfo.enableStencilTest)
 		{
@@ -324,6 +328,8 @@ namespace eg::graphics_api::gl
 		uint32_t stencilCompareMaskFront = 0;
 		uint32_t stencilCompareMaskBack = 0;
 		float minSampleShading = 0;
+		float lineWidth = 1;
+		bool wireframe = false;
 		bool enableDepthWrite = true;
 		bool blendEnabled[8] = { };
 		float blendConstants[4] = { };
@@ -463,6 +469,18 @@ namespace eg::graphics_api::gl
 			glCullFace(curState.cullFace = cullFace);
 		if (enableDepthTest && curState.depthFunc != depthFunc)
 			glDepthFunc(curState.depthFunc = depthFunc);
+		
+		if (curState.wireframe != wireframe)
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
+			curState.wireframe = wireframe;
+		}
+		
+		if (std::abs(curState.lineWidth - lineWidth))
+		{
+			glLineWidth(lineWidth);
+			curState.lineWidth = lineWidth;
+		}
 		
 		SetEnabled<GL_CULL_FACE>(enableFaceCull);
 		SetEnabled<GL_DEPTH_TEST>(enableDepthTest);

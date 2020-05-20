@@ -348,6 +348,7 @@ namespace eg
 		uint32_t patchControlPoints = 0;
 		uint32_t numClipDistances = 0;
 		bool wireframe = false;
+		float lineWidth = 1;
 		CullMode cullMode = CullMode::None;
 		bool frontFaceCCW = false;
 		Topology topology = Topology::TriangleList;
