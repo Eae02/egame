@@ -12,7 +12,6 @@
 #include "GameController.hpp"
 #include "Profiling/Profiler.hpp"
 #include "Profiling/ProfilerPane.hpp"
-#include "RotationGizmo.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -239,12 +238,11 @@ namespace eg
 		
 		SpriteBatch::InitStatic();
 		TranslationGizmo::InitStatic();
-		RotationGizmo::InitStatic();
+		//RotationGizmo::InitStatic();
 		if (DevMode())
 		{
 			SpriteFont::LoadDevFont();
 			
-			profilers.resize(MAX_CONCURRENT_FRAMES + 1);
 			profilerPane = std::make_unique<ProfilerPane>();
 			
 			console::AddCommand("ppane", 0, [&] (Span<const std::string_view> args)
@@ -339,7 +337,7 @@ namespace eg
 		SpriteFont::UnloadDevFont();
 		SpriteBatch::DestroyStatic();
 		TranslationGizmo::DestroyStatic();
-		RotationGizmo::DestroyStatic();
+		//RotationGizmo::DestroyStatic();
 		UnloadAssets();
 		DestroyUploadBuffers();
 		DestroyGraphicsAPI();

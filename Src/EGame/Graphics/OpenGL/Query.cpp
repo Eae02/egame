@@ -47,10 +47,10 @@ namespace eg::graphics_api::gl
 	inline bool _GetQueryResults(QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries, void* data)
 	{
 		QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
+		CheckQueryIndex(*queryPool, firstQuery + numQueries);
 		for (uint32_t i = 0; i < numQueries; i++)
 		{
 			uint32_t queryIndex = firstQuery + i;
-			CheckQueryIndex(*queryPool, queryIndex);
 			
 			if constexpr (CheckAvail)
 			{
@@ -60,9 +60,7 @@ namespace eg::graphics_api::gl
 					return false;
 			}
 			
-			GLuint result;
-			glGetQueryObjectuiv(queryPool->queries[queryIndex], GL_QUERY_RESULT, &result);
-			static_cast<uint64_t*>(data)[i] = result;
+			glGetQueryObjectui64v(queryPool->queries[queryIndex], GL_QUERY_RESULT, (uint64_t*)data + i);
 		}
 		
 		return true;

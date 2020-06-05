@@ -94,7 +94,7 @@ namespace eg
 	class EG_API Profiler
 	{
 	public:
-		Profiler() = default;
+		Profiler();
 		
 		Profiler(const Profiler& other) = delete;
 		Profiler(Profiler&& other) = default;
