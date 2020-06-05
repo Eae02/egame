@@ -32,6 +32,11 @@ namespace eg
 	
 	Profiler* Profiler::current = nullptr;
 	
+	Profiler::Profiler()
+	{
+		m_queryPools.emplace_back(eg::QueryType::Timestamp, QUERIES_PER_POOL);
+	}
+	
 	void Profiler::Reset()
 	{
 		m_cpuTimers.clear();
@@ -58,6 +63,11 @@ namespace eg
 		{
 			m_addQueryPool = true;
 			return GPUTimer();
+		}
+		
+		if ((index % TIMERS_PER_POOL) == 0)
+		{
+			eg::DC.ResetQueries(m_queryPools[poolIndex], 0, TIMERS_PER_POOL * 2);
 		}
 		
 		TimerEntry& entry = m_gpuTimers.emplace_back();
@@ -127,14 +137,6 @@ namespace eg
 		{
 			m_addQueryPool = false;
 			m_queryPools.emplace_back(eg::QueryType::Timestamp, QUERIES_PER_POOL);
-			eg::DC.ResetQueries(m_queryPools.back(), 0, QUERIES_PER_POOL);
-		}
-		
-		for (size_t i = 0; i * TIMERS_PER_POOL < m_gpuTimers.size(); i++)
-		{
-			uint32_t firstTimestamp = i * QUERIES_PER_POOL;
-			uint32_t lastTimestamp = std::min<uint32_t>(numTimestamps, (i + 1) * QUERIES_PER_POOL);
-			eg::DC.ResetQueries(m_queryPools[i], 0, lastTimestamp - firstTimestamp);
 		}
 		
 		ProfilingResults results;

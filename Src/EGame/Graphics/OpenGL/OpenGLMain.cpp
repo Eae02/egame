@@ -45,7 +45,7 @@ namespace eg::graphics_api::gl
 	{
 		Unknown,
 		Nvidia,
-		IntelOpenSource
+		Intel
 	};
 	
 	static std::string rendererName;
@@ -56,11 +56,6 @@ namespace eg::graphics_api::gl
 	static void OpenGLMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
 	                                  const GLchar* message, const void* userData)
 	{
-		if (glVendor == GLVendor::IntelOpenSource)
-		{
-			if (id == 17 || id == 14) //Clearing integer framebuffer attachments.
-				return;
-		}
 		if (glVendor == GLVendor::Nvidia)
 		{
 			if (id == 131186) //Buffer performance warning
@@ -93,7 +88,7 @@ namespace eg::graphics_api::gl
 		
 		if (severity == GL_DEBUG_SEVERITY_HIGH || type == GL_DEBUG_TYPE_ERROR)
 		{
-			if (glVendor == GLVendor::IntelOpenSource && strstr(message, "used uninitialized"))
+			if (glVendor == GLVendor::Intel && strstr(message, "used uninitialized"))
 				return;
 			
 			EG_DEBUG_BREAK
@@ -256,9 +251,9 @@ namespace eg::graphics_api::gl
 		maxAnistropy = (int)maxAnistropyF;
 		
 		vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-		if (vendorName == "Intel Open Source Technology Center")
-			glVendor = GLVendor::IntelOpenSource;
-		else if (vendorName == "NVIDIA Corporation")
+		if (strstr(vendorName.c_str(), "Intel"))
+			glVendor = GLVendor::Intel;
+		else if (strstr(vendorName.c_str(), "NVIDIA"))
 			glVendor = GLVendor::Nvidia;
 		else
 			glVendor = GLVendor::Unknown;
@@ -377,7 +372,7 @@ namespace eg::graphics_api::gl
 #ifndef __EMSCRIPTEN__
 		if (fences[CFrameIdx()])
 		{
-			glClientWaitSync(fences[CFrameIdx()], GL_SYNC_FLUSH_COMMANDS_BIT, UINT64_MAX);
+			glClientWaitSync(fences[CFrameIdx()], 0, UINT64_MAX);
 			glDeleteSync(fences[CFrameIdx()]);
 		}
 #endif
@@ -391,6 +386,7 @@ namespace eg::graphics_api::gl
 	{
 #ifndef __EMSCRIPTEN__
 		fences[CFrameIdx()] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+		glFlush();
 		SDL_GL_SwapWindow(glWindow);
 #endif
 	}

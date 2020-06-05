@@ -1,3 +1,5 @@
+#pragma GCC optimize("Ofast")
+
 #include "Texture2DWriter.hpp"
 #include "../EGame/Utils.hpp"
 #include "../EGame/Log.hpp"
