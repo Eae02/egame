@@ -99,6 +99,8 @@ namespace eg::asset_gen
 			else
 				Log(LogLevel::Warning, "as", "Unknown mesh access mode: '{0}'. Should be 'gpu', 'cpu' or 'all'.", accessStr);
 			
+			bool removeNameSuffix = generateContext.YAMLNode()["removeNameSuffix"].as<bool>(false);
+			
 			std::string line;
 			while (!sourceStream.eof())
 			{
@@ -197,6 +199,15 @@ namespace eg::asset_gen
 				{
 					CommitCurrentObject();
 					currentObjectName = TrimString(parts[1]);
+					
+					if (removeNameSuffix)
+					{
+						size_t finalUnderscore = currentObjectName.rfind('_');
+						if (finalUnderscore != std::string::npos && finalUnderscore != 0)
+						{
+							currentObjectName = currentObjectName.substr(0, finalUnderscore);
+						}
+					}
 				}
 			}
 			

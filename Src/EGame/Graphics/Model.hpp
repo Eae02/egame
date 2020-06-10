@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AbstractionHL.hpp"
+#include "StdVertex.hpp"
+#include "../CollisionMesh.hpp"
 #include "../Span.hpp"
 #include "../API.hpp"
 #include "../Ray.hpp"
@@ -54,7 +56,7 @@ namespace eg
 			return m_materialNames.size();
 		}
 		
-		template <typename V, typename I>
+		template <typename V = StdVertex, typename I = uint32_t>
 		MeshData<const V, const I> GetMeshData(size_t index) const
 		{
 			if (m_meshes[index].access == MeshAccess::GPUOnly)
@@ -76,6 +78,13 @@ namespace eg
 			data.vertices = Span<const V>(static_cast<const V*>(m_meshes[index].memory.get()), m_meshes[index].numVertices);
 			data.indices = Span<const I>(static_cast<const I*>(m_meshes[index].indices), m_meshes[index].numIndices);
 			return data;
+		}
+		
+		template <typename V = StdVertex, typename I = uint32_t>
+		CollisionMesh MakeCollisionMesh(size_t index) const
+		{
+			MeshData<const V, const I> data = GetMeshData<V, I>(index);
+			return CollisionMesh::Create<V, I>(data.vertices, data.indices);
 		}
 		
 		void Bind(CommandContext& cc = DC, uint32_t vertexBinding = 0) const;
