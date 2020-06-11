@@ -6,7 +6,8 @@ class Game : public eg::IGame
 public:
 	Game()
 	{
-		eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/");
+		if (!eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/"))
+            std::exit(1);
 		
 		eg::GraphicsPipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").DefaultVariant();

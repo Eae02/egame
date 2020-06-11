@@ -307,7 +307,7 @@ namespace eg::asset_gen
 		
 		//Allocates memory for generation of mipmaps
 		std::unique_ptr<uint8_t, FreeDel> mipDataUP;
-		uint8_t* nextMipData;
+		uint8_t* nextMipData = nullptr;
 		if (m_numMipLevels > 1)
 		{
 			size_t firstMipBytes = (m_width * m_height * loadChannels);

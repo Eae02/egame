@@ -431,7 +431,7 @@ namespace eg::graphics_api::gl
 		
 		if (texture->type == GL_TEXTURE_CUBE_MAP)
 		{
-			for (int l = 0; l < range.sizeZ; l++)
+			for (int l = 0; l < (int)range.sizeZ; l++)
 			{
 				GLenum glLayer = GL_TEXTURE_CUBE_MAP_POSITIVE_X + l + range.offsetZ;
 				void* layerOffsetPtr = (char*)offsetPtr + imageBytes * l;
