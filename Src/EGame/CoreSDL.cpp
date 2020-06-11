@@ -227,6 +227,15 @@ namespace eg
 		return 0;
 	}
 	
+	static SDL_Surface* sdlWindowSurface = nullptr;
+	
+	void SetWindowIcon(uint32_t width, uint32_t height, const void* rgbaData)
+	{
+		//sdlWindowSurface = SDL_CreateRGBSurfaceFrom(rgbaData, width, height, 4, 0, 0xFFU << 24, 0xFFU << 16, 0xFFU << 8, 0xFFU);
+		
+		SDL_SetWindowIcon(sdlWindow, sdlWindowSurface);
+	}
+	
 	extern bool shouldClose;
 	extern bool hasCalledTextInputActive;
 	extern bool hasSetTextInputRect;
