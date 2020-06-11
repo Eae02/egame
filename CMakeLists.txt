@@ -65,8 +65,8 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
 		
 		target_include_directories(EGameAssetGen PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/Inc
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
-			${CMAKE_CURRENT_SOURCE_DIR}/Deps/json/include
 		)
 		
 		set_target_properties(EGameAssetGen PROPERTIES
