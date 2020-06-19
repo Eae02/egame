@@ -114,4 +114,13 @@ namespace eg
 	 * @param text The text to save to the clipboard.
 	 */
 	EG_API void SetClipboardText(const char* text);
+	
+	/**
+	 * Sets the game's window icon.
+	 * @param width The icon's width in pixels.
+	 * @param width The icon's height in pixels.
+	 * @param rgbaData Pointer to RGBA pixel data, must be width * height * 4 bytes long.
+	 * This memory can be freed after this call completes.
+	 */
+	EG_API void SetWindowIcon(uint32_t width, uint32_t height, const void* rgbaData);
 }
