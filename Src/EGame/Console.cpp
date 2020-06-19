@@ -505,6 +505,15 @@ namespace eg
 		console::Write(console::InfoColor, msg);
 	}
 	
+	template <typename T>
+	static inline void PrintTweakValueGet(std::string_view name, const T& value)
+	{
+		std::ostringstream stream;
+		stream << name << " = " << value;
+		std::string msg = stream.str();
+		console::Write(console::InfoColor, msg);
+	}
+	
 	static inline TweakVar* FindTweakVar(std::string_view name)
 	{
 		if (DevMode())
@@ -563,6 +572,29 @@ namespace eg
 			}
 		});
 		console::SetCompletionProvider("set", 0, TweakCommandsCompletionProvider);
+		
+		console::AddCommand("getvar", 1, [] (Span<const std::string_view> args)
+		{
+			TweakVar* var = FindTweakVar(args[0]);
+			if (var == nullptr)
+			{
+				std::string msg = Concat({ "Tweakable variable not found: '", args[0], "'." });
+				console::Write(console::WarnColor, msg);
+			}
+			else if (var->type == TweakVarType::Float)
+			{
+				PrintTweakValueGet(var->name, var->valueF);
+			}
+			else if (var->type == TweakVarType::Int)
+			{
+				PrintTweakValueGet(var->name, var->valueI);
+			}
+			else if (var->type == TweakVarType::String)
+			{
+				PrintTweakValueGet(var->name, var->valueS);
+			}
+		});
+		console::SetCompletionProvider("getvar", 0, TweakCommandsCompletionProvider);
 		
 		console::AddCommand("toggle", 1, [] (Span<const std::string_view> args)
 		{

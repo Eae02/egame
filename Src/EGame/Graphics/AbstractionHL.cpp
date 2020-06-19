@@ -113,7 +113,7 @@ namespace eg
 			    buffer.lastUsedFrame + MAX_CONCURRENT_FRAMES <= FrameIdx())
 			{
 				uint64_t newOffset = buffer.offset + size;
-				if (newOffset <= buffer.size)
+				if (buffer.lastUsedFrame != FrameIdx() || newOffset <= buffer.size)
 				{
 					selected = &buffer;
 					break;
