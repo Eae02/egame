@@ -11,6 +11,7 @@
 #if defined(__linux__)
 #include <strings.h>
 #elif defined(_WIN32)
+#include <string.h>
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp 
 #endif
@@ -247,6 +248,13 @@ namespace eg
 				return true;
 		}
 		return false;
+	}
+	
+	template <typename CollectionTp, typename ItemTp, typename CompareTp = std::less<ItemTp>>
+	inline bool SortedContains(const CollectionTp& collection, const ItemTp& item, CompareTp compare = { })
+	{
+		auto it = std::lower_bound(collection.begin(), collection.end(), item, compare);
+		return it != collection.end() && *it == item;
 	}
 	
 	inline int8_t ToSNorm(float x)

@@ -34,7 +34,7 @@ add_executable(EGSandbox Src/Sandbox/Main.cpp)
 if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(ZLIB REQUIRED)
 	find_package(Threads REQUIRED)
-	find_package(Freetype REQUIRED)
+	find_package(Freetype)
 	find_package(PkgConfig REQUIRED)
 	
 	pkg_check_modules(SDL2 REQUIRED sdl2)
@@ -53,6 +53,17 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		${ZLIB_INCLUDE_DIRS}
 		${SDL2_INCLUDE_DIRS}
 	)
+	
+	if (NOT ${FREETYPE_FOUND})
+		message("Freetype not found, freetype loading will be disabled")
+		target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE)
+	else()
+		target_include_directories(EGame PRIVATE
+			${FREETYPE_INCLUDE_DIRS}
+			${ZLIB_INCLUDE_DIRS}
+			${SDL2_INCLUDE_DIRS}
+		)
+	endif()
 	
 	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER} -msse4.1)
 	

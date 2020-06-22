@@ -391,6 +391,9 @@ namespace eg::graphics_api::vk
 		bool supportsMultipleGraphicsQueues = false;
 		for (VkPhysicalDevice physicalDevice : physicalDevices)
 		{
+			if (physicalDevice == nullptr)
+				continue;
+			
 			vkGetPhysicalDeviceFeatures(physicalDevice, &ctx.deviceFeatures);
 			
 			VkPhysicalDeviceProperties deviceProperties;

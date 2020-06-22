@@ -11,7 +11,7 @@
 #include <stb_rect_pack.h>
 #include <stb_image.h>
 
-#ifndef __EMSCRIPTEN__
+#ifndef EG_NO_FREETYPE
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #endif
@@ -34,7 +34,7 @@ namespace eg
 	
 	static const uint32_t DefaultChar = 0x25A1; // white square: □
 	
-#ifndef __EMSCRIPTEN__
+#ifndef EG_NO_FREETYPE
 	static DynamicLibrary ftDynLibrary;
 	
 	static FT_Library ftLibrary = nullptr;
@@ -82,7 +82,7 @@ namespace eg
 	std::optional<FontAtlas> FontAtlas::Render(Span<const char> data, uint32_t size,
 		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
-#ifdef __EMSCRIPTEN__
+#ifdef EG_NO_FREETYPE
 		return { };
 #else
 		if (!MaybeInitFreeType())
@@ -99,7 +99,7 @@ namespace eg
 	std::optional<FontAtlas> FontAtlas::Render(const std::string& fontPath, uint32_t size,
 		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
-#ifdef __EMSCRIPTEN__
+#ifdef EG_NO_FREETYPE
 		return { };
 #else
 		if (!MaybeInitFreeType())
@@ -112,7 +112,7 @@ namespace eg
 #endif
 	}
 	
-#ifndef __EMSCRIPTEN__
+#ifndef EG_NO_FREETYPE
 	std::optional<FontAtlas> FontAtlas::RenderFreeType(void* faceVP, int loadState, std::string_view fontName,
 		uint32_t size, Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
