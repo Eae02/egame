@@ -215,10 +215,6 @@ namespace eg
 		else
 			detail::gameName = "Untitled Game";
 		
-		int platformInitStatus = PlatformInit(runConfig);
-		if (platformInitStatus != 0)
-			return platformInitStatus;
-		
 		eg::DefineEventType<ResolutionChangedEvent>();
 		eg::DefineEventType<ButtonEvent>();
 		
@@ -226,6 +222,10 @@ namespace eg
 		{
 			console::Init();
 		}
+		
+		int platformInitStatus = PlatformInit(runConfig);
+		if (platformInitStatus != 0)
+			return platformInitStatus;
 		
 		renderdoc::Init();
 		InitPlatformFontConfig();
@@ -245,7 +245,7 @@ namespace eg
 			
 			profilerPane = std::make_unique<ProfilerPane>();
 			
-			console::AddCommand("ppane", 0, [&] (Span<const std::string_view> args)
+			console::AddCommand("ppane", 0, [&] (Span<const std::string_view> args, console::Writer& writer)
 			{
 				bool visible = !profilerPane->visible;
 				if (args.size() == 1)
@@ -256,7 +256,7 @@ namespace eg
 						visible = false;
 					else
 					{
-						console::Write(console::ErrorColor, "Invalid argument to ppane, should be 'show' or 'hide'");
+						writer.WriteLine(console::ErrorColor, "Invalid argument to ppane, should be 'show' or 'hide'");
 						return;
 					}
 				}
@@ -267,32 +267,36 @@ namespace eg
 		if (runConfig.initialize)
 			runConfig.initialize();
 		
-		console::AddCommand("gmem", 0, [&] (Span<const std::string_view> args)
+		console::AddCommand("gmem", 0, [&] (Span<const std::string_view> args, console::Writer& writer)
 		{
 			if (gal::GetMemoryStat == nullptr)
 			{
-				console::Write(console::WarnColor, "gmem is not supported by this graphics API");
+				writer.WriteLine(console::WarnColor, "gmem is not supported by this graphics API");
 			}
 			else
 			{
 				GraphicsMemoryStat memStat = gal::GetMemoryStat();
 				
-				std::ostringstream msgStream;
-				msgStream << "Graphics memory info: " <<
-					std::setprecision(2) << std::fixed << (memStat.allocatedBytes / (1024.0 * 1024.0)) << " MiB in use, " <<
-					memStat.numBlocks << " blocks, " << memStat.unusedRanges << " unused ranges";
-				std::string msg = msgStream.str();
-				console::Write(console::InfoColor, msg);
+				std::ostringstream amountUsedStream;
+				amountUsedStream << std::setprecision(2) << std::fixed << (memStat.allocatedBytes / (1024.0 * 1024.0));
+				std::string amountUsedString = amountUsedStream.str();
+				
+				writer.Write(console::InfoColor, "Graphics memory info: ");
+				writer.Write(console::InfoColorSpecial, amountUsedString);
+				writer.Write(console::InfoColor, " MiB in use, ");
+				writer.Write(console::InfoColorSpecial, std::to_string(memStat.numBlocks));
+				writer.Write(console::InfoColor, " blocks, ");
+				writer.Write(console::InfoColorSpecial, std::to_string(memStat.unusedRanges));
+				writer.Write(console::InfoColor, " unused ranges");
 			}
 		});
 		
-		console::AddCommand("gpuinfo", 0, [&] (Span<const std::string_view> args)
+		console::AddCommand("gpuinfo", 0, [&] (Span<const std::string_view> args, console::Writer& writer)
 		{
-			std::ostringstream msgStream;
-			msgStream << "GPU Name:   " << GetGraphicsDeviceInfo().deviceName <<
-			           "\nGPU Vendor: " << GetGraphicsDeviceInfo().deviceVendorName;
-			std::string msg = msgStream.str();
-			console::Write(console::InfoColor, msg);
+			writer.Write(console::InfoColor, "GPU Name:   ");
+			writer.WriteLine(console::InfoColorSpecial, GetGraphicsDeviceInfo().deviceName);
+			writer.Write(console::InfoColor, "GPU Vendor: ");
+			writer.WriteLine(console::InfoColorSpecial, GetGraphicsDeviceInfo().deviceVendorName);
 		});
 		
 		for (CallbackNode* node = onInit; node != nullptr; node = node->next)

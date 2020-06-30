@@ -16,12 +16,13 @@ namespace eg
 	
 	void detail::Log(LogLevel level, const char* category, const char* format, size_t argc, const std::string* argv)
 	{
-		std::ostringstream stream;
-		
+		std::ostringstream prefixStream;
 		time_t time = std::time(nullptr);
-		stream << std::put_time(std::localtime(&time), "%H:%M:%S");
+		prefixStream << std::put_time(std::localtime(&time), "%H:%M:%S")
+		             << " [" << category << " " << levelMessages[(int)level] << "] ";
+		std::string prefixString = prefixStream.str();
 		
-		stream << " [" << category << " " << levelMessages[(int)level] << "] ";
+		std::ostringstream messageStream;
 		
 		//Buffer used when converting integers to strings
 		char buffer[4];
@@ -35,7 +36,7 @@ namespace eg
 			
 			if (nextArgPos == nullptr)
 			{
-				stream << format;
+				messageStream << format;
 				break;
 			}
 			else
@@ -43,7 +44,7 @@ namespace eg
 				//Writes the text leading up to the next argument
 				if (nextArgPos != format)
 				{
-					stream.write(format, nextArgPos - format);
+					messageStream.write(format, nextArgPos - format);
 				}
 				
 				//Finds the closing argument bracket
@@ -69,22 +70,25 @@ namespace eg
 				}
 				
 				//Writes the arguments
-				stream.write(argv[index].c_str(), argv[index].length());
+				messageStream.write(argv[index].c_str(), argv[index].length());
 				format = closeBracket + 1;
 			}
 		}
 		
-		std::string messageStr = stream.str();
+		std::string messageStr = messageStream.str();
 		
-		console::Write(levelColors[(int)level], messageStr);
+		console::Writer consoleWriter;
+		consoleWriter.Write(levelColors[(int)level].ScaleAlpha(0.75f), prefixString);
+		consoleWriter.Write(levelColors[(int)level], messageStr);
 		
 		if (level != LogLevel::Info)
 		{
 #ifdef __EMSCRIPTEN__
-			std::cout << messageStr << std::endl;
+			std::cout << prefixString << messageStr << std::endl;
 #else
 			std::lock_guard<std::mutex> lock(stdoutLogMutex);
-			std::cout << levelColorStrings[(int)level] << messageStr << "\x1b[0m" << std::endl;
+			std::cout << levelColorStrings[(int)level] << "\x1b[2m" << prefixString
+			          << "\x1b[0m" << levelColorStrings[(int)level] << messageStr << "\x1b[0m" << std::endl;
 #endif
 		}
 	}

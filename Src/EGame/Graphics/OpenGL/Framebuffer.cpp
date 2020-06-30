@@ -70,12 +70,12 @@ namespace eg::graphics_api::gl
 		Framebuffer* framebuffer = framebuffers.New();
 		glGenFramebuffers(1, &framebuffer->framebuffer);
 		
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
+		
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_FRAMEBUFFER, framebuffer->framebuffer, -1, createInfo.label);
 		}
-		
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
 		
 		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
 		framebuffer->hasDepth = false;

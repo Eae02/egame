@@ -2,6 +2,8 @@
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
 
+#include <variant>
+
 #ifdef _WIN32
 #define DEFINE_CONSOLEV2_PROPERTIES
 #define WIN32_LEAN_AND_MEAN
@@ -22,14 +24,8 @@ namespace eg
 	{
 		std::string_view name;
 		int minArgs;
-		std::function<void(Span<const std::string_view>)> callback;
+		console::CommandCallback callback;
 		std::vector<console::CompletionProviderCallback> completionProviders;
-	};
-	
-	struct Line
-	{
-		ColorLin color;
-		std::string_view text;
 	};
 	
 	struct ConsoleContext
@@ -48,7 +44,7 @@ namespace eg
 		TextEdit textEdit;
 		
 		std::mutex linesMutex;
-		std::vector<Line> lines;
+		std::vector<std::vector<console::LineSegment>> lines;
 		LinearAllocator allocator;
 		
 		std::vector<std::string_view> commandParts;
@@ -61,6 +57,7 @@ namespace eg
 	static ConsoleContext* ctx = nullptr;
 	
 	const ColorLin console::InfoColor = ColorLin(ColorSRGB::FromHex(0xD1E0E6));
+	const ColorLin console::InfoColorSpecial = ColorLin(ColorSRGB::FromHex(0xe6f6fc));
 	const ColorLin console::WarnColor = ColorLin(ColorSRGB::FromHex(0xF0B173));
 	const ColorLin console::ErrorColor = ColorLin(ColorSRGB::FromHex(0xF55161));
 	
@@ -94,6 +91,16 @@ namespace eg
 		ctx = nullptr;
 	}
 	
+	static inline console::LineSegment MakeLineSegment(const ColorLin& color, std::string_view text)
+	{
+		if (text.empty())
+			return { };
+		console::LineSegment segment;
+		segment.text = ctx->allocator.MakeStringCopy(text);
+		segment.color = color;
+		return segment;
+	}
+	
 	void console::Write(const ColorLin& color, std::string_view text)
 	{
 		if (ctx == nullptr)
@@ -103,12 +110,62 @@ namespace eg
 		
 		IterateStringParts(text, '\n', [&] (std::string_view line)
 		{
-			char* data = reinterpret_cast<char*>(ctx->allocator.Allocate(line.size(), 1));
-			std::memcpy(data, line.data(), line.size());
-			ctx->lines.push_back({color, std::string_view(data, line.size())});
+			ctx->lines.emplace_back().push_back(MakeLineSegment(color, line));
 			if (ctx->scroll > 1)
 				ctx->scroll++;
 		});
+	}
+	
+	void console::Writer::Flush()
+	{
+		while (!m_pendingLines.empty() && m_pendingLines.back().empty())
+			m_pendingLines.pop_back();
+		
+		if (ctx == nullptr || m_pendingLines.empty())
+			return;
+		
+		{
+			std::lock_guard<std::mutex> lock(ctx->linesMutex);
+			ctx->lines.insert(ctx->lines.end(), m_pendingLines.begin(), m_pendingLines.end());
+			if (ctx->scroll > 1)
+				ctx->scroll += m_pendingLines.size();
+		}
+		
+		m_pendingLines.clear();
+	}
+	
+	void console::Writer::Write(const ColorLin& color, std::string_view text)
+	{
+		if (ctx == nullptr)
+			return;
+		
+		while (!text.empty() && text[0] == '\n')
+		{
+			NewLine();
+			text = text.substr(1);
+		}
+		
+		if (text.empty())
+			return;
+		
+		if (m_pendingLines.empty())
+		{
+			NewLine();
+		}
+		
+		if (m_pendingLines.back().empty() && !m_linePrefixText.empty())
+		{
+			m_pendingLines.back().push_back(MakeLineSegment(color.ScaleAlpha(m_linePrefixAlphaScale), m_linePrefixText));
+		}
+		
+		size_t firstNewLine = text.find('\n');
+		m_pendingLines.back().push_back(MakeLineSegment(color, text.substr(0, firstNewLine)));
+		
+		if (firstNewLine != std::string_view::npos)
+		{
+			NewLine();
+			Write(color, text.substr(firstNewLine + 1));
+		}
 	}
 	
 	void console::Clear()
@@ -267,7 +324,10 @@ namespace eg
 					}
 					else
 					{
-						cmd->callback(Span<const std::string_view>(ctx->commandParts.data() + 1, ctx->commandParts.size() - 1));
+						Span<const std::string_view> args(ctx->commandParts.data() + 1, ctx->commandParts.size() - 1);
+						std::string linePrefix = Concat({ ctx->commandParts[0], " " });
+						Writer writer(linePrefix, 0.75f);
+						cmd->callback(args, writer);
 					}
 				}
 			}
@@ -338,8 +398,12 @@ namespace eg
 			float y = lineY + padding - ctx->textEdit.Font()->LineHeight() * ctx->scroll;
 			for (int i = (int)ctx->lines.size() - 1; i >= 0; i--)
 			{
-				spriteBatch.DrawText(*ctx->textEdit.Font(), ctx->lines[i].text, glm::vec2(innerMinX, std::round(y)),
-					ctx->lines[i].color);
+				glm::vec2 textPos(innerMinX, std::round(y));
+				for (const LineSegment& segment : ctx->lines[i])
+				{
+					spriteBatch.DrawText(*ctx->textEdit.Font(), segment.text, textPos, segment.color);
+					textPos.x += ctx->textEdit.Font()->GetTextExtents(segment.text).x;
+				}
 				y += ctx->textEdit.Font()->LineHeight();
 			}
 		}
@@ -397,6 +461,14 @@ namespace eg
 		ctx->commands.push_back({name, minArgs, std::move(callback)});
 	}
 	
+	void console::AddCommand(std::string_view name, int minArgs, console::CommandCallbackOld callback)
+	{
+		AddCommand(name, minArgs, [callbackInner=std::move(callback)] (Span<const std::string_view> args, class Writer&)
+		{
+			callbackInner(args);
+		});
+	}
+	
 	void console::SetCompletionProvider(std::string_view command, int arg, CompletionProviderCallback callback)
 	{
 		for (eg::Command& cmd : ctx->commands)
@@ -412,7 +484,6 @@ namespace eg
 		
 		eg::Log(eg::LogLevel::Error, "con", "Cannot set completion provider for unknown command '{0}'.", command);
 	}
-	
 	void console::CompletionsList::Add(std::string_view completion)
 	{
 		if (m_prefix.size() > completion.size())
@@ -427,230 +498,238 @@ namespace eg
 		}
 	}
 	
-	enum class TweakVarType
-	{
-		Float,
-		Int,
-		String
-	};
+	using TweakVarValue = std::variant<float, int, std::string>;
 	
 	struct TweakVar
 	{
-		std::string name;
-		TweakVarType type;
-		
-		float valueF;
-		int valueI;
-		std::string valueS;
-		float minF;
-		float maxF;
-		int minI;
-		int maxI;
+		std::string_view name;
+		const char* typeName;
+		TweakVarValue value;
+		TweakVarValue initialValue;
+		float minF = 0;
+		float maxF = 0;
+		int minI = 0;
+		int maxI = 0;
 	};
 	
-	static std::array<TweakVar, 1024> tweakVars;
-	static size_t numTweakVars;
+	static std::unordered_map<std::string_view, TweakVar> tweakVars;
 	
-	inline TweakVar* AddTweakVar(std::string name, TweakVarType type) noexcept
+	inline TweakVar* AddTweakVar(std::string_view name, TweakVarValue value) noexcept
 	{
-		if (numTweakVars == tweakVars.size())
-			EG_PANIC("Too many tweak variables");
-		TweakVar* var = &tweakVars[numTweakVars++];
-		var->name = std::move(name);
-		var->type = type;
-		return var;
+		auto emplaceRes = tweakVars.emplace(name, TweakVar());
+		if (!emplaceRes.second)
+		{
+			EG_PANIC("Multiple tweakable variables share the name '" << name << "'.");
+		}
+		TweakVar& var = emplaceRes.first->second;
+		var.name = name;
+		var.initialValue = value;
+		var.value = std::move(value);
+		return &var;
 	}
 	
-	float* TweakVarFloat(std::string name, float value, float min, float max) noexcept
+	float* TweakVarFloat(std::string_view name, float value, float min, float max) noexcept
 	{
-		 TweakVar* var = AddTweakVar(std::move(name), TweakVarType::Float);
-		 var->valueF = value;
+		 TweakVar* var = AddTweakVar(name, value);
 		 var->minF = min;
 		 var->maxF = max;
-		 return &var->valueF;
+		 var->typeName = "flt";
+		 return &std::get<float>(var->value);
 	}
 	
-	int* TweakVarInt(std::string name, int value, int min, int max) noexcept
+	int* TweakVarInt(std::string_view name, int value, int min, int max) noexcept
 	{
-		 TweakVar* var = AddTweakVar(std::move(name), TweakVarType::Int);
-		 var->valueI = value;
+		 TweakVar* var = AddTweakVar(name, value);
 		 var->minI = min;
 		 var->maxI = max;
-		 return &var->valueI;
+		 var->typeName = "int";
+		 return &std::get<int>(var->value);
 	}
 	
-	std::string* TweakVarStr(std::string name, std::string value) noexcept
+	std::string* TweakVarStr(std::string_view name, std::string value) noexcept
 	{
-		TweakVar* var = AddTweakVar(std::move(name), TweakVarType::Int);
-		var->valueS = std::move(value);
-		return &var->valueS;
+		TweakVar* var = AddTweakVar(name, std::move(value));
+		var->typeName = "str";
+		return &std::get<std::string>(var->value);
 	}
 	
 	void TweakCommandsCompletionProvider(Span<const std::string_view> prevWords, console::CompletionsList& list)
 	{
 		if (!eg::DevMode())
 			return;
-		for (TweakVar& var : tweakVars)
-		{
-			list.Add(var.name);
-		}
+		for (const auto& var : tweakVars)
+			list.Add(var.first);
 	}
 	
 	template <typename T>
-	static inline void PrintTweakValueSet(std::string_view name, const T& value)
+	static inline void PrintTweakValueSet(std::string_view name, const T& value, console::Writer& writer)
 	{
-		std::ostringstream stream;
-		stream << "Set " << name << " to " << value;
-		std::string msg = stream.str();
-		console::Write(console::InfoColor, msg);
+		writer.Write(console::InfoColor.ScaleAlpha(0.8f), "Set ");
+		writer.Write(console::InfoColor, name);
+		writer.Write(console::InfoColor.ScaleAlpha(0.8f), " to ");
+		writer.Write(console::InfoColorSpecial, LogToString(value));
 	}
 	
-	template <typename T>
-	static inline void PrintTweakValueGet(std::string_view name, const T& value)
-	{
-		std::ostringstream stream;
-		stream << name << " = " << value;
-		std::string msg = stream.str();
-		console::Write(console::InfoColor, msg);
-	}
-	
-	static inline TweakVar* FindTweakVar(std::string_view name)
+	static inline TweakVar* FindTweakVarOrPrintError(std::string_view name)
 	{
 		if (DevMode())
 		{
-			for (size_t i = 0; i < numTweakVars; i++)
-			{
-				if (tweakVars[i].name == name)
-				{
-					return &tweakVars[i];
-				}
-			}
+			auto it = tweakVars.find(name);
+			if (it != tweakVars.end())
+				return &it->second;
 		}
+		std::string msg = Concat({ "Tweakable variable not found: '", name, "'." });
+		console::Write(console::WarnColor, msg);
 		return nullptr;
 	}
 	
 	static void RegisterTweakCommands()
 	{
-		console::AddCommand("set", 2, [] (Span<const std::string_view> args)
+		console::AddCommand("set", 2, [] (Span<const std::string_view> args, console::Writer& writer)
 		{
-			TweakVar* var = FindTweakVar(args[0]);
+			TweakVar* var = FindTweakVarOrPrintError(args[0]);
 			if (var == nullptr)
-			{
-				std::string msg = Concat({ "Tweakable variable not found: '", args[0], "'." });
-				console::Write(console::WarnColor, msg);
-			}
-			else if (var->type == TweakVarType::Float)
+				return;
+			if (float* valueF = std::get_if<float>(&var->value))
 			{
 				try
 				{
-					var->valueF = glm::clamp(std::stof(std::string(args[1])), var->minF, var->maxF);
-					PrintTweakValueSet(var->name, var->valueF);
+					*valueF = glm::clamp(std::stof(std::string(args[1])), var->minF, var->maxF);
+					PrintTweakValueSet(var->name, *valueF, writer);
 				}
 				catch (...)
 				{
-					std::string msg = Concat({ "Cannot parse: '", args[1], "' as float." });
-					console::Write(console::WarnColor, msg);
+					writer.WriteLine(console::WarnColor, Concat({ "Cannot parse: '", args[1], "' as float." }));
 				}
 			}
-			else if (var->type == TweakVarType::Int)
+			else if (int* valueI = std::get_if<int>(&var->value))
 			{
 				try
 				{
-					var->valueI = glm::clamp(std::stoi(std::string(args[1])), var->minI, var->maxI);
-					PrintTweakValueSet(var->name, var->valueI);
+					*valueI = glm::clamp(std::stoi(std::string(args[1])), var->minI, var->maxI);
+					PrintTweakValueSet(var->name, *valueI, writer);
 				}
 				catch (...)
 				{
-					std::string msg = Concat({ "Cannot parse: '", args[1], "' as int." });
-					console::Write(console::WarnColor, msg);
+					writer.WriteLine(console::WarnColor, Concat({ "Cannot parse: '", args[1], "' as int." }));
 				}
 			}
-			else if (var->type == TweakVarType::String)
+			else if (std::string* valueS = std::get_if<std::string>(&var->value))
 			{
-				var->valueS = args[1];
-				PrintTweakValueSet(var->name, var->valueS);
+				*valueS = args[1];
+				PrintTweakValueSet(var->name, *valueS, writer);
 			}
 		});
 		console::SetCompletionProvider("set", 0, TweakCommandsCompletionProvider);
 		
-		console::AddCommand("getvar", 1, [] (Span<const std::string_view> args)
+		console::AddCommand("get", 1, [] (Span<const std::string_view> args, console::Writer& writer)
 		{
-			TweakVar* var = FindTweakVar(args[0]);
-			if (var == nullptr)
+			if (TweakVar* var = FindTweakVarOrPrintError(args[0]))
 			{
-				std::string msg = Concat({ "Tweakable variable not found: '", args[0], "'." });
-				console::Write(console::WarnColor, msg);
-			}
-			else if (var->type == TweakVarType::Float)
-			{
-				PrintTweakValueGet(var->name, var->valueF);
-			}
-			else if (var->type == TweakVarType::Int)
-			{
-				PrintTweakValueGet(var->name, var->valueI);
-			}
-			else if (var->type == TweakVarType::String)
-			{
-				PrintTweakValueGet(var->name, var->valueS);
+				writer.Write(console::InfoColor, var->name);
+				writer.Write(console::InfoColor.ScaleAlpha(0.8f), " = ");
+				std::visit([&] (const auto& value)
+				{
+					writer.Write(console::InfoColorSpecial, LogToString(value));
+				}, var->value);
+				writer.NewLine();
 			}
 		});
-		console::SetCompletionProvider("getvar", 0, TweakCommandsCompletionProvider);
+		console::SetCompletionProvider("get", 0, TweakCommandsCompletionProvider);
 		
-		console::AddCommand("toggle", 1, [] (Span<const std::string_view> args)
+		console::AddCommand("setinit", 1, [] (Span<const std::string_view> args, console::Writer& writer)
 		{
-			TweakVar* var = FindTweakVar(args[0]);
-			if (var == nullptr)
+			if (TweakVar* var = FindTweakVarOrPrintError(args[0]))
 			{
-				std::string msg = Concat({ "Tweakable variable not found: '", args[0], "'." });
-				console::Write(console::WarnColor, msg);
+				if (var->value == var->initialValue)
+				{
+					writer.WriteLine(console::InfoColor, "Variable already has it's initial value");
+				}
+				else
+				{
+					var->value = var->initialValue;
+					std::visit([&] (const auto& value) { PrintTweakValueSet(var->name, value, writer); }, var->value);
+				}
 			}
-			else if (var->type == TweakVarType::Int)
+		});
+		console::SetCompletionProvider("setinit", 0, TweakCommandsCompletionProvider);
+		
+		console::AddCommand("toggle", 1, [] (Span<const std::string_view> args, console::Writer& writer)
+		{
+			if (TweakVar* var = FindTweakVarOrPrintError(args[0]))
 			{
-				var->valueI = var->valueI ? 0 : 1;
-				PrintTweakValueSet(var->name, var->valueI);
-			}
-			else
-			{
-				console::Write(console::WarnColor, "Only integer variables can be toggled");
+				if (int* value = std::get_if<int>(&var->value))
+				{
+					*value = *value ? 0 : 1;
+					PrintTweakValueSet(var->name, *value, writer);
+				}
+				else
+				{
+					writer.WriteLine(console::WarnColor, "Only integer variables can be toggled");
+				}
 			}
 		});
 		console::SetCompletionProvider("toggle", 0, [] (Span<const std::string_view> prevWords, console::CompletionsList& list)
 		{
 			if (!eg::DevMode())
 				return;
-			for (TweakVar& var : tweakVars)
+			for (const auto& var : tweakVars)
 			{
-				if (var.type == TweakVarType::Int && var.minI == 0 && var.maxI == 1)
-					list.Add(var.name);
+				if (std::holds_alternative<int>(var.second.value) && var.second.minI == 0 && var.second.maxI == 1)
+				{
+					list.Add(var.first);
+				}
 			}
 		});
 		
-		console::AddCommand("lsvar", 0, [] (Span<const std::string_view> args)
+		console::AddCommand("lsvar", 0, [] (Span<const std::string_view> args, console::Writer& writer)
 		{
-			if (numTweakVars == 0 || !eg::DevMode())
+			if (tweakVars.empty() || !eg::DevMode())
 			{
-				console::Write(console::ErrorColor, "There are no tweakable variables");
+				writer.WriteLine(console::ErrorColor, "There are no tweakable variables");
 				return;
 			}
 			
-			static const char* typeNames[] = { "flt", "int", "str" };
-			std::vector<std::string> lines(numTweakVars);
-			for (size_t i = 0; i < numTweakVars; i++)
+			std::vector<const TweakVar*> variables;
+			for (const auto& var : tweakVars)
 			{
-				std::ostringstream stream;
-				stream << "  " << tweakVars[i].name << " [" << typeNames[(int)tweakVars[i].type] << "]: ";
-				if (tweakVars[i].type == TweakVarType::Float)
-					stream << tweakVars[i].valueF;
-				else if (tweakVars[i].type == TweakVarType::Int)
-					stream << tweakVars[i].valueI;
-				else if (tweakVars[i].type == TweakVarType::String)
-					stream << tweakVars[i].valueS;
-				lines[i] = stream.str();
+				if (args.size() == 0 || var.first.find(args[0]) != std::string::npos)
+				{
+					variables.push_back(&var.second);
+				}
 			}
-			std::sort(lines.begin(), lines.end());
-			console::Write(console::InfoColor, "Tweakable variables:");
-			for (const std::string& line : lines)
-				console::Write(console::InfoColor, line);
+			if (variables.empty())
+			{
+				writer.WriteLine(console::ErrorColor, "No variables match the search criteria");
+				return;
+			}
+			std::sort(variables.begin(), variables.end(), [] (const TweakVar* a, const TweakVar* b)
+			{
+				return a->name < b->name;
+			});
+			
+			writer.WriteLine(console::InfoColor, "Tweakable variables:");
+			for (const TweakVar* var : variables)
+			{
+				writer.Write(console::InfoColor, " ");
+				writer.Write(console::InfoColor.ScaleAlpha(0.8f), var->typeName);
+				writer.Write(console::InfoColor, " ");
+				writer.Write(console::InfoColor, var->name);
+				writer.Write(console::InfoColor.ScaleAlpha(0.8f), ": ");
+				
+				auto printValueVisitor = [&] (const auto& value)
+				{
+					writer.Write(console::InfoColorSpecial, LogToString(value));
+				};
+				std::visit(printValueVisitor, var->value);
+				if (var->value != var->initialValue)
+				{
+					writer.Write(console::InfoColor.ScaleAlpha(0.8f), " (initially ");
+					std::visit(printValueVisitor, var->initialValue);
+					writer.Write(console::InfoColor.ScaleAlpha(0.8f), ")");
+				}
+				writer.NewLine();
+			}
 		});
 	}
 }

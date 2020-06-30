@@ -70,6 +70,11 @@ namespace eg
 			return ColorLin(r * scale, g * scale, b * scale, a);
 		}
 		
+		ColorLin ScaleAlpha(float scale) const
+		{
+			return ColorLin(r, g, b, a * scale);
+		}
+		
 		static ColorLin Mix(const ColorLin& c0, const ColorLin& c1, float a)
 		{
 			return ColorLin(glm::mix(c0.r, c1.r, a), glm::mix(c0.g, c1.g, a), glm::mix(c0.b, c1.b, a), glm::mix(c0.a, c1.a, a));
@@ -89,6 +94,11 @@ namespace eg
 		inline ColorSRGB(const struct ColorLin& c);
 		
 		ColorSRGB(float _r, float _g, float _b, float _a = 1.0f) : Color(_r, _g, _b, _a) { }
+		
+		ColorSRGB ScaleAlpha(float scale) const
+		{
+			return ColorLin(r, g, b, a * scale);
+		}
 		
 		static ColorSRGB FromHex(uint32_t hex)
 		{
