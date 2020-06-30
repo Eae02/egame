@@ -395,4 +395,19 @@ namespace eg::graphics_api::gl
 	{
 		glFinish();
 	}
+	
+	void DebugLabelBegin(CommandContextHandle, const char* label, const float* color)
+	{
+		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, label);
+	}
+	
+	void DebugLabelEnd(CommandContextHandle)
+	{
+		glPopDebugGroup();
+	}
+	
+	void DebugLabelInsert(CommandContextHandle, const char* label, const float* color)
+	{
+		glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, label);
+	}
 }

@@ -81,3 +81,7 @@ XM_ABSCALLBACK(WriteTimestamp, void, (CommandContextHandle cctx, QueryPoolHandle
 XM_ABSCALLBACK(ResetQueries, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries))
 XM_ABSCALLBACK(BeginQuery, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))
 XM_ABSCALLBACK(EndQuery, void, (CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query))
+
+XM_ABSCALLBACK(DebugLabelBegin, void, (CommandContextHandle ctx, const char* label, const float* color))
+XM_ABSCALLBACK(DebugLabelEnd, void, (CommandContextHandle ctx))
+XM_ABSCALLBACK(DebugLabelInsert, void, (CommandContextHandle ctx, const char* label, const float* color))

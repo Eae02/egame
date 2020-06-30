@@ -594,6 +594,7 @@ namespace eg
 		FramebufferAttachment depthStencilAttachment;
 		Span<const FramebufferAttachment> colorResolveAttachments;
 		FramebufferAttachment depthStencilResolveAttachment;
+		const char* label = nullptr;
 	};
 	
 	struct RenderPassColorAttachment

@@ -954,6 +954,49 @@ namespace eg::graphics_api::vk
 			CheckRes(presentResult);
 		}
 	}
+	
+	static inline void InitLabelInfo(VkDebugUtilsLabelEXT& labelInfo, const char* label, const float* color)
+	{
+		labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+		labelInfo.pNext = nullptr;
+		labelInfo.pLabelName = label;
+		if (color != nullptr)
+		{
+			std::copy_n(color, 4, labelInfo.color);
+		}
+		else
+		{
+			std::fill_n(labelInfo.color, 4, 0.0f);
+		}
+	}
+	
+	void DebugLabelBegin(CommandContextHandle cctx, const char* label, const float* color)
+	{
+		if (vkCmdBeginDebugUtilsLabelEXT != nullptr)
+		{
+			VkDebugUtilsLabelEXT labelInfo;
+			InitLabelInfo(labelInfo, label, color);
+			vkCmdBeginDebugUtilsLabelEXT(GetCB(cctx), &labelInfo);
+		}
+	}
+	
+	void DebugLabelEnd(CommandContextHandle cctx)
+	{
+		if (vkCmdEndDebugUtilsLabelEXT != nullptr)
+		{
+			vkCmdEndDebugUtilsLabelEXT(GetCB(cctx));
+		}
+	}
+	
+	void DebugLabelInsert(CommandContextHandle cctx, const char* label, const float* color)
+	{
+		if (vkCmdInsertDebugUtilsLabelEXT != nullptr)
+		{
+			VkDebugUtilsLabelEXT labelInfo;
+			InitLabelInfo(labelInfo, label, color);
+			vkCmdInsertDebugUtilsLabelEXT(GetCB(cctx), &labelInfo);
+		}
+	}
 }
 
 #endif

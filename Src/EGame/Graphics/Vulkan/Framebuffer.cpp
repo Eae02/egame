@@ -146,6 +146,12 @@ namespace eg::graphics_api::vk
 		
 		CheckRes(vkCreateFramebuffer(ctx.device, &vkCreateInfo, nullptr, &framebuffer->framebuffer));
 		
+		if (createInfo.label != nullptr)
+		{
+			SetObjectName(reinterpret_cast<uint64_t>(framebuffer->framebuffer),
+				VK_OBJECT_TYPE_FRAMEBUFFER, createInfo.label);
+		}
+		
 		return reinterpret_cast<FramebufferHandle>(framebuffer);
 	}
 	

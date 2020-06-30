@@ -690,6 +690,31 @@ namespace eg
 			gal::CopyQueryResults(Handle(), pool.handle, firstQuery, numQueries, dstBuffer.handle, dstOffset);
 		}
 		
+		void DebugLabelBegin(const char* label)
+		{
+			gal::DebugLabelBegin(Handle(), label, nullptr);
+		}
+		
+		void DebugLabelBegin(const char* label, const eg::ColorSRGB& color)
+		{
+			gal::DebugLabelBegin(Handle(), label, &color.r);
+		}
+		
+		void DebugLabelEnd()
+		{
+			gal::DebugLabelEnd(Handle());
+		}
+		
+		void DebugLabelInsert(const char* label)
+		{
+			gal::DebugLabelInsert(Handle(), label, nullptr);
+		}
+		
+		void DebugLabelInsert(const char* label, const eg::ColorSRGB& color)
+		{
+			gal::DebugLabelInsert(Handle(), label, &color.r);
+		}
+		
 		/**
 		 * Gets the GAL handle for this command context.
 		 */
