@@ -5,6 +5,11 @@ namespace eg
 	void MeshBatch::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material,
 	                     MeshBatch::Instance* instance, int orderPriority)
 	{
+		if (material.GetOrderRequirement() == IMaterial::OrderRequirement::OnlyOrdered)
+		{
+			EG_PANIC("Attempted to add a material with order requirement OnlyOrdered to an unordered mesh batch.");
+		}
+		
 		size_t pipelineHash = material.PipelineHash();
 		
 		auto opBucketIt = std::lower_bound(m_drawList.begin(), m_drawList.end(), orderPriority,

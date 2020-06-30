@@ -1,4 +1,5 @@
 #include "MeshBatchOrdered.hpp"
+#include "Model.hpp"
 
 namespace eg
 {
@@ -7,6 +8,57 @@ namespace eg
 		m_instances.clear();
 		m_instanceDataAllocator.Reset();
 		m_totalInstanceData = 0;
+	}
+	
+	void MeshBatchOrdered::AddNoData(const MeshBatch::Mesh& mesh, const IMaterial& material, float order)
+	{
+		EG_ASSERT(material.GetOrderRequirement() != IMaterial::OrderRequirement::OnlyUnordered);
+		Instance& instance = m_instances.emplace_back();
+		instance.dataSize = 0;
+		instance.data = nullptr;
+		instance.mesh = mesh;
+		instance.material = &material;
+		instance.order = order;
+	}
+	
+	static inline void CheckOrderRequirement(const IMaterial& material)
+	{
+		if (material.GetOrderRequirement() == IMaterial::OrderRequirement::OnlyUnordered)
+		{
+			EG_PANIC("Attempted to add a material with order requirement OnlyUnordered to an ordered mesh batch.");
+		}
+	}
+	
+	void MeshBatchOrdered::_AddModelMesh(const Model& model, size_t meshIndex, const IMaterial& material,
+			const void* data, size_t dataSize, float order)
+	{
+		CheckOrderRequirement(material);
+		
+		Instance& instance = m_instances.emplace_back();
+		instance.dataSize = dataSize;
+		instance.data = data;
+		instance.mesh.vertexBuffer = model.VertexBuffer();
+		instance.mesh.indexBuffer = model.IndexBuffer();
+		instance.mesh.firstIndex = model.GetMesh(meshIndex).firstIndex;
+		instance.mesh.firstVertex = model.GetMesh(meshIndex).firstVertex;
+		instance.mesh.numElements = model.GetMesh(meshIndex).numIndices;
+		instance.mesh.indexType = model.IndexType();
+		instance.material = &material;
+		instance.order = order;
+		m_totalInstanceData += dataSize;
+	}
+	
+	void MeshBatchOrdered::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data, size_t dataSize, float order)
+	{
+		CheckOrderRequirement(material);
+		
+		Instance& instance = m_instances.emplace_back();
+		instance.dataSize = dataSize;
+		instance.data = data;
+		instance.mesh = mesh;
+		instance.material = &material;
+		instance.order = order;
+		m_totalInstanceData += dataSize;
 	}
 	
 	void MeshBatchOrdered::End(CommandContext& cmdCtx)
@@ -44,7 +96,7 @@ namespace eg
 		}
 	}
 	
-	void MeshBatchOrdered::Draw(CommandContext& cmdCtx, void* drawArgs)
+	void MeshBatchOrdered::Draw(CommandContext& cmdCtx, void* drawArgs) const
 	{
 		if (m_instances.empty())
 			return;
@@ -60,14 +112,20 @@ namespace eg
 			if (currentMaterial == nullptr || newPipelineHash != currentPipelineHash)
 			{
 				if (!instance.material->BindPipeline(cmdCtx, drawArgs))
+				{
+					instanceDataOffset += instance.dataSize;
 					continue;
+				}
 				currentPipelineHash = newPipelineHash;
 			}
 			
 			if (currentMaterial != instance.material)
 			{
 				if (!instance.material->BindMaterial(cmdCtx, drawArgs))
+				{
+					instanceDataOffset += instance.dataSize;
 					continue;
+				}
 				currentMaterial = instance.material;
 			}
 			

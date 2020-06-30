@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AbstractionHL.hpp"
-#include "Model.hpp"
 #include "IMaterial.hpp"
 #include "MeshBatch.hpp"
 
@@ -13,47 +12,39 @@ namespace eg
 		MeshBatchOrdered() = default;
 		
 		template <typename T>
-		void AddModelMesh(const Model& model, size_t meshIndex, const IMaterial& material, const T& instanceData, float order)
+		void AddModel(const Model& model, const IMaterial& material, const T& instanceData, float order)
 		{
-			MeshBatch::Mesh mesh;
-			mesh.vertexBuffer = model.VertexBuffer();
-			mesh.indexBuffer = model.IndexBuffer();
-			mesh.firstIndex = model.GetMesh(meshIndex).firstIndex;
-			mesh.firstVertex = model.GetMesh(meshIndex).firstVertex;
-			mesh.numElements = model.GetMesh(meshIndex).numIndices;
-			mesh.indexType = model.IndexType();
-			Add(mesh, material, instanceData, order);
+			for (size_t i = 0; i < model.NumMeshes(); i++)
+			{
+				AddModelMesh(model, i, material, instanceData, order);
+			}
+		}
+		
+		template <typename T>
+		void AddModelMesh(const class Model& model, size_t meshIndex, const IMaterial& material, const T& instanceData, float order)
+		{
+			_AddModelMesh(model, meshIndex, material, m_instanceDataAllocator.New<T>(instanceData), sizeof(T), order);
 		}
 		
 		template <typename T>
 		void Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const T& instanceData, float order)
 		{
-			Instance& instance = m_instances.emplace_back();
-			instance.dataSize = sizeof(T);
-			instance.data = m_instanceDataAllocator.New<T>(instanceData);
-			instance.mesh = mesh;
-			instance.material = &material;
-			instance.order = order;
-			m_totalInstanceData += sizeof(T);
+			_Add(mesh, material, m_instanceDataAllocator.New<T>(instanceData), sizeof(T), order);
 		}
 		
-		void AddNoData(const MeshBatch::Mesh& mesh, const IMaterial& material, float order)
-		{
-			Instance& instance = m_instances.emplace_back();
-			instance.dataSize = 0;
-			instance.data = nullptr;
-			instance.mesh = mesh;
-			instance.material = &material;
-			instance.order = order;
-		}
+		void AddNoData(const MeshBatch::Mesh& mesh, const IMaterial& material, float order);
 		
 		void Begin();
 		
 		void End(CommandContext& cmdCtx);
 		
-		void Draw(CommandContext& cmdCtx, void* drawArgs = nullptr);
+		void Draw(CommandContext& cmdCtx, void* drawArgs = nullptr) const;
 		
 	private:
+		void _AddModelMesh(const class Model& model, size_t meshIndex, const IMaterial& material,
+			const void* data, size_t dataSize, float order);
+		void _Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data, size_t dataSize, float order);
+		
 		struct Instance
 		{
 			float order;
