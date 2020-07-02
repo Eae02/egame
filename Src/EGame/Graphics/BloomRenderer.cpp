@@ -6,6 +6,7 @@
 namespace eg
 {
 	BloomRenderer::RenderTarget::RenderTarget(uint32_t inputWidth, uint32_t inputHeight, uint32_t levels)
+		: m_inputWidth(inputWidth), m_inputHeight(inputHeight)
 	{
 		TextureCreateInfo textureCI;
 		textureCI.width = inputWidth / 2;

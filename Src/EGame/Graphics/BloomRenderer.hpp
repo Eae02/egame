@@ -17,8 +17,14 @@ namespace eg
 				return m_mainTexture;
 			}
 			
+			uint32_t InputWidth() const { return m_inputWidth; }
+			uint32_t InputHeight() const { return m_inputHeight; }
+			
 		private:
 			friend class BloomRenderer;
+			
+			uint32_t m_inputWidth;
+			uint32_t m_inputHeight;
 			
 			Texture m_mainTexture;
 			Texture m_auxTexture;
