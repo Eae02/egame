@@ -30,8 +30,8 @@ namespace eg
 	class EG_API AssetGenerateContext
 	{
 	public:
-		AssetGenerateContext(std::string_view currentDir, const YAML::Node* node)
-			: m_currentDir(currentDir), m_node(node) { }
+		AssetGenerateContext(std::string_view currentDir, std::string_view assetName, const YAML::Node* node)
+			: m_currentDir(currentDir), m_assetName(assetName), m_node(node) { }
 		
 		const YAML::Node& YAMLNode() const
 		{
@@ -55,6 +55,11 @@ namespace eg
 			m_loadDependencies.push_back(std::move(relPath));
 		}
 		
+		std::string_view AssetName() const
+		{
+			return m_assetName;
+		}
+		
 		std::string RelSourcePath() const;
 		
 		const std::vector<std::string>& FileDependencies() const
@@ -74,6 +79,7 @@ namespace eg
 		std::vector<std::string> m_fileDependencies;
 		std::vector<std::string> m_loadDependencies;
 		std::string_view m_currentDir;
+		std::string_view m_assetName;
 		const YAML::Node* m_node;
 	};
 	
@@ -86,7 +92,7 @@ namespace eg
 	};
 	
 	EG_API std::optional<GeneratedAsset> GenerateAsset(std::string_view currentDir, std::string_view generator,
-		const YAML::Node& node);
+		std::string_view assetName, const YAML::Node& node);
 	
 	EG_API void RegisterAssetGeneratorInstance(std::string name, const AssetFormat& format,
 		std::unique_ptr<AssetGenerator> generator);

@@ -37,7 +37,7 @@ namespace eg
 	}
 	
 	std::optional<GeneratedAsset> GenerateAsset(std::string_view currentDir, std::string_view generator,
-		const YAML::Node& node)
+	                                            std::string_view assetName, const YAML::Node& node)
 	{
 		auto it = std::lower_bound(assetGenerators.begin(), assetGenerators.end(), generator, &AssetGeneratorLess);
 		if (it == assetGenerators.end() || it->name != generator)
@@ -46,7 +46,7 @@ namespace eg
 			return { };
 		}
 		
-		AssetGenerateContext context(currentDir, &node);
+		AssetGenerateContext context(currentDir, assetName, &node);
 		if (!it->generator->Generate(context))
 			return { };
 		
@@ -68,7 +68,7 @@ namespace eg
 		}
 		else
 		{
-			sourceName = YAMLNode()["name"].as<std::string>();
+			sourceName = m_assetName;
 		}
 		return sourceName;
 	}

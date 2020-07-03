@@ -12,7 +12,10 @@
 #include <ctime>
 #include <fstream>
 #include <condition_variable>
+#include <filesystem>
 #include <iomanip>
+#include <regex>
+#include <unordered_set>
 
 namespace eg
 {
@@ -104,15 +107,16 @@ namespace eg
 		it->generator = detail::assetAllocator.MakeStringCopy(generator);
 	}
 	
-	static const char cachedAssetMagic[] = { (char)0xFF, 'E', 'G', 'A' };
+	static const char cachedAssetMagic[] = { (char)0xFF, 'E', 'A', 'C' };
 	
-	static void SaveAssetToCache(const GeneratedAsset& asset, const std::string& cachePath)
+	static void SaveAssetToCache(const GeneratedAsset& asset, uint64_t yamlParamsHash, const std::string& cachePath)
 	{
 		eg::CreateDirectories(ParentPath(cachePath, false));
 		
 		std::ofstream stream(cachePath, std::ios::binary);
 		
 		stream.write(cachedAssetMagic, sizeof(cachedAssetMagic));
+		BinWrite(stream, yamlParamsHash);
 		BinWrite(stream, asset.format.nameHash);
 		BinWrite(stream, asset.format.version);
 		BinWrite(stream, (uint32_t)asset.flags);
@@ -131,7 +135,7 @@ namespace eg
 	}
 	
 	static std::optional<GeneratedAsset> TryReadAssetFromCache(const std::string& currentDirPath,
-		const AssetFormat& expectedFormat, const std::string& cachePath)
+		const AssetFormat& expectedFormat, uint64_t expectedYamlHash, const std::string& cachePath)
 	{
 		std::ifstream stream(cachePath, std::ios::binary);
 		if (!stream)
@@ -140,6 +144,10 @@ namespace eg
 		char magic[sizeof(cachedAssetMagic)];
 		stream.read(magic, sizeof(magic));
 		if (std::memcmp(cachedAssetMagic, magic, sizeof(magic)))
+			return { };
+		
+		uint64_t yamlHash = BinRead<uint64_t>(stream);
+		if (yamlHash != expectedYamlHash)
 			return { };
 		
 		GeneratedAsset asset;
@@ -276,7 +284,45 @@ namespace eg
 		return true;
 	}
 	
+	static uint64_t HashYAMLNode(const YAML::Node& node)
+	{
+		if (!node.IsDefined())
+			return 0;
+		uint64_t hash = std::hash<std::string>()(node.Tag());
+		if (node.IsSequence() || node.IsMap())
+		{
+			for (YAML::const_iterator it = node.begin(); it != node.end(); ++it)
+			{
+				HashAppend(hash, HashYAMLNode(it->first));
+				HashAppend(hash, HashYAMLNode(it->second));
+			}
+		}
+		else
+		{
+			HashAppend(hash, node.as<std::string>());
+		}
+		return hash;
+	}
+	
 	static const char EAPMagic[] = { (char)0xFF, 'E', 'A', 'P' };
+	
+	static void FindAllFilesInDirectory(const std::filesystem::path& path, std::string prefix, std::vector<std::string>& output)
+	{
+		for (auto directoryEntry : std::filesystem::directory_iterator(path))
+		{
+			std::string fileName = directoryEntry.path().filename().string();
+			if (fileName[0] == '.')
+				continue;
+			if (directoryEntry.is_directory())
+			{
+				FindAllFilesInDirectory(directoryEntry.path(), prefix + fileName + "/", output);
+			}
+			else if (directoryEntry.is_regular_file())
+			{
+				output.push_back(prefix + fileName);
+			}
+		}
+	}
 	
 	static bool LoadAssetsYAML(const std::string& path, AssetDirectory& mountDir)
 	{
@@ -294,14 +340,14 @@ namespace eg
 		YAML::Node node = YAML::Load(yamlStream);
 		
 		std::vector<AssetToLoad> assetsToLoad;
-		for (const YAML::Node& assetNode : node["assets"])
+		std::unordered_set<std::string> assetsAlreadyAdded;
+		auto LoadAsset = [&] (std::string name, const YAML::Node& assetNode)
 		{
-			const YAML::Node& nameNode = assetNode["name"];
-			if (!nameNode)
-				continue;
+			if (assetsAlreadyAdded.count(name))
+				return;
 			
 			AssetToLoad assetToLoad;
-			assetToLoad.name = nameNode.as<std::string>();
+			assetToLoad.name = std::move(name);
 			assetToLoad.state = AssetToLoad::STATE_INITIAL;
 			
 			//Tries to find the generator and loader names
@@ -324,7 +370,7 @@ namespace eg
 				else
 				{
 					Log(LogLevel::Error, "as", "Unrecognized asset extension for '{0}'", assetToLoad.name);
-					continue;
+					return;
 				}
 			}
 			
@@ -332,23 +378,25 @@ namespace eg
 			if (assetToLoad.loader == nullptr)
 			{
 				Log(LogLevel::Error, "as", "Asset loader not found: '{0}'.", loaderName);
-				continue;
+				return;
 			}
+			
+			const uint64_t yamlHash = HashYAMLNode(assetNode);
 			
 			//Tries to load the asset from the cache
 			std::string assetCachePath = Concat({ cachePath, assetToLoad.name, ".eab" });
 			std::optional<GeneratedAsset> generated =
-				TryReadAssetFromCache(dirPath, *assetToLoad.loader->format, assetCachePath);
+				TryReadAssetFromCache(dirPath, *assetToLoad.loader->format, yamlHash, assetCachePath);
 			
 			//Generates the asset if loading from the cache failed
 			if (!generated.has_value())
 			{
 				int64_t timeBegin = NanoTime();
-				generated = GenerateAsset(dirPath, generatorName, assetNode);
+				generated = GenerateAsset(dirPath, generatorName, assetToLoad.name, assetNode);
 				int64_t genDuration = NanoTime() - timeBegin;
 				
 				if (!generated.has_value())
-					continue;
+					return;
 				
 				std::ostringstream msg;
 				msg << "Generated asset '" << assetToLoad.name << "' in " <<
@@ -359,12 +407,41 @@ namespace eg
 				constexpr int64_t CACHE_TIME_THRESHOLD = 500000;
 				if (genDuration > CACHE_TIME_THRESHOLD && !HasFlag(generated->flags, AssetFlags::NeverCache))
 				{
-					SaveAssetToCache(*generated, assetCachePath);
+					SaveAssetToCache(*generated, yamlHash, assetCachePath);
 				}
 			}
 			
+			assetsAlreadyAdded.insert(assetToLoad.name);
 			assetToLoad.generatedAsset = std::move(*generated);
 			assetsToLoad.push_back(std::move(assetToLoad));
+		};
+		
+		std::vector<std::string> allFilesInDirectory;
+		bool hasFoundAllFilesInDirectory = false;
+		
+		for (const YAML::Node& assetNode : node["assets"])
+		{
+			if (const YAML::Node& patternNode = assetNode["regex"])
+			{
+				if (!hasFoundAllFilesInDirectory)
+				{
+					FindAllFilesInDirectory(path, "", allFilesInDirectory);
+					hasFoundAllFilesInDirectory = true;
+				}
+				std::string pattern = patternNode.as<std::string>();
+				std::regex regex(pattern, std::regex::extended | std::regex::optimize);
+				for (const std::string& file : allFilesInDirectory)
+				{
+					if (std::regex_match(file, regex))
+					{
+						LoadAsset(file, assetNode);
+					}
+				}
+			}
+			if (const YAML::Node& nameNode = assetNode["name"])
+			{
+				LoadAsset(nameNode.as<std::string>(), assetNode);
+			}
 		}
 		
 		EAPWriteContext eapWriteContext;

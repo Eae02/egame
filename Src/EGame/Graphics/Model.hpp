@@ -59,6 +59,10 @@ namespace eg
 		template <typename V = StdVertex, typename I = uint32_t>
 		MeshData<const V, const I> GetMeshData(size_t index) const
 		{
+			if (index >= m_meshes.size())
+			{
+				EG_PANIC("Attempted to get mesh data for an invalid mesh index.");
+			}
 			if (m_meshes[index].access == MeshAccess::GPUOnly)
 			{
 				EG_PANIC("Attempted to get mesh data for a mesh which is not CPU accessible.");

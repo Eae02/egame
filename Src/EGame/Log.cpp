@@ -68,7 +68,7 @@ namespace eg
 					Log(LogLevel::Error, "log", "Error in log format: Argument index out of range.");
 					return;
 				}
-				
+			
 				//Writes the arguments
 				messageStream.write(argv[index].c_str(), argv[index].length());
 				format = closeBracket + 1;
@@ -81,7 +81,7 @@ namespace eg
 		consoleWriter.Write(levelColors[(int)level].ScaleAlpha(0.75f), prefixString);
 		consoleWriter.Write(levelColors[(int)level], messageStr);
 		
-		if (level != LogLevel::Info)
+		if (level != LogLevel::Info || DevMode())
 		{
 #ifdef __EMSCRIPTEN__
 			std::cout << prefixString << messageStr << std::endl;
