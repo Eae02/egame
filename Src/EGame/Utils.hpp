@@ -22,7 +22,11 @@ inline constexpr T operator|(T a, T b) noexcept \
 inline constexpr T operator&(T a, T b) noexcept \
 { return static_cast<T>(static_cast<int>(a) & static_cast<int>(b)); }\
 inline constexpr T& operator|=(T& a, T b) noexcept \
-{ a = a | b; return a; }
+{ a = a | b; return a; } \
+inline constexpr T& operator&=(T& a, T b) noexcept \
+{ a = a & b; return a; } \
+inline constexpr T operator~(T a) noexcept \
+{ return static_cast<T>(static_cast<int>(~a)); }
 
 #if defined(NDEBUG)
 #define EG_DEBUG_BREAK
@@ -80,6 +84,8 @@ namespace eg
 	{
 		return detail::devMode;
 	}
+	
+	EG_API void ParseCommandLineArgs(struct RunConfig& runConfig, int argc, char** argv);
 	
 	EG_API void ReleasePanic(const std::string& message);
 	

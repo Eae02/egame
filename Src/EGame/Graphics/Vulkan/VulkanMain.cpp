@@ -261,7 +261,7 @@ namespace eg::graphics_api::vk
 		VK_KHR_BIND_MEMORY_2_EXTENSION_NAME
 	};
 	
-	std::string_view GetVendorName(uint32_t id)
+	static inline std::string_view GetVendorName(uint32_t id)
 	{
 		switch (id)
 		{
@@ -386,19 +386,38 @@ namespace eg::graphics_api::vk
 		std::vector<VkPhysicalDevice> physicalDevices(numDevices);
 		vkEnumeratePhysicalDevices(ctx.instance, &numDevices, physicalDevices.data());
 		
+		auto GetDeviceTypePreferenceIndex = [&] (VkPhysicalDeviceType deviceType) -> size_t
+		{
+			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+				return initArguments.preferIntegrated ? 1 : 0;
+			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+				return initArguments.preferIntegrated ? 0 : 1;
+			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+				return 2;
+			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+				return 3;
+			return 4;
+		};
+		
+		auto IsDevicePreferredOver = [&] (const VkPhysicalDeviceProperties& candidate, const VkPhysicalDeviceProperties& current)
+		{
+			return GetDeviceTypePreferenceIndex(candidate.deviceType) < GetDeviceTypePreferenceIndex(current.deviceType);
+		};
+		
 		//Selects which physical device to use
 		bool optionalExtensionsSeen[ArrayLen(OPTIONAL_DEVICE_EXTENSIONS)];
-		bool supportsMultipleGraphicsQueues = false;
+		VkPhysicalDeviceProperties currentDeviceProperties;
+		std::vector<std::string> okDeviceNames;
 		for (VkPhysicalDevice physicalDevice : physicalDevices)
 		{
 			if (physicalDevice == nullptr)
 				continue;
 			
-			vkGetPhysicalDeviceFeatures(physicalDevice, &ctx.deviceFeatures);
+			VkPhysicalDeviceFeatures deviceFeatures;
+			vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 			
 			VkPhysicalDeviceProperties deviceProperties;
 			vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-			ctx.deviceLimits = deviceProperties.limits;
 			
 			//Enumerates the queue families exposed by this device
 			uint32_t numQueueFamilies;
@@ -408,8 +427,8 @@ namespace eg::graphics_api::vk
 			
 			//Searches for a compatible queue family
 			const int REQUIRED_QUEUE_FLAGS = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
-			bool foundQueueFamily = false;
-			supportsMultipleGraphicsQueues = false;
+			std::optional<uint32_t> selectedQueueFamily;
+			VkQueueFamilyProperties selectedQueueFamilyProperties;
 			for (uint32_t i = 0; i < numQueueFamilies; i++)
 			{
 				VkBool32 surfaceSupported;
@@ -419,15 +438,13 @@ namespace eg::graphics_api::vk
 				
 				if ((queueFamilyProperties[i].queueFlags & REQUIRED_QUEUE_FLAGS) == REQUIRED_QUEUE_FLAGS)
 				{
-					ctx.queueFamily = i;
-					ctx.queueFamilyProperties = queueFamilyProperties[i];
-					supportsMultipleGraphicsQueues = queueFamilyProperties[i].queueCount > 1;
-					foundQueueFamily = true;
+					selectedQueueFamily = i;
+					selectedQueueFamilyProperties = queueFamilyProperties[i];
 					break;
 				}
 			}
 			
-			if (!foundQueueFamily)
+			if (!selectedQueueFamily.has_value())
 			{
 				Log(LogLevel::Info, "vk", "Cannot use vulkan device '{0}' because it does not have a queue family "
 					" that supports graphics, compute and present.", deviceProperties.deviceName);
@@ -479,14 +496,19 @@ namespace eg::graphics_api::vk
 			if (!hasAllExtensions)
 				continue;
 			
+			okDeviceNames.emplace_back(deviceProperties.deviceName);
+			
+			if (ctx.physDevice != VK_NULL_HANDLE && !IsDevicePreferredOver(deviceProperties, currentDeviceProperties))
+				continue;
+			
+			ctx.queueFamily = *selectedQueueFamily;
+			ctx.queueFamilyProperties = selectedQueueFamilyProperties;
 			ctx.physDevice = physicalDevice;
+			ctx.deviceFeatures = deviceFeatures;
 			ctx.deviceName = deviceProperties.deviceName;
 			ctx.deviceVendorName = GetVendorName(deviceProperties.vendorID);
-			vulkanWindow = initArguments.window;
-			
-			Log(LogLevel::Info, "vk", "Using vulkan device: '{0}'", deviceProperties.deviceName);
-			
-			break;
+			ctx.deviceLimits = deviceProperties.limits;
+			currentDeviceProperties = deviceProperties;
 		}
 		
 		if (ctx.physDevice == VK_NULL_HANDLE)
@@ -495,7 +517,22 @@ namespace eg::graphics_api::vk
 			return false;
 		}
 		
+		vulkanWindow = initArguments.window;
+		
+		if (okDeviceNames.size() > 1)
+		{
+			std::ostringstream namesConcatStream;
+			namesConcatStream << "'" << okDeviceNames[0] << "'";
+			for (size_t i = 1; i < okDeviceNames.size(); i++)
+				namesConcatStream << ", '" << okDeviceNames[i] << "'";
+			Log(LogLevel::Info, "vk", "Multiple usable vulkan devices: {0}", namesConcatStream.str());
+		}
+		
+		Log(LogLevel::Info, "vk", "Using vulkan device: '{0}'", ctx.deviceName);
+		
 		vkGetPhysicalDeviceMemoryProperties(ctx.physDevice, &ctx.memoryProperties);
+		
+		bool supportsMultipleGraphicsQueues = ctx.queueFamilyProperties.queueCount > 1;
 		
 		//Creates the logical device
 		const float queuePriorities[] = {1, 1};

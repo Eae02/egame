@@ -19,12 +19,10 @@ void main()
 	vec2 texCoord = vec2(gl_GlobalInvocationID.xy) * pixelSize;
 	vec3 color = texture(inputImage, texCoord).rgb * kernel[0];
 	
-	vec2 offset = blurVector;
 	for (int i = 1; i < kernel.length(); i++)
 	{
-		color += texture(inputImage, texCoord + offset).rgb * kernel[i];
-		color += texture(inputImage, texCoord - offset).rgb * kernel[i];
-		offset += blurVector;
+		color += texture(inputImage, texCoord + blurVector * i).rgb * kernel[i];
+		color += texture(inputImage, texCoord - blurVector * i).rgb * kernel[i];
 	}
 	
 	imageStore(outputImage, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));

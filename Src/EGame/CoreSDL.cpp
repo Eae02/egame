@@ -215,6 +215,7 @@ namespace eg
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
 		apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
 		apiInitArguments.defaultDepthStencilFormat = defaultDSFormat;
+		apiInitArguments.preferIntegrated = HasFlag(runConfig.flags, RunFlags::PreferIntegratedGPU);
 		
 		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))
 		{

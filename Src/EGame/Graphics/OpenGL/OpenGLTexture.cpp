@@ -118,7 +118,33 @@ namespace eg::graphics_api::gl
 		});
 	}
 	
-	static void InitTexture(const Texture& texture, const TextureCreateInfo& createInfo)
+	static void InitTextureSampler(GLenum textureType, const SamplerDescription& samplerDesc)
+	{
+		auto borderColor = TranslateBorderColor(samplerDesc.borderColor);
+		
+		glTexParameteri(textureType, GL_TEXTURE_MIN_FILTER, GetMinFilter(samplerDesc));
+		glTexParameteri(textureType, GL_TEXTURE_MAG_FILTER, GetMagFilter(samplerDesc.magFilter));
+		glTexParameteri(textureType, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
+		glTexParameteri(textureType, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
+		glTexParameteri(textureType, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
+		glTexParameterf(textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT, ClampMaxAnistropy(samplerDesc.maxAnistropy));
+		
+#ifndef __EMSCRIPTEN__
+		glTexParameterfv(textureType, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+#endif
+		
+#ifndef EG_GLES
+		glTexParameterf(textureType, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
+#endif
+		
+		if (samplerDesc.enableCompare)
+		{
+			glTexParameteri(textureType, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+			glTexParameteri(textureType, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(samplerDesc.compareOp));
+		}
+	}
+	
+	static void InitTexture(Texture& texture, const TextureCreateInfo& createInfo)
 	{
 #ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
@@ -131,30 +157,8 @@ namespace eg::graphics_api::gl
 		
 		if (createInfo.defaultSamplerDescription != nullptr && createInfo.sampleCount == 1)
 		{
-			const SamplerDescription& samplerDesc = *createInfo.defaultSamplerDescription;
-			
-			auto borderColor = TranslateBorderColor(samplerDesc.borderColor);
-			
-			glTexParameteri(texture.type, GL_TEXTURE_MIN_FILTER, GetMinFilter(samplerDesc));
-			glTexParameteri(texture.type, GL_TEXTURE_MAG_FILTER, GetMagFilter(samplerDesc.magFilter));
-			glTexParameteri(texture.type, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
-			glTexParameteri(texture.type, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
-			glTexParameteri(texture.type, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
-			glTexParameterf(texture.type, GL_TEXTURE_MAX_ANISOTROPY_EXT, ClampMaxAnistropy(samplerDesc.maxAnistropy));
-			
-#ifndef __EMSCRIPTEN__
-			glTexParameterfv(texture.type, GL_TEXTURE_BORDER_COLOR, borderColor.data());
-#endif
-			
-#ifndef EG_GLES
-			glTexParameterf(texture.type, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
-#endif
-			
-			if (samplerDesc.enableCompare)
-			{
-				glTexParameteri(texture.type, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-				glTexParameteri(texture.type, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(samplerDesc.compareOp));
-			}
+			texture.samplerDescription = *createInfo.defaultSamplerDescription;
+			InitTextureSampler(texture.type, *createInfo.defaultSamplerDescription);
 		}
 	}
 	
@@ -348,6 +352,12 @@ namespace eg::graphics_api::gl
 			resolvedSubresource.firstMipLevel, resolvedSubresource.numMipLevels,
 			resolvedSubresource.firstArrayLayer, resolvedSubresource.numArrayLayers);
 		
+		if (samplerDescription.has_value())
+		{
+			glBindTexture(viewType, view.texture);
+			InitTextureSampler(viewType, *samplerDescription);
+		}
+		
 		view.subresource = resolvedSubresource;
 		
 		return view.texture;
@@ -529,6 +539,17 @@ namespace eg::graphics_api::gl
 		const TextureSubresourceLayers& subresource)
 	{
 		UnwrapTexture(textureHandle)->BindAsStorageImage(ResolveBinding(set, binding), subresource.AsSubresource());
+	}
+	
+	void CopyTextureData(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle,
+	                     const TextureRange& srcRange, const TextureOffset& dstOffset)
+	{
+		Texture* srcTex = UnwrapTexture(srcHandle);
+		Texture* dstTex = UnwrapTexture(dstHandle);
+		glCopyImageSubData(
+			srcTex->texture, srcTex->type, srcRange.mipLevel, srcRange.offsetX, srcRange.offsetY, srcRange.offsetZ,
+			dstTex->texture, dstTex->type, dstOffset.mipLevel, dstOffset.offsetX, dstOffset.offsetY, dstOffset.offsetZ,
+			srcRange.sizeX, srcRange.sizeY, srcRange.sizeZ);
 	}
 	
 	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const void* color)

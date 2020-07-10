@@ -15,6 +15,7 @@ namespace eg::graphics_api::gl
 	{
 		GLuint texture;
 		std::vector<TextureView> views;
+		std::optional<SamplerDescription> samplerDescription;
 		GLenum type;
 		Format format;
 		int dim;

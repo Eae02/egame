@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include "Core.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -12,6 +13,55 @@
 namespace eg
 {
 	bool detail::devMode = false;
+	
+	void ParseCommandLineArgs(RunConfig& runConfig, int argc, char** argv)
+	{
+		if (argc == 2 && std::string_view(argv[1]) == "--help")
+		{
+			auto LineEnd = [&] (bool def) { return def ? " (default)\n" : "\n"; };
+			auto LineEndDefWithFlag = [&] (RunFlags flag) { return LineEnd(HasFlag(runConfig.flags, flag)); };
+			auto LineEndDefWithoutFlag = [&] (RunFlags flag) { return LineEnd(!HasFlag(runConfig.flags, flag)); };
+			
+			std::cout <<
+				"EG Arguments: \n"
+				"  --gl     Force rendering with OpenGL" << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::OpenGL) <<
+				"  --vk     Force rendering with Vulkan" << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::Vulkan) <<
+				"  --igpu   Prefer integrated GPU" << LineEndDefWithFlag(RunFlags::PreferIntegratedGPU) <<
+				"  --dgpu   Prefer dedicated GPU" << LineEndDefWithoutFlag(RunFlags::PreferIntegratedGPU) <<
+				"  --eap    Create asset package" << LineEndDefWithFlag(RunFlags::CreateAssetPackage) <<
+				"  --dev    Run in dev mode" << LineEndDefWithFlag(RunFlags::DevMode) <<
+				"  --nodev  Do not run in dev mode" << LineEndDefWithoutFlag(RunFlags::DevMode) <<
+				"  --vs     Enable vertical sync" << LineEndDefWithFlag(RunFlags::VSync) <<
+				"  --novs   Disable vertical sync" << LineEndDefWithoutFlag(RunFlags::VSync) <<
+				std::flush;
+			std::exit(0);
+		}
+		
+		for (int i = 1; i < argc; i++)
+		{
+			std::string_view arg = argv[i];
+			if (arg == "--gl")
+				runConfig.graphicsAPI = eg::GraphicsAPI::OpenGL;
+			else if (arg == "--vk")
+				runConfig.graphicsAPI = eg::GraphicsAPI::Vulkan;
+			else if (arg == "--igpu")
+				runConfig.flags |= RunFlags::PreferIntegratedGPU;
+			else if (arg == "--dgpu")
+				runConfig.flags &= ~RunFlags::PreferIntegratedGPU;
+			else if (arg == "--eap")
+				runConfig.flags |= RunFlags::CreateAssetPackage;
+			else if (arg == "--dev")
+				runConfig.flags |= RunFlags::DevMode;
+			else if (arg == "--nodev")
+				runConfig.flags &= ~RunFlags::DevMode;
+			else if (arg == "--vs")
+				runConfig.flags |= RunFlags::VSync;
+			else if (arg == "--novs")
+				runConfig.flags &= ~RunFlags::VSync;
+			else
+				std::cerr << "Unknown command line argument '" << arg << "'.";
+		}
+	}
 	
 	std::string ReadableSize(uint64_t size)
 	{

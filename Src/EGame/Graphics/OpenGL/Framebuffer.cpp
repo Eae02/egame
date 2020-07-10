@@ -106,7 +106,9 @@ namespace eg::graphics_api::gl
 			if (texture->sampleCount > 1)
 				framebuffer->multisampled = true;
 			
-			SetSize(texture->width, texture->height);
+			uint32_t realWidth = texture->width >> attachment.subresource.mipLevel;
+			uint32_t realHeight = texture->height >> attachment.subresource.mipLevel;
+			SetSize(realWidth, realHeight);
 			if (IsSRGBFormat(texture->format))
 				framebuffer->hasSRGB = true;
 			

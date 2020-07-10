@@ -60,14 +60,7 @@ int main(int argc, char** argv)
 	runConfig.gameName = "EGame Sandbox";
 	runConfig.flags = eg::RunFlags::DevMode | eg::RunFlags::DefaultFramebufferSRGB;
 	
-	for (int i = 1; i < argc; i++)
-	{
-		std::string_view arg = argv[i];
-		if (arg == "--gl")
-			runConfig.graphicsAPI = eg::GraphicsAPI::OpenGL;
-		else if (arg == "--vk")
-			runConfig.graphicsAPI = eg::GraphicsAPI::Vulkan;
-	}
+	eg::ParseCommandLineArgs(runConfig, argc, argv);
 	
 	return eg::Run<Game>(runConfig);
 }

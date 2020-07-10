@@ -545,6 +545,11 @@ namespace eg
 			gal::CopyBuffer(Handle(), src.handle, dst.handle, srcOffset, dstOffset, size);
 		}
 		
+		void CopyTexture(TextureRef src, TextureRef dst, const TextureRange& srcRange, const TextureOffset& dstOffset)
+		{
+			gal::CopyTextureData(Handle(), src.handle, dst.handle, srcRange, dstOffset);
+		}
+		
 		void Barrier(BufferRef buffer, const BufferBarrier& barrier)
 		{
 			gal::BufferBarrier(Handle(), buffer.handle, barrier);

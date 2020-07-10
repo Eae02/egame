@@ -301,6 +301,43 @@ namespace eg::graphics_api::vk
 		vkCmdPipelineBarrier(GetCB(cc), srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &vkBarrier);
 	}
 	
+	template <typename T>
+	static inline void InitImageCopyRegion(const Texture& texture, const TextureRange& inputRange, const T& inputOffset,
+		VkOffset3D& outOffset, VkImageSubresourceLayers& outSubres, VkExtent3D& outExtent)
+	{
+		outOffset.x = inputOffset.offsetX;
+		outOffset.y = inputOffset.offsetY;
+		outOffset.z = inputOffset.offsetZ;
+		outExtent.width = inputRange.sizeX;
+		outExtent.height = inputRange.sizeY;
+		outExtent.depth = inputRange.sizeZ;
+		outSubres.aspectMask = texture.aspectFlags;
+		outSubres.mipLevel = inputOffset.mipLevel;
+		
+		switch (texture.viewType)
+		{
+		case VK_IMAGE_VIEW_TYPE_2D:
+			outOffset.z = 0;
+			outExtent.depth = 1;
+			outSubres.baseArrayLayer = 0;
+			outSubres.layerCount = 1;
+			break;
+		case VK_IMAGE_VIEW_TYPE_3D:
+			outSubres.baseArrayLayer = 0;
+			outSubres.layerCount = 1;
+			break;
+		case VK_IMAGE_VIEW_TYPE_CUBE:
+		case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
+		case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
+			outOffset.z = 0;
+			outExtent.depth = 1;
+			outSubres.baseArrayLayer = inputRange.offsetZ;
+			outSubres.layerCount = inputRange.sizeZ;
+			break;
+		default: EG_PANIC("Unknown view type encountered in InitImageCopyRegion.");
+		}
+	}
+	
 	void SetTextureData(CommandContextHandle cc, TextureHandle handle, const TextureRange& range,
 		BufferHandle bufferHandle, uint64_t offset)
 	{
@@ -317,38 +354,30 @@ namespace eg::graphics_api::vk
 		
 		VkBufferImageCopy copyRegion = { };
 		copyRegion.bufferOffset = offset;
-		copyRegion.imageOffset.x = range.offsetX;
-		copyRegion.imageOffset.y = range.offsetY;
-		copyRegion.imageOffset.z = range.offsetZ;
-		copyRegion.imageExtent.width = range.sizeX;
-		copyRegion.imageExtent.height = range.sizeY;
-		copyRegion.imageExtent.depth = range.sizeZ;
-		copyRegion.imageSubresource = { texture->aspectFlags, range.mipLevel };
-		
-		switch (texture->viewType)
-		{
-		case VK_IMAGE_VIEW_TYPE_2D:
-			copyRegion.imageOffset.z = 0;
-			copyRegion.imageExtent.depth = 1;
-			copyRegion.imageSubresource.baseArrayLayer = 0;
-			copyRegion.imageSubresource.layerCount = 1;
-			break;
-		case VK_IMAGE_VIEW_TYPE_3D:
-			copyRegion.imageSubresource.baseArrayLayer = 0;
-			copyRegion.imageSubresource.layerCount = 1;
-			break;
-		case VK_IMAGE_VIEW_TYPE_CUBE:
-		case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
-		case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
-			copyRegion.imageOffset.z = 0;
-			copyRegion.imageExtent.depth = 1;
-			copyRegion.imageSubresource.baseArrayLayer = range.offsetZ;
-			copyRegion.imageSubresource.layerCount = range.sizeZ;
-			break;
-		default: EG_PANIC("Unknown view type encountered in SetTextureDataBuffer.");
-		}
+		InitImageCopyRegion(*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
 		
 		vkCmdCopyBufferToImage(cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+	}
+	
+	void CopyTextureData(CommandContextHandle cc, TextureHandle srcHandle, TextureHandle dstHandle,
+	                     const TextureRange& srcRange, const TextureOffset& dstOffset)
+	{
+		Texture* srcTex = UnwrapTexture(srcHandle);
+		Texture* dstTex = UnwrapTexture(dstHandle);
+		RefResource(cc, *srcTex);
+		RefResource(cc, *dstTex);
+		
+		VkCommandBuffer cb = GetCB(cc);
+		
+		srcTex->AutoBarrier(cb, TextureUsage::CopySrc);
+		dstTex->AutoBarrier(cb, TextureUsage::CopyDst);
+		
+		VkImageCopy copyRegion = { };
+		InitImageCopyRegion(*srcTex, srcRange, srcRange, copyRegion.srcOffset, copyRegion.srcSubresource, copyRegion.extent);
+		InitImageCopyRegion(*dstTex, srcRange, dstOffset, copyRegion.dstOffset, copyRegion.dstSubresource, copyRegion.extent);
+		
+		vkCmdCopyImage(cb, srcTex->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		               dstTex->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 	}
 	
 	void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t mipLevel, const void* color)

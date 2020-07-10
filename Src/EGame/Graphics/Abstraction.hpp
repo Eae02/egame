@@ -506,6 +506,14 @@ namespace eg
 		uint32_t mipLevel;
 	};
 	
+	struct TextureOffset
+	{
+		uint32_t offsetX;
+		uint32_t offsetY;
+		uint32_t offsetZ;
+		uint32_t mipLevel;
+	};
+	
 	constexpr uint32_t REMAINING_SUBRESOURCE = UINT32_MAX;
 	
 	struct TextureSubresource
@@ -656,6 +664,7 @@ namespace eg
 		bool defaultFramebufferSRGB;
 		bool enableVSync;
 		bool forceDepthZeroToOne;
+		bool preferIntegrated;
 	};
 	
 	namespace detail
