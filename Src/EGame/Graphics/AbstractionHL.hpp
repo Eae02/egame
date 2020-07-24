@@ -177,6 +177,15 @@ namespace eg
 	
 	EG_API UploadBuffer GetTemporaryUploadBuffer(uint64_t size);
 	
+	template <typename T>
+	UploadBuffer GetTemporaryUploadBufferWith(eg::Span<const T> data)
+	{
+		UploadBuffer buffer = GetTemporaryUploadBuffer(data.SizeBytes());
+		std::memcpy(buffer.Map(), data.data(), data.SizeBytes());
+		buffer.Flush();
+		return buffer;
+	}
+	
 	EG_API void MarkUploadBuffersAvailable();
 	EG_API void DestroyUploadBuffers();
 	

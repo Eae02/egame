@@ -166,6 +166,15 @@ namespace eg
 			//Spawns new particles
 			for (Emitter& emitter : m_btEmitters)
 			{
+				if (!emitter.hasSetTransform)
+					continue;
+				if (!emitter.hasSetOldTransform)
+				{
+					emitter.prevTransform = emitter.transform;
+					emitter.hasSetOldTransform = true;
+					continue;
+				}
+				
 				float oldTSE = emitter.timeSinceEmit;
 				emitter.timeSinceEmit += dt;
 				
@@ -467,6 +476,7 @@ namespace eg
 		emitter.timeSinceEmit = 0;
 		emitter.alive = true;
 		emitter.hasSetTransform = false;
+		emitter.hasSetOldTransform = false;
 		emitter.gravity = glm::vec3(0, -5, 0);
 		emitter.transform = glm::mat4(1.0f);
 		emitter.prevTransform = glm::mat4(1.0f);

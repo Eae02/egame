@@ -45,13 +45,15 @@ namespace eg
 			}
 		}
 		
-		void SetTransform(const glm::mat4& transform)
+		void SetTransform(const glm::mat4& transform, bool disconnected = false)
 		{
 			auto& emitter = m_manager->GetEmitter(m_id);
 			emitter.transform = transform;
-			if (!emitter.hasSetTransform) {
+			if (!emitter.hasSetTransform || disconnected)
+			{
 				emitter.prevTransform = transform;
 				emitter.hasSetTransform = true;
+				emitter.hasSetOldTransform = false;
 			}
 		}
 		

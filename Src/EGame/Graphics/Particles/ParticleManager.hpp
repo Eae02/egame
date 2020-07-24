@@ -75,6 +75,7 @@ namespace eg
 			uint32_t id;
 			bool alive;
 			bool hasSetTransform;
+			bool hasSetOldTransform;
 			const ParticleEmitterType* type;
 			float timeSinceEmit;
 			float emissionDelay;
