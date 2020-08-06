@@ -517,7 +517,7 @@ namespace eg::graphics_api::vk
 		VkDescriptorImageInfo imageInfo;
 		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT));
 		imageInfo.sampler = sampler;
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageLayout = ImageLayoutFromUsage(eg::TextureUsage::ShaderSample, texture->aspectFlags);
 		
 		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

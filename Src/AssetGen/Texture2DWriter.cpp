@@ -391,7 +391,8 @@ namespace eg::asset_gen
 			(uint32_t)m_anisotropicFiltering << 1U |
 			(uint32_t)m_useGlobalDownscale << 2U |
 			(uint32_t)m_isArrayTexture << 3U |
-			(uint32_t)m_isCubeMap << 4U;
+			(uint32_t)m_isCubeMap << 4U | 
+			(uint32_t)m_is3D << 5U;
 		BinWrite(stream, (uint8_t)flags);
 		
 		BinWrite(stream, (uint8_t)m_mipShiftLow);

@@ -32,6 +32,11 @@ namespace eg::asset_gen
 			m_isCubeMap = isCubeMap;
 		}
 		
+		void SetIs3D(bool is3D)
+		{
+			m_is3D = is3D;
+		}
+		
 	private:
 		void ProcessMipLevel(const uint8_t* imageData, int width, int height, int mode);
 		
@@ -49,6 +54,7 @@ namespace eg::asset_gen
 		
 		bool m_isArrayTexture = false;
 		bool m_isCubeMap = false;
+		bool m_is3D = false;
 		bool m_dxtHighQuality = false;
 		bool m_dxtDither = false;
 		bool m_linearFiltering = true;

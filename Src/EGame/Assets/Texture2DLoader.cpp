@@ -27,7 +27,8 @@ namespace eg
 		TF_Anistropy = 2,
 		TF_UseGlobalScale = 4,
 		TF_ArrayTexture = 8,
-		TF_CubeMap = 16
+		TF_CubeMap = 16,
+		TF_3D = 32
 	};
 	
 	bool Texture2DLoader(const AssetLoadContext& loadContext)
@@ -53,11 +54,23 @@ namespace eg
 		createInfo.mipLevels = header->numMipLevels - mipShift;
 		
 		if (header->flags & TF_CubeMap)
+		{
 			texture = &loadContext.CreateResult<Texture>(Texture::CreateCube(createInfo));
+		}
+		else if (header->flags & TF_3D)
+		{
+			createInfo.arrayLayers = 1;
+			createInfo.depth = header->numLayers;
+			texture = &loadContext.CreateResult<Texture>(Texture::Create3D(createInfo));
+		}
 		else if (header->flags & TF_ArrayTexture)
+		{
 			texture = &loadContext.CreateResult<Texture>(Texture::Create2DArray(createInfo));
+		}
 		else
+		{
 			texture = &loadContext.CreateResult<Texture>(Texture::Create2D(createInfo));
+		}
 		
 		size_t bytesPerLayer = 0;
 		for (uint32_t i = 0; i < header->numMipLevels; i++)

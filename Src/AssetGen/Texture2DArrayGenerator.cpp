@@ -22,6 +22,11 @@ namespace eg::asset_gen
 			bool isCubeMap = generateContext.YAMLNode()["cubeMap"].as<bool>(false);
 			textureWriter.SetIsCubeMap(isCubeMap);
 			
+			if (!isCubeMap)
+			{
+				textureWriter.SetIs3D(generateContext.YAMLNode()["3d"].as<bool>(false));
+			}
+			
 			std::vector<std::string> layerNames;
 			
 			if (isCubeMap && generateContext.YAMLNode()["faces"].IsDefined())

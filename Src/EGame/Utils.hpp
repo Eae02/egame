@@ -26,7 +26,7 @@ inline constexpr T& operator|=(T& a, T b) noexcept \
 inline constexpr T& operator&=(T& a, T b) noexcept \
 { a = a & b; return a; } \
 inline constexpr T operator~(T a) noexcept \
-{ return static_cast<T>(static_cast<int>(~a)); }
+{ return static_cast<T>(~static_cast<int>(a)); }
 
 #if defined(NDEBUG)
 #define EG_DEBUG_BREAK
