@@ -19,5 +19,6 @@ namespace eg
 		virtual bool BindPipeline(CommandContext& cmdCtx, void* drawArgs) const = 0;
 		virtual bool BindMaterial(CommandContext& cmdCtx, void* drawArgs) const = 0;
 		virtual OrderRequirement GetOrderRequirement() const { return OrderRequirement::None; }
+		virtual bool CheckInstanceDataType(const std::type_info* instanceDataType) const { return true; };
 	};
 }

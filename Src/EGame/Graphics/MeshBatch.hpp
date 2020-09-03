@@ -24,7 +24,7 @@ namespace eg
 		{
 			for (size_t i = 0; i < model.NumMeshes(); i++)
 			{
-				AddModelMesh(model, i, material, instanceData, orderPriority);
+				AddModelMesh<T>(model, i, material, instanceData, orderPriority);
 			}
 		}
 		
@@ -38,7 +38,7 @@ namespace eg
 			mesh.firstVertex = model.GetMesh(meshIndex).firstVertex;
 			mesh.numElements = model.GetMesh(meshIndex).numIndices;
 			mesh.indexType = model.IndexType();
-			Add(mesh, material, instanceData, orderPriority);
+			Add<T>(mesh, material, instanceData, orderPriority);
 		}
 		
 		template <typename T>
@@ -48,14 +48,14 @@ namespace eg
 			Instance* instance = static_cast<Instance*>(instanceMem);
 			instance->dataSize = sizeof(T);
 			new (instance->data) T (instanceData);
-			_Add(mesh, material, instance, orderPriority);
+			_Add(mesh, material, instance, orderPriority, &typeid(T));
 		}
 		
 		void AddNoData(const Mesh& mesh, const IMaterial& material, int orderPriority = 0)
 		{
 			Instance* instance = m_allocator.New<Instance>();
 			instance->dataSize = 0;
-			_Add(mesh, material, instance, orderPriority);
+			_Add(mesh, material, instance, orderPriority, nullptr);
 		}
 		
 		void Begin();
@@ -72,7 +72,8 @@ namespace eg
 			alignas(std::max_align_t) char data[1];
 		};
 		
-		void _Add(const Mesh& mesh, const IMaterial& material, Instance* instance, int orderPriority);
+		void _Add(const Mesh& mesh, const IMaterial& material, Instance* instance, int orderPriority,
+			const std::type_info* instanceDataType);
 		
 		struct MeshBucket
 		{

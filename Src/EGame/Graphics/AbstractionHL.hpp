@@ -441,9 +441,9 @@ namespace eg
 		}
 		
 		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr,
-			const TextureSubresource& subresource = { })
+			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None)
 		{
-			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding,subresource);
+			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding, subresource, flags);
 		}
 		
 		void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresourceLayers& subresource = { })
@@ -625,9 +625,9 @@ namespace eg
 		}
 		
 		void BindTexture(TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr,
-			const TextureSubresource& subresource = { })
+			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None)
 		{
-			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding, subresource);
+			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding, subresource, flags);
 		}
 		
 		void BindStorageImage(TextureRef texture, uint32_t set, uint32_t binding,

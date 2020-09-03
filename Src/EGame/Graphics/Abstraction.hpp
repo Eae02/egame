@@ -467,6 +467,14 @@ namespace eg
 	
 	EG_BIT_FIELD(TextureFlags)
 	
+	enum class TextureBindFlags
+	{
+		None                  = 0,
+		ArrayLayerAsTexture2D = 1
+	};
+	
+	EG_BIT_FIELD(TextureBindFlags)
+	
 	struct TextureCreateInfo
 	{
 		TextureFlags flags = TextureFlags::None;

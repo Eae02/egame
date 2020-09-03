@@ -318,34 +318,31 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
-	GLuint Texture::GetView(const TextureSubresource& subresource)
+	GLuint Texture::GetView(const TextureSubresource& subresource, GLenum forcedViewType)
 	{
+		GLenum viewType = forcedViewType == 0 ? type : forcedViewType;
+		
 		TextureSubresource resolvedSubresource = subresource.ResolveRem(mipLevels, arrayLayers);
 		if (resolvedSubresource.firstMipLevel == 0 && resolvedSubresource.numMipLevels == mipLevels &&
-			resolvedSubresource.firstArrayLayer == 0 && resolvedSubresource.numArrayLayers == arrayLayers)
+			resolvedSubresource.firstArrayLayer == 0 && resolvedSubresource.numArrayLayers == arrayLayers &&
+			viewType == type)
 		{
 			return texture;
 		}
 		
 #ifdef EG_GLES
-		eg::Log(LogLevel::Error, "gl", "Texture views not supported in GLES");
+		eg::Log(LogLevel::Error, "gl", "Texture views are not supported in GLES");
 		return texture;
 #else
 		for (const TextureView& view : views)
 		{
-			if (view.subresource == resolvedSubresource)
+			if (view.subresource == resolvedSubresource && view.type == viewType)
 			{
 				return view.texture;
 			}
 		}
 		
 		TextureView& view = views.emplace_back();
-		
-		GLenum viewType = type;
-		if (viewType == GL_TEXTURE_2D_ARRAY && resolvedSubresource.numArrayLayers == 1)
-			viewType = GL_TEXTURE_2D;
-		if (viewType == GL_TEXTURE_CUBE_MAP_ARRAY && resolvedSubresource.numArrayLayers == 6)
-			viewType = GL_TEXTURE_CUBE_MAP;
 		
 		glGenTextures(1, &view.texture);
 		glTextureView(view.texture, viewType, texture, TranslateFormat(format),
@@ -359,6 +356,7 @@ namespace eg::graphics_api::gl
 		}
 		
 		view.subresource = resolvedSubresource;
+		view.type = viewType;
 		
 		return view.texture;
 #endif
@@ -506,13 +504,17 @@ namespace eg::graphics_api::gl
 	}
 	
 	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t set, uint32_t binding,
-		const TextureSubresource& subresource)
+		const TextureSubresource& subresource, TextureBindFlags flags)
 	{
+		GLenum forcedViewType = 0;
+		if (HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D))
+			forcedViewType = GL_TEXTURE_2D;
+		
 		uint32_t glBinding = ResolveBinding(set, binding);
 		glBindSampler(glBinding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
 		glActiveTexture(GL_TEXTURE0 + glBinding);
 		Texture* tex = UnwrapTexture(texture);
-		glBindTexture(tex->type, tex->GetView(subresource));
+		glBindTexture(forcedViewType ? forcedViewType : tex->type, tex->GetView(subresource, forcedViewType));
 	}
 	
 	void Texture::BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource)

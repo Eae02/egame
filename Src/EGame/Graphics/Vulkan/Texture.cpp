@@ -90,20 +90,22 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
-	VkImageView Texture::GetView(const TextureSubresource& subresource, VkImageAspectFlags _aspectFlags)
+	VkImageView Texture::GetView(const TextureSubresource& subresource, VkImageAspectFlags _aspectFlags,
+		std::optional<VkImageViewType> forcedViewType)
 	{
 		if (_aspectFlags == 0)
 			_aspectFlags = aspectFlags;
 		TextureSubresource resolvedSubresource = subresource.ResolveRem(numMipLevels, numArrayLayers);
 		
+		VkImageViewType realViewType = forcedViewType ? *forcedViewType : viewType;
 		for (const TextureView& view : views)
 		{
-			if (view.subresource == resolvedSubresource && view.aspectFlags == _aspectFlags)
+			if (view.subresource == resolvedSubresource && view.aspectFlags == _aspectFlags && view.type == realViewType)
 				return view.view;
 		}
 		
 		VkImageViewCreateInfo viewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		viewCreateInfo.viewType = viewType;
+		viewCreateInfo.viewType = realViewType;
 		viewCreateInfo.image = image;
 		viewCreateInfo.format = format;
 		viewCreateInfo.subresourceRange.aspectMask = _aspectFlags;
@@ -122,6 +124,7 @@ namespace eg::graphics_api::vk
 		
 		view.aspectFlags = _aspectFlags;
 		view.subresource = resolvedSubresource;
+		view.type        = realViewType;
 		return view.view;
 	}
 	
@@ -492,7 +495,7 @@ namespace eg::graphics_api::vk
 	}
 	
 	void BindTexture(CommandContextHandle cc, TextureHandle textureHandle, SamplerHandle samplerHandle,
-		uint32_t set, uint32_t binding, const TextureSubresource& subresource)
+		uint32_t set, uint32_t binding, const TextureSubresource& subresource, TextureBindFlags flags)
 	{
 		Texture* texture = UnwrapTexture(textureHandle);
 		RefResource(cc, *texture);
@@ -514,8 +517,12 @@ namespace eg::graphics_api::vk
 		
 		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
 		
+		std::optional<VkImageViewType> forcedViewType;
+		if (HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D))
+			forcedViewType = VK_IMAGE_VIEW_TYPE_2D;
+		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT));
+		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT), forcedViewType);
 		imageInfo.sampler = sampler;
 		imageInfo.imageLayout = ImageLayoutFromUsage(eg::TextureUsage::ShaderSample, texture->aspectFlags);
 		

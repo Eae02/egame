@@ -3,11 +3,17 @@
 namespace eg
 {
 	void MeshBatch::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material,
-	                     MeshBatch::Instance* instance, int orderPriority)
+	                     MeshBatch::Instance* instance, int orderPriority, const std::type_info* instanceDataType)
 	{
 		if (material.GetOrderRequirement() == IMaterial::OrderRequirement::OnlyOrdered)
 		{
 			EG_PANIC("Attempted to add a material with order requirement OnlyOrdered to an unordered mesh batch.");
+		}
+		
+		if (!material.CheckInstanceDataType(instanceDataType))
+		{
+			const char* instanceDataTypeName = instanceDataType ? instanceDataType->name() : "none";
+			EG_PANIC("Attempted to use incompatible instance data type (" << instanceDataTypeName << ")");
 		}
 		
 		size_t pipelineHash = material.PipelineHash();

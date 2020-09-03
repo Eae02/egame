@@ -10,9 +10,23 @@ namespace eg
 		m_totalInstanceData = 0;
 	}
 	
+	static inline void CheckRequirements(const IMaterial& material, const std::type_info* instanceDataType)
+	{
+		if (material.GetOrderRequirement() == IMaterial::OrderRequirement::OnlyUnordered)
+		{
+			EG_PANIC("Attempted to add a material with order requirement OnlyUnordered to an ordered mesh batch.");
+		}
+		
+		if (!material.CheckInstanceDataType(instanceDataType))
+		{
+			const char* instanceDataTypeName = instanceDataType ? instanceDataType->name() : "none";
+			EG_PANIC("Attempted to use incompatible instance data type (" << instanceDataTypeName << ")");
+		}
+	}
+	
 	void MeshBatchOrdered::AddNoData(const MeshBatch::Mesh& mesh, const IMaterial& material, float order)
 	{
-		EG_ASSERT(material.GetOrderRequirement() != IMaterial::OrderRequirement::OnlyUnordered);
+		CheckRequirements(material, nullptr);
 		Instance& instance = m_instances.emplace_back();
 		instance.dataSize = 0;
 		instance.data = nullptr;
@@ -21,18 +35,10 @@ namespace eg
 		instance.order = order;
 	}
 	
-	static inline void CheckOrderRequirement(const IMaterial& material)
-	{
-		if (material.GetOrderRequirement() == IMaterial::OrderRequirement::OnlyUnordered)
-		{
-			EG_PANIC("Attempted to add a material with order requirement OnlyUnordered to an ordered mesh batch.");
-		}
-	}
-	
 	void MeshBatchOrdered::_AddModelMesh(const Model& model, size_t meshIndex, const IMaterial& material,
-			const void* data, size_t dataSize, float order)
+			const void* data, size_t dataSize, float order, const std::type_info& instanceDataType)
 	{
-		CheckOrderRequirement(material);
+		CheckRequirements(material, &instanceDataType);
 		
 		Instance& instance = m_instances.emplace_back();
 		instance.dataSize = dataSize;
@@ -48,9 +54,10 @@ namespace eg
 		m_totalInstanceData += dataSize;
 	}
 	
-	void MeshBatchOrdered::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data, size_t dataSize, float order)
+	void MeshBatchOrdered::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data,
+			size_t dataSize, float order, const std::type_info& instanceDataType)
 	{
-		CheckOrderRequirement(material);
+		CheckRequirements(material, &instanceDataType);
 		
 		Instance& instance = m_instances.emplace_back();
 		instance.dataSize = dataSize;

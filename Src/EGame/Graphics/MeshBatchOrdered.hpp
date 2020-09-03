@@ -16,20 +16,20 @@ namespace eg
 		{
 			for (size_t i = 0; i < model.NumMeshes(); i++)
 			{
-				AddModelMesh(model, i, material, instanceData, order);
+				AddModelMesh<T>(model, i, material, instanceData, order);
 			}
 		}
 		
 		template <typename T>
 		void AddModelMesh(const class Model& model, size_t meshIndex, const IMaterial& material, const T& instanceData, float order)
 		{
-			_AddModelMesh(model, meshIndex, material, m_instanceDataAllocator.New<T>(instanceData), sizeof(T), order);
+			_AddModelMesh(model, meshIndex, material, m_instanceDataAllocator.New<T>(instanceData), sizeof(T), order, typeid(T));
 		}
 		
 		template <typename T>
 		void Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const T& instanceData, float order)
 		{
-			_Add(mesh, material, m_instanceDataAllocator.New<T>(instanceData), sizeof(T), order);
+			_Add(mesh, material, m_instanceDataAllocator.New<T>(instanceData), sizeof(T), order, typeid(T));
 		}
 		
 		void AddNoData(const MeshBatch::Mesh& mesh, const IMaterial& material, float order);
@@ -42,8 +42,9 @@ namespace eg
 		
 	private:
 		void _AddModelMesh(const class Model& model, size_t meshIndex, const IMaterial& material,
-			const void* data, size_t dataSize, float order);
-		void _Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data, size_t dataSize, float order);
+			const void* data, size_t dataSize, float order, const std::type_info& instanceDataType);
+		void _Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data, size_t dataSize,
+			float order, const std::type_info& instanceDataType);
 		
 		struct Instance
 		{

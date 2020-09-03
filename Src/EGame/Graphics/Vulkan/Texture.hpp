@@ -12,6 +12,7 @@ namespace eg::graphics_api::vk
 	{
 		VkImageView view;
 		VkImageAspectFlags aspectFlags;
+		VkImageViewType type;
 		TextureSubresource subresource;
 	};
 	
@@ -42,7 +43,8 @@ namespace eg::graphics_api::vk
 		void AutoBarrier(VkCommandBuffer cb, TextureUsage newUsage,
 			ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
 		
-		VkImageView GetView(const TextureSubresource& subresource, VkImageAspectFlags aspectFlags = 0);
+		VkImageView GetView(const TextureSubresource& subresource, VkImageAspectFlags aspectFlags = 0,
+			std::optional<VkImageViewType> forcedViewType = {});
 		
 		void Free() override;
 	};

@@ -178,7 +178,7 @@ namespace eg::graphics_api::vk
 	{
 		switch (result)
 		{
-		#define ERROR_TYPE(name) case VK_ERROR_ ## name: EG_PANIC("Vulkan error " #name);
+		#define ERROR_TYPE(name) case VK_ERROR_ ## name: EG_PANIC("Vulkan error " #name); break;
 		ERROR_TYPE(OUT_OF_HOST_MEMORY)
 		ERROR_TYPE(OUT_OF_DEVICE_MEMORY)
 		ERROR_TYPE(INITIALIZATION_FAILED)

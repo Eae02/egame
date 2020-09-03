@@ -8,6 +8,7 @@ namespace eg::graphics_api::gl
 	struct TextureView
 	{
 		GLuint texture;
+		GLenum type;
 		TextureSubresource subresource;
 	};
 	
@@ -34,7 +35,7 @@ namespace eg::graphics_api::gl
 		
 		void BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource);
 		
-		GLuint GetView(const TextureSubresource& subresource);
+		GLuint GetView(const TextureSubresource& subresource, GLenum forcedViewType = 0);
 		
 		void ChangeUsage(TextureUsage newUsage);
 	};
