@@ -237,7 +237,6 @@ namespace eg
 		SDL_SetWindowIcon(sdlWindow, sdlWindowSurface);
 	}
 	
-	extern bool shouldClose;
 	extern bool hasCalledTextInputActive;
 	extern bool hasSetTextInputRect;
 	extern bool textInputActive;
@@ -252,7 +251,7 @@ namespace eg
 			std::this_thread::sleep_for(milliseconds(100));
 		}
 		
-		while (!shouldClose)
+		while (!detail::shouldClose)
 		{
 			hasCalledTextInputActive = false;
 			hasSetTextInputRect = false;
@@ -280,7 +279,7 @@ namespace eg
 			switch (event.type)
 			{
 			case SDL_QUIT:
-				shouldClose = true;
+				detail::shouldClose = true;
 				break;
 			case SDL_KEYDOWN:
 				detail::ButtonDownEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);

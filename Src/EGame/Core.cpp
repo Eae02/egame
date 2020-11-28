@@ -48,8 +48,6 @@ namespace eg
 	static std::vector<std::pair<Profiler*, uint64_t>> pendingProfilers;
 	static std::unique_ptr<ProfilerPane> profilerPane;
 	
-	bool shouldClose = false;
-	
 	static float dt = 0;
 	static uint64_t maxFrameTimeNS = 0;
 	
@@ -315,7 +313,7 @@ namespace eg
 		
 		resolutionX = -1;
 		resolutionY = -1;
-		shouldClose = false;
+		detail::shouldClose = false;
 		frameIndex = 0;
 		
 		lastFrameBeginTime = high_resolution_clock::now();

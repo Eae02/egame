@@ -7,7 +7,7 @@
 #include "ShaderResource.hpp"
 
 #include <glslang/Public/ShaderLang.h>
-#include <SPIRV/GlslangToSpv.h>
+#include <glslang/SPIRV/GlslangToSpv.h>
 #include <spirv-tools/optimizer.hpp>
 #include <fstream>
 
