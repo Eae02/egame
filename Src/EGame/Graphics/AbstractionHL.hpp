@@ -141,6 +141,11 @@ namespace eg
 			gal::FlushBuffer(handle, modOffset, modRange);
 		}
 		
+		void Invalidate(uint64_t modOffset, uint64_t modRange)
+		{
+			gal::InvalidateBuffer(handle, modOffset, modRange);
+		}
+		
 		void UsageHint(BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None)
 		{
 			gal::BufferUsageHint(handle, newUsage, shaderAccessFlags);
@@ -522,6 +527,11 @@ namespace eg
 		void SetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
 		{
 			gal::SetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
+		}
+		
+		void GetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
+		{
+			gal::GetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 		}
 		
 		void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const glm::ivec4& color)

@@ -362,6 +362,27 @@ namespace eg::graphics_api::vk
 		vkCmdCopyBufferToImage(cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 	}
 	
+	void GetTextureData(CommandContextHandle cc, TextureHandle handle, const TextureRange& range,
+		BufferHandle bufferHandle, uint64_t offset)
+	{
+		Buffer* buffer = UnwrapBuffer(bufferHandle);
+		RefResource(cc, *buffer);
+		
+		Texture* texture = UnwrapTexture(handle);
+		RefResource(cc, *texture);
+		
+		VkCommandBuffer cb = GetCB(cc);
+		
+		texture->AutoBarrier(cb, TextureUsage::CopySrc);
+		buffer->AutoBarrier(cb, BufferUsage::CopyDst);
+		
+		VkBufferImageCopy copyRegion = { };
+		copyRegion.bufferOffset = offset;
+		InitImageCopyRegion(*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
+		
+		vkCmdCopyImageToBuffer(cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer->buffer, 1, &copyRegion);
+	}
+	
 	void CopyTextureData(CommandContextHandle cc, TextureHandle srcHandle, TextureHandle dstHandle,
 	                     const TextureRange& srcRange, const TextureOffset& dstOffset)
 	{

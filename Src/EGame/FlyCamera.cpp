@@ -20,12 +20,14 @@ namespace eg
 			glm::rotate(glm::mat4(), m_yaw, glm::vec3(0, 1, 0));
 		glm::mat4 rotation = glm::transpose(invRotation);
 		
+		m_forward = -glm::vec3(rotation[2]);
+		
 		int forceX = 0;
 		int forceZ = 0;
 		if (IsButtonDown(Button::W))
-			forceZ--;
-		if (IsButtonDown(Button::S))
 			forceZ++;
+		if (IsButtonDown(Button::S))
+			forceZ--;
 		if (IsButtonDown(Button::A))
 			forceX--;
 		if (IsButtonDown(Button::D))
@@ -35,7 +37,7 @@ namespace eg
 		if (forceLenSq > 0)
 		{
 			float forceScale = dt * ACCEL_AMOUNT / std::sqrt((float)forceLenSq);
-			m_velocity += glm::vec3(rotation[2]) * (forceZ * forceScale);
+			m_velocity += m_forward * (forceZ * forceScale);
 			m_velocity += glm::vec3(rotation[0]) * (forceX * forceScale);
 		}
 		

@@ -154,6 +154,8 @@ namespace eg::graphics_api::gl
 #endif
 	}
 	
+	void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange) { }
+	
 	void UpdateBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);

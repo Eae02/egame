@@ -485,11 +485,17 @@ namespace eg::graphics_api::gl
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	}
 	
+	void GetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
+		BufferHandle bufferHandle, uint64_t offset)
+	{
+		//TODO: Implement
+	}
+	
 	void GenerateMipmaps(CommandContextHandle, TextureHandle handle)
 	{
 		Texture* texture = UnwrapTexture(handle);
 		glBindTexture(texture->type, texture->texture);
-		glGenerateMipmap(texture->texture);
+		glGenerateMipmap(texture->type);
 	}
 	
 	void DestroyTexture(TextureHandle handle)

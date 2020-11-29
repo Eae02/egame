@@ -19,6 +19,11 @@ namespace eg
 			return m_velocity;
 		}
 		
+		const glm::vec3& Forward() const
+		{
+			return m_forward;
+		}
+		
 		const glm::mat4& ViewMatrix() const
 		{
 			return m_viewMatrix;
@@ -37,6 +42,7 @@ namespace eg
 		
 		glm::vec3 m_position;
 		glm::vec3 m_velocity;
+		glm::vec3 m_forward;
 		
 		glm::mat4 m_viewMatrix;
 		glm::mat4 m_invViewMatrix;

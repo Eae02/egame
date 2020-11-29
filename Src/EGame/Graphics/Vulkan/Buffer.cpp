@@ -61,6 +61,8 @@ namespace eg::graphics_api::vk
 			vkCreateInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		if (HasFlag(createInfo.flags, BufferFlags::CopySrc))
 			vkCreateInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		if (HasFlag(createInfo.flags, BufferFlags::CopyDst))
+			vkCreateInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		if (HasFlag(createInfo.flags, BufferFlags::VertexBuffer))
 			vkCreateInfo.usage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 		if (HasFlag(createInfo.flags, BufferFlags::IndexBuffer))
@@ -182,6 +184,12 @@ namespace eg::graphics_api::vk
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
 		vmaFlushAllocation(ctx.allocator, buffer->allocation, modOffset, modRange);
+	}
+	
+	void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
+	{
+		Buffer* buffer = UnwrapBuffer(handle);
+		vmaInvalidateAllocation(ctx.allocator, buffer->allocation, modOffset, modRange);
 	}
 	
 	inline VkAccessFlags GetBarrierAccess(BufferUsage usage)
