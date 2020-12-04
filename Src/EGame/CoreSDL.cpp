@@ -164,6 +164,27 @@ namespace eg
 			return 1;
 		}
 		
+		constexpr int DISPLAY_INDEX = 0;
+		SDL_DisplayMode currentDisplayMode;
+		SDL_GetCurrentDisplayMode(DISPLAY_INDEX, &currentDisplayMode);
+		int numDisplayModes = SDL_GetNumDisplayModes(DISPLAY_INDEX);
+		for (int i = 0; i < numDisplayModes; i++)
+		{
+			SDL_DisplayMode mode;
+			SDL_GetDisplayMode(DISPLAY_INDEX, i, &mode);
+			if (mode.w == 0 || mode.h == 0 || mode.refresh_rate == 0)
+				continue;
+			FullscreenDisplayMode dm = { (uint32_t)mode.w, (uint32_t)mode.h, (uint32_t)mode.refresh_rate };
+			if (!Contains(detail::fullscreenDisplayModes, dm))
+			{
+				if (currentDisplayMode.w == mode.w && currentDisplayMode.h == mode.h && currentDisplayMode.refresh_rate == mode.refresh_rate)
+				{
+					detail::nativeDisplayModeIndex = i;
+				}
+				detail::fullscreenDisplayModes.push_back(dm);
+			}
+		}
+		
 		if (exeDirPathPtr == nullptr)
 		{
 			exeDirPathPtr = SDL_GetBasePath();
@@ -226,6 +247,30 @@ namespace eg
 		firstControllerAxisEvent = true;
 		
 		return 0;
+	}
+	
+	void SetDisplayModeFullscreen(const FullscreenDisplayMode& displayMode)
+	{
+		SDL_DisplayMode wantedDM = {};
+		wantedDM.w = displayMode.resolutionX;
+		wantedDM.h = displayMode.resolutionY;
+		wantedDM.refresh_rate = displayMode.refreshRate;
+		SDL_DisplayMode closestDM;
+		if (SDL_GetClosestDisplayMode(0, &wantedDM, &closestDM))
+		{
+			SDL_SetWindowDisplayMode(sdlWindow, &closestDM);
+			SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN);
+		}
+	}
+	
+	void SetDisplayModeFullscreenDesktop()
+	{
+		SDL_SetWindowFullscreen(sdlWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
+	}
+	
+	void SetDisplayModeWindowed()
+	{
+		SDL_SetWindowFullscreen(sdlWindow, 0);
 	}
 	
 	static SDL_Surface* sdlWindowSurface = nullptr;

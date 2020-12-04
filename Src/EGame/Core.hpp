@@ -29,6 +29,22 @@ namespace eg
 	
 	EG_BIT_FIELD(RunFlags)
 	
+	struct FullscreenDisplayMode
+	{
+		uint32_t resolutionX;
+		uint32_t resolutionY;
+		uint32_t refreshRate;
+		
+		bool operator==(const FullscreenDisplayMode& rhs) const
+		{
+			return resolutionX == rhs.resolutionX && resolutionY == rhs.resolutionY && refreshRate == rhs.refreshRate;
+		}
+		bool operator!=(const FullscreenDisplayMode& rhs) const
+		{
+			return !(rhs == *this);
+		}
+	};
+	
 	struct RunConfig
 	{
 		const char* gameName = nullptr;
@@ -37,6 +53,7 @@ namespace eg
 		RunFlags flags = RunFlags::None;
 		Format defaultDepthStencilFormat = Format::Depth16;
 		uint32_t framerateCap = 400;
+		const FullscreenDisplayMode* fullscreenDisplayMode = nullptr;
 	};
 	
 	namespace detail
@@ -47,6 +64,8 @@ namespace eg
 		extern EG_API std::string gameName;
 		extern EG_API std::string_view exeDirPath;
 		extern EG_API uint64_t frameIndex;
+		extern EG_API std::vector<FullscreenDisplayMode> fullscreenDisplayModes;
+		extern EG_API int64_t nativeDisplayModeIndex;
 		
 		void ButtonDownEvent(Button button, bool isRepeat);
 		void ButtonUpEvent(Button button, bool isRepeat);
@@ -56,6 +75,20 @@ namespace eg
 	{
 		return detail::frameIndex;
 	}
+	
+	inline Span<const FullscreenDisplayMode> FullscreenDisplayModes()
+	{
+		return detail::fullscreenDisplayModes;
+	}
+	
+	inline int64_t NativeDisplayModeIndex()
+	{
+		return detail::nativeDisplayModeIndex;
+	}
+	
+	EG_API void SetDisplayModeFullscreen(const FullscreenDisplayMode& displayMode);
+	EG_API void SetDisplayModeFullscreenDesktop();
+	EG_API void SetDisplayModeWindowed();
 	
 	/**
 	 * Runs a game. This is the main entry point of the library and will block until the game is closed.

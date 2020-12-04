@@ -31,6 +31,8 @@ namespace eg
 	std::string detail::gameName;
 	std::string_view detail::exeDirPath;
 	uint64_t detail::frameIndex;
+	std::vector<FullscreenDisplayMode> detail::fullscreenDisplayModes;
+	int64_t detail::nativeDisplayModeIndex = -1;
 	
 	extern bool createAssetPackage;
 	
