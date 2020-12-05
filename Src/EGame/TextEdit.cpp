@@ -104,7 +104,7 @@ namespace eg
 	
 	void TextEdit::Draw(const glm::vec2& position, SpriteBatch& spriteBatch, const ColorLin& color) const
 	{
-		spriteBatch.DrawText(*m_font, Text(), position, color, m_fontScale, nullptr);
+		spriteBatch.DrawText(*m_font, Text(), position, color, m_fontScale, nullptr, TextFlags::DropShadow);
 		
 		const int cursorX = (int)(position.x + m_font->GetTextExtents(Text().substr(0, (size_t)m_cursorPos)).x * m_fontScale);
 		

@@ -68,11 +68,14 @@ namespace eg
 		m_vertices.clear();
 	}
 	
-	void SpriteBatch::InitBatch(const Texture& texture, bool redToAlpha)
+	void SpriteBatch::InitBatch(const Texture& texture, SpriteFlags flags)
 	{
+		bool redToAlpha = HasFlag(flags, SpriteFlags::RedToAlpha);
+		uint32_t mipLevel = HasFlag(flags, SpriteFlags::ForceLowestMipLevel) ? texture.MipLevels() - 1 : 0;
+		
 		bool needsNewBatch = true;
 		if (!m_batches.empty() && m_batches.back().texture.handle == texture.handle &&
-			m_batches.back().redToAlpha == redToAlpha)
+			m_batches.back().redToAlpha == redToAlpha && m_batches.back().mipLevel == mipLevel)
 		{
 			if (!m_batches.back().enableScissor && m_scissorStack.empty())
 			{
@@ -89,6 +92,7 @@ namespace eg
 		{
 			Batch& batch = m_batches.emplace_back();
 			batch.redToAlpha = redToAlpha;
+			batch.mipLevel = mipLevel;
 			batch.texture = texture;
 			batch.firstIndex = static_cast<uint32_t>(m_indices.size());
 			batch.numIndices = 0;
@@ -115,7 +119,7 @@ namespace eg
 	void SpriteBatch::Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color,
 		const Rectangle& texRectangle, float scale, SpriteFlags spriteFlags, float rotation, glm::vec2 origin)
 	{
-		InitBatch(texture, HasFlag(spriteFlags, SpriteFlags::RedToAlpha));
+		InitBatch(texture, spriteFlags);
 		
 		AddQuadIndices();
 		
@@ -157,7 +161,7 @@ namespace eg
 	void SpriteBatch::Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color,
 		const Rectangle& texRectangle, SpriteFlags spriteFlags)
 	{
-		InitBatch(texture, HasFlag(spriteFlags, SpriteFlags::RedToAlpha));
+		InitBatch(texture, spriteFlags);
 		
 		AddQuadIndices();
 		
@@ -181,6 +185,31 @@ namespace eg
 		}
 	}
 	
+	void SpriteBatch::Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color, SpriteFlags spriteFlags)
+	{
+		InitBatch(texture, spriteFlags);
+		
+		AddQuadIndices();
+		
+		float uOffsets[] = { 0, 1 };
+		float vOffsets[] = { 1, 0 };
+		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
+			std::swap(uOffsets[0], uOffsets[1]);
+		if ((int)spriteFlags & (int)SpriteFlags::FlipY)
+			std::swap(vOffsets[0], vOffsets[1]);
+		
+		for (int x = 0; x < 2; x++)
+		{
+			for (int y = 0; y < 2; y++)
+			{
+				const float u = uOffsets[x];
+				const float v = vOffsets[y];
+				m_vertices.emplace_back(glm::vec2(rectangle.x + rectangle.w * x, rectangle.y + rectangle.h * y),
+					glm::vec2(u, v), color);
+			}
+		}
+	}
+	
 	void SpriteBatch::DrawRectBorder(const Rectangle& rectangle, const ColorLin& color, float width)
 	{
 		DrawLine({ rectangle.x, rectangle.y }, { rectangle.MaxX(), rectangle.y }, color, width);
@@ -191,7 +220,7 @@ namespace eg
 	
 	void SpriteBatch::DrawLine(const glm::vec2& begin, const glm::vec2& end, const ColorLin& color, float width)
 	{
-		InitBatch(whitePixelTexture, false);
+		InitBatch(whitePixelTexture, SpriteFlags::None);
 		
 		AddQuadIndices();
 		
@@ -210,7 +239,7 @@ namespace eg
 	
 	void SpriteBatch::DrawRect(const Rectangle& rectangle, const ColorLin& color)
 	{
-		InitBatch(whitePixelTexture, false);
+		InitBatch(whitePixelTexture, SpriteFlags::None);
 		
 		AddQuadIndices();
 		
@@ -284,6 +313,13 @@ namespace eg
 			
 			Rectangle srcRectangle(fontChar.textureX, fontChar.textureY, fontChar.width, fontChar.height);
 			
+			if (HasFlag(flags, TextFlags::DropShadow))
+			{
+				Rectangle shadowRectangle = rectangle;
+				shadowRectangle.y -= font.LineHeight() / 10.0f;
+				Draw(font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, color.a * 0.7f), srcRectangle, SpriteFlags::RedToAlpha);
+			}
+			
 			Draw(font.Tex(), rectangle, color, srcRectangle, SpriteFlags::RedToAlpha);
 			
 			x += fontChar.xAdvance + kerning;
@@ -293,8 +329,7 @@ namespace eg
 		sizeOut->x = x * scale;
 	}
 	
-	void SpriteBatch::End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo,
-		const glm::mat3& matrix)
+	void SpriteBatch::End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3& matrix)
 	{
 		if (m_batches.empty())
 			return;
@@ -348,7 +383,7 @@ namespace eg
 		
 		for (const Batch& batch : m_batches)
 		{
-			int32_t pc = batch.redToAlpha;
+			int32_t pc = (int32_t)batch.redToAlpha;
 			DC.PushConstants(64, sizeof(pc), &pc);
 			
 			if (batch.enableScissor)
@@ -356,7 +391,9 @@ namespace eg
 			else
 				DC.SetScissor(0, 0, screenWidth, screenHeight);
 			
-			DC.BindTexture(batch.texture, 0, 0);
+			eg::TextureSubresource subres;
+			subres.firstMipLevel = batch.mipLevel;
+			DC.BindTexture(batch.texture, 0, 0, nullptr, subres);
 			
 			DC.DrawIndexed(batch.firstIndex, batch.numIndices, 0, 0, 1);
 		}

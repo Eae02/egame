@@ -14,7 +14,8 @@ namespace eg
 		None = 0,
 		FlipX = 1,
 		FlipY = 2,
-		RedToAlpha = 4
+		RedToAlpha = 4,
+		ForceLowestMipLevel = 8
 	};
 	
 	EG_BIT_FIELD(SpriteFlags)
@@ -22,7 +23,8 @@ namespace eg
 	enum class TextFlags
 	{
 		None = 0,
-		NoPixelAlign = 1
+		NoPixelAlign = 1,
+		DropShadow = 2
 	};
 	
 	EG_BIT_FIELD(TextFlags)
@@ -62,13 +64,10 @@ namespace eg
 			const Rectangle& texRectangle, float scale = 1, SpriteFlags flipFlags = SpriteFlags::None,
 			float rotation = 0, glm::vec2 origin = { });
 		
-		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color, SpriteFlags flipFlags)
-		{
-			Draw(texture, rectangle, color, Rectangle(0, 0, (float)texture.Width(), (float)texture.Height()), flipFlags);
-		}
+		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color, SpriteFlags flipFlags = SpriteFlags::None);
 		
 		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color,
-			const Rectangle& texRectangle, SpriteFlags flipFlags);
+			const Rectangle& texRectangle, SpriteFlags flipFlags = SpriteFlags::None);
 		
 		void DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
 			const ColorLin& color, float scale = 1, float lineSpacing = 0, glm::vec2* sizeOut = nullptr, TextFlags flags = TextFlags::None);
@@ -97,7 +96,7 @@ namespace eg
 		static SpriteBatch overlay;
 		
 	private:
-		void InitBatch(const Texture& texture, bool redToAlpha);
+		void InitBatch(const Texture& texture, SpriteFlags flags);
 		void AddQuadIndices();
 		
 		struct Vertex
@@ -134,6 +133,7 @@ namespace eg
 		{
 			TextureRef texture;
 			bool redToAlpha;
+			uint32_t mipLevel;
 			uint32_t firstIndex;
 			uint32_t numIndices;
 			bool enableScissor;

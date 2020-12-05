@@ -401,7 +401,7 @@ namespace eg
 				glm::vec2 textPos(innerMinX, std::round(y));
 				for (const LineSegment& segment : ctx->lines[i])
 				{
-					spriteBatch.DrawText(*ctx->textEdit.Font(), segment.text, textPos, segment.color);
+					spriteBatch.DrawText(*ctx->textEdit.Font(), segment.text, textPos, segment.color, 1, nullptr, TextFlags::DropShadow);
 					textPos.x += ctx->textEdit.Font()->GetTextExtents(segment.text).x;
 				}
 				y += ctx->textEdit.Font()->LineHeight();

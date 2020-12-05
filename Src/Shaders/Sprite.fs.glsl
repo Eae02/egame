@@ -9,18 +9,15 @@ layout(location=0) out vec4 color_out;
 
 layout(push_constant) uniform PC
 {
-	layout(offset=64) int redToAlpha;
+	layout(offset=64) int flags;
 };
+
+vec4 swizzle(vec4 inp)
+{
+	return (flags == 1) ? vec4(1, 1, 1, inp.r) : inp;
+}
 
 void main()
 {
-	color_out = vColor;
-	if (redToAlpha == 1)
-	{
-		color_out.a *= texture(uTexture, vTexCoord).r;
-	}
-	else
-	{
-		color_out *= texture(uTexture, vTexCoord);
-	}
+	color_out = vColor * swizzle(texture(uTexture, vTexCoord));
 }
