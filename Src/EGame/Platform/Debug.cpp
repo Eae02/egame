@@ -26,4 +26,8 @@ namespace eg
 		}
 		std::cout << std::flush;
 	}
+	
+#ifndef __linux__
+	std::vector<std::string> GetStackTrace() { return { }; }
+#endif
 }
