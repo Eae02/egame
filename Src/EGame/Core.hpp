@@ -54,6 +54,8 @@ namespace eg
 		Format defaultDepthStencilFormat = Format::Depth16;
 		uint32_t framerateCap = 400;
 		const FullscreenDisplayMode* fullscreenDisplayMode = nullptr;
+		uint32_t minWindowW = 0;
+		uint32_t minWindowH = 0;
 	};
 	
 	namespace detail

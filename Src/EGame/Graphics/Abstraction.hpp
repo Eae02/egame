@@ -670,7 +670,6 @@ namespace eg
 		SDL_Window* window;
 		Format defaultDepthStencilFormat;
 		bool defaultFramebufferSRGB;
-		bool enableVSync;
 		bool forceDepthZeroToOne;
 		bool preferIntegrated;
 	};

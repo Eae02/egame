@@ -172,11 +172,6 @@ namespace eg::graphics_api::gl
 			return false;
 		}
 		
-		if (!initArguments.enableVSync)
-			SDL_GL_SetSwapInterval(0);
-		else if (SDL_GL_SetSwapInterval(-1) == -1)
-			SDL_GL_SetSwapInterval(1);
-		
 		srgbBackBuffer = initArguments.defaultFramebufferSRGB;
 		
 		std::vector<const char*> requiredExtensions = 
@@ -269,6 +264,14 @@ namespace eg::graphics_api::gl
 		Log(LogLevel::Info, "gl", "Using OpenGL renderer: '{0}', by vendor: '{1}'", rendererName, vendorName);
 		
 		return true;
+	}
+	
+	void SetEnableVSync(bool enableVSync)
+	{
+		if (!enableVSync)
+			SDL_GL_SetSwapInterval(0);
+		else if (SDL_GL_SetSwapInterval(-1) == -1)
+			SDL_GL_SetSwapInterval(1);
 	}
 	
 	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)

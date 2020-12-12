@@ -172,8 +172,11 @@ namespace eg
 		{
 			SDL_DisplayMode mode;
 			SDL_GetDisplayMode(DISPLAY_INDEX, i, &mode);
-			if (mode.w == 0 || mode.h == 0 || mode.refresh_rate == 0)
+			if (mode.w == 0 || mode.h == 0 || mode.refresh_rate == 0 ||
+				(uint32_t)mode.w < runConfig.minWindowW || (uint32_t)mode.h < runConfig.minWindowH)
+			{
 				continue;
+			}
 			FullscreenDisplayMode dm = { (uint32_t)mode.w, (uint32_t)mode.h, (uint32_t)mode.refresh_rate };
 			if (!Contains(detail::fullscreenDisplayModes, dm))
 			{
@@ -224,6 +227,11 @@ namespace eg
 		sdlWindow = SDL_CreateWindow(detail::gameName.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			1200, 800, windowFlags);
 		
+		if (runConfig.minWindowW != 0 && runConfig.minWindowH != 0)
+		{
+			SDL_SetWindowMinimumSize(sdlWindow, runConfig.minWindowW, runConfig.minWindowH);
+		}
+		
 		if (sdlWindow == nullptr)
 		{
 			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error creating window", SDL_GetError(), nullptr);
@@ -232,7 +240,6 @@ namespace eg
 		
 		GraphicsAPIInitArguments apiInitArguments;
 		apiInitArguments.window = sdlWindow;
-		apiInitArguments.enableVSync = HasFlag(runConfig.flags, RunFlags::VSync);
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
 		apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
 		apiInitArguments.defaultDepthStencilFormat = defaultDSFormat;
@@ -242,6 +249,8 @@ namespace eg
 		{
 			return 1;
 		}
+		
+		gal::SetEnableVSync(HasFlag(runConfig.flags, RunFlags::VSync));
 		
 		firstMouseMotionEvent = true;
 		firstControllerAxisEvent = true;

@@ -696,7 +696,7 @@ namespace eg::graphics_api::vk
 		if (ctx.surfaceFormat.format == VK_FORMAT_UNDEFINED)
 			return false;
 		
-		ctx.presentMode = SelectPresentMode(initArguments.enableVSync);
+		ctx.presentMode = SelectPresentMode(true);
 		ctx.defaultDSFormat = TranslateFormat(initArguments.defaultDepthStencilFormat);
 		CreateSwapchain();
 		
@@ -753,6 +753,12 @@ namespace eg::graphics_api::vk
 		deviceInfo.deviceVendorName               = ctx.deviceVendorName;
 		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupCount, 3, deviceInfo.maxComputeWorkGroupCount);
 		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupSize, 3, deviceInfo.maxComputeWorkGroupSize);
+	}
+	
+	void SetEnableVSync(bool enableVSync)
+	{
+		ctx.presentMode = SelectPresentMode(enableVSync);
+		CreateSwapchain();
 	}
 	
 	GraphicsMemoryStat GetMemoryStat()

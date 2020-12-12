@@ -5,6 +5,7 @@ XM_ABSCALLBACK(IsLoadingComplete, bool, ())
 XM_ABSCALLBACK(BeginFrame, void, ())
 XM_ABSCALLBACK(EndFrame, void, ())
 XM_ABSCALLBACK(Shutdown, void, ())
+XM_ABSCALLBACK(SetEnableVSync, void, (bool enableVSync))
 XM_ABSCALLBACK(DeviceWaitIdle, void, ())
 
 XM_ABSCALLBACK(CreateBuffer, BufferHandle, (const BufferCreateInfo& createInfo))
