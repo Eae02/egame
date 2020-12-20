@@ -316,7 +316,7 @@ namespace eg
 			if (HasFlag(flags, TextFlags::DropShadow))
 			{
 				Rectangle shadowRectangle = rectangle;
-				shadowRectangle.y -= font.LineHeight() / 10.0f;
+				shadowRectangle.y -= font.LineHeight() * scale * 0.1f;
 				Draw(font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, color.a * 0.7f), srcRectangle, SpriteFlags::RedToAlpha);
 			}
 			
