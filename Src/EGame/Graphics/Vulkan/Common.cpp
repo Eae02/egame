@@ -149,14 +149,11 @@ namespace eg::graphics_api::vk
 		
 		PrintAffectedObjects(*callbackData, std::cerr);
 		
-#ifndef NDEBUG
-		if (severity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT &&
-		    std::strcmp(callbackData->pMessageIdName, "VUID-vkDestroyDevice-device-00378"))
+		if (severity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
 		{
 			EG_DEBUG_BREAK
 			std::abort();
 		}
-#endif
 		
 		return VK_FALSE;
 	}

@@ -87,7 +87,7 @@ namespace eg
 	
 	EG_API void ParseCommandLineArgs(struct RunConfig& runConfig, int argc, char** argv);
 	
-	EG_API void ReleasePanic(const std::string& message);
+	[[noreturn]] EG_API void ReleasePanic(const std::string& message);
 	
 	template <typename T>
 	inline T& Deref(T* ptr)

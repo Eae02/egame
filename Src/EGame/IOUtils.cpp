@@ -81,7 +81,7 @@ namespace eg
 				inflateStream.next_out = reinterpret_cast<Bytef*>(outBuffer.data());
 				
 				status = inflate(&inflateStream, Z_NO_FLUSH);
-				assert(status != Z_STREAM_ERROR);
+				EG_ASSERT(status != Z_STREAM_ERROR);
 				
 				if (status == Z_MEM_ERROR)
 					std::abort();
@@ -129,7 +129,7 @@ namespace eg
 			deflateStream.next_out = reinterpret_cast<Bytef*>(outBuffer.data());
 			
 			int status = deflate(&deflateStream, Z_FINISH);
-			assert(status != Z_STREAM_ERROR);
+			EG_ASSERT(status != Z_STREAM_ERROR);
 			
 			if (deflateStream.avail_out != 0)
 			{
