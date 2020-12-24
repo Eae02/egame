@@ -149,7 +149,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 		BUILD_WITH_INSTALL_RPATH TRUE
 	)
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-	target_link_libraries(EGame PRIVATE shlwapi.lib)
+	target_link_libraries(EGameObj PRIVATE shlwapi.lib)
 endif()
 
 set_target_properties(EGameObj PROPERTIES DEFINE_SYMBOL "EG_BUILDING_LIB")
