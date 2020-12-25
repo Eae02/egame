@@ -61,4 +61,18 @@ namespace eg
 		
 		return other;
 	}
+	
+	AABB AABB::CreateEnclosing(Span<const glm::vec3> positions)
+	{
+		if (positions.Empty())
+			return {};
+		AABB aabb;
+		aabb.min = aabb.max = positions[0];
+		for (size_t i = 1; i < positions.size(); i++)
+		{
+			aabb.min = glm::min(aabb.min, positions[i]);
+			aabb.max = glm::max(aabb.max, positions[i]);
+		}
+		return aabb;
+	}
 }

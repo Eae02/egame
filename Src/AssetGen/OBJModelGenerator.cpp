@@ -294,7 +294,10 @@ namespace eg::asset_gen
 						for (int j = 0; j < 3; j++)
 							vertices[i].tangent[j] = FloatToSNorm(tangent[j]);
 					});
-				writer.WriteMesh(vertices, indices, object.name, access, object.material);
+				writer.WriteMesh(vertices, indices, object.name, access,
+					 Sphere::CreateEnclosing(positions),
+					 AABB::CreateEnclosing(positions),
+					 object.material);
 			}
 			
 			writer.End();

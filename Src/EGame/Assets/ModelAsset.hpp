@@ -43,7 +43,7 @@ namespace eg
 		}
 		
 		void WriteMesh(Span<const V> vertices, Span<const uint32_t> indices, std::string_view name,
-			MeshAccess access, std::string_view materialName = { })
+			MeshAccess access, const Sphere& boundingSphere, const AABB& boundingBox, std::string_view materialName = { })
 		{
 			if (vertices.Empty() || indices.Empty())
 				EG_PANIC("Attempted to write an empty mesh.");
@@ -53,6 +53,16 @@ namespace eg
 			BinWrite<uint8_t>(*m_stream, (uint8_t)access);
 			BinWriteString(*m_stream, materialName);
 			BinWriteString(*m_stream, name);
+			BinWrite<float>(*m_stream, boundingSphere.position.x);
+			BinWrite<float>(*m_stream, boundingSphere.position.y);
+			BinWrite<float>(*m_stream, boundingSphere.position.z);
+			BinWrite<float>(*m_stream, boundingSphere.radius);
+			BinWrite<float>(*m_stream, boundingBox.min.x);
+			BinWrite<float>(*m_stream, boundingBox.min.y);
+			BinWrite<float>(*m_stream, boundingBox.min.z);
+			BinWrite<float>(*m_stream, boundingBox.max.x);
+			BinWrite<float>(*m_stream, boundingBox.max.y);
+			BinWrite<float>(*m_stream, boundingBox.max.z);
 			m_stream->write(reinterpret_cast<const char*>(vertices.data()), vertices.SizeBytes());
 			m_stream->write(reinterpret_cast<const char*>(indices.data()), indices.SizeBytes());
 		}

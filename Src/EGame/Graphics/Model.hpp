@@ -6,6 +6,7 @@
 #include "../Span.hpp"
 #include "../API.hpp"
 #include "../Ray.hpp"
+#include "../Sphere.hpp"
 
 namespace eg
 {
@@ -37,6 +38,8 @@ namespace eg
 			uint32_t firstIndex;
 			uint32_t numVertices;
 			uint32_t numIndices;
+			std::optional<Sphere> boundingSphere;
+			std::optional<eg::AABB> boundingAABB;
 		};
 		
 		Model() = default;
@@ -152,7 +155,8 @@ namespace eg
 		int AddMaterial(std::string_view name);
 		
 		std::tuple<void*, void*> AddMesh(uint32_t numVertices, uint32_t numIndices,
-			std::string name, MeshAccess access = MeshAccess::All, int materialIndex = -1);
+			std::string name, MeshAccess access = MeshAccess::All,
+			int materialIndex = -1, const Sphere* boundingSphere = nullptr, const eg::AABB* boundingAABB = nullptr);
 		
 	private:
 		struct Mesh
@@ -162,6 +166,8 @@ namespace eg
 			uint32_t numVertices;
 			uint32_t numIndices;
 			std::string name;
+			std::optional<Sphere> boundingSphere;
+			std::optional<eg::AABB> boundingAABB;
 			std::unique_ptr<void, FreeDel> memory;
 		};
 		
@@ -183,11 +189,11 @@ namespace eg
 		ModelBuilder()
 			: m_builder(std::type_index(typeid(V)), sizeof(V), std::type_index(typeid(I)), sizeof(I), GetIndexType<I>()) { }
 		
-		MeshData<V, I> AddMesh(uint32_t numVertices, uint32_t numIndices, std::string name,
-			MeshAccess access = MeshAccess::All, int materialIndex = -1)
+		MeshData<V, I> AddMesh(uint32_t numVertices, uint32_t numIndices, std::string name, MeshAccess access = MeshAccess::All,
+			int materialIndex = -1, const Sphere* boundingSphere = nullptr, const eg::AABB* boundingAABB = nullptr)
 		{
 			auto [vertices, indices] = m_builder.AddMesh(numVertices, numIndices,
-				std::move(name), access, materialIndex);
+				std::move(name), access, materialIndex, boundingSphere, boundingAABB);
 			
 			MeshData<V, I> data;
 			data.vertices = Span<V>(reinterpret_cast<V*>(vertices), numVertices);

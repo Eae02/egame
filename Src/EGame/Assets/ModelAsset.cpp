@@ -3,7 +3,7 @@
 
 namespace eg
 {
-	const AssetFormat ModelAssetFormat { "EG::Model", 2 };
+	const AssetFormat ModelAssetFormat { "EG::Model", 4 };
 	
 	std::vector<detail::ModelVertexType> detail::modelVertexTypes;
 	
@@ -36,9 +36,23 @@ namespace eg
 			std::string materialName = BinReadString(stream);
 			std::string name = BinReadString(stream);
 			
+			Sphere sphere;
+			sphere.position.x = BinRead<float>(stream);
+			sphere.position.y = BinRead<float>(stream);
+			sphere.position.z = BinRead<float>(stream);
+			sphere.radius = BinRead<float>(stream);
+			
+			eg::AABB aabb;
+			aabb.min.x = BinRead<float>(stream);
+			aabb.min.y = BinRead<float>(stream);
+			aabb.min.z = BinRead<float>(stream);
+			aabb.max.x = BinRead<float>(stream);
+			aabb.max.y = BinRead<float>(stream);
+			aabb.max.z = BinRead<float>(stream);
+			
 			int materialIndex = modelBuilder.AddMaterial(materialName);
 			
-			auto [vertices, indices] = modelBuilder.AddMesh(numVertices, numIndices, std::move(name), access, materialIndex);
+			auto [vertices, indices] = modelBuilder.AddMesh(numVertices, numIndices, std::move(name), access, materialIndex, &sphere, &aabb);
 			
 			stream.read(static_cast<char*>(vertices), numVertices * vertexTypeIt->size);
 			stream.read(static_cast<char*>(indices), numIndices * sizeof(uint32_t));

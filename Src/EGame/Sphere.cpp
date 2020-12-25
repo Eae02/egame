@@ -37,6 +37,31 @@ namespace eg
 		return Sphere(sphereCenter, std::sqrt(maxDistToSphereSq) + spheres[furthestSphereIndex].radius);
 	}
 	
+	glm::vec3 FurthestFrom(Span<const glm::vec3> points, const glm::vec3& p)
+	{
+		float maxDist = 0;
+		glm::vec3 ret = p;
+		for (const glm::vec3& o : points)
+		{
+			float dst = glm::distance2(o, p);
+			if (dst > maxDist)
+			{
+				maxDist = dst;
+				ret = o;
+			}
+		}
+		return ret;
+	}
+	
+	Sphere Sphere::CreateEnclosing(Span<const glm::vec3> positions)
+	{
+		if (positions.Empty())
+			return {};
+		glm::vec3 p1 = FurthestFrom(positions, positions[0]);
+		glm::vec3 p2 = FurthestFrom(positions, p1);
+		return Sphere((p1 + p2) / 2.0f, glm::distance(p1, p2) / 2.0);
+	}
+	
 	Sphere Sphere::CreateEnclosing(const AABB& box)
 	{
 		return Sphere(box.Center(), glm::length(box.max - box.Center()));

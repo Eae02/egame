@@ -17,6 +17,8 @@ namespace eg
 		
 		static Sphere CreateEnclosing(Span<const Sphere> spheres);
 		
+		static Sphere CreateEnclosing(Span<const glm::vec3> positions);
+		
 		static Sphere CreateEnclosing(const AABB& box);
 		
 		Sphere Transformed(const glm::mat4& matrix) const;

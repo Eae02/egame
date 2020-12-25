@@ -199,6 +199,7 @@ namespace eg::asset_gen::gltf
 		glm::mat4 transform;
 		
 		Sphere boundingSphere;
+		AABB boundingBox;
 	};
 	
 	template <typename T>
@@ -359,19 +360,8 @@ namespace eg::asset_gen::gltf
 			}*/
 		}
 		
-		//mesh.boundingSphere = eg::Sphere::CreateEnclosing(Jade::Span<const glm::vec3>(points.get(), numVertices));
-		/*
-		//Generates tangents for the vertices
-		GenerateTangents(mesh.vertices.size(), mesh.indices.size(),
-			[&] (size_t i) { return mesh.vertices[verticesP[i].position]; },
-			[&] (size_t i) { return texCoords[verticesP[i].texCoord]; },
-			[&] (size_t i) { return normals[verticesP[i].normal]; },
-			[&] (size_t i) { return indices[i]; },
-			[&] (size_t i, const glm::vec3& tangent)
-			{
-				for (int j = 0; j < 3; j++)
-					vertices[i].tangent[j] = FloatToSNorm(tangent[j]);
-			});*/
+		mesh.boundingSphere = eg::Sphere::CreateEnclosing(eg::Span<const glm::vec3>(points.get(), numVertices));
+		mesh.boundingBox = eg::AABB::CreateEnclosing(eg::Span<const glm::vec3>(points.get(), numVertices));
 		
 		return mesh;
 	}
@@ -758,7 +748,8 @@ namespace eg::asset_gen::gltf
 			
 			for (ImportedMesh& mesh : meshes)
 			{
-				writer.WriteMesh(mesh.vertices, mesh.indices, mesh.name, eg::MeshAccess::GPUOnly, materialNames[mesh.materialIndex]);
+				writer.WriteMesh(mesh.vertices, mesh.indices, mesh.name, eg::MeshAccess::GPUOnly,
+				                 mesh.boundingSphere, mesh.boundingBox, materialNames[mesh.materialIndex]);
 			}
 			
 			writer.End();

@@ -42,11 +42,6 @@ namespace eg::graphics_api::vk
 		return reinterpret_cast<Framebuffer*>(handle);
 	}
 	
-	VkImageView GetAttachmentView(const FramebufferAttachment& attachment)
-	{
-		return UnwrapTexture(attachment.texture)->GetView(attachment.subresource.AsSubresource());
-	}
-	
 	FramebufferHandle CreateFramebuffer(const FramebufferCreateInfo& createInfo)
 	{
 		Framebuffer* framebuffer = framebufferPool.New();
@@ -85,7 +80,7 @@ namespace eg::graphics_api::vk
 				EG_PANIC("Inconsistent framebuffer attachment resolution");
 			}
 			
-			attachments[vkCreateInfo.attachmentCount++] = texture->GetView(attachment.subresource.AsSubresource());
+			attachments[vkCreateInfo.attachmentCount++] = texture->GetView(attachment.subresource.AsSubresource(), 0, VK_IMAGE_VIEW_TYPE_2D);
 			
 			texture->refCount++;
 			formatOut = texture->format;

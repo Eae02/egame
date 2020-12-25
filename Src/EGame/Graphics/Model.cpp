@@ -28,8 +28,8 @@ namespace eg
 		return -1;
 	}
 	
-	std::tuple<void*, void*> ModelBuilderUnformatted::AddMesh(uint32_t numVertices, uint32_t numIndices,
-		std::string name, MeshAccess access, int materialIndex)
+	std::tuple<void*, void*> ModelBuilderUnformatted::AddMesh(uint32_t numVertices, uint32_t numIndices, std::string name,
+		MeshAccess access, int materialIndex, const Sphere* boundingSphere, const eg::AABB* boundingAABB)
 	{
 		Mesh& mesh = m_meshes.emplace_back();
 		mesh.access = access;
@@ -37,6 +37,10 @@ namespace eg
 		mesh.numVertices = numVertices;
 		mesh.numIndices = numIndices;
 		mesh.name = std::move(name);
+		if (boundingSphere)
+			mesh.boundingSphere = *boundingSphere;
+		if (boundingAABB)
+			mesh.boundingAABB = *boundingAABB;
 		
 		char* memory = static_cast<char*>(std::malloc(numVertices * m_vertexSize + numIndices * m_indexSize));
 		mesh.memory.reset(memory);
@@ -124,6 +128,8 @@ namespace eg
 			model.m_meshes[i].materialIndex = m_meshes[i].materialIndex;
 			model.m_meshes[i].numVertices = m_meshes[i].numVertices;
 			model.m_meshes[i].numIndices = m_meshes[i].numIndices;
+			model.m_meshes[i].boundingSphere = m_meshes[i].boundingSphere;
+			model.m_meshes[i].boundingAABB = m_meshes[i].boundingAABB;
 			model.m_meshes[i].name = std::move(m_meshes[i].name);
 			
 			if (m_meshes[i].access != MeshAccess::CPUOnly)
