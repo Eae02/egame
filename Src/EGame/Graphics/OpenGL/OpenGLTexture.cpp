@@ -517,7 +517,7 @@ namespace eg::graphics_api::gl
 			glDeleteTextures(1, &texture->texture);
 			if (texture->hasBlitFBO)
 				glDeleteFramebuffers(1, &texture->blitFBO);
-			texturePool.Free(texture);
+			texturePool.Delete(texture);
 		});
 	}
 	

@@ -73,8 +73,9 @@ namespace eg
 			return newPage.objects;
 		}
 		
-		void Free(T* t)
+		void Delete(T* t)
 		{
+			t->~T();
 			for (Page* page = m_firstPage; page; page = page->next)
 			{
 				if (t >= page->objects && t < page->objects + page->size)
@@ -84,12 +85,6 @@ namespace eg
 					return;
 				}
 			}
-		}
-		
-		void Delete(T* t)
-		{
-			t->~T();
-			Free(t);
 		}
 		
 		void Reset()

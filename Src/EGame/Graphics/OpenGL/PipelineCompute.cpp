@@ -43,7 +43,7 @@ namespace eg::graphics_api::gl
 	void ComputePipeline::Free()
 	{
 		glDeleteShader(shaderModule);
-		computePipelinePool.Free(this);
+		computePipelinePool.Delete(this);
 	}
 	
 	void ComputePipeline::Bind() { }

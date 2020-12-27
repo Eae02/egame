@@ -129,7 +129,7 @@ namespace eg::graphics_api::gl
 #ifdef EG_GLES
 			}
 #endif
-			bufferPool.Free(buffer);
+			bufferPool.Delete(buffer);
 		});
 	}
 	

@@ -311,7 +311,7 @@ namespace eg::graphics_api::gl
 	{
 		for (uint32_t i = 0; i < numShaderModules; i++)
 			glDeleteShader(shaderModules[i]);
-		gfxPipelinePool.Free(this);
+		gfxPipelinePool.Delete(this);
 	}
 	
 	static struct

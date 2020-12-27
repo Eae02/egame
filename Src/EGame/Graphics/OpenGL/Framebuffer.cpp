@@ -175,7 +175,7 @@ namespace eg::graphics_api::gl
 		glDeleteFramebuffers(1, &framebuffer->framebuffer);
 		for (const ResolveFBO& resolveFbo : framebuffer->resolveFBOs)
 			glDeleteFramebuffers(2, resolveFbo.framebuffers);
-		framebuffers.Free(framebuffer);
+		framebuffers.Delete(framebuffer);
 	}
 	
 	Framebuffer* currentFramebuffer = nullptr;
