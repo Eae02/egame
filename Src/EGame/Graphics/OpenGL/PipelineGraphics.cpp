@@ -116,6 +116,7 @@ namespace eg::graphics_api::gl
 	{
 		GraphicsPipeline* pipeline = gfxPipelinePool.New();
 		
+		pipeline->isGraphicsPipeline = true;
 		pipeline->numShaderModules = 0;
 		pipeline->numClipDistances = createInfo.numClipDistances;
 		
@@ -427,12 +428,14 @@ namespace eg::graphics_api::gl
 	
 	inline bool IsScissorTestEnabled()
 	{
+		if (currentPipeline == nullptr || !currentPipeline->isGraphicsPipeline)
+			return false;
 		return static_cast<const GraphicsPipeline*>(currentPipeline)->enableScissorTest;
 	}
 	
 	void InitScissorTest()
 	{
-		if (currentPipeline != nullptr)
+		if (currentPipeline != nullptr && currentPipeline->isGraphicsPipeline)
 		{
 			SetEnabled<GL_SCISSOR_TEST>(IsScissorTestEnabled());
 		}

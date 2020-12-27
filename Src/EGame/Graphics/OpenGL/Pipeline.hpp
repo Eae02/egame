@@ -36,6 +36,7 @@ namespace eg::graphics_api::gl
 	
 	struct AbstractPipeline
 	{
+		bool isGraphicsPipeline = false;
 		GLuint program;
 		std::vector<PushConstantMember> pushConstants;
 		uint32_t numUniformBuffers = 0;
