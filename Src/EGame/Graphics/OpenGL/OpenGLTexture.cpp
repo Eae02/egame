@@ -488,7 +488,19 @@ namespace eg::graphics_api::gl
 	void GetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
 		BufferHandle bufferHandle, uint64_t offset)
 	{
-		//TODO: Implement
+		const Buffer* buffer = UnwrapBuffer(bufferHandle);
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer);
+		
+		Texture* texture = UnwrapTexture(handle);
+		auto[format, type] = GetUploadFormat(texture->format);
+		
+		texture->ChangeUsage(TextureUsage::CopySrc);
+		texture->MaybeInitBlitFBO();
+		
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, texture->blitFBO);
+		glReadPixels(range.offsetX, range.offsetY, range.sizeX, range.sizeY, format, type, (void*)offset);
+		
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 	}
 	
 	void GenerateMipmaps(CommandContextHandle, TextureHandle handle)

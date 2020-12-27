@@ -130,19 +130,19 @@ namespace eg::graphics_api::vk
 	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*)
 	{
-		if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-InconsistentSpirv") == 0)
-			return VK_FALSE;
-		if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-OutputNotConsumed") == 0)
-			return VK_FALSE;
-		if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-features-limits-maxComputeWorkGroupInvocations") == 0)
-			return VK_FALSE;
-		if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-DrawState-InvalidQuery") == 0)
-			return VK_FALSE;
+		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-InconsistentSpirv") == 0)
+		//	return VK_FALSE;
+		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-OutputNotConsumed") == 0)
+		//	return VK_FALSE;
+		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-features-limits-maxComputeWorkGroupInvocations") == 0)
+		//	return VK_FALSE;
+		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-DrawState-InvalidQuery") == 0)
+		//	return VK_FALSE;
 		
-		if (std::strstr(callbackData->pMessage, "can result in undefined behavior if this memory is used by the device. Only GENERAL or PREINITIALIZED should be used."))
-			return VK_FALSE;
-		if (std::strstr(callbackData->pMessage, "All child objects created on device must have been destroyed prior to destroying device"))
-			return VK_FALSE;
+		//if (std::strstr(callbackData->pMessage, "can result in undefined behavior if this memory is used by the device. Only GENERAL or PREINITIALIZED should be used."))
+		//	return VK_FALSE;
+		//if (std::strstr(callbackData->pMessage, "All child objects created on device must have been destroyed prior to destroying device"))
+		//	return VK_FALSE;
 		
 		std::cerr << "Vk[" << callbackData->messageIdNumber << " " << callbackData->pMessageIdName << "]: \n" <<
 			callbackData->pMessage << std::endl;
