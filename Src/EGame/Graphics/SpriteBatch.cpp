@@ -66,6 +66,7 @@ namespace eg
 		m_batches.clear();
 		m_indices.clear();
 		m_vertices.clear();
+		opacityScale = 1;
 	}
 	
 	void SpriteBatch::InitBatch(const Texture& texture, SpriteFlags flags)
@@ -153,7 +154,7 @@ namespace eg
 				const float rOffX = offX * cosR - offY * sinR;
 				const float rOffY = offX * sinR + offY * cosR;
 				
-				m_vertices.emplace_back(position + glm::vec2(rOffX, rOffY) * scale, glm::vec2(u, v), color);
+				m_vertices.emplace_back(position + glm::vec2(rOffX, rOffY) * scale, glm::vec2(u, v), color, opacityScale);
 			}
 		}
 	}
@@ -180,7 +181,7 @@ namespace eg
 				const float u = (texRectangle.x + uOffsets[x]) / texture.Width();
 				const float v = (texRectangle.y + vOffsets[y]) / texture.Height();
 				m_vertices.emplace_back(glm::vec2(rectangle.x + rectangle.w * x, rectangle.y + rectangle.h * y),
-					glm::vec2(u, v), color);
+					glm::vec2(u, v), color, opacityScale);
 			}
 		}
 	}
@@ -205,7 +206,7 @@ namespace eg
 				const float u = uOffsets[x];
 				const float v = vOffsets[y];
 				m_vertices.emplace_back(glm::vec2(rectangle.x + rectangle.w * x, rectangle.y + rectangle.h * y),
-					glm::vec2(u, v), color);
+					glm::vec2(u, v), color, opacityScale);
 			}
 		}
 	}
@@ -229,11 +230,11 @@ namespace eg
 		
 		for (int s = 0; s < 2; s++)
 		{
-			m_vertices.emplace_back(begin + dO * (width * (s * 2 - 1)), glm::vec2(0, 0), color);
+			m_vertices.emplace_back(begin + dO * (width * (s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
 		}
 		for (int s = 0; s < 2; s++)
 		{
-			m_vertices.emplace_back(end + dO * (width * (s * 2 - 1)), glm::vec2(0, 0), color);
+			m_vertices.emplace_back(end + dO * (width * (s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
 		}
 	}
 	
@@ -248,7 +249,7 @@ namespace eg
 			for (int y = 0; y < 2; y++)
 			{
 				m_vertices.emplace_back(glm::vec2(rectangle.x + rectangle.w * x, rectangle.y + rectangle.h * y),
-					glm::vec2(0, 0), color);
+					glm::vec2(0, 0), color, opacityScale);
 			}
 		}
 	}
@@ -317,7 +318,7 @@ namespace eg
 			{
 				Rectangle shadowRectangle = rectangle;
 				shadowRectangle.y -= font.LineHeight() * scale * 0.1f;
-				Draw(font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, color.a * 0.7f), srcRectangle, SpriteFlags::RedToAlpha);
+				Draw(font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, color.a * 0.5f), srcRectangle, SpriteFlags::RedToAlpha);
 			}
 			
 			Draw(font.Tex(), rectangle, color, srcRectangle, SpriteFlags::RedToAlpha);
@@ -425,12 +426,12 @@ namespace eg
 		}
 	}
 	
-	SpriteBatch::Vertex::Vertex(const glm::vec2& _position, const glm::vec2& _texCoord, const ColorLin& _color)
+	SpriteBatch::Vertex::Vertex(const glm::vec2& _position, const glm::vec2& _texCoord, const ColorLin& _color, float opacityScale)
 		: position(_position), texCoord(_texCoord)
 	{
-		for (int i = 0; i < 4; i++)
-		{
-			color[i] = static_cast<uint8_t>(std::round((&_color.r)[i] * 255.0f));
-		}
+		color[0] = static_cast<uint8_t>(std::round(_color.r * 255.0f));
+		color[1] = static_cast<uint8_t>(std::round(_color.g * 255.0f));
+		color[2] = static_cast<uint8_t>(std::round(_color.b * 255.0f));
+		color[3] = static_cast<uint8_t>(std::round(_color.a * 255.0f * opacityScale));
 	}
 }

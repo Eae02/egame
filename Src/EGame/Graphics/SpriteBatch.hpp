@@ -95,6 +95,8 @@ namespace eg
 		
 		static SpriteBatch overlay;
 		
+		float opacityScale = 1;
+		
 	private:
 		void InitBatch(const Texture& texture, SpriteFlags flags);
 		void AddQuadIndices();
@@ -105,7 +107,7 @@ namespace eg
 			glm::vec2 texCoord;
 			uint8_t color[4];
 			
-			Vertex(const glm::vec2& _position, const glm::vec2& _texCoord, const ColorLin& _color);
+			Vertex(const glm::vec2& _position, const glm::vec2& _texCoord, const ColorLin& _color, float opacityScale);
 		};
 		
 		std::vector<Vertex> m_vertices;
