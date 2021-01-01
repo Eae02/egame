@@ -31,6 +31,11 @@ namespace eg
 			m_sizeScale = sizeScale;
 		}
 		
+		int CurrentAxis() const
+		{
+			return m_currentAxis;
+		}
+		
 		static void InitStatic();
 		static void DestroyStatic();
 		
