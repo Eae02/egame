@@ -26,7 +26,7 @@ namespace eg::graphics_api::vk
 		
 		void UnRef()
 		{
-			if (--refCount <= 0)
+			if ((--refCount <= 0) && !detail::blockGraphicsAPIDestroy)
 				Free();
 		}
 		

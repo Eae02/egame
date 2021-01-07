@@ -7,7 +7,6 @@ Install
 CMake/*/EGameTargets.cmake
 Src/Shaders/**/*.h
 /Assets/SandboxAssets/.AssetCache/
-/Assets/DevFont.fnt.h
-/Assets/DevFont.png.h
+/Assets/*h
 Bin
 *.gch

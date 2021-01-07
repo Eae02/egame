@@ -13,6 +13,7 @@
 namespace eg
 {
 	bool detail::devMode = false;
+	bool detail::blockGraphicsAPIDestroy = false;
 	
 	void ParseCommandLineArgs(RunConfig& runConfig, int argc, char** argv)
 	{

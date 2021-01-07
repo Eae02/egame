@@ -109,6 +109,8 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
+	void DrawLoadingScreen();
+	
 	static SDL_Window* vulkanWindow;
 	
 	static void CreateSwapchain()
@@ -700,6 +702,8 @@ namespace eg::graphics_api::vk
 		ctx.defaultDSFormat = TranslateFormat(initArguments.defaultDepthStencilFormat);
 		CreateSwapchain();
 		
+		DrawLoadingScreen();
+		
 		//Creates frame queue resources
 		VkFenceCreateInfo frameQueueFenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 		for (uint32_t i = 0; i < MAX_CONCURRENT_FRAMES; i++)
@@ -908,6 +912,50 @@ namespace eg::graphics_api::vk
 		ctx.immediateCCState.viewportOutOfDate = true;
 	}
 	
+	void SubmitAndPresent(VkCommandBuffer cb, VkSemaphore signalSemaphore, VkFence signalFence)
+	{
+		const VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+		
+		const VkSubmitInfo submitInfo =
+		{
+			/* sType                */ VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			/* pNext                */ nullptr,
+			/* waitSemaphoreCount   */ 1,
+			/* pWaitSemaphores      */ &acquireSemaphore,
+			/* pWaitDstStageMask    */ &waitStages,
+			/* commandBufferCount   */ 1,
+			/* pCommandBuffers      */ &cb,
+			/* signalSemaphoreCount */ 1,
+			/* pSignalSemaphores    */ &signalSemaphore
+		};
+		
+		VkResult presentResult;
+		const VkPresentInfoKHR presentInfo =
+		{
+			/* sType              */ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			/* pNext              */ nullptr,
+			/* waitSemaphoreCount */ 1,
+			/* pWaitSemaphores    */ &signalSemaphore,
+			/* swapchainCount     */ 1,
+			/* pSwapchains        */ &ctx.swapchain,
+			/* pImageIndices      */ &ctx.currentImage,
+			/* pResults           */ &presentResult
+		};
+		
+		CheckRes(vkQueueSubmit(ctx.mainQueue, 1, &submitInfo, signalFence));
+		
+		vkQueuePresentKHR(ctx.mainQueue, &presentInfo);
+		
+		if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
+		{
+			CreateSwapchain();
+		}
+		else
+		{
+			CheckRes(presentResult);
+		}
+	}
+	
 	void EndFrame()
 	{
 		MaybeAcquireSwapchainImage();
@@ -956,46 +1004,7 @@ namespace eg::graphics_api::vk
 		
 		CheckRes(vkEndCommandBuffer(immediateCB));
 		
-		const VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-		
-		const VkSubmitInfo submitInfo =
-		{
-			/* sType                */ VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			/* pNext                */ nullptr,
-			/* waitSemaphoreCount   */ 1,
-			/* pWaitSemaphores      */ &acquireSemaphore,
-			/* pWaitDstStageMask    */ &waitStages,
-			/* commandBufferCount   */ 1,
-			/* pCommandBuffers      */ &immediateCB,
-			/* signalSemaphoreCount */ 1,
-			/* pSignalSemaphores    */ &ctx.frameQueueSemaphores[CFrameIdx()]
-		};
-		
-		VkResult presentResult;
-		const VkPresentInfoKHR presentInfo =
-		{
-			/* sType              */ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-			/* pNext              */ nullptr,
-			/* waitSemaphoreCount */ 1,
-			/* pWaitSemaphores    */ &ctx.frameQueueSemaphores[CFrameIdx()],
-			/* swapchainCount     */ 1,
-			/* pSwapchains        */ &ctx.swapchain,
-			/* pImageIndices      */ &ctx.currentImage,
-			/* pResults           */ &presentResult
-		};
-		
-		CheckRes(vkQueueSubmit(ctx.mainQueue, 1, &submitInfo, ctx.frameQueueFences[CFrameIdx()]));
-		
-		vkQueuePresentKHR(ctx.mainQueue, &presentInfo);
-		
-		if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
-		{
-			CreateSwapchain();
-		}
-		else
-		{
-			CheckRes(presentResult);
-		}
+		SubmitAndPresent(immediateCB, ctx.frameQueueSemaphores[CFrameIdx()], ctx.frameQueueFences[CFrameIdx()]);
 	}
 	
 	static inline void InitLabelInfo(VkDebugUtilsLabelEXT& labelInfo, const char* label, const float* color)

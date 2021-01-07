@@ -64,6 +64,7 @@ namespace eg
 	void DestroyGraphicsAPI()
 	{
 		gal::Shutdown();
+		detail::blockGraphicsAPIDestroy = true;
 		
 #define XM_ABSCALLBACK(name, ret, params) gal::name = nullptr;
 #include "AbstractionCallbacks.inl"

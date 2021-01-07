@@ -77,6 +77,7 @@ namespace eg
 	
 	namespace detail
 	{
+		extern bool blockGraphicsAPIDestroy;
 		EG_API extern bool devMode;
 	}
 	

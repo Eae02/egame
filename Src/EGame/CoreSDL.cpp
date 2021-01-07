@@ -300,9 +300,15 @@ namespace eg
 	
 	void PlatformRunGameLoop(std::unique_ptr<IGame> game)
 	{
-		while (!gal::IsLoadingComplete())
+		while (!gal::IsLoadingComplete() || true)
 		{
-			std::this_thread::sleep_for(milliseconds(100));
+			SDL_Event event;
+			SDL_WaitEventTimeout(&event, 100);
+			if (event.type == SDL_QUIT)
+			{
+				detail::blockGraphicsAPIDestroy = true;
+				std::exit(0);
+			}
 		}
 		
 		while (!detail::shouldClose)
