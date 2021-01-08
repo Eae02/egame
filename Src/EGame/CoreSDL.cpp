@@ -224,8 +224,9 @@ namespace eg
 			windowFlags |= SDL_WINDOW_VULKAN;
 		}
 		
-		sdlWindow = SDL_CreateWindow(detail::gameName.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-			1200, 800, windowFlags);
+		int windowW = std::max(currentDisplayMode.w * 3 / 5, (int)runConfig.minWindowW);
+		int windowH = std::max(windowW * 2 / 3, (int)runConfig.minWindowH);
+		sdlWindow = SDL_CreateWindow(detail::gameName.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowW, windowH, windowFlags);
 		
 		if (runConfig.minWindowW != 0 && runConfig.minWindowH != 0)
 		{
