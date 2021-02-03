@@ -5,105 +5,27 @@
 
 namespace eg
 {
-	const glm::vec3 ARROW_VERTICES[] = 
-	{
-		glm::vec3(0.000000, -0.000000, -0.067516),
-		glm::vec3(0.651097, 0.000000, -0.067516),
-		glm::vec3(0.000000, -0.047741, -0.047741),
-		glm::vec3(0.651097, -0.047741, -0.047741),
-		glm::vec3(0.000000, -0.067516, 0.000000),
-		glm::vec3(0.651097, -0.067516, 0.000000),
-		glm::vec3(0.000000, -0.047741, 0.047741),
-		glm::vec3(0.651097, -0.047741, 0.047741),
-		glm::vec3(0.000000, -0.000000, 0.067516),
-		glm::vec3(0.651097, 0.000000, 0.067516),
-		glm::vec3(0.000000, 0.047741, 0.047741),
-		glm::vec3(0.651097, 0.047741, 0.047741),
-		glm::vec3(0.000000, 0.067516, -0.000000),
-		glm::vec3(0.651097, 0.067516, -0.000000),
-		glm::vec3(0.000000, 0.047741, -0.047741),
-		glm::vec3(0.651097, 0.047741, -0.047741),
-		glm::vec3(0.651097, -0.101067, -0.101067),
-		glm::vec3(0.651097, 0.000000, -0.142930),
-		glm::vec3(0.651097, -0.142930, 0.000000),
-		glm::vec3(0.651097, -0.101067, 0.101067),
-		glm::vec3(0.651097, 0.000000, 0.142930),
-		glm::vec3(0.651097, 0.101067, 0.101067),
-		glm::vec3(0.651097, 0.142930, -0.000000),
-		glm::vec3(0.651097, 0.101067, -0.101067),
-		glm::vec3(0.999446, 0.000000, -0.000000)
-	};
-	
-	uint16_t ARROW_INDICES[] = 
-	{
-		2, 3, 1,
-		4, 5, 3,
-		6, 7, 5,
-		8, 9, 7,
-		10, 11, 9,
-		12, 13, 11,
-		8, 19, 20,
-		14, 15, 13,
-		16, 1, 15,
-		7, 11, 15,
-		24, 23, 25,
-		14, 22, 23,
-		10, 20, 21,
-		14, 24, 16,
-		4, 19, 6,
-		12, 21, 22,
-		16, 18, 2,
-		2, 17, 4,
-		22, 21, 25,
-		20, 19, 25,
-		17, 18, 25,
-		18, 24, 25,
-		23, 22, 25,
-		21, 20, 25,
-		19, 17, 25,
-		2, 4, 3,
-		4, 6, 5,
-		6, 8, 7,
-		8, 10, 9,
-		10, 12, 11,
-		12, 14, 13,
-		8, 6, 19,
-		14, 16, 15,
-		16, 2, 1,
-		15, 1, 3,
-		3, 5, 7,
-		7, 9, 11,
-		11, 13, 15,
-		15, 3, 7,
-		14, 12, 22,
-		10, 8, 20,
-		14, 23, 24,
-		4, 17, 19,
-		12, 10, 21,
-		16, 24, 18,
-		2, 18, 17
-	};
-	
-	const uint32_t NUM_ARROW_INDICES = ArrayLen(ARROW_INDICES);
+	extern float ARROW_VERTICES[75];
+	extern uint16_t ARROW_INDICES[138];
 	
 	static Buffer s_arrowVB;
 	static Buffer s_arrowIB;
-	static Pipeline s_pipeline;
+	Pipeline gizmoPipeline;
 	
-	const glm::vec3 ARROW_OFFSET = glm::vec3(0.2f, 0.0f, 0.0f);
-	const glm::vec3 ARROW_SCALE = glm::vec3(0.8f, 0.6f, 0.6f);
+	static const glm::vec3 ARROW_OFFSET = glm::vec3(0.2f, 0.0f, 0.0f);
+	static const glm::vec3 ARROW_SCALE = glm::vec3(0.8f, 0.6f, 0.6f);
 	
-	const float AXIS_LIGHTNESS = 0.25f;
-	const glm::vec3 AXIS_COLORS[] = 
+	static constexpr float AXIS_LIGHTNESS = 0.25f;
+	static const glm::vec3 AXIS_COLORS[] = 
 	{
 		glm::vec3(1.0f, AXIS_LIGHTNESS, AXIS_LIGHTNESS),
 		glm::vec3(AXIS_LIGHTNESS, 1.0f, AXIS_LIGHTNESS),
 		glm::vec3(AXIS_LIGHTNESS, AXIS_LIGHTNESS, 1.0f),
 	};
 	
-	const glm::vec3 CURRENT_AXIS_COLOR(1.0f, 1.0f, 0.5f);
+	static const glm::vec3 CURRENT_AXIS_COLOR(1.0f, 1.0f, 0.5f);
 	
-	void TranslationGizmo::InitStatic()
+	void TranslationGizmo::Initialize()
 	{
 		for (uint16_t& i : ARROW_INDICES)
 			i--;
@@ -121,55 +43,65 @@ namespace eg
 		pipelineCI.fragmentShader = fs.Handle();
 		pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
 		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };
-		s_pipeline = Pipeline::Create(pipelineCI);
+		gizmoPipeline = Pipeline::Create(pipelineCI);
 	}
 	
-	void TranslationGizmo::DestroyStatic()
+	void TranslationGizmo::Destroy()
 	{
 		s_arrowVB.Destroy();
 		s_arrowIB.Destroy();
-		s_pipeline.Destroy();
+		gizmoPipeline.Destroy();
 	}
 	
-	static bool RayIntersectsArrow(const glm::mat4& worldMatrix, const Ray& ray)
+	std::optional<float> RayIntersectGizmoMesh(const glm::mat4& worldMatrix, const Ray& ray,
+		Span<const float> vertices, Span<const uint16_t> indices)
 	{
-		glm::vec3 arrowVerticesWS[ArrayLen(ARROW_VERTICES)];
-		for (size_t i = 0; i < ArrayLen(ARROW_VERTICES); i++)
+		glm::vec3* verticesWorld = reinterpret_cast<glm::vec3*>(alloca(vertices.SizeBytes()));
+		for (size_t i = 0; i < vertices.size() / 3; i++)
 		{
-			arrowVerticesWS[i] = glm::vec3(worldMatrix * glm::vec4(ARROW_VERTICES[i], 1.0f));
+			verticesWorld[i] = worldMatrix * glm::vec4(vertices[i * 3 + 0], vertices[i * 3 + 1], vertices[i * 3 + 2], 1.0f);
 		}
 		
-		for (uint32_t i = 0; i < NUM_ARROW_INDICES; i += 3)
+		std::optional<float> result;
+		for (uint32_t i = 0; i < indices.size(); i += 3)
 		{
-			const glm::vec3& v0 = arrowVerticesWS[ARROW_INDICES[i + 0]];
-			const glm::vec3& v1 = arrowVerticesWS[ARROW_INDICES[i + 1]];
-			const glm::vec3& v2 = arrowVerticesWS[ARROW_INDICES[i + 2]];
+			const glm::vec3& v0 = verticesWorld[indices[i + 0]];
+			const glm::vec3& v1 = verticesWorld[indices[i + 1]];
+			const glm::vec3& v2 = verticesWorld[indices[i + 2]];
 			
 			Plane plane(v0, v1, v2);
 			
 			float intersectDist;
-			if (ray.Intersects(plane, intersectDist) && intersectDist > 0)
+			if (ray.Intersects(plane, intersectDist) && intersectDist > 0 &&
+				(!result.has_value() || intersectDist < *result))
 			{
 				glm::vec3 intersectPos = ray.GetPoint(intersectDist);
 				if (TriangleContainsPoint(v0, v1, v2, intersectPos))
-					return true;
+				{
+					result = intersectDist;
+				}
 			}
 		}
 		
-		return false;
+		return result;
 	}
 	
-	TranslationGizmo::TranslationGizmo()
+	static inline glm::mat4 GetAxisTransform(const glm::vec3& position, float scale, int axis)
 	{
+		glm::mat4 rotation(0.0f);
 		for (int i = 0; i < 3; i++)
-		{
-			m_axisDrawOrder[i] = i;
-		}
+			rotation[i][(axis + i) % 3] = 1;
+		rotation[3][3] = 1;
+		
+		return glm::translate(glm::mat4(), position) *
+			rotation *
+			glm::translate(glm::mat4(), ARROW_OFFSET * scale) *
+			glm::scale(glm::mat4(), ARROW_SCALE * scale);
 	}
 	
 	void TranslationGizmo::Update(glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix, const Ray& viewRay)
 	{
-		m_renderScale = glm::distance(cameraPos, position) * m_sizeScale;
+		m_renderScale = glm::distance(cameraPos, position) * size;
 		
 		//Calculates the depth of the end of each arrow
 		float arrowDepths[3];
@@ -238,18 +170,8 @@ namespace eg
 		m_hoveredAxis = -1;
 		for (int axis : m_axisDrawOrder)
 		{
-			//Initializes the rotation & m_renderScale matrix
-			glm::mat4 rotation(0.0f);
-			for (int i = 0; i < 3; i++)
-				rotation[i][(axis + i) % 3] = 1;
-			rotation[3][3] = 1;
-			
-			glm::mat4 worldMatrix = glm::translate(glm::mat4(), position) *
-			                        rotation *
-			                        glm::translate(glm::mat4(), ARROW_OFFSET * m_renderScale) *
-			                        glm::scale(glm::mat4(), ARROW_SCALE * m_renderScale);
-			
-			if (RayIntersectsArrow(worldMatrix, viewRay))
+			const glm::mat4 worldMatrix = GetAxisTransform(position, m_renderScale, axis);
+			if (RayIntersectGizmoMesh(worldMatrix, viewRay, ARROW_VERTICES, ARROW_INDICES))
 			{
 				m_hoveredAxis = axis;
 				if (select)
@@ -266,47 +188,41 @@ namespace eg
 		m_lastPosition = position;
 	}
 	
+	void DrawGizmoAxis(int axis, int currentAxis, int hoveredAxis, uint32_t numIndices, const glm::mat4& transform)
+	{
+		glm::vec3 color = AXIS_COLORS[axis];
+		if (currentAxis == axis)
+		{
+			color = CURRENT_AXIS_COLOR;
+		}
+		else if (currentAxis == -1 && hoveredAxis == axis)
+		{
+			color *= 2.0f;
+		}
+		
+		struct PC
+		{
+			glm::mat4 transform;
+			glm::vec4 color;
+		} pc;
+		pc.transform = transform;
+		pc.color = glm::vec4(color, 1.0f);
+		
+		DC.PushConstants(0, pc);
+		
+		DC.DrawIndexed(0, numIndices, 0, 0, 1);
+	}
+	
 	void TranslationGizmo::Draw(const glm::mat4& viewProjMatrix) const
 	{
-		DC.BindPipeline(s_pipeline);
+		DC.BindPipeline(gizmoPipeline);
 		DC.BindVertexBuffer(0, s_arrowVB, 0);
 		DC.BindIndexBuffer(IndexType::UInt16, s_arrowIB, 0);
 		
 		for (int axis : m_axisDrawOrder)
 		{
-			//Initializes the rotation & m_renderScale matrix
-			glm::mat4 rotation(0.0f);
-			for (int i = 0; i < 3; i++)
-				rotation[i][(axis + i) % 3] = 1;
-			rotation[3][3] = 1;
-			
-			glm::mat4 worldMatrix = glm::translate(glm::mat4(), m_lastPosition) *
-			                        rotation *
-			                        glm::translate(glm::mat4(), ARROW_OFFSET * m_renderScale) *
-			                        glm::scale(glm::mat4(), ARROW_SCALE * m_renderScale);
-			
-			glm::vec3 color = AXIS_COLORS[axis];
-			
-			if (m_currentAxis == axis)
-			{
-				color = CURRENT_AXIS_COLOR;
-			}
-			else if (m_currentAxis == -1 && m_hoveredAxis == axis)
-			{
-				color *= 2.0f;
-			}
-			
-			struct PC
-			{
-				glm::mat4 transform;
-				glm::vec4 color;
-			} pc;
-			pc.transform = viewProjMatrix * worldMatrix;
-			pc.color = glm::vec4(color, 1.0f);
-			
-			DC.PushConstants(0, pc);
-			
-			DC.DrawIndexed(0, NUM_ARROW_INDICES, 0, 0, 1);
+			DrawGizmoAxis(axis, m_currentAxis, m_hoveredAxis, std::size(ARROW_INDICES),
+			              viewProjMatrix * GetAxisTransform(m_lastPosition, m_renderScale, axis));
 		}
 	}
 }

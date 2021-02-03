@@ -9,6 +9,7 @@
 #include "Event.hpp"
 #include "Console.hpp"
 #include "TranslationGizmo.hpp"
+#include "RotationGizmo.hpp"
 #include "GameController.hpp"
 #include "Profiling/Profiler.hpp"
 #include "Profiling/ProfilerPane.hpp"
@@ -237,8 +238,8 @@ namespace eg
 		gal::GetDeviceInfo(detail::graphicsDeviceInfo);
 		
 		SpriteBatch::InitStatic();
-		TranslationGizmo::InitStatic();
-		//RotationGizmo::InitStatic();
+		TranslationGizmo::Initialize();
+		RotationGizmo::Initialize();
 		if (DevMode())
 		{
 			SpriteFont::LoadDevFont();
@@ -340,8 +341,8 @@ namespace eg
 		SpriteBatch::overlay = {};
 		SpriteFont::UnloadDevFont();
 		SpriteBatch::DestroyStatic();
-		TranslationGizmo::DestroyStatic();
-		//RotationGizmo::DestroyStatic();
+		TranslationGizmo::Destroy();
+		RotationGizmo::Destroy();
 		UnloadAssets();
 		DestroyUploadBuffers();
 		DestroyGraphicsAPI();

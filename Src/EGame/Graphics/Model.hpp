@@ -94,6 +94,17 @@ namespace eg
 			return CollisionMesh::Create<V, I>(data.vertices, data.indices);
 		}
 		
+		template <typename V = StdVertex, typename I = uint32_t>
+		CollisionMesh MakeCollisionMesh() const
+		{
+			std::vector<CollisionMesh> meshes(m_meshes.size());
+			for (size_t i = 0; i < meshes.size(); i++)
+			{
+				meshes[i] = MakeCollisionMesh<V, I>(i);
+			}
+			return CollisionMesh::Join(meshes);
+		}
+		
 		void Bind(CommandContext& cc = DC, uint32_t vertexBinding = 0) const;
 		
 		int GetMeshIndex(std::string_view name) const;
