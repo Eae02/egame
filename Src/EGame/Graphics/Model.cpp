@@ -18,6 +18,19 @@ namespace eg
 		return -1;
 	}
 	
+	int Model::RequireMeshIndex(std::string_view name) const
+	{
+		int idx = GetMeshIndex(name);
+		if (idx != -1)
+			return idx;
+		std::cerr << "Mesh not found: '" << name << "', the model has the following meshes:\n";
+		for (const Mesh& mesh : m_meshes)
+		{
+			std::cerr << " * " << mesh.name << "\n";
+		}
+		std::abort();
+	}
+	
 	int Model::GetMaterialIndex(std::string_view name) const
 	{
 		for (int i = 0; i < (int)m_materialNames.size(); i++)
@@ -26,6 +39,19 @@ namespace eg
 				return i;
 		}
 		return -1;
+	}
+	
+	int Model::RequireMaterialIndex(std::string_view name) const
+	{
+		int idx = GetMaterialIndex(name);
+		if (idx != -1)
+			return idx;
+		std::cerr << "Material not found: '" << name << "', the model has the following materials:\n";
+		for (const std::string& material : m_materialNames)
+		{
+			std::cerr << " * " << material << "\n";
+		}
+		std::abort();
 	}
 	
 	std::tuple<void*, void*> ModelBuilderUnformatted::AddMesh(uint32_t numVertices, uint32_t numIndices, std::string name,

@@ -16,9 +16,19 @@ namespace eg
 		
 		void Draw(const glm::mat4& viewProjMatrix) const;
 		
-		inline bool HasInputFocus() const
+		bool HasInputFocus() const
 		{
 			return m_currentAxis != -1;
+		}
+		
+		bool IsHovered() const
+		{
+			return m_hoveredAxis != -1;
+		}
+		
+		int CurrentAxis() const
+		{
+			return m_currentAxis;
 		}
 		
 		float size = 0.1f;

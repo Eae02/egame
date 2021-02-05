@@ -88,6 +88,7 @@ namespace eg
 		{
 			*reinterpret_cast<glm::vec3*>(&m_vertices[i]) = glm::vec3(transform * glm::vec4(Vertex(i), 1));
 		}
+		InitAABB();
 	}
 	
 	void CollisionMesh::FlipWinding()

@@ -97,6 +97,10 @@ namespace eg
 		template <typename V = StdVertex, typename I = uint32_t>
 		CollisionMesh MakeCollisionMesh() const
 		{
+			if (m_meshes.size() == 0)
+				return CollisionMesh();
+			if (m_meshes.size() == 1)
+				return MakeCollisionMesh(0);
 			std::vector<CollisionMesh> meshes(m_meshes.size());
 			for (size_t i = 0; i < meshes.size(); i++)
 			{
@@ -108,8 +112,10 @@ namespace eg
 		void Bind(CommandContext& cc = DC, uint32_t vertexBinding = 0) const;
 		
 		int GetMeshIndex(std::string_view name) const;
+		int RequireMeshIndex(std::string_view name) const;
 		
 		int GetMaterialIndex(std::string_view name) const;
+		int RequireMaterialIndex(std::string_view name) const;
 		
 		BufferRef VertexBuffer() const
 		{
