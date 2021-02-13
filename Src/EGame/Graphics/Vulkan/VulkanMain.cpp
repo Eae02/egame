@@ -556,6 +556,7 @@ namespace eg::graphics_api::vk
 		enabledDeviceFeatures.fillModeNonSolid = ctx.deviceFeatures.fillModeNonSolid;
 		enabledDeviceFeatures.geometryShader = ctx.deviceFeatures.geometryShader;
 		enabledDeviceFeatures.tessellationShader = ctx.deviceFeatures.tessellationShader;
+		enabledDeviceFeatures.depthClamp = ctx.deviceFeatures.depthClamp;
 		enabledDeviceFeatures.shaderClipDistance = ctx.deviceFeatures.shaderClipDistance;
 		enabledDeviceFeatures.shaderCullDistance = ctx.deviceFeatures.shaderCullDistance;
 		enabledDeviceFeatures.textureCompressionBC = ctx.deviceFeatures.textureCompressionBC;
