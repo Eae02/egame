@@ -5,6 +5,7 @@
 #include "../../Shaders/Build/Sprite.vs.h"
 #include "../../Shaders/Build/Sprite.fs.h"
 
+#include <glm/gtx/matrix_transform_2d.hpp>
 #include <utf8.h>
 
 namespace eg
@@ -150,7 +151,7 @@ namespace eg
 				const float v = (texRectangle.y + vOffsets[y]) / texture.Height();
 				
 				const float offX = texRectangle.w * x - origin.x;
-				const float offY = -texRectangle.h * y - origin.y;
+				const float offY = -(texRectangle.h * y - origin.y);
 				const float rOffX = offX * cosR - offY * sinR;
 				const float rOffY = offX * sinR + offY * cosR;
 				
@@ -255,7 +256,7 @@ namespace eg
 	}
 	
 	void SpriteBatch::DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-		const ColorLin& color, float scale, float lineSpacing, glm::vec2* sizeOut, TextFlags flags)
+		const ColorLin& color, float scale, float lineSpacing, glm::vec2* sizeOut, TextFlags flags, const ColorLin* secondColor)
 	{
 		float maxW = 0;
 		float yOffset = 0;
@@ -263,7 +264,7 @@ namespace eg
 		IterateStringParts(text, '\n', [&] (std::string_view line)
 		{
 			glm::vec2 lineSize;
-			DrawText(font, line, glm::vec2(position.x, position.y - scale - yOffset), color, scale, &lineSize, flags);
+			DrawText(font, line, glm::vec2(position.x, position.y - scale - yOffset), color, scale, &lineSize, flags, secondColor);
 			yOffset += font.LineHeight() * scale + lineSpacing;
 			maxW = std::max(maxW, lineSize.x);
 		});
@@ -276,7 +277,7 @@ namespace eg
 	}
 	
 	void SpriteBatch::DrawText(const SpriteFont& font, std::string_view text, const glm::vec2& position,
-		const ColorLin& color, float scale, glm::vec2* sizeOut, TextFlags flags)
+		const ColorLin& color, float scale, glm::vec2* sizeOut, TextFlags flags, const ColorLin* secondColor)
 	{
 		if (sizeOut == nullptr)
 		{
@@ -286,6 +287,8 @@ namespace eg
 		float x = 0;
 		sizeOut->y = 0;
 		
+		bool useSecondColor = false;
+		const ColorLin* currentColor = &color;
 		uint32_t prev = 0;
 		for (auto it = text.begin(); it != text.end();)
 		{
@@ -293,6 +296,15 @@ namespace eg
 			if (c == ' ')
 			{
 				x += font.SpaceAdvance();
+				continue;
+			}
+			if (c == '\e')
+			{
+				if (secondColor != nullptr)
+				{
+					useSecondColor = !useSecondColor;
+					currentColor = useSecondColor ? secondColor : &color;
+				}
 				continue;
 			}
 			
@@ -318,10 +330,10 @@ namespace eg
 			{
 				Rectangle shadowRectangle = rectangle;
 				shadowRectangle.y -= font.LineHeight() * scale * 0.1f;
-				Draw(font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, color.a * 0.5f), srcRectangle, SpriteFlags::RedToAlpha);
+				Draw(font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, currentColor->a * 0.5f), srcRectangle, SpriteFlags::RedToAlpha);
 			}
 			
-			Draw(font.Tex(), rectangle, color, srcRectangle, SpriteFlags::RedToAlpha);
+			Draw(font.Tex(), rectangle, *currentColor, srcRectangle, SpriteFlags::RedToAlpha);
 			
 			x += fontChar.xAdvance + kerning;
 			sizeOut->y = std::max(sizeOut->y, rectangle.h);

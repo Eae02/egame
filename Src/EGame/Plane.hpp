@@ -1,6 +1,7 @@
 #pragma once
 
 #include "API.hpp"
+#include <glm/glm.hpp>
 
 namespace eg
 {

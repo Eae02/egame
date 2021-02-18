@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <stack>
+#include <chrono>
 
 #ifndef __EMSCRIPTEN__
 #include <SDL.h>
@@ -209,5 +210,11 @@ namespace eg
 		for (size_t i = 1; i < parts.size(); i++)
 			outStream << "/" << parts[i];
 		return outStream.str();
+	}
+	
+	int64_t NanoTime()
+	{
+		using namespace std::chrono;
+		return duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch()).count();
 	}
 }

@@ -1,3 +1,5 @@
+#include <cstdint>
+
 namespace eg
 {
 	float ARROW_VERTICES[75] =

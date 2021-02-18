@@ -1,4 +1,3 @@
-#include "../../Inc/Common.hpp"
 #include "../EGame/Assets/ShaderModule.hpp"
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Log.hpp"

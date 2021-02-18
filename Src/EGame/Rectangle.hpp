@@ -2,6 +2,9 @@
 
 #include "Utils.hpp"
 
+#include <array>
+#include <glm/glm.hpp>
+
 namespace eg
 {
 	struct EG_API Rectangle

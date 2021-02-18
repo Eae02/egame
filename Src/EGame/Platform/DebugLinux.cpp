@@ -2,6 +2,7 @@
 
 #include "Debug.hpp"
 
+#include <array>
 #include <execinfo.h>
 
 namespace eg

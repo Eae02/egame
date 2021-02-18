@@ -10,6 +10,8 @@
 
 #include <SDL_vulkan.h>
 #include <volk.h>
+#include <sstream>
+#include <cstring>
 
 namespace eg::graphics_api::vk
 {
@@ -275,39 +277,70 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
-	bool Initialize(const GraphicsAPIInitArguments& initArguments)
+	static std::vector<const char*> instanceExtensionsToEnable;
+	static std::vector<VkExtensionProperties> instanceExtensionProperties;
+	
+	static inline bool InstanceExtensionSupported(const char* name)
 	{
-		if (volkInitialize() != VK_SUCCESS)
+		for (const VkExtensionProperties& extension : instanceExtensionProperties)
+		{
+			if (std::strcmp(extension.extensionName, name) == 0)
+				return true;
+		}
+		return false;
+	}
+	
+	static std::optional<bool> earlyInitializeResult;
+	
+	bool EarlyInitializeMemoized()
+	{
+		if (earlyInitializeResult.has_value())
+			return earlyInitializeResult.value();
+		
+		if (volkInitialize() != VK_SUCCESS || SDL_Vulkan_LoadLibrary(nullptr) != 0)
+		{
+			earlyInitializeResult = false;
 			return false;
+		}
 		
 		//Enumerates supported instance extensions
 		uint32_t availInstanceExtensions;
 		vkEnumerateInstanceExtensionProperties(nullptr, &availInstanceExtensions, nullptr);
-		std::vector<VkExtensionProperties> extensionProperties(availInstanceExtensions);
-		vkEnumerateInstanceExtensionProperties(nullptr, &availInstanceExtensions, extensionProperties.data());
-		auto InstanceExtensionSupported = [&](const char* name)
-		{
-			for (VkExtensionProperties& extension : extensionProperties)
-			{
-				if (std::strcmp(extension.extensionName, name) == 0)
-					return true;
-			}
-			return false;
-		};
+		instanceExtensionProperties.resize(availInstanceExtensions);
+		vkEnumerateInstanceExtensionProperties(nullptr, &availInstanceExtensions, instanceExtensionProperties.data());
 		
 		//Selects instance extensions
 		uint32_t sdlNumInstanceExtensions;
-		SDL_Vulkan_GetInstanceExtensions(initArguments.window, &sdlNumInstanceExtensions, nullptr);
-		std::vector<const char*> instanceExtensions(sdlNumInstanceExtensions);
-		SDL_Vulkan_GetInstanceExtensions(initArguments.window, &sdlNumInstanceExtensions, instanceExtensions.data());
+		SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlNumInstanceExtensions, nullptr);
+		instanceExtensionsToEnable.resize(sdlNumInstanceExtensions);
+		SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlNumInstanceExtensions, instanceExtensionsToEnable.data());
 		
-		if (!InstanceExtensionSupported(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME))
+		instanceExtensionsToEnable.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+		
+		for (const char* extensionName : instanceExtensionsToEnable)
 		{
-			Log(LogLevel::Error, "vk", "Vulkan failed to initialize because required instance extension "
-				VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME " is not available.");
-			return false;
+			if (!InstanceExtensionSupported(extensionName))
+			{
+				earlyInitializeResult = false;
+				return false;
+			}
 		}
-		instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+		
+		earlyInitializeResult = true;
+		return true;
+	}
+	
+	static std::vector<std::string> okDeviceNames;
+	
+	Span<std::string> GetDeviceNames()
+	{
+		return okDeviceNames;
+	}
+	
+	bool Initialize(const GraphicsAPIInitArguments& initArguments)
+	{
+		if (!EarlyInitializeMemoized())
+			return false;
 		
 		//Enumerates instance layers
 		uint32_t availableInstanceLayers;
@@ -339,7 +372,7 @@ namespace eg::graphics_api::vk
 		if (DevMode() && InstanceExtensionSupported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
 		{
 			ctx.hasDebugUtils = true;
-			instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+			instanceExtensionsToEnable.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 			
 			if (!MaybeEnableValidationLayer("VK_LAYER_KHRONOS_validation") &&
 				!MaybeEnableValidationLayer("VK_LAYER_LUNARG_standard_validation"))
@@ -362,8 +395,8 @@ namespace eg::graphics_api::vk
 			/* pApplicationInfo        */ &applicationInfo,
 			/* enabledLayerCount       */ (uint32_t)enabledValidationLayers.size(),
 			/* ppEnabledLayerNames     */ enabledValidationLayers.data(),
-			/* enabledExtensionCount   */ (uint32_t)instanceExtensions.size(),
-			/* ppEnabledExtensionNames */ instanceExtensions.data()
+			/* enabledExtensionCount   */ (uint32_t)instanceExtensionsToEnable.size(),
+			/* ppEnabledExtensionNames */ instanceExtensionsToEnable.data()
 		};
 		VkResult instanceCreateRes = vkCreateInstance(&instanceCreateInfo, nullptr, &ctx.instance);
 		if (instanceCreateRes != VK_SUCCESS)
@@ -386,28 +419,30 @@ namespace eg::graphics_api::vk
 		std::vector<VkPhysicalDevice> physicalDevices(numDevices);
 		vkEnumeratePhysicalDevices(ctx.instance, &numDevices, physicalDevices.data());
 		
-		auto GetDeviceTypePreferenceIndex = [&] (VkPhysicalDeviceType deviceType) -> size_t
+		auto GetDevicePreferenceIndex = [&] (const VkPhysicalDeviceProperties& properties) -> int
 		{
-			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			if (std::string_view(properties.deviceName) == initArguments.preferredDeviceName)
+				return -1;
+			if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 				return initArguments.preferIntegrated ? 1 : 0;
-			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+			if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
 				return initArguments.preferIntegrated ? 0 : 1;
-			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+			if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
 				return 2;
-			if (deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+			if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
 				return 3;
 			return 4;
 		};
 		
 		auto IsDevicePreferredOver = [&] (const VkPhysicalDeviceProperties& candidate, const VkPhysicalDeviceProperties& current)
 		{
-			return GetDeviceTypePreferenceIndex(candidate.deviceType) < GetDeviceTypePreferenceIndex(current.deviceType);
+			return GetDevicePreferenceIndex(candidate) < GetDevicePreferenceIndex(current);
 		};
 		
 		//Selects which physical device to use
 		bool optionalExtensionsSeen[ArrayLen(OPTIONAL_DEVICE_EXTENSIONS)];
 		VkPhysicalDeviceProperties currentDeviceProperties;
-		std::vector<std::string> okDeviceNames;
+		okDeviceNames.clear();
 		for (VkPhysicalDevice physicalDevice : physicalDevices)
 		{
 			if (physicalDevice == nullptr)

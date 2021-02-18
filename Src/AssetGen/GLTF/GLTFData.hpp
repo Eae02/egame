@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <string_view>
-#include "../../../Inc/Common.hpp"
 #include "../../EGame/Utils.hpp"
 
 namespace eg::asset_gen::gltf

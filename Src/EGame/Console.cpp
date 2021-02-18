@@ -3,6 +3,7 @@
 #include "Graphics/SpriteFont.hpp"
 
 #include <variant>
+#include <sstream>
 
 #ifdef _WIN32
 #define DEFINE_CONSOLEV2_PROPERTIES

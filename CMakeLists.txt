@@ -126,11 +126,20 @@ set_target_properties(EGame EGSandbox PROPERTIES
 )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-	set_source_files_properties(Src/EGame/Collision.cpp PROPERTIES COMPILE_FLAGS "-O3")
+	set_source_files_properties(
+		Src/EGame/Collision.cpp
+		Src/AssetGen/STB.cpp
+		Src/AssetGen/Texture2DWriter.cpp
+		Src/EGame/STB.cpp
+	PROPERTIES
+		COMPILE_FLAGS "-O3"
+	)
+	set_source_files_properties(
+		Src/AssetGen/ShaderResource.cpp
+	PROPERTIES
+		COMPILE_FLAGS "-std=c++2a"
+	)
 	target_compile_options(yaml-cpp PRIVATE -fPIC)
-	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-include ${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	target_compile_options(EGame PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/FI${CMAKE_CURRENT_SOURCE_DIR}/Inc/Common.hpp>)
 endif()
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")

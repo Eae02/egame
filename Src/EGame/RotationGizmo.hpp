@@ -5,6 +5,9 @@
 #include "Ray.hpp"
 #include "Graphics/AbstractionHL.hpp"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+
 namespace eg
 {
 	class EG_API RotationGizmo

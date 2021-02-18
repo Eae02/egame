@@ -1,7 +1,5 @@
 #include "GLTFSkeleton.hpp"
-#include "../../../Inc/Common.hpp"
 #include "EGame/Utils.hpp"
-#include "EGame/IOUtils.hpp"
 
 #include <algorithm>
 

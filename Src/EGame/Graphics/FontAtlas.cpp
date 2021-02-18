@@ -6,6 +6,8 @@
 #include "../IOUtils.hpp"
 
 #include <fstream>
+#include <memory>
+#include <cstring>
 #include <string_view>
 #include <utf8.h>
 #include <stb_rect_pack.h>

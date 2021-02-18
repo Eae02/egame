@@ -2,6 +2,9 @@
 
 #include "API.hpp"
 
+#include <string>
+#include <type_traits>
+
 namespace eg
 {
 	enum class LogLevel

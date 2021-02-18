@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <time.h>
+#include <cstring>
 #include <sys/stat.h>
 
 namespace eg

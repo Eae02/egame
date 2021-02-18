@@ -5,6 +5,8 @@
 #include "API.hpp"
 #include "Span.hpp"
 
+#include <glm/gtx/norm.hpp>
+
 namespace eg
 {
 	class EG_API Sphere

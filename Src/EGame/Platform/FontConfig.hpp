@@ -2,6 +2,8 @@
 
 #include "../API.hpp"
 
+#include <string>
+
 namespace eg
 {
 	void InitPlatformFontConfig();

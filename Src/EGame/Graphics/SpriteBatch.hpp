@@ -70,10 +70,12 @@ namespace eg
 			const Rectangle& texRectangle, SpriteFlags flipFlags = SpriteFlags::None);
 		
 		void DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-			const ColorLin& color, float scale = 1, float lineSpacing = 0, glm::vec2* sizeOut = nullptr, TextFlags flags = TextFlags::None);
+			const ColorLin& color, float scale = 1, float lineSpacing = 0, glm::vec2* sizeOut = nullptr,
+			TextFlags flags = TextFlags::None, const ColorLin* secondColor = nullptr);
 		
 		void DrawText(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
-			const ColorLin& color, float scale = 1, glm::vec2* sizeOut = nullptr, TextFlags flags = TextFlags::None);
+			const ColorLin& color, float scale = 1, glm::vec2* sizeOut = nullptr,
+			TextFlags flags = TextFlags::None, const ColorLin* secondColor = nullptr);
 		
 		void DrawRectBorder(const Rectangle& rectangle, const ColorLin& color, float width = 1);
 		

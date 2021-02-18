@@ -2,6 +2,8 @@
 
 #include "../API.hpp"
 #include <cstring>
+#include <cstddef>
+#include <string_view>
 
 namespace eg
 {

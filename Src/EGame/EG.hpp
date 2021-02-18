@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../Inc/Common.hpp"
 #include "Core.hpp"
 #include "Graphics/Graphics.hpp"
 #include "Graphics/Abstraction.hpp"
@@ -34,6 +33,7 @@
 #include "InputState.hpp"
 #include "GameController.hpp"
 #include "TranslationGizmo.hpp"
+#include "RotationGizmo.hpp"
 #include "MainThreadInvoke.hpp"
 #include "Span.hpp"
 #include "Span2.hpp"

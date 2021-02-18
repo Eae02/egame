@@ -4,6 +4,8 @@
 
 #include "../API.hpp"
 
+#include <string>
+
 namespace eg
 {
 	class EG_API DynamicLibrary

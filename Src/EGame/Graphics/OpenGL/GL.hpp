@@ -22,6 +22,8 @@
 #define EG_GLES
 
 #else
+#include <cstdint>
+#include <cstddef>
 #include <GL/gl3w.h>
 #include <GL/glext.h>
 #endif

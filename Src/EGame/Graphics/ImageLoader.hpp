@@ -4,6 +4,8 @@
 #include "../Utils.hpp"
 
 #include <istream>
+#include <memory>
+#include <cstdint>
 
 namespace eg
 {

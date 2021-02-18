@@ -672,6 +672,7 @@ namespace eg
 		bool defaultFramebufferSRGB;
 		bool forceDepthZeroToOne;
 		bool preferIntegrated;
+		std::string_view preferredDeviceName;
 	};
 	
 	namespace detail

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../Inc/Common.hpp"
 #include "../EGame/Graphics/Format.hpp"
 #include "../EGame/Utils.hpp"
 #include "../EGame/Span.hpp"

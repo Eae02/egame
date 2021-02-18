@@ -1,4 +1,3 @@
-#include "../../../Inc/Common.hpp"
 #include "../../EGame/Assets/ModelAsset.hpp"
 #include "../../EGame/Assets/AssetGenerator.hpp"
 #include "../../EGame/Graphics/StdVertex.hpp"

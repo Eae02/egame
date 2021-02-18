@@ -1,6 +1,7 @@
 #include "Debug.hpp"
 #include <iomanip>
 #include <atomic>
+#include <iostream>
 
 namespace eg
 {

@@ -149,6 +149,16 @@ namespace eg
 	static bool firstControllerAxisEvent = true;
 	static SDL_Window* sdlWindow;
 	
+	namespace graphics_api::vk
+	{
+		bool EarlyInitializeMemoized();
+	}
+	
+	bool VulkanAppearsSupported()
+	{
+		return graphics_api::vk::EarlyInitializeMemoized();
+	}
+	
 	int PlatformInit(const RunConfig& runConfig)
 	{
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
@@ -163,6 +173,8 @@ namespace eg
 				"This game requires SSE 4.1, which your CPU does not support.", nullptr);
 			return 1;
 		}
+		
+		graphics_api::vk::EarlyInitializeMemoized();
 		
 		constexpr int DISPLAY_INDEX = 0;
 		SDL_DisplayMode currentDisplayMode;
@@ -245,6 +257,7 @@ namespace eg
 		apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
 		apiInitArguments.defaultDepthStencilFormat = defaultDSFormat;
 		apiInitArguments.preferIntegrated = HasFlag(runConfig.flags, RunFlags::PreferIntegratedGPU);
+		apiInitArguments.preferredDeviceName = runConfig.preferredGPUName;
 		
 		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))
 		{

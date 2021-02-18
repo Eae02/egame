@@ -1,6 +1,9 @@
 #pragma once
 
 #include <mutex>
+#include <cstdint>
+#include <cstddef>
+#include <cstring>
 
 #include "../Utils.hpp"
 

@@ -1,6 +1,7 @@
 #include "ParticleManager.hpp"
 #include "ParticleEmitterInstance.hpp"
 #include "../../SIMD.hpp"
+#include "../../Utils.hpp"
 
 #include <bitset>
 #include <ctime>

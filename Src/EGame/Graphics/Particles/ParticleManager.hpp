@@ -8,7 +8,6 @@
 
 #include <thread>
 #include <condition_variable>
-#include <chrono>
 
 namespace eg
 {

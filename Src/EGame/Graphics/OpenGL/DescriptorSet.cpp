@@ -2,6 +2,8 @@
 #include "OpenGLTexture.hpp"
 #include "OpenGLBuffer.hpp"
 
+#include <cstring>
+
 namespace eg::graphics_api::gl
 {
 	struct Binding

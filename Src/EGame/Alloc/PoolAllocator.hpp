@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../API.hpp"
+#include <cstdint>
+#include <vector>
 
 namespace eg
 {

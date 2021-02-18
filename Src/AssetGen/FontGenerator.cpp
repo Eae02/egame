@@ -1,4 +1,3 @@
-#include "../../Inc/Common.hpp"
 #include "../EGame/Assets/SpriteFontLoader.hpp"
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Graphics/FontAtlas.hpp"

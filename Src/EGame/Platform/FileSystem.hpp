@@ -2,6 +2,9 @@
 
 #include "../API.hpp"
 
+#include <chrono>
+#include <string_view>
+
 namespace eg
 {
 	EG_API bool FileExists(const char* path);

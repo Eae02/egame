@@ -1,5 +1,6 @@
 #include "EGame/EG.hpp"
 #include <EGame/Graphics/PBR/BRDFIntegrationMap.hpp>
+#include <glm/gtx/matrix_transform_2d.hpp>
 
 class Game : public eg::IGame
 {

@@ -1,6 +1,7 @@
 #include "Memory.hpp"
 
 #include <fstream>
+#include <string>
 
 namespace eg
 {

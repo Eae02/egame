@@ -3,6 +3,8 @@
 #include "../Shaders/Build/Gizmo.vs.h"
 #include "../Shaders/Build/Gizmo.fs.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace eg
 {
 	extern float ARROW_VERTICES[75];

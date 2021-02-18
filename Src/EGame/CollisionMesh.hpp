@@ -4,6 +4,9 @@
 #include "SIMD.hpp"
 #include "AABB.hpp"
 
+#include <algorithm>
+#include <cstdint>
+
 namespace eg
 {
 	class EG_API CollisionMesh

@@ -1,6 +1,8 @@
 #include "PerspectiveProjection.hpp"
 #include "AbstractionHL.hpp"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace eg
 {
 	void PerspectiveProjection::Update()

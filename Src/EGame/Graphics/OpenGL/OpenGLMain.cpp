@@ -6,6 +6,7 @@
 #include "../../Log.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
+#include <sstream>
 #include <bitset>
 
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT     0x84FE
@@ -112,6 +113,11 @@ namespace eg::graphics_api::gl
 #endif
 	
 	static DepthRange depthRange = DepthRange::NegOneToOne;
+	
+	Span<std::string> GetDeviceNames()
+	{
+		return { &rendererName, 1 };
+	}
 	
 	bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{

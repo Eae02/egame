@@ -5,6 +5,8 @@
 #include "Graphics/Format.hpp"
 #include "InputState.hpp"
 
+#include <memory>
+
 namespace eg
 {
 	class IGame
@@ -49,6 +51,7 @@ namespace eg
 	{
 		const char* gameName = nullptr;
 		GraphicsAPI graphicsAPI = GraphicsAPI::Preferred;
+		std::string preferredGPUName;
 		void (*initialize)() = nullptr;
 		RunFlags flags = RunFlags::None;
 		Format defaultDepthStencilFormat = Format::Depth16;
@@ -91,6 +94,8 @@ namespace eg
 	EG_API void SetDisplayModeFullscreen(const FullscreenDisplayMode& displayMode);
 	EG_API void SetDisplayModeFullscreenDesktop();
 	EG_API void SetDisplayModeWindowed();
+	
+	EG_API bool VulkanAppearsSupported();
 	
 	/**
 	 * Runs a game. This is the main entry point of the library and will block until the game is closed.

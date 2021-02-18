@@ -1,6 +1,8 @@
 #include "FlyCamera.hpp"
 #include "InputState.hpp"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 namespace eg
 {
 	static constexpr float ACCEL_AMOUNT = 20.0f;

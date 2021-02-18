@@ -2,6 +2,7 @@
 
 #include "FontConfig.hpp"
 
+#include <memory>
 #include <fontconfig/fontconfig.h>
 #include <dlfcn.h>
 

@@ -1,4 +1,3 @@
-#include "../../Inc/Common.hpp"
 #include "Texture2DWriter.hpp"
 #include "../EGame/Assets/Texture2DLoader.hpp"
 #include "../EGame/Assets/AssetGenerator.hpp"

@@ -1,4 +1,5 @@
 XM_ABSCALLBACK(GetDrawableSize, void, (int& width, int& height))
+XM_ABSCALLBACK(GetDeviceNames, Span<std::string>, ())  
 XM_ABSCALLBACK(GetDeviceInfo, void, (GraphicsDeviceInfo& deviceInfo))
 XM_ABSCALLBACK(EndLoading, void, ())
 XM_ABSCALLBACK(IsLoadingComplete, bool, ())

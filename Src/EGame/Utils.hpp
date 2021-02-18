@@ -1,8 +1,9 @@
 #pragma once
 
 #include <iostream>
-#include <chrono>
 #include <vector>
+#include <string_view>
+#include <string>
 #include <glm/glm.hpp>
 
 #include "API.hpp"
@@ -130,11 +131,7 @@ namespace eg
 		seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
 	}
 	
-	inline int64_t NanoTime()
-	{
-		using namespace std::chrono;
-		return duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch()).count();
-	}
+	EG_API int64_t NanoTime();
 	
 	template <typename T, typename U>
 	constexpr inline auto RoundToNextMultiple(T value, U multiple)
