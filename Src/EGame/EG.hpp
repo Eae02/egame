@@ -55,3 +55,4 @@
 #include "Assets/ShaderModule.hpp"
 #include "Assets/Texture2DLoader.hpp"
 #include "Profiling/Profiler.hpp"
+#include "Audio/AudioPlayer.hpp"

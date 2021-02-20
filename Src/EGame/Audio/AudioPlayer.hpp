@@ -46,6 +46,12 @@ namespace eg
 		void SetVolume(const AudioPlaybackHandle& handle, float volume);
 		void SetPitch(const AudioPlaybackHandle& handle, float pitch);
 		
+		void SetPlaybackLocation(const AudioPlaybackHandle& handle, const AudioLocationParameters& locParameters)
+		{
+			if (CheckHandle(handle))
+				SetLocationParameters(handle.index, locParameters);
+		}
+		
 		void StopAll();
 		
 		void SetGlobalVolume(float globalVolume);
@@ -63,7 +69,7 @@ namespace eg
 		void UpdateVolume(uint32_t index) const;
 		void UpdatePitch(uint32_t index) const;
 		
-		void SetLocationParameters(uint32_t index, const AudioLocationParameters* locParameters);
+		void SetLocationParameters(uint32_t index, const AudioLocationParameters& locParameters);
 		
 		struct AudioSourceHandle
 		{
@@ -92,7 +98,6 @@ namespace eg
 			float volume    = 1;
 			float pitch     = 1;
 			uint32_t parity = 0;
-			bool relative   = true;
 		};
 		
 		std::vector<SourceEntry> m_sources;
@@ -101,10 +106,10 @@ namespace eg
 		float m_globalVolume = 1;
 	};
 	
-	EG_API void InitializeAudio();
+	EG_API bool InitializeAudio();
 	
 	EG_API void SetMasterVolume(float volume);
 	EG_API void SetMasterPitch(float pitch);
 	
-	EG_API void SetListenerPosition(const AudioLocationParameters& locParameters);
+	EG_API void UpdateAudioListener(const AudioLocationParameters& locParameters, const glm::vec3& up);
 }

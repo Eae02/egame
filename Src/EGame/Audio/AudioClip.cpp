@@ -3,11 +3,16 @@
 
 namespace eg
 {
+	extern bool alInitialized;
+	
 	AudioClip::AudioClip(Span<const int16_t> data, bool isStereo, uint64_t frequency)
 		: m_isNull(false), m_numSamples(data.size() / ((int)isStereo + 1)), m_frequency(frequency)
 	{
-		alGenBuffers(1, &m_id);
-		alBufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(), data.SizeBytes(), frequency);
+		if (alInitialized)
+		{
+			alGenBuffers(1, &m_id);
+			alBufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(), data.SizeBytes(), frequency);
+		}
 	}
 	
 	AudioClip::AudioClip(AudioClip&& other)
@@ -29,7 +34,7 @@ namespace eg
 	
 	void AudioClip::Destroy()
 	{
-		if (!m_isNull)
+		if (!m_isNull && alInitialized)
 		{
 			alDeleteBuffers(1, &m_id);
 			m_isNull = true;
