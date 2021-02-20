@@ -9,6 +9,7 @@ namespace eg::asset_gen
 	void RegisterGLTFModelGenerator();
 	void RegisterParticleEmitterGenerator();
 	void RegisterFontGenerator();
+	void RegisterOGGVorbisGenerator();
 }
 
 EG_C_EXPORT void Init()
@@ -20,4 +21,5 @@ EG_C_EXPORT void Init()
 	eg::asset_gen::RegisterGLTFModelGenerator();
 	eg::asset_gen::RegisterParticleEmitterGenerator();
 	eg::asset_gen::RegisterFontGenerator();
+	eg::asset_gen::RegisterOGGVorbisGenerator();
 }

@@ -36,6 +36,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(Threads REQUIRED)
 	find_package(Freetype)
 	find_package(PkgConfig REQUIRED)
+	find_package(OpenAL REQUIRED)
 	
 	pkg_check_modules(SDL2 REQUIRED sdl2)
 	
@@ -46,12 +47,14 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		${SDL2_LIBRARIES}
 		${ZLIB_LIBRARIES}
 		${CMAKE_DL_LIBS}
+		${OPENAL_LIBRARY}
 	)
 	
 	target_include_directories(EGame PRIVATE
 		${FREETYPE_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
 		${SDL2_INCLUDE_DIRS}
+		${OPENAL_INCLUDE_DIR}
 	)
 	
 	if (NOT ${FREETYPE_FOUND})
@@ -69,15 +72,21 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	
 	if (BUILD_ASSETGEN)
 		find_package(GLSLang REQUIRED)
+		pkg_check_modules(OGG_VORBIS REQUIRED ogg vorbis vorbisfile)
 		
 		add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
 		
 		add_dependencies(EGameAssetGen EGame)
-		target_link_libraries(EGameAssetGen PRIVATE EGame GLSLang::GLSLang)
+		target_link_libraries(EGameAssetGen PRIVATE
+			EGame
+			GLSLang::GLSLang
+			${OGG_VORBIS_LIBRARIES}
+		)
 		
 		target_include_directories(EGameAssetGen PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/Inc
+			${CMAKE_CURRENT_SOURCE_DIR}/Inc
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+			${OGG_VORBIS_INCLUDE_DIRS}
 		)
 		
 		set_target_properties(EGameAssetGen PROPERTIES

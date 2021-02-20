@@ -3,6 +3,7 @@
 #include "Texture2DLoader.hpp"
 #include "ModelAsset.hpp"
 #include "SpriteFontLoader.hpp"
+#include "AudioClipAsset.hpp"
 #include "../Graphics/StdVertex.hpp"
 #include "../Graphics/Particles/ParticleEmitterType.hpp"
 #include "../Log.hpp"
@@ -60,6 +61,7 @@ namespace eg
 		RegisterAssetLoader("Model", &ModelAssetLoader, ModelAssetFormat);
 		RegisterAssetLoader("ParticleEmitter", &ParticleEmitterType::AssetLoader, ParticleEmitterType::AssetFormat);
 		RegisterAssetLoader("SpriteFont", &SpriteFontLoader, SpriteFontAssetFormat);
+		RegisterAssetLoader("AudioClip", &AudioClipAssetLoader, AudioClipAssetFormat);
 		
 		DefineModelVertexType<StdVertex>();
 		
@@ -70,5 +72,6 @@ namespace eg
 		BindAssetExtension("glb", "Model", "GLTFModel");
 		BindAssetExtension("ype", "ParticleEmitter", "ParticleEmitter");
 		BindAssetExtension("ttf", "SpriteFont", "Font");
+		BindAssetExtension("ogg", "AudioClip", "OGGVorbis");
 	}
 }
