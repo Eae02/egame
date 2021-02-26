@@ -17,7 +17,7 @@ namespace eg
 	{
 		static const LPCSTR fontRegistryPath = "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts";
 		
-		size_t nameLen = std::strlen(name);
+		size_t nameLen = strlen(name);
 		
 		HKEY hKey;
 		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, fontRegistryPath, 0, KEY_READ, &hKey) != ERROR_SUCCESS)
