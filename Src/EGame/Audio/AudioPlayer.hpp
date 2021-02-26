@@ -71,7 +71,7 @@ namespace eg
 		
 		void SetLocationParameters(uint32_t index, const AudioLocationParameters& locParameters);
 		
-		struct AudioSourceHandle
+		struct EG_API AudioSourceHandle
 		{
 			bool null;
 			uint32_t handle;
