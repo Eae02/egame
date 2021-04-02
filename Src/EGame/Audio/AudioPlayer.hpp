@@ -89,6 +89,9 @@ namespace eg
 				return *this;
 			}
 			
+			AudioSourceHandle(const AudioSourceHandle& other) = delete;
+			AudioSourceHandle& operator=(const AudioSourceHandle& other) = delete;
+			
 			void Destroy();
 		};
 		

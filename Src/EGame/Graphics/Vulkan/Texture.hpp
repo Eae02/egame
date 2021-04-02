@@ -13,6 +13,7 @@ namespace eg::graphics_api::vk
 		VkImageView view;
 		VkImageAspectFlags aspectFlags;
 		VkImageViewType type;
+		VkFormat format;
 		TextureSubresource subresource;
 	};
 	
@@ -44,7 +45,7 @@ namespace eg::graphics_api::vk
 			ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
 		
 		VkImageView GetView(const TextureSubresource& subresource, VkImageAspectFlags aspectFlags = 0,
-			std::optional<VkImageViewType> forcedViewType = {});
+			std::optional<VkImageViewType> forcedViewType = {}, VkFormat differentFormat = VK_FORMAT_UNDEFINED);
 		
 		void Free() override;
 	};

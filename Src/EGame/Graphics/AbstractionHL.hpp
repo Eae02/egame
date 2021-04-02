@@ -180,12 +180,12 @@ namespace eg
 		}
 	};
 	
-	EG_API UploadBuffer GetTemporaryUploadBuffer(uint64_t size);
+	EG_API UploadBuffer GetTemporaryUploadBuffer(uint64_t size, uint64_t alignment = 1);
 	
 	template <typename T>
-	UploadBuffer GetTemporaryUploadBufferWith(eg::Span<const T> data)
+	UploadBuffer GetTemporaryUploadBufferWith(eg::Span<const T> data, uint64_t alignment = 1)
 	{
-		UploadBuffer buffer = GetTemporaryUploadBuffer(data.SizeBytes());
+		UploadBuffer buffer = GetTemporaryUploadBuffer(data.SizeBytes(), alignment);
 		std::memcpy(buffer.Map(), data.data(), data.SizeBytes());
 		buffer.Flush();
 		return buffer;
@@ -446,9 +446,10 @@ namespace eg
 		}
 		
 		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr,
-			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None)
+			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None,
+			Format differentFormat = Format::Undefined)
 		{
-			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding, subresource, flags);
+			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding, subresource, flags, differentFormat);
 		}
 		
 		void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresourceLayers& subresource = { })
@@ -635,9 +636,10 @@ namespace eg
 		}
 		
 		void BindTexture(TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr,
-			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None)
+			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None,
+			Format differentFormat = Format::Undefined)
 		{
-			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding, subresource, flags);
+			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding, subresource, flags, differentFormat);
 		}
 		
 		void BindStorageImage(TextureRef texture, uint32_t set, uint32_t binding,

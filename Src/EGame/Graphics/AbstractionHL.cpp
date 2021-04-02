@@ -104,7 +104,7 @@ namespace eg
 	
 	static std::vector<UploadBufferEntry> uploadBuffers;
 	
-	UploadBuffer GetTemporaryUploadBuffer(uint64_t size)
+	UploadBuffer GetTemporaryUploadBuffer(uint64_t size, uint64_t alignment)
 	{
 		UploadBufferEntry* selected = nullptr;
 		for (UploadBufferEntry& buffer : uploadBuffers)
@@ -112,7 +112,7 @@ namespace eg
 			if (buffer.lastUsedFrame == UINT64_MAX || buffer.lastUsedFrame == FrameIdx() ||
 			    buffer.lastUsedFrame + MAX_CONCURRENT_FRAMES <= FrameIdx())
 			{
-				uint64_t newOffset = buffer.offset + size;
+				uint64_t newOffset = RoundToNextMultiple(buffer.offset, alignment) + size;
 				if (buffer.lastUsedFrame != FrameIdx() || newOffset <= buffer.size)
 				{
 					selected = &buffer;
@@ -135,10 +135,10 @@ namespace eg
 		
 		UploadBuffer ret;
 		ret.buffer = selected->buffer;
-		ret.offset = selected->offset;
+		ret.offset = RoundToNextMultiple(selected->offset, alignment);
 		ret.range = size;
 		
-		selected->offset += size;
+		selected->offset = ret.offset + size;
 		selected->lastUsedFrame = FrameIdx();
 		
 		return ret;

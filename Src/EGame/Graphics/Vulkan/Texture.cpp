@@ -91,23 +91,29 @@ namespace eg::graphics_api::vk
 	}
 	
 	VkImageView Texture::GetView(const TextureSubresource& subresource, VkImageAspectFlags _aspectFlags,
-		std::optional<VkImageViewType> forcedViewType)
+		std::optional<VkImageViewType> forcedViewType, VkFormat differentFormat)
 	{
 		if (_aspectFlags == 0)
 			_aspectFlags = aspectFlags;
 		TextureSubresource resolvedSubresource = subresource.ResolveRem(numMipLevels, numArrayLayers);
 		
+		VkFormat realFormat = differentFormat == VK_FORMAT_UNDEFINED ? format : differentFormat;
 		VkImageViewType realViewType = forcedViewType ? *forcedViewType : viewType;
 		for (const TextureView& view : views)
 		{
-			if (view.subresource == resolvedSubresource && view.aspectFlags == _aspectFlags && view.type == realViewType)
+			if (view.subresource == resolvedSubresource &&
+				view.aspectFlags == _aspectFlags &&
+				view.type == realViewType &&
+				view.format == realFormat)
+			{
 				return view.view;
+			}
 		}
 		
 		VkImageViewCreateInfo viewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		viewCreateInfo.viewType = realViewType;
 		viewCreateInfo.image = image;
-		viewCreateInfo.format = format;
+		viewCreateInfo.format = realFormat;
 		viewCreateInfo.subresourceRange.aspectMask = _aspectFlags;
 		viewCreateInfo.subresourceRange.baseMipLevel = resolvedSubresource.firstMipLevel;
 		viewCreateInfo.subresourceRange.levelCount = resolvedSubresource.numMipLevels;
@@ -125,6 +131,7 @@ namespace eg::graphics_api::vk
 		view.aspectFlags = _aspectFlags;
 		view.subresource = resolvedSubresource;
 		view.type        = realViewType;
+		view.format      = realFormat;
 		return view.view;
 	}
 	
@@ -516,7 +523,8 @@ namespace eg::graphics_api::vk
 	}
 	
 	void BindTexture(CommandContextHandle cc, TextureHandle textureHandle, SamplerHandle samplerHandle,
-		uint32_t set, uint32_t binding, const TextureSubresource& subresource, TextureBindFlags flags)
+	                 uint32_t set, uint32_t binding, const TextureSubresource& subresource,
+	                 TextureBindFlags flags, Format differentFormat)
 	{
 		Texture* texture = UnwrapTexture(textureHandle);
 		RefResource(cc, *texture);
@@ -543,7 +551,8 @@ namespace eg::graphics_api::vk
 			forcedViewType = VK_IMAGE_VIEW_TYPE_2D;
 		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT), forcedViewType);
+		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT),
+		                                       forcedViewType, TranslateFormat(differentFormat));
 		imageInfo.sampler = sampler;
 		imageInfo.imageLayout = ImageLayoutFromUsage(eg::TextureUsage::ShaderSample, texture->aspectFlags);
 		

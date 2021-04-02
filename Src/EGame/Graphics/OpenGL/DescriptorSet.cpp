@@ -11,6 +11,7 @@ namespace eg::graphics_api::gl
 		Texture* texture;
 		TextureSubresource subresource;
 		GLenum forcedViewType;
+		Format textureViewFormat;
 		GLuint bufferOrSampler;
 		GLsizeiptr offset;
 		GLsizeiptr range;
@@ -61,12 +62,13 @@ namespace eg::graphics_api::gl
 	}
 	
 	void BindTextureDS(TextureHandle texture, SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding,
-		const TextureSubresource& subresource, TextureBindFlags flags)
+	                   const TextureSubresource& subresource, TextureBindFlags flags, Format differentFormat)
 	{
 		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
 		EG_ASSERT(binding <= set->maxBinding);
 		set->bindings[binding].texture = UnwrapTexture(texture);
 		set->bindings[binding].forcedViewType = HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D) ? GL_TEXTURE_2D : 0;
+		set->bindings[binding].textureViewFormat = differentFormat;
 		set->bindings[binding].subresource = subresource;
 		set->bindings[binding].bufferOrSampler = (GLuint)reinterpret_cast<uintptr_t>(sampler);
 	}
@@ -122,11 +124,13 @@ namespace eg::graphics_api::gl
 					dsBinding.offset, dsBinding.range);
 				break;
 			case BindingType::Texture:
+			{
+				GLuint view = dsBinding.texture->GetView(dsBinding.subresource, dsBinding.forcedViewType, dsBinding.textureViewFormat);
 				glActiveTexture(GL_TEXTURE0 + binding.glBinding);
-				glBindTexture(dsBinding.forcedViewType ? dsBinding.forcedViewType : dsBinding.texture->type,
-					dsBinding.texture->GetView(dsBinding.subresource, dsBinding.forcedViewType));
+				glBindTexture(dsBinding.forcedViewType ? dsBinding.forcedViewType : dsBinding.texture->type, view);
 				glBindSampler(binding.glBinding, dsBinding.bufferOrSampler);
 				break;
+			}
 			case BindingType::StorageImage:
 				dsBinding.texture->BindAsStorageImage(binding.glBinding, dsBinding.subresource);
 				break;

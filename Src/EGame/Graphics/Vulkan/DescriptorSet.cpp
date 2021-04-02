@@ -100,7 +100,8 @@ namespace eg::graphics_api::vk
 	}
 	
 	void BindTextureDS(TextureHandle textureHandle, SamplerHandle samplerHandle,
-		DescriptorSetHandle setHandle, uint32_t binding, const TextureSubresource& subresource, TextureBindFlags flags)
+	                   DescriptorSetHandle setHandle, uint32_t binding,
+	                   const TextureSubresource& subresource, TextureBindFlags flags, Format differentFormat)
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
 		Texture* texture = UnwrapTexture(textureHandle);
@@ -122,7 +123,8 @@ namespace eg::graphics_api::vk
 			forcedViewType = VK_IMAGE_VIEW_TYPE_2D;
 		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT), forcedViewType);
+		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT),
+		                                       forcedViewType, TranslateFormat(differentFormat));
 		imageInfo.sampler = sampler;
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		

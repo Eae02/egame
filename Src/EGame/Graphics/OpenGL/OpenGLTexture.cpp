@@ -318,7 +318,7 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
-	GLuint Texture::GetView(const TextureSubresource& subresource, GLenum forcedViewType)
+	GLuint Texture::GetView(const TextureSubresource& subresource, GLenum forcedViewType, Format differentFormat)
 	{
 		GLenum viewType = forcedViewType == 0 ? type : forcedViewType;
 		
@@ -330,13 +330,15 @@ namespace eg::graphics_api::gl
 			return texture;
 		}
 		
+		Format realFormat = differentFormat == Format::Undefined ? format : differentFormat;
+		
 #ifdef EG_GLES
 		eg::Log(LogLevel::Error, "gl", "Texture views are not supported in GLES");
 		return texture;
 #else
 		for (const TextureView& view : views)
 		{
-			if (view.subresource == resolvedSubresource && view.type == viewType)
+			if (view.subresource == resolvedSubresource && view.type == viewType && view.format == realFormat)
 			{
 				return view.texture;
 			}
@@ -345,9 +347,9 @@ namespace eg::graphics_api::gl
 		TextureView& view = views.emplace_back();
 		
 		glGenTextures(1, &view.texture);
-		glTextureView(view.texture, viewType, texture, TranslateFormat(format),
-			resolvedSubresource.firstMipLevel, resolvedSubresource.numMipLevels,
-			resolvedSubresource.firstArrayLayer, resolvedSubresource.numArrayLayers);
+		glTextureView(view.texture, viewType, texture, TranslateFormat(realFormat),
+		              resolvedSubresource.firstMipLevel, resolvedSubresource.numMipLevels,
+		              resolvedSubresource.firstArrayLayer, resolvedSubresource.numArrayLayers);
 		
 		if (samplerDescription.has_value())
 		{
@@ -356,7 +358,8 @@ namespace eg::graphics_api::gl
 		}
 		
 		view.subresource = resolvedSubresource;
-		view.type = viewType;
+		view.type        = viewType;
+		view.format      = realFormat;
 		
 		return view.texture;
 #endif
@@ -522,7 +525,7 @@ namespace eg::graphics_api::gl
 	}
 	
 	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t set, uint32_t binding,
-		const TextureSubresource& subresource, TextureBindFlags flags)
+	                 const TextureSubresource& subresource, TextureBindFlags flags, Format differentFormat)
 	{
 		GLenum forcedViewType = 0;
 		if (HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D))
