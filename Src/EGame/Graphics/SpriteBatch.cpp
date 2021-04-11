@@ -441,9 +441,9 @@ namespace eg
 	SpriteBatch::Vertex::Vertex(const glm::vec2& _position, const glm::vec2& _texCoord, const ColorLin& _color, float opacityScale)
 		: position(_position), texCoord(_texCoord)
 	{
-		color[0] = static_cast<uint8_t>(std::round(_color.r * 255.0f));
-		color[1] = static_cast<uint8_t>(std::round(_color.g * 255.0f));
-		color[2] = static_cast<uint8_t>(std::round(_color.b * 255.0f));
-		color[3] = static_cast<uint8_t>(std::round(_color.a * 255.0f * opacityScale));
+		color[0] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.r * 255.0f), 0, 255));
+		color[1] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.g * 255.0f), 0, 255));
+		color[2] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.b * 255.0f), 0, 255));
+		color[3] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.a * 255.0f * opacityScale), 0, 255));
 	}
 }

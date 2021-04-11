@@ -1,6 +1,7 @@
 #include "Asset.hpp"
 #include "AssetGenerator.hpp"
 #include "AssetLoad.hpp"
+#include "../Console.hpp"
 #include "../Platform/DynamicLibrary.hpp"
 #include "../Platform/FileSystem.hpp"
 #include "../Alloc/LinearAllocator.hpp"
@@ -274,7 +275,8 @@ namespace eg
 			eapWriteContext->numAssets++;
 		}
 		
-		asset->name = detail::assetAllocator.MakeStringCopy(BaseName(assetToLoad.name));
+		asset->fullName = detail::assetAllocator.MakeStringCopy(assetToLoad.name);
+		asset->name = BaseName(asset->fullName);
 		
 		AssetDirectory* directory = FindDirectory(&destinationDir, dirPath, true);
 		asset->next = directory->firstAsset;
@@ -536,7 +538,8 @@ namespace eg
 			Asset* asset = LoadAsset(*loader, dirPath, data, nullptr);
 			if (asset != nullptr)
 			{
-				asset->name = detail::assetAllocator.MakeStringCopy(BaseName(name));
+				asset->fullName = detail::assetAllocator.MakeStringCopy(name);
+				asset->name = BaseName(asset->fullName);
 				
 				AssetDirectory* directory = FindDirectory(&mountDir, dirPath, true);
 				asset->next = directory->firstAsset;
@@ -621,5 +624,34 @@ namespace eg
 	{
 		UnloadAssetsR(&assetRootDir);
 		detail::assetAllocator.Reset();
+	}
+	
+	static void IterateAssetsR(const AssetDirectory& dir, const std::function<void(const Asset&)>& callback)
+	{
+		for (const Asset* asset = dir.firstAsset; asset != nullptr; asset = asset->next)
+		{
+			callback(*asset);
+		}
+		
+		for (const AssetDirectory* subDir = dir.firstChildDir; subDir != nullptr; subDir = subDir->nextSiblingDir)
+		{
+			IterateAssetsR(*subDir, callback);
+		}
+	}
+	
+	void IterateAssets(const std::function<void(const Asset&)>& callback)
+	{
+		IterateAssetsR(assetRootDir, callback);
+	}
+	
+	void AssetCommandCompletionProvider(console::CompletionsList& list, const std::type_index* assetType)
+	{
+		IterateAssets([&] (const Asset& asset)
+		{
+			if (assetType == nullptr || asset.assetType == *assetType)
+			{
+				list.Add(asset.fullName);
+			}
+		});
 	}
 }

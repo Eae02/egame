@@ -5,6 +5,7 @@
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
 #include "Graphics/RenderDoc.hpp"
+#include "Graphics/Model.hpp"
 #include "InputState.hpp"
 #include "Event.hpp"
 #include "Console.hpp"
@@ -267,6 +268,86 @@ namespace eg
 		
 		if (runConfig.initialize)
 			runConfig.initialize();
+		
+		console::AddCommand("modelInfo", 1, [&] (Span<const std::string_view> args, console::Writer& writer)
+		{
+			const Model* model = eg::FindAsset<Model>(args[0]);
+			if (model == nullptr)
+			{
+				writer.Write(console::ErrorColor, "The model ");
+				writer.Write(console::ErrorColor.ScaleRGB(1.5f), args[0]);
+				writer.WriteLine(console::ErrorColor, " doesn't exist");
+				return;
+			}
+			
+			writer.Write(console::InfoColor, "Information about ");
+			writer.Write(console::InfoColorSpecial, args[0]);
+			writer.WriteLine(console::InfoColor, ":");
+			
+			//Prepares column data
+			size_t nameColLen = 0;
+			size_t vertexColLen = 0;
+			size_t triangleColLen = 0;
+			std::vector<std::string> vertexStrings(model->NumMeshes());
+			std::vector<std::string> triangleStrings(model->NumMeshes());
+			for (size_t i = 0; i < model->NumMeshes(); i++)
+			{
+				vertexStrings[i] = std::to_string(model->GetMesh(i).numVertices);
+				triangleStrings[i] = std::to_string(model->GetMesh(i).numIndices / 3);
+				
+				nameColLen = std::max(nameColLen, model->GetMesh(i).name.size());
+				vertexColLen = std::max(vertexColLen, vertexStrings[i].size());
+				triangleColLen = std::max(triangleColLen, triangleStrings[i].size());
+			}
+			
+			//Writes information about meshes
+			const char* meshAccessNames[] = { "gpu", "cpu", "gpu+cpu" };
+			uint32_t totVertices = 0;
+			uint32_t totIndices = 0;
+			for (size_t i = 0; i < model->NumMeshes(); i++)
+			{
+				std::string str = "  mesh[" + std::to_string(i) + "] '";
+				writer.Write(console::InfoColor, str);
+				writer.Write(console::InfoColorSpecial, model->GetMesh(i).name);
+				
+				str = "'" + std::string(nameColLen + 1 - model->GetMesh(i).name.size(), ' ') + "V:";
+				writer.Write(console::InfoColor, str);
+				writer.Write(console::InfoColorSpecial, vertexStrings[i]);
+				
+				str = std::string(vertexColLen + 1 - vertexStrings[i].size(), ' ') + "T:";
+				writer.Write(console::InfoColor, str);
+				writer.Write(console::InfoColorSpecial, triangleStrings[i]);
+				
+				str = std::string(triangleColLen + 1 - triangleStrings[i].size(), ' ') + "A:";
+				writer.Write(console::InfoColor, str);
+				writer.WriteLine(console::InfoColorSpecial, meshAccessNames[(int)model->GetMesh(i).access]);
+				
+				totVertices += model->GetMesh(i).numVertices;
+				totIndices += model->GetMesh(i).numIndices;
+			}
+			
+			for (size_t i = 0; i < model->NumMaterials(); i++)
+			{
+				std::string str = "  mat[" + std::to_string(i) + "] '";
+				writer.Write(console::InfoColor, str);
+				writer.Write(console::InfoColorSpecial, model->GetMaterialName(i));
+				writer.WriteLine(console::InfoColor, "'");
+			}
+			
+			writer.Write(console::InfoColor, "  total vertices: ");
+			std::string totalVerticesStr = std::to_string(totVertices);
+			writer.WriteLine(console::InfoColorSpecial, totalVerticesStr);
+			
+			writer.Write(console::InfoColor, "  total triangles: ");
+			std::string totalTrianglesStr = std::to_string(totIndices / 3);
+			writer.WriteLine(console::InfoColorSpecial, totalTrianglesStr);
+		});
+		
+		console::SetCompletionProvider("modelInfo", 0, [] (eg::Span<const std::string_view> args, eg::console::CompletionsList& list)
+		{
+			std::type_index typeIndex(typeid(Model));
+			AssetCommandCompletionProvider(list, &typeIndex);
+		});
 		
 		console::AddCommand("gmem", 0, [&] (Span<const std::string_view> args, console::Writer& writer)
 		{

@@ -117,6 +117,8 @@ namespace eg
 		int GetMaterialIndex(std::string_view name) const;
 		int RequireMaterialIndex(std::string_view name) const;
 		
+		const std::string& GetMaterialName(size_t i) const { return m_materialNames[i]; }
+		
 		BufferRef VertexBuffer() const
 		{
 			return m_vertexBuffer;

@@ -20,6 +20,7 @@ namespace eg
 	
 	struct Asset
 	{
+		std::string_view fullName;
 		std::string_view name;
 		std::type_index assetType;
 		void* instance;
@@ -61,6 +62,8 @@ namespace eg
 	
 	EG_API void UnloadAssets();
 	
+	namespace console { struct CompletionsList; }
+	
 	namespace detail
 	{
 		EG_API const Asset* FindAsset(std::string_view name);
@@ -89,4 +92,8 @@ namespace eg
 			return *asset;
 		EG_PANIC("Asset not found '" << name << "'");
 	}
+	
+	EG_API void IterateAssets(const std::function<void(const Asset&)>& callback);
+	
+	EG_API void AssetCommandCompletionProvider(console::CompletionsList& list, const std::type_index* assetType = nullptr);
 }
