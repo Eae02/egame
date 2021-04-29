@@ -113,7 +113,7 @@ target_include_directories(EGame SYSTEM
 		${CMAKE_CURRENT_SOURCE_DIR}/Inc
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/volk
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/src
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/include
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/utfcpp/source
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vulkan-headers/include
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross
