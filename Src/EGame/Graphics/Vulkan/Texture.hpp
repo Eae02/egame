@@ -4,6 +4,8 @@
 
 #include "Common.hpp"
 
+#include <optional>
+
 namespace eg::graphics_api::vk
 {
 	VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspectFlags);

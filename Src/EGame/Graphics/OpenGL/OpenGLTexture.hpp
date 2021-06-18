@@ -3,6 +3,8 @@
 #include "GL.hpp"
 #include "../Format.hpp"
 
+#include <optional>
+
 namespace eg::graphics_api::gl
 {
 	struct TextureView

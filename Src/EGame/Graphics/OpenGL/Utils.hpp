@@ -4,6 +4,8 @@
 #include "../Format.hpp"
 #include "../Abstraction.hpp"
 
+#include <optional>
+
 namespace eg::graphics_api::gl
 {
 	GLenum TranslateFormat(Format format);

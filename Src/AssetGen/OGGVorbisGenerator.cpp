@@ -55,7 +55,7 @@ namespace eg::asset_gen
 				
 				if (info->channels == 1 && outputChannels == 2)
 				{
-					for (int i = 0; i < bytes / sizeof(int16_t); i++)
+					for (size_t i = 0; i < (size_t)bytes / sizeof(int16_t); i++)
 					{
 						samples.push_back(buffer[i]);
 						samples.push_back(buffer[i]);
@@ -63,7 +63,7 @@ namespace eg::asset_gen
 				}
 				else if (info->channels == 2 && outputChannels == 1)
 				{
-					for (int i = 0; i < bytes / (2 * sizeof(int16_t)); i++)
+					for (size_t i = 0; i < (size_t)bytes / (2 * sizeof(int16_t)); i++)
 					{
 						samples.push_back(((int32_t)buffer[i * 2 + 1] + (int32_t)buffer[i * 2]) / 2);
 					}

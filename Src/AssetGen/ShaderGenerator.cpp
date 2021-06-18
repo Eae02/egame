@@ -130,7 +130,7 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			};
 			
 			std::string stageNameStr = stageNode.as<std::string>();
-			for (const std::pair<std::string_view, EShLanguage> stageName : stageNames)
+			for (const std::pair<std::string_view, EShLanguage>& stageName : stageNames)
 			{
 				if (StringEqualCaseInsensitive(stageNameStr, stageName.first))
 				{
@@ -175,7 +175,7 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 				{ ".tese.glsl", EShLangTessEvaluation }
 			};
 			
-			for (const std::pair<std::string_view, EShLanguage> stageExtension : stageExtensions)
+			for (const std::pair<std::string_view, EShLanguage>& stageExtension : stageExtensions)
 			{
 				if (StringEndsWith(sourcePath, stageExtension.first))
 				{

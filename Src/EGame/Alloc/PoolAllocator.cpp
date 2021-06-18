@@ -1,4 +1,5 @@
 #include "PoolAllocator.hpp"
+#include <cstddef>
 
 namespace eg
 {

@@ -6,6 +6,7 @@
 
 #include <yaml-cpp/yaml.h>
 #include <sstream>
+#include <optional>
 
 namespace eg
 {

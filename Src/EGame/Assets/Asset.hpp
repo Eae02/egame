@@ -4,6 +4,7 @@
 #include <atomic>
 #include <typeindex>
 #include <istream>
+#include <optional>
 #include <functional>
 
 #include "../Alloc/LinearAllocator.hpp"
