@@ -43,13 +43,18 @@ namespace eg
 		if (!visible)
 			return;
 		
-		float minX = screenWidth * 0.75f;
+		float paneWidth = std::max(screenWidth * 0.25f, 400.0f);;
+		float minX = screenWidth - paneWidth;
 		float minY = screenHeight * 0.05f;
 		float maxY = screenHeight * 0.95f;
 		
-		eg::Rectangle paneRect(minX, minY, screenWidth - minX, maxY - minY);
+		eg::Rectangle paneRect(minX, minY, paneWidth, maxY - minY);
 		spriteBatch.DrawRect(paneRect, ColorLin(ColorSRGB(0.2f, 0.2f, 0.25f, 0.75f)));
+		spriteBatch.PushScissor(paneRect.x, paneRect.y, paneRect.w, paneRect.h);
 		
+		float timeBarWidth = paneWidth * 0.25f;
+		
+		const float TIME_BAR_HEIGHT = 6;
 		const float PADDING = 10;
 		const float INDENT = 15;
 		
@@ -62,8 +67,11 @@ namespace eg
 		};
 		StepY(1);
 		
+		const eg::ColorLin BAR_COLOR = eg::ColorLin(1.0f, 0.25f, 0.25f, 0.8f);
+		
 		auto DrawTimers = [&] (ProfilingResults::TimerCursor cursor)
 		{
+			std::optional<float> frameTime;
 			while (!cursor.AtEnd())
 			{
 				float labelX = minX + PADDING + INDENT * cursor.CurrentDepth() + 5.0f;
@@ -71,15 +79,28 @@ namespace eg
 				
 				char valueBuffer[40];
 				snprintf(valueBuffer, sizeof(valueBuffer), "%.2f ms", cursor.CurrentValue() * 1E-6f);
-				
 				glm::vec2 valueExt = font.GetTextExtents(valueBuffer);
 				
 				spriteBatch.DrawText(font, valueBuffer, glm::vec2(screenWidth - valueExt.x - PADDING, y),
 					eg::ColorLin(1, 1, 1, 1.0f));
 				
-				cursor.Step();
+				if (frameTime.has_value())
+				{
+					float barRectMaxX = screenWidth - std::max(valueExt.x + PADDING, 80.0f);
+					eg::Rectangle barRectBack(barRectMaxX - timeBarWidth, y + 5, timeBarWidth, TIME_BAR_HEIGHT);
+					spriteBatch.DrawRect(barRectBack, BAR_COLOR.ScaleRGB(0.5f).ScaleAlpha(0.2f));
+					float barWidth = timeBarWidth * glm::clamp(cursor.CurrentValue() / *frameTime, 0.0f, 1.0f);
+					eg::Rectangle barRectFront(barRectMaxX - barWidth, y + 6, barWidth - 1, TIME_BAR_HEIGHT - 2);
+					spriteBatch.DrawRect(barRectFront, BAR_COLOR);
+				}
+				else
+				{
+					frameTime = cursor.CurrentValue();
+				}
 				
 				StepY(1.1f);
+				
+				cursor.Step();
 			}
 		};
 		
@@ -112,6 +133,13 @@ namespace eg
 		spriteBatch.DrawText(font, "GPU Timers:", glm::vec2(minX + PADDING, y), eg::ColorLin(1, 1, 1, 1));
 		StepY(1.2f);
 		DrawTimers(m_lastResult.GetGPUTimerCursor());
+		
+		spriteBatch.PopScissor();
+		
+		if (!m_timerGraphs.empty())
+		{
+			
+		}
 	}
 	
 	int ProfilerPane::FindTimerHistory(std::string_view name, bool isGPU) const
