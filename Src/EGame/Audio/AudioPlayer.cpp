@@ -49,7 +49,6 @@ namespace eg
 		m_sources[index].pitch    = pitch;
 		m_sources[index].parity   = nextParity++;
 		
-		alGenSources(1, &m_sources[index].handle.handle);
 		alSourcei(m_sources[index].handle.handle, AL_BUFFER, clip.m_id);
 		alSourcei(m_sources[index].handle.handle, AL_LOOPING, eg::HasFlag(flags, AudioPlaybackFlags::Loop));
 		UpdateVolume(index);
