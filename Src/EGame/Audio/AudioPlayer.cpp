@@ -1,6 +1,5 @@
 #include "AudioPlayer.hpp"
-#include <al.h>
-#include <alc.h>
+#include "OpenALLoader.hpp"
 #include <atomic>
 
 namespace eg
@@ -12,7 +11,7 @@ namespace eg
 	AudioPlayer::AudioSourceHandle::AudioSourceHandle()
 	{
 		if (alInitialized)
-			alGenSources(1, &handle);
+			al::GenSources(1, &handle);
 		null = false;
 	}
 	
@@ -20,7 +19,7 @@ namespace eg
 	{
 		if (!null && alInitialized)
 		{
-			alDeleteSources(1, &handle);
+			al::DeleteSources(1, &handle);
 			null = true;
 		}
 	}
@@ -35,7 +34,7 @@ namespace eg
 		{
 			if (m_sources[index].parity == 0) break;
 			ALint state;
-			alGetSourcei(m_sources[index].handle.handle, AL_SOURCE_STATE, &state);
+			al::GetSourcei(m_sources[index].handle.handle, AL_SOURCE_STATE, &state);
 			if (state == AL_STOPPED)
 			{
 				m_sources[index] = {};
@@ -49,18 +48,18 @@ namespace eg
 		m_sources[index].pitch    = pitch;
 		m_sources[index].parity   = nextParity++;
 		
-		alSourcei(m_sources[index].handle.handle, AL_BUFFER, clip.m_id);
-		alSourcei(m_sources[index].handle.handle, AL_LOOPING, eg::HasFlag(flags, AudioPlaybackFlags::Loop));
+		al::Sourcei(m_sources[index].handle.handle, AL_BUFFER, clip.m_id);
+		al::Sourcei(m_sources[index].handle.handle, AL_LOOPING, eg::HasFlag(flags, AudioPlaybackFlags::Loop));
 		UpdateVolume(index);
 		UpdatePitch(index);
 		
-		alSourcei(m_sources[index].handle.handle, AL_SOURCE_RELATIVE, p == nullptr);
+		al::Sourcei(m_sources[index].handle.handle, AL_SOURCE_RELATIVE, p == nullptr);
 		if (p != nullptr)
 			SetLocationParameters(index, *p);
 		
 		if (!eg::HasFlag(flags, AudioPlaybackFlags::StartPaused))
 		{
-			alSourcePlay(m_sources[index].handle.handle);
+			al::SourcePlay(m_sources[index].handle.handle);
 		}
 		
 		AudioPlaybackHandle handle;
@@ -73,21 +72,27 @@ namespace eg
 	void AudioPlayer::UpdateVolume(uint32_t index) const
 	{
 		if (alInitialized)
-			alSourcef(m_sources[index].handle.handle, AL_GAIN, m_globalVolume * m_sources[index].volume);
+		{
+			al::Sourcef(m_sources[index].handle.handle, AL_GAIN, m_globalVolume * m_sources[index].volume);
+		}
 	}
 	
 	void AudioPlayer::UpdatePitch(uint32_t index) const
 	{
 		if (alInitialized)
-			alSourcef(m_sources[index].handle.handle, AL_PITCH, m_globalPitch * m_sources[index].pitch);
+		{
+			al::Sourcef(m_sources[index].handle.handle, AL_PITCH, m_globalPitch * m_sources[index].pitch);
+		}
 	}
 	
 	void AudioPlayer::SetLocationParameters(uint32_t index, const AudioLocationParameters& p)
 	{
-		if (!alInitialized) return;
-		alSource3f(m_sources[index].handle.handle, AL_POSITION, p.position.x, p.position.y, p.position.z);
-		alSource3f(m_sources[index].handle.handle, AL_VELOCITY, p.velocity.x, p.velocity.y, p.velocity.z);
-		alSource3f(m_sources[index].handle.handle, AL_DIRECTION, p.direction.x, p.direction.y, p.direction.z);
+		if (alInitialized)
+		{
+			al::Source3f(m_sources[index].handle.handle, AL_POSITION, p.position.x, p.position.y, p.position.z);
+			al::Source3f(m_sources[index].handle.handle, AL_VELOCITY, p.velocity.x, p.velocity.y, p.velocity.z);
+			al::Source3f(m_sources[index].handle.handle, AL_DIRECTION, p.direction.x, p.direction.y, p.direction.z);
+		}
 	}
 	
 	void AudioPlayer::Stop(const AudioPlaybackHandle& handle)
@@ -100,12 +105,12 @@ namespace eg
 	
 	void AudioPlayer::Pause(const AudioPlaybackHandle& handle)
 	{
-		if (CheckHandle(handle) && alInitialized) alSourcePause(handle.handle);
+		if (CheckHandle(handle) && alInitialized) al::SourcePause(handle.handle);
 	}
 	
 	void AudioPlayer::Resume(const AudioPlaybackHandle& handle)
 	{
-		if (CheckHandle(handle) && alInitialized) alSourcePlay(handle.handle);
+		if (CheckHandle(handle) && alInitialized) al::SourcePlay(handle.handle);
 	}
 	
 	bool AudioPlayer::IsStopped(const AudioPlaybackHandle& handle) const
@@ -113,7 +118,7 @@ namespace eg
 		if (!CheckHandle(handle) || !alInitialized)
 			return true;
 		ALint state;
-		alGetSourcei(handle.handle, AL_SOURCE_STATE, &state);
+		al::GetSourcei(handle.handle, AL_SOURCE_STATE, &state);
 		return state == AL_STOPPED;
 	}
 	
@@ -122,7 +127,7 @@ namespace eg
 		if (!CheckHandle(handle) || !alInitialized)
 			return false;
 		ALint state;
-		alGetSourcei(handle.handle, AL_SOURCE_STATE, &state);
+		al::GetSourcei(handle.handle, AL_SOURCE_STATE, &state);
 		return state == AL_PAUSED;
 	}
 	
@@ -181,14 +186,17 @@ namespace eg
 		if (alInitialized)
 			return true;
 		
-		alDevice = alcOpenDevice(nullptr);
+		if (!al::LoadOpenAL())
+			return false;
+		
+		alDevice = al::OpenDevice(nullptr);
 		if (alDevice == nullptr)
 			return false;
 		
-		alContext = alcCreateContext(alDevice, nullptr);
+		alContext = al::CreateContext(alDevice, nullptr);
 		if (alContext == nullptr)
 			return false;
-		alcMakeContextCurrent(alContext);
+		al::MakeContextCurrent(alContext);
 		
 		alInitialized = true;
 		return true;
@@ -198,8 +206,8 @@ namespace eg
 	{
 		if (!alInitialized) return;
 		
-		alListener3f(AL_POSITION, locParameters.position.x, locParameters.position.y, locParameters.position.z);
-		alListener3f(AL_VELOCITY, locParameters.velocity.x, locParameters.velocity.y, locParameters.velocity.z);
+		al::Listener3f(AL_POSITION, locParameters.position.x, locParameters.position.y, locParameters.position.z);
+		al::Listener3f(AL_VELOCITY, locParameters.velocity.x, locParameters.velocity.y, locParameters.velocity.z);
 		
 		const float ori[6] = 
 		{
@@ -210,18 +218,18 @@ namespace eg
 			up.y,
 			up.z,
 		};
-		alListenerfv(AL_ORIENTATION, ori);
+		al::Listenerfv(AL_ORIENTATION, ori);
 	}
 	
 	void SetMasterVolume(float volume)
 	{
 		if (!alInitialized) return;
-		alListenerf(AL_GAIN, volume);
+		al::Listenerf(AL_GAIN, volume);
 	}
 	
 	void SetMasterPitch(float pitch)
 	{
 		if (!alInitialized) return;
-		alListenerf(AL_PITCH, pitch);
+		al::Listenerf(AL_PITCH, pitch);
 	}
 }

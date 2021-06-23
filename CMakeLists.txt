@@ -47,7 +47,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		${SDL2_LIBRARIES}
 		${ZLIB_LIBRARIES}
 		${CMAKE_DL_LIBS}
-		${OPENAL_LIBRARY}
 	)
 	
 	target_include_directories(EGame PRIVATE

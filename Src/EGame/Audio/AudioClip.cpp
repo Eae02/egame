@@ -1,5 +1,5 @@
 #include "AudioClip.hpp"
-#include <al.h>
+#include "OpenALLoader.hpp"
 
 namespace eg
 {
@@ -10,8 +10,8 @@ namespace eg
 	{
 		if (alInitialized)
 		{
-			alGenBuffers(1, &m_id);
-			alBufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(), data.SizeBytes(), frequency);
+			al::GenBuffers(1, &m_id);
+			al::BufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(), data.SizeBytes(), frequency);
 		}
 	}
 	
@@ -36,7 +36,7 @@ namespace eg
 	{
 		if (!m_isNull && alInitialized)
 		{
-			alDeleteBuffers(1, &m_id);
+			al::DeleteBuffers(1, &m_id);
 			m_isNull = true;
 		}
 	}
