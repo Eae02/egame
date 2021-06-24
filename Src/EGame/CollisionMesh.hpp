@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Span.hpp"
 #include "SIMD.hpp"
 #include "AABB.hpp"
 
 #include <algorithm>
 #include <cstdint>
+#include <span>
 
 namespace eg
 {
@@ -49,7 +49,7 @@ namespace eg
 		}
 		
 		template <typename V, typename I>
-		static CollisionMesh Create(Span<const V> vertices, Span<const I> indices)
+		static CollisionMesh Create(std::span<const V> vertices, std::span<const I> indices)
 		{
 			CollisionMesh mesh(vertices.size(), indices.size());
 			std::copy(indices.begin(), indices.end(), mesh.m_indices);
@@ -67,7 +67,7 @@ namespace eg
 		}
 		
 		template <typename I>
-		static CollisionMesh CreateV3(Span<const glm::vec3> vertices, Span<const I> indices)
+		static CollisionMesh CreateV3(std::span<const glm::vec3> vertices, std::span<const I> indices)
 		{
 			CollisionMesh mesh(vertices.size(), indices.size());
 			std::copy(indices.begin(), indices.end(), mesh.m_indices);
@@ -84,7 +84,7 @@ namespace eg
 			return mesh;
 		}
 		
-		static CollisionMesh Join(Span<const CollisionMesh> meshes);
+		static CollisionMesh Join(std::span<const CollisionMesh> meshes);
 		
 		void Transform(const glm::mat4& transform);
 		

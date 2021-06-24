@@ -3,7 +3,7 @@
 namespace eg
 {
 	FramebufferHandle ScreenRenderTexture::GetFramebuffer(
-		ScreenRenderTexture* depthTexture, Span<ScreenRenderTexture*> otherColorTextures)
+		ScreenRenderTexture* depthTexture, std::span<ScreenRenderTexture*> otherColorTextures)
 	{
 		PrepareTexture();
 		uint32_t generationSum = m_generation;

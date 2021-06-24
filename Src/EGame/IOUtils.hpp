@@ -1,7 +1,11 @@
 #pragma once
 
-#include "Span.hpp"
 #include "API.hpp"
+
+#include <cstddef>
+#include <streambuf>
+#include <span>
+#include <vector>
 
 namespace eg
 {
@@ -24,7 +28,7 @@ namespace eg
 			setg(m_begin, m_begin, m_end);
 		}
 		
-		inline explicit MemoryStreambuf(Span<const char> data)
+		inline explicit MemoryStreambuf(std::span<const char> data)
 			: MemoryStreambuf(data.data(), data.data() + data.size()) { }
 		
 		virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir,

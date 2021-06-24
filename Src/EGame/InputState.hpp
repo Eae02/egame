@@ -6,7 +6,6 @@
 
 #include "Utils.hpp"
 #include "API.hpp"
-#include "Span.hpp"
 #include "Rectangle.hpp"
 
 namespace eg

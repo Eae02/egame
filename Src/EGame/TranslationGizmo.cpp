@@ -4,6 +4,7 @@
 #include "../Shaders/Build/Gizmo.fs.h"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <span>
 
 namespace eg
 {
@@ -56,9 +57,9 @@ namespace eg
 	}
 	
 	std::optional<float> RayIntersectGizmoMesh(const glm::mat4& worldMatrix, const Ray& ray,
-		Span<const float> vertices, Span<const uint16_t> indices)
+		std::span<const float> vertices, std::span<const uint16_t> indices)
 	{
-		glm::vec3* verticesWorld = reinterpret_cast<glm::vec3*>(alloca(vertices.SizeBytes()));
+		glm::vec3* verticesWorld = reinterpret_cast<glm::vec3*>(alloca(vertices.size_bytes()));
 		for (size_t i = 0; i < vertices.size() / 3; i++)
 		{
 			verticesWorld[i] = worldMatrix * glm::vec4(vertices[i * 3 + 0], vertices[i * 3 + 1], vertices[i * 3 + 2], 1.0f);

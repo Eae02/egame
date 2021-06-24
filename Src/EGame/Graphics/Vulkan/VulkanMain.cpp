@@ -332,7 +332,7 @@ namespace eg::graphics_api::vk
 	
 	static std::vector<std::string> okDeviceNames;
 	
-	Span<std::string> GetDeviceNames()
+	std::span<std::string> GetDeviceNames()
 	{
 		return okDeviceNames;
 	}

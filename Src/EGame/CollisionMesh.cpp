@@ -116,7 +116,7 @@ namespace eg
 		m_aabb.max = glm::vec3(max[0], max[1], max[2]);
 	}
 	
-	CollisionMesh CollisionMesh::Join(Span<const CollisionMesh> meshes)
+	CollisionMesh CollisionMesh::Join(std::span<const CollisionMesh> meshes)
 	{
 		CollisionMesh result;
 		for (const CollisionMesh& mesh : meshes)

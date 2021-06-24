@@ -247,7 +247,7 @@ namespace eg
 			
 			profilerPane = std::make_unique<ProfilerPane>();
 			
-			console::AddCommand("ppane", 0, [&] (Span<const std::string_view> args, console::Writer& writer)
+			console::AddCommand("ppane", 0, [&] (std::span<const std::string_view> args, console::Writer& writer)
 			{
 				bool visible = !profilerPane->visible;
 				if (args.size() == 1)
@@ -269,7 +269,7 @@ namespace eg
 		if (runConfig.initialize)
 			runConfig.initialize();
 		
-		console::AddCommand("modelInfo", 1, [&] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("modelInfo", 1, [&] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			const Model* model = eg::FindAsset<Model>(args[0]);
 			if (model == nullptr)
@@ -343,13 +343,13 @@ namespace eg
 			writer.WriteLine(console::InfoColorSpecial, totalTrianglesStr);
 		});
 		
-		console::SetCompletionProvider("modelInfo", 0, [] (eg::Span<const std::string_view> args, eg::console::CompletionsList& list)
+		console::SetCompletionProvider("modelInfo", 0, [] (std::span<const std::string_view> args, eg::console::CompletionsList& list)
 		{
 			std::type_index typeIndex(typeid(Model));
 			AssetCommandCompletionProvider(list, &typeIndex);
 		});
 		
-		console::AddCommand("gmem", 0, [&] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("gmem", 0, [&] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			if (gal::GetMemoryStat == nullptr)
 			{
@@ -373,7 +373,7 @@ namespace eg
 			}
 		});
 		
-		console::AddCommand("gpuinfo", 0, [&] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("gpuinfo", 0, [&] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			writer.Write(console::InfoColor, "GPU Name:   ");
 			writer.WriteLine(console::InfoColorSpecial, GetGraphicsDeviceInfo().deviceName);

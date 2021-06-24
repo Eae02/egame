@@ -44,7 +44,7 @@ namespace eg
 		
 		MemoryStreambuf streambuf(
 			loadContext.Data().data() + sizeof(SerializedParticleEmitter),
-			loadContext.Data().data() + loadContext.Data().SizeBytes());
+			loadContext.Data().data() + loadContext.Data().size_bytes());
 		std::istream stream(&streambuf);
 		
 		emitter.positionGenerator = ReadVec3Generator(sEmitter->positionGeneratorType, stream);

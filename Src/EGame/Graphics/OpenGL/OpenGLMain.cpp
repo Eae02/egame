@@ -114,7 +114,7 @@ namespace eg::graphics_api::gl
 	
 	static DepthRange depthRange = DepthRange::NegOneToOne;
 	
-	Span<std::string> GetDeviceNames()
+	std::span<std::string> GetDeviceNames()
 	{
 		return { &rendererName, 1 };
 	}

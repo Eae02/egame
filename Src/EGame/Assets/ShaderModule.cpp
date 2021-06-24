@@ -8,23 +8,23 @@ namespace eg
 	
 	bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 	{
-		size_t pos = 0;
-		
 		ShaderModuleAsset& result = context.CreateResult<ShaderModuleAsset>();
 		
-		const ShaderStage stage = (ShaderStage)context.Data().AtAs<const uint32_t>(pos + 0);
-		const uint32_t numVariants = context.Data().AtAs<const uint32_t>(pos + 4);
-		pos += 8;
+		const char* data = context.Data().data();
+		
+		const ShaderStage stage = (ShaderStage)reinterpret_cast<const uint32_t*>(data)[0];
+		const uint32_t numVariants = reinterpret_cast<const uint32_t*>(data)[1];
+		data += sizeof(uint32_t) * 2;
 		
 		for (uint32_t i = 0; i < numVariants; i++)
 		{
-			uint32_t variantHash = context.Data().AtAs<const uint32_t>(pos + 0);
-			uint32_t codeSize = context.Data().AtAs<const uint32_t>(pos + 4);
-			Span<const char> code(context.Data().data() + pos + 8, codeSize);
+			uint32_t variantHash = reinterpret_cast<const uint32_t*>(data)[0];
+			uint32_t codeSize    = reinterpret_cast<const uint32_t*>(data)[1];
+			data += sizeof(uint32_t) * 2;
 			
-			result.m_variants.emplace_back(variantHash, stage, code);
+			result.m_variants.emplace_back(variantHash, stage, std::span<const char>(data, codeSize));
 			
-			pos += 8 + codeSize;
+			data += codeSize;
 		}
 		
 		return true;

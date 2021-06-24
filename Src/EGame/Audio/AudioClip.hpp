@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../API.hpp"
-#include "../Span.hpp"
 
+#include <span>
 #include <memory>
 #include <cstdint>
 
@@ -13,7 +13,7 @@ namespace eg
 	public:
 		friend class AudioPlayer;
 		
-		AudioClip(Span<const int16_t> data, bool isStereo, uint64_t frequency);
+		AudioClip(std::span<const int16_t> data, bool isStereo, uint64_t frequency);
 		~AudioClip() { Destroy(); }
 		
 		AudioClip(AudioClip&& other);

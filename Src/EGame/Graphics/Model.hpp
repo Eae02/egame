@@ -3,7 +3,6 @@
 #include "AbstractionHL.hpp"
 #include "StdVertex.hpp"
 #include "../CollisionMesh.hpp"
-#include "../Span.hpp"
 #include "../API.hpp"
 #include "../Ray.hpp"
 #include "../Sphere.hpp"
@@ -20,8 +19,8 @@ namespace eg
 	template <typename V, typename I>
 	struct MeshData
 	{
-		Span<V> vertices;
-		Span<I> indices;
+		std::span<V> vertices;
+		std::span<I> indices;
 	};
 	
 	class EG_API Model
@@ -82,8 +81,8 @@ namespace eg
 			}
 			
 			MeshData<const V, const I> data;
-			data.vertices = Span<const V>(static_cast<const V*>(m_meshes[index].memory.get()), m_meshes[index].numVertices);
-			data.indices = Span<const I>(static_cast<const I*>(m_meshes[index].indices), m_meshes[index].numIndices);
+			data.vertices = std::span<const V>(static_cast<const V*>(m_meshes[index].memory.get()), m_meshes[index].numVertices);
+			data.indices = std::span<const I>(static_cast<const I*>(m_meshes[index].indices), m_meshes[index].numIndices);
 			return data;
 		}
 		
@@ -215,8 +214,8 @@ namespace eg
 				std::move(name), access, materialIndex, boundingSphere, boundingAABB);
 			
 			MeshData<V, I> data;
-			data.vertices = Span<V>(reinterpret_cast<V*>(vertices), numVertices);
-			data.indices = Span<I>(reinterpret_cast<I*>(indices), numIndices);
+			data.vertices = std::span<V>(reinterpret_cast<V*>(vertices), numVertices);
+			data.indices = std::span<I>(reinterpret_cast<I*>(indices), numIndices);
 			return data;
 		}
 		
@@ -229,6 +228,6 @@ namespace eg
 		ModelBuilderUnformatted m_builder;
 	};
 	
-	EG_API void GenerateTangents(Span<const uint32_t> indices, size_t numVertices, const glm::vec3* positions,
+	EG_API void GenerateTangents(std::span<const uint32_t> indices, size_t numVertices, const glm::vec3* positions,
 		const glm::vec2* texCoords, const glm::vec3* normals, glm::vec3* tangentsOut);
 }

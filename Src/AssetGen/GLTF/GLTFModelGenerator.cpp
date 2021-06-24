@@ -8,6 +8,7 @@
 #include "GLTFData.hpp"
 
 #include <fstream>
+#include <span>
 #include <nlohmann/json.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -359,8 +360,8 @@ namespace eg::asset_gen::gltf
 			}*/
 		}
 		
-		mesh.boundingSphere = eg::Sphere::CreateEnclosing(eg::Span<const glm::vec3>(points.get(), numVertices));
-		mesh.boundingBox = eg::AABB::CreateEnclosing(eg::Span<const glm::vec3>(points.get(), numVertices));
+		mesh.boundingSphere = eg::Sphere::CreateEnclosing(std::span<const glm::vec3>(points.get(), numVertices));
+		mesh.boundingBox = eg::AABB::CreateEnclosing(std::span<const glm::vec3>(points.get(), numVertices));
 		
 		return mesh;
 	}

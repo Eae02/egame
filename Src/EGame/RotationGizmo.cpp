@@ -2,6 +2,9 @@
 #include "Plane.hpp"
 #include "Ray.hpp"
 
+#include <span>
+#include <optional>
+
 namespace eg
 {
 	extern float TORUS_VERTICES[360];
@@ -28,7 +31,7 @@ namespace eg
 	}
 	
 	std::optional<float> RayIntersectGizmoMesh(const glm::mat4& worldMatrix, const Ray& ray,
-		Span<const float> vertices, Span<const uint16_t> indices);
+		std::span<const float> vertices, std::span<const uint16_t> indices);
 	
 	void DrawGizmoAxis(int axis, int currentAxis, int hoveredAxis, uint32_t numIndices, const glm::mat4& transform);
 	

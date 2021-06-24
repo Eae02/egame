@@ -97,11 +97,11 @@ namespace eg
 	public:
 		ShaderModule() = default;
 		
-		ShaderModule(ShaderStage stage, Span<const char> code)
+		ShaderModule(ShaderStage stage, std::span<const char> code)
 			: m_handle(gal::CreateShaderModule(stage, code)) { }
 		
-		ShaderModule(ShaderStage stage, Span<const uint32_t> code)
-			: m_handle(gal::CreateShaderModule(stage, { reinterpret_cast<const char*>(code.data()), code.SizeBytes() })) { }
+		ShaderModule(ShaderStage stage, std::span<const uint32_t> code)
+			: m_handle(gal::CreateShaderModule(stage, { reinterpret_cast<const char*>(code.data()), code.size_bytes() })) { }
 		
 		static ShaderModule CreateFromFile(const std::string& path);
 		
@@ -183,10 +183,10 @@ namespace eg
 	EG_API UploadBuffer GetTemporaryUploadBuffer(uint64_t size, uint64_t alignment = 1);
 	
 	template <typename T>
-	UploadBuffer GetTemporaryUploadBufferWith(eg::Span<const T> data, uint64_t alignment = 1)
+	UploadBuffer GetTemporaryUploadBufferWith(std::span<const T> data, uint64_t alignment = 1)
 	{
-		UploadBuffer buffer = GetTemporaryUploadBuffer(data.SizeBytes(), alignment);
-		std::memcpy(buffer.Map(), data.data(), data.SizeBytes());
+		UploadBuffer buffer = GetTemporaryUploadBuffer(data.size_bytes(), alignment);
+		std::memcpy(buffer.Map(), data.data(), data.size_bytes());
 		buffer.Flush();
 		return buffer;
 	}
@@ -387,14 +387,14 @@ namespace eg
 			handle = gal::CreateFramebuffer(createInfo);
 		}
 		
-		Framebuffer(Span<const FramebufferAttachment> colorAttachments)
+		Framebuffer(std::span<const FramebufferAttachment> colorAttachments)
 		{
 			FramebufferCreateInfo ci;
 			ci.colorAttachments = colorAttachments;
 			handle = gal::CreateFramebuffer(ci);
 		}
 		
-		Framebuffer(Span<const FramebufferAttachment> colorAttachments, const FramebufferAttachment& depthStencilAttachment)
+		Framebuffer(std::span<const FramebufferAttachment> colorAttachments, const FramebufferAttachment& depthStencilAttachment)
 		{
 			FramebufferCreateInfo ci;
 			ci.colorAttachments = colorAttachments;
@@ -480,7 +480,7 @@ namespace eg
 			handle = gal::CreateDescriptorSetP(pipeline.handle, set);
 		}
 		
-		explicit DescriptorSet(Span<const DescriptorSetBinding> bindings)
+		explicit DescriptorSet(std::span<const DescriptorSetBinding> bindings)
 		{
 			handle = gal::CreateDescriptorSetB(bindings);
 		}

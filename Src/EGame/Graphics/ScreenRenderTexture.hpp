@@ -21,7 +21,7 @@ namespace eg
 		
 		FramebufferHandle GetFramebuffer(
 			ScreenRenderTexture* depthTexture = nullptr,
-			Span<ScreenRenderTexture*> otherColorTextures = { });
+			std::span<ScreenRenderTexture*> otherColorTextures = { });
 		
 		eg::TextureFlags textureFlags = eg::TextureFlags::FramebufferAttachment | eg::TextureFlags::ShaderSample;
 		Format format = Format::Undefined;

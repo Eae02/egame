@@ -11,7 +11,7 @@ namespace eg
 	}
 	
 	bool WriteImageToStream(std::ostream& stream, WriteImageFormat format,
-		uint32_t width, uint32_t height, uint32_t components, Span<const char> data, int jpgQuality)
+		uint32_t width, uint32_t height, uint32_t components, std::span<const char> data, int jpgQuality)
 	{
 		switch (format)
 		{

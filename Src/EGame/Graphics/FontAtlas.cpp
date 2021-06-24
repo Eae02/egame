@@ -81,8 +81,8 @@ namespace eg
 	}
 #endif
 	
-	std::optional<FontAtlas> FontAtlas::Render(Span<const char> data, uint32_t size,
-		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
+	std::optional<FontAtlas> FontAtlas::Render(std::span<const char> data, uint32_t size,
+		std::span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
 #ifdef EG_NO_FREETYPE
 		return { };
@@ -92,14 +92,14 @@ namespace eg
 		
 		FT_Face face;
 		FT_Error loadState = ft::New_Memory_Face(ftLibrary, reinterpret_cast<const FT_Byte*>(data.data()),
-			data.SizeBytes(), 0, &face);
+			data.size_bytes(), 0, &face);
 		
 		return RenderFreeType(face, loadState, "memory", size, glyphRanges, atlasWidth, atlasHeight);
 #endif
 	}
 	
 	std::optional<FontAtlas> FontAtlas::Render(const std::string& fontPath, uint32_t size,
-		Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
+		std::span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
 #ifdef EG_NO_FREETYPE
 		return { };
@@ -116,7 +116,7 @@ namespace eg
 	
 #ifndef EG_NO_FREETYPE
 	std::optional<FontAtlas> FontAtlas::RenderFreeType(void* faceVP, int loadState, std::string_view fontName,
-		uint32_t size, Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
+		uint32_t size, std::span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight)
 	{
 		if (loadState != 0)
 		{
@@ -415,7 +415,7 @@ namespace eg
 		return atlas;
 	}
 	
-	std::optional<FontAtlas> FontAtlas::FromFNTMemory(Span<const char> fntData, Span<const char> imgData)
+	std::optional<FontAtlas> FontAtlas::FromFNTMemory(std::span<const char> fntData, std::span<const char> imgData)
 	{
 		size_t curDataPos = 0;
 		std::string_view dataStr(fntData.data(), fntData.size());

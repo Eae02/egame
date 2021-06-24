@@ -30,7 +30,7 @@ namespace eg
 			uint32_t hash;
 			ShaderModule shaderModule;
 			
-			Variant(uint32_t _hash, ShaderStage stage, Span<const char> code)
+			Variant(uint32_t _hash, ShaderStage stage, std::span<const char> code)
 				: hash(_hash), shaderModule(stage, code) { }
 			
 			bool operator<(const Variant& other) const

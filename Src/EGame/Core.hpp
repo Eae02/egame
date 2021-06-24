@@ -5,6 +5,7 @@
 #include "Graphics/Format.hpp"
 #include "InputState.hpp"
 
+#include <span>
 #include <memory>
 
 namespace eg
@@ -81,7 +82,7 @@ namespace eg
 		return detail::frameIndex;
 	}
 	
-	inline Span<const FullscreenDisplayMode> FullscreenDisplayModes()
+	inline std::span<const FullscreenDisplayMode> FullscreenDisplayModes()
 	{
 		return detail::fullscreenDisplayModes;
 	}

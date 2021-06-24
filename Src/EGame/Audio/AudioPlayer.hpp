@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AudioClip.hpp"
+#include "../Utils.hpp"
+#include "../API.hpp"
 
 #include <glm/vec3.hpp>
 

@@ -6,7 +6,6 @@
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
-#include "../../Span.hpp"
 #include "../../Log.hpp"
 
 #include <atomic>

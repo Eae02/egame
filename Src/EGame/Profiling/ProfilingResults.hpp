@@ -1,7 +1,10 @@
 #pragma once
 
 #include "../API.hpp"
-#include "../Span.hpp"
+
+#include <span>
+#include <string>
+#include <vector>
 
 namespace eg
 {
@@ -54,10 +57,10 @@ namespace eg
 		private:
 			friend class ProfilingResults;
 			
-			explicit TimerCursor(Span<const Timer> timers)
+			explicit TimerCursor(std::span<const Timer> timers)
 				: m_timers(timers), m_index(0) { }
 			
-			Span<const Timer> m_timers;
+			std::span<const Timer> m_timers;
 			int m_index;
 		};
 		

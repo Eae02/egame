@@ -3,8 +3,8 @@
 #include <functional>
 #include <mutex>
 #include <typeindex>
+#include <span>
 
-#include "Span.hpp"
 #include "Utils.hpp"
 #include "Alloc/LinearAllocator.hpp"
 #include "Graphics/SpriteBatch.hpp"
@@ -26,9 +26,9 @@ namespace eg::console
 		std::vector<std::string>* m_completions;
 	};
 	
-	using CommandCallbackOld = std::function<void(Span<const std::string_view>)>;
-	using CommandCallback = std::function<void(Span<const std::string_view>, class Writer&)>;
-	using CompletionProviderCallback = std::function<void(Span<const std::string_view> prevWords, CompletionsList& list)>;
+	using CommandCallbackOld = std::function<void(std::span<const std::string_view>)>;
+	using CommandCallback = std::function<void(std::span<const std::string_view>, class Writer&)>;
+	using CompletionProviderCallback = std::function<void(std::span<const std::string_view> prevWords, CompletionsList& list)>;
 	
 	EG_API extern const ColorLin InfoColor;
 	EG_API extern const ColorLin InfoColorSpecial;

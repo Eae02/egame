@@ -40,7 +40,7 @@ namespace eg
 		return &*it;
 	}
 	
-	Asset* LoadAsset(const AssetLoader& loader, std::string_view dirPath, Span<const char> data, Asset* asset)
+	Asset* LoadAsset(const AssetLoader& loader, std::string_view dirPath, std::span<const char> data, Asset* asset)
 	{
 		AssetLoadContext context(asset, dirPath, data);
 		if (!loader.callback(context))

@@ -1,7 +1,8 @@
 #pragma once
 
 #include "API.hpp"
-#include "Span.hpp"
+
+#include <span>
 
 namespace eg
 {
@@ -11,5 +12,5 @@ namespace eg
 		void* _data;
 	};
 	
-	EG_API Span<const GameController> GameControllers();
+	EG_API std::span<const GameController> GameControllers();
 }

@@ -5,6 +5,8 @@
 #include "../API.hpp"
 #include "../IOUtils.hpp"
 
+#include <span>
+
 namespace eg
 {
 	EG_API extern const AssetFormat ModelAssetFormat;
@@ -42,10 +44,10 @@ namespace eg
 			BinWrite(*m_stream, V::Name.hash);
 		}
 		
-		void WriteMesh(Span<const V> vertices, Span<const uint32_t> indices, std::string_view name,
+		void WriteMesh(std::span<const V> vertices, std::span<const uint32_t> indices, std::string_view name,
 			MeshAccess access, const Sphere& boundingSphere, const AABB& boundingBox, std::string_view materialName = { })
 		{
-			if (vertices.Empty() || indices.Empty())
+			if (vertices.empty() || indices.empty())
 				EG_PANIC("Attempted to write an empty mesh.");
 			
 			BinWrite<uint32_t>(*m_stream, vertices.size());
@@ -63,8 +65,8 @@ namespace eg
 			BinWrite<float>(*m_stream, boundingBox.max.x);
 			BinWrite<float>(*m_stream, boundingBox.max.y);
 			BinWrite<float>(*m_stream, boundingBox.max.z);
-			m_stream->write(reinterpret_cast<const char*>(vertices.data()), vertices.SizeBytes());
-			m_stream->write(reinterpret_cast<const char*>(indices.data()), indices.SizeBytes());
+			m_stream->write(reinterpret_cast<const char*>(vertices.data()), vertices.size_bytes());
+			m_stream->write(reinterpret_cast<const char*>(indices.data()), indices.size_bytes());
 		}
 		
 		void End()

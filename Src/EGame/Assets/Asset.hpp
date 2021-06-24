@@ -8,7 +8,6 @@
 #include <functional>
 
 #include "../Alloc/LinearAllocator.hpp"
-#include "../Span.hpp"
 #include "../API.hpp"
 #include "../Utils.hpp"
 

@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <regex>
+#include <span>
 #include <unordered_set>
 
 namespace eg
@@ -488,15 +489,14 @@ namespace eg
 		stream.close();
 		
 		size_t dataPos = 0;
-		Span<char> dataSpan(uncompressedData.get(), uncompressedDataSize);
 		
 		auto NextString = [&]
 		{
-			uint16_t nameLen = dataSpan.AtAs<uint16_t>(dataPos);
+			uint16_t nameLen = reinterpret_cast<const uint16_t*>(uncompressedData.get())[dataPos];
 			dataPos += sizeof(uint16_t);
-			if (dataPos + nameLen > dataSpan.size())
+			if (dataPos + nameLen > uncompressedDataSize)
 				EG_PANIC("Corrupt EAP");
-			std::string_view str(dataSpan.data() + dataPos, nameLen);
+			std::string_view str(uncompressedData.get() + dataPos, nameLen);
 			dataPos += nameLen;
 			return str;
 		};
@@ -515,8 +515,8 @@ namespace eg
 			}
 			
 			//Checks that the format version is supported by the loader
-			const uint32_t formatNameHash = dataSpan.AtAs<uint32_t>(dataPos);
-			const uint32_t formatVersion = dataSpan.AtAs<uint32_t>(dataPos + sizeof(uint32_t));
+			const uint32_t formatNameHash = reinterpret_cast<const uint32_t*>(uncompressedData.get())[dataPos];
+			const uint32_t formatVersion = reinterpret_cast<const uint32_t*>(uncompressedData.get())[dataPos + 1];
 			if (formatNameHash != loader->format->nameHash || formatVersion != loader->format->version)
 			{
 				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' uses a format not supported by it's loader ({1})",
@@ -526,11 +526,11 @@ namespace eg
 			dataPos += sizeof(uint32_t) * 2;
 			
 			//Reads the asset's data section
-			uint32_t dataBytes = dataSpan.AtAs<uint32_t>(dataPos);
+			uint32_t dataBytes = reinterpret_cast<const uint32_t*>(uncompressedData.get())[dataPos];
 			dataPos += sizeof(uint32_t);
-			if (dataPos + dataBytes > dataSpan.size())
+			if (dataPos + dataBytes > uncompressedDataSize)
 				EG_PANIC("Corrupt EAP");
-			Span<char> data(dataSpan.data() + dataPos, dataBytes);
+			std::span<char> data(uncompressedData.get() + dataPos, dataBytes);
 			dataPos += dataBytes;
 			
 			//Loads the asset

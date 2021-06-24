@@ -48,8 +48,8 @@ namespace eg
 			return;
 		
 		if (std::optional<FontAtlas> atlas = FontAtlas::FromFNTMemory(
-			Span<const char>(reinterpret_cast<const char*>(DevFont_fnt), DevFont_fnt_len),
-			Span<const char>(reinterpret_cast<const char*>(DevFont_png), DevFont_png_len)))
+			std::span<const char>(reinterpret_cast<const char*>(DevFont_fnt), DevFont_fnt_len),
+			std::span<const char>(reinterpret_cast<const char*>(DevFont_png), DevFont_png_len)))
 		{
 			s_devFont = std::make_unique<SpriteFont>(std::move(*atlas));
 		}

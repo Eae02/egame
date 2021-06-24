@@ -3,7 +3,6 @@
 #include <glm/glm.hpp>
 
 #include "API.hpp"
-#include "Span.hpp"
 #include "AABB.hpp"
 
 namespace eg

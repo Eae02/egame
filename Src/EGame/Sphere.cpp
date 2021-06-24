@@ -3,9 +3,9 @@
 
 namespace eg
 {
-	Sphere Sphere::CreateEnclosing(Span<const Sphere> spheres)
+	Sphere Sphere::CreateEnclosing(std::span<const Sphere> spheres)
 	{
-		if (spheres.Empty())
+		if (spheres.empty())
 			return Sphere();
 		
 		glm::vec3 minPos = spheres[0].position - glm::vec3(spheres[0].radius);
@@ -37,7 +37,7 @@ namespace eg
 		return Sphere(sphereCenter, std::sqrt(maxDistToSphereSq) + spheres[furthestSphereIndex].radius);
 	}
 	
-	glm::vec3 FurthestFrom(Span<const glm::vec3> points, const glm::vec3& p)
+	glm::vec3 FurthestFrom(std::span<const glm::vec3> points, const glm::vec3& p)
 	{
 		float maxDist = 0;
 		glm::vec3 ret = p;
@@ -53,9 +53,9 @@ namespace eg
 		return ret;
 	}
 	
-	Sphere Sphere::CreateEnclosing(Span<const glm::vec3> positions)
+	Sphere Sphere::CreateEnclosing(std::span<const glm::vec3> positions)
 	{
-		if (positions.Empty())
+		if (positions.empty())
 			return {};
 		glm::vec3 p1 = FurthestFrom(positions, positions[0]);
 		glm::vec3 p2 = FurthestFrom(positions, p1);

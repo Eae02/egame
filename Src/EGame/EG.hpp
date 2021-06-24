@@ -35,7 +35,6 @@
 #include "TranslationGizmo.hpp"
 #include "RotationGizmo.hpp"
 #include "MainThreadInvoke.hpp"
-#include "Span.hpp"
 #include "Span2.hpp"
 #include "Rectangle.hpp"
 #include "Utils.hpp"

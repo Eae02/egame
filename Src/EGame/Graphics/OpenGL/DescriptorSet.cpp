@@ -48,7 +48,7 @@ namespace eg::graphics_api::gl
 		return CreateDescriptorSet(pipeline->sets[set].maxBinding);
 	}
 	
-	DescriptorSetHandle CreateDescriptorSetB(Span<const DescriptorSetBinding> bindings)
+	DescriptorSetHandle CreateDescriptorSetB(std::span<const DescriptorSetBinding> bindings)
 	{
 		uint32_t maxBinding = 0;
 		for (const DescriptorSetBinding& binding : bindings)

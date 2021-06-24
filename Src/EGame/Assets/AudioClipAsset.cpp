@@ -7,9 +7,9 @@ namespace eg
 	
 	bool AudioClipAssetLoader(const AssetLoadContext& loadContext)
 	{
-		const AudioClipAssetHeader& header = loadContext.Data().AtAs<const AudioClipAssetHeader>(0);
+		const AudioClipAssetHeader& header = *reinterpret_cast<const AudioClipAssetHeader*>(loadContext.Data().data());
 		
-		Span<const int16_t> sampleData(
+		std::span<const int16_t> sampleData(
 			reinterpret_cast<const int16_t*>(loadContext.Data().data() + sizeof(AudioClipAssetHeader)),
 			header.samples
 		);

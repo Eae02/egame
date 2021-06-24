@@ -1,7 +1,9 @@
 #pragma once
 
 #include "API.hpp"
-#include "Span.hpp"
+
+#include <glm/glm.hpp>
+#include <span>
 
 namespace eg
 {
@@ -20,7 +22,7 @@ namespace eg
 			return Contains(aabb.min) && Contains(aabb.max);
 		}
 		
-		static AABB CreateEnclosing(Span<const glm::vec3> positions);
+		static AABB CreateEnclosing(std::span<const glm::vec3> positions);
 		
 		inline glm::vec3 Center() const
 		{ return (min + max) / 2.0f; }

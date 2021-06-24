@@ -7,7 +7,7 @@ namespace eg::graphics_api::gl
 {
 	static ConcurrentObjectPool<ShaderModule> shaderModulePool;
 	
-	ShaderModuleHandle CreateShaderModule(ShaderStage stage, Span<const char> code)
+	ShaderModuleHandle CreateShaderModule(ShaderStage stage, std::span<const char> code)
 	{
 		ShaderModule* module = shaderModulePool.New();
 		module->stage = stage;

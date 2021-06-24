@@ -62,9 +62,9 @@ namespace eg
 		return other;
 	}
 	
-	AABB AABB::CreateEnclosing(Span<const glm::vec3> positions)
+	AABB AABB::CreateEnclosing(std::span<const glm::vec3> positions)
 	{
-		if (positions.Empty())
+		if (positions.empty())
 			return {};
 		AABB aabb;
 		aabb.min = aabb.max = positions[0];

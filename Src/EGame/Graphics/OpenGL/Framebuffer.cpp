@@ -139,7 +139,7 @@ namespace eg::graphics_api::gl
 			framebuffer->hasDepth = true;
 		}
 		
-		if (!createInfo.colorAttachments.Empty())
+		if (!createInfo.colorAttachments.empty())
 		{
 			glDrawBuffers((GLsizei)createInfo.colorAttachments.size(),
 				drawBuffers);

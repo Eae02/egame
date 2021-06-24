@@ -325,7 +325,7 @@ namespace eg
 					}
 					else
 					{
-						Span<const std::string_view> args(ctx->commandParts.data() + 1, ctx->commandParts.size() - 1);
+						std::span<const std::string_view> args(ctx->commandParts.data() + 1, ctx->commandParts.size() - 1);
 						std::string linePrefix = Concat({ ctx->commandParts[0], " " });
 						Writer writer(linePrefix, 0.75f);
 						cmd->callback(args, writer);
@@ -464,7 +464,7 @@ namespace eg
 	
 	void console::AddCommand(std::string_view name, int minArgs, console::CommandCallbackOld callback)
 	{
-		AddCommand(name, minArgs, [callbackInner=std::move(callback)] (Span<const std::string_view> args, class Writer&)
+		AddCommand(name, minArgs, [callbackInner=std::move(callback)] (std::span<const std::string_view> args, class Writer&)
 		{
 			callbackInner(args);
 		});
@@ -554,7 +554,7 @@ namespace eg
 		return &std::get<std::string>(var->value);
 	}
 	
-	void TweakCommandsCompletionProvider(Span<const std::string_view> prevWords, console::CompletionsList& list)
+	void TweakCommandsCompletionProvider(std::span<const std::string_view> prevWords, console::CompletionsList& list)
 	{
 		if (!eg::DevMode())
 			return;
@@ -586,7 +586,7 @@ namespace eg
 	
 	static void RegisterTweakCommands()
 	{
-		console::AddCommand("set", 2, [] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("set", 2, [] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			TweakVar* var = FindTweakVarOrPrintError(args[0]);
 			if (var == nullptr)
@@ -623,7 +623,7 @@ namespace eg
 		});
 		console::SetCompletionProvider("set", 0, TweakCommandsCompletionProvider);
 		
-		console::AddCommand("get", 1, [] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("get", 1, [] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			if (TweakVar* var = FindTweakVarOrPrintError(args[0]))
 			{
@@ -638,7 +638,7 @@ namespace eg
 		});
 		console::SetCompletionProvider("get", 0, TweakCommandsCompletionProvider);
 		
-		console::AddCommand("setinit", 1, [] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("setinit", 1, [] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			if (TweakVar* var = FindTweakVarOrPrintError(args[0]))
 			{
@@ -655,7 +655,7 @@ namespace eg
 		});
 		console::SetCompletionProvider("setinit", 0, TweakCommandsCompletionProvider);
 		
-		console::AddCommand("toggle", 1, [] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("toggle", 1, [] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			if (TweakVar* var = FindTweakVarOrPrintError(args[0]))
 			{
@@ -670,7 +670,7 @@ namespace eg
 				}
 			}
 		});
-		console::SetCompletionProvider("toggle", 0, [] (Span<const std::string_view> prevWords, console::CompletionsList& list)
+		console::SetCompletionProvider("toggle", 0, [] (std::span<const std::string_view> prevWords, console::CompletionsList& list)
 		{
 			if (!eg::DevMode())
 				return;
@@ -683,7 +683,7 @@ namespace eg
 			}
 		});
 		
-		console::AddCommand("lsvar", 0, [] (Span<const std::string_view> args, console::Writer& writer)
+		console::AddCommand("lsvar", 0, [] (std::span<const std::string_view> args, console::Writer& writer)
 		{
 			if (tweakVars.empty() || !eg::DevMode())
 			{

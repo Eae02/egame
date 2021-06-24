@@ -3,8 +3,8 @@
 #include "AABB.hpp"
 #include "Ray.hpp"
 #include "API.hpp"
-#include "Span.hpp"
 
+#include <span>
 #include <glm/gtx/norm.hpp>
 
 namespace eg
@@ -17,9 +17,9 @@ namespace eg
 		inline Sphere(const glm::vec3& pos, float rad)
 		    : position(pos), radius(rad) { }
 		
-		static Sphere CreateEnclosing(Span<const Sphere> spheres);
+		static Sphere CreateEnclosing(std::span<const Sphere> spheres);
 		
-		static Sphere CreateEnclosing(Span<const glm::vec3> positions);
+		static Sphere CreateEnclosing(std::span<const glm::vec3> positions);
 		
 		static Sphere CreateEnclosing(const AABB& box);
 		

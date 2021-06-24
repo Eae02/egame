@@ -68,7 +68,7 @@ namespace eg::graphics_api::vk
 		return WrapDescriptorSet(ds);
 	}
 	
-	DescriptorSetHandle CreateDescriptorSetB(Span<const DescriptorSetBinding> bindings)
+	DescriptorSetHandle CreateDescriptorSetB(std::span<const DescriptorSetBinding> bindings)
 	{
 		std::vector<VkDescriptorSetLayoutBinding> vkBindings(bindings.size());
 		uint32_t maxBinding = 0;

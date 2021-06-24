@@ -4,9 +4,9 @@
 #include "Format.hpp"
 #include "../Utils.hpp"
 #include "../Color.hpp"
-#include "../Span.hpp"
 #include "../Log.hpp"
 
+#include <span>
 #include <tuple>
 
 struct SDL_Window;
@@ -264,7 +264,7 @@ namespace eg
 	{
 		ShaderModuleHandle shaderModule;
 		
-		Span<const SpecializationConstantEntry> specConstants;
+		std::span<const SpecializationConstantEntry> specConstants;
 		size_t specConstantsDataSize = 0;
 		void* specConstantsData = nullptr;
 		
@@ -606,9 +606,9 @@ namespace eg
 	
 	struct FramebufferCreateInfo
 	{
-		Span<const FramebufferAttachment> colorAttachments;
+		std::span<const FramebufferAttachment> colorAttachments;
 		FramebufferAttachment depthStencilAttachment;
-		Span<const FramebufferAttachment> colorResolveAttachments;
+		std::span<const FramebufferAttachment> colorResolveAttachments;
 		FramebufferAttachment depthStencilResolveAttachment;
 		const char* label = nullptr;
 	};

@@ -27,7 +27,7 @@ namespace eg::graphics_api::vk
 		VK_SHADER_STAGE_COMPUTE_BIT
 	};
 	
-	ShaderModuleHandle CreateShaderModule(ShaderStage stage, Span<const char> code)
+	ShaderModuleHandle CreateShaderModule(ShaderStage stage, std::span<const char> code)
 	{
 		ShaderModule* module = shaderModulesPool.New();
 		module->ref = 1;

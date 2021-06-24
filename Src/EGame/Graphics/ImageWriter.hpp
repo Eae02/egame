@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../Span.hpp"
 #include "AbstractionHL.hpp"
 
+#include <span>
 #include <ostream>
 
 namespace eg
@@ -16,6 +16,6 @@ namespace eg
 	};
 	
 	EG_API bool WriteImageToStream(std::ostream& stream, WriteImageFormat format,
-		uint32_t width, uint32_t height, uint32_t components, Span<const char> data,
+		uint32_t width, uint32_t height, uint32_t components, std::span<const char> data,
 		int jpgQuality = 80);
 }

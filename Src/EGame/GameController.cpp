@@ -7,7 +7,9 @@ namespace eg
 	void LoadGameControllers() { }
 }
 #else
+
 #include <SDL.h>
+#include <vector>
 
 namespace eg
 {

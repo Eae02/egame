@@ -1,9 +1,9 @@
 #pragma once
 
 #include "../API.hpp"
-#include "../Span.hpp"
 #include "../Utils.hpp"
 
+#include <span>
 #include <optional>
 #include <vector>
 
@@ -77,7 +77,7 @@ namespace eg
 		 * @return The rendered font atlas, or none if an error occurred.
 		 */
 		static std::optional<FontAtlas> Render(const std::string& fontPath, uint32_t size,
-			Span<const GlyphRange> glyphRanges, int atlasWidth = -1, int atlasHeight = -1);
+			std::span<const GlyphRange> glyphRanges, int atlasWidth = -1, int atlasHeight = -1);
 		
 		/**
 		 * Creates an atlas by rendering a font file stored in memory.
@@ -90,8 +90,8 @@ namespace eg
 		 * @param atlasHeight Hint for the height of the output atlas.
 		 * @return The rendered font atlas, or none if an error occurred.
 		 */
-		static std::optional<FontAtlas> Render(Span<const char> data, uint32_t size,
-			Span<const GlyphRange> glyphRanges, int atlasWidth = -1, int atlasHeight = -1);
+		static std::optional<FontAtlas> Render(std::span<const char> data, uint32_t size,
+			std::span<const GlyphRange> glyphRanges, int atlasWidth = -1, int atlasHeight = -1);
 		
 		/**
 		 * Creates a font atlas from an FNT file.
@@ -100,7 +100,7 @@ namespace eg
 		 */
 		static std::optional<FontAtlas> FromFNT(const std::string& path);
 		
-		static std::optional<FontAtlas> FromFNTMemory(Span<const char> fntData, Span<const char> imgData);
+		static std::optional<FontAtlas> FromFNTMemory(std::span<const char> fntData, std::span<const char> imgData);
 		
 		void Serialize(std::ostream& stream) const;
 		static FontAtlas Deserialize(std::istream& stream);
@@ -157,7 +157,7 @@ namespace eg
 		static std::optional<FontAtlas> FromFNTInternal(ReadLineCB readLineCB, LoadImageCB loadImage, std::string_view name);
 		
 		static std::optional<FontAtlas> RenderFreeType(void* face, int loadState, std::string_view fontName,
-			uint32_t size, Span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight);
+			uint32_t size, std::span<const GlyphRange> glyphRanges, int atlasWidth, int atlasHeight);
 		
 		int m_size;
 		float m_lineHeight;

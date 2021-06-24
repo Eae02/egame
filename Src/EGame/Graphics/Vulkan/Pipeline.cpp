@@ -73,7 +73,7 @@ namespace eg::graphics_api::vk
 		createInfo.pName = "main";
 		createInfo.stage = stage;
 		
-		if (!stageInfo.specConstants.Empty())
+		if (!stageInfo.specConstants.empty())
 		{
 			VkSpecializationInfo* specInfo = linAllocator.New<VkSpecializationInfo>();
 			specInfo->dataSize = stageInfo.specConstantsDataSize;
@@ -85,7 +85,7 @@ namespace eg::graphics_api::vk
 			
 			auto* mapEntries = linAllocator.AllocateArray<VkSpecializationMapEntry>(stageInfo.specConstants.size());
 			specInfo->pMapEntries = mapEntries;
-			std::memcpy(mapEntries, stageInfo.specConstants.data(), stageInfo.specConstants.SizeBytes());
+			std::memcpy(mapEntries, stageInfo.specConstants.data(), stageInfo.specConstants.size_bytes());
 			
 			createInfo.pSpecializationInfo = specInfo;
 		}

@@ -401,7 +401,7 @@ namespace eg::asset_gen
 		BinWrite(stream, (uint32_t)m_width);
 		BinWrite(stream, (uint32_t)m_height);
 		
-		for (Span<const uint8_t> data : m_data)
+		for (std::span<const uint8_t> data : m_data)
 		{
 			stream.write(reinterpret_cast<const char*>(data.data()), data.size());
 		}

@@ -2,9 +2,9 @@
 
 #include "../EGame/Graphics/Format.hpp"
 #include "../EGame/Utils.hpp"
-#include "../EGame/Span.hpp"
 #include "../EGame/Assets/Texture2DLoader.hpp"
 
+#include <span>
 #include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
@@ -62,6 +62,6 @@ namespace eg::asset_gen
 		
 		std::vector<std::unique_ptr<uint8_t, FreeDel>> m_freeDelUP;
 		
-		std::vector<Span<const uint8_t>> m_data;
+		std::vector<std::span<const uint8_t>> m_data;
 	};
 }
