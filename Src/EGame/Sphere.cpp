@@ -59,7 +59,7 @@ namespace eg
 			return {};
 		glm::vec3 p1 = FurthestFrom(positions, positions[0]);
 		glm::vec3 p2 = FurthestFrom(positions, p1);
-		return Sphere((p1 + p2) / 2.0f, glm::distance(p1, p2) / 2.0);
+		return Sphere((p1 + p2) / 2.0f, glm::distance(p1, p2) / 2.0f);
 	}
 	
 	Sphere Sphere::CreateEnclosing(const AABB& box)

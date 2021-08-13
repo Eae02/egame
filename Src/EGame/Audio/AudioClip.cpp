@@ -11,7 +11,8 @@ namespace eg
 		if (alInitialized)
 		{
 			al::GenBuffers(1, &m_id);
-			al::BufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(), data.size_bytes(), frequency);
+			al::BufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(),
+			               (ALsizei)data.size_bytes(), (ALsizei)frequency);
 		}
 	}
 	

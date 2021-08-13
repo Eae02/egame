@@ -88,7 +88,7 @@ namespace eg::graphics_api::vk
 		{
 			for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
 			{
-				module->pushConstantBytes = std::max<uint32_t>(module->pushConstantBytes, range.offset + range.range);
+				module->pushConstantBytes = std::max(module->pushConstantBytes, (uint32_t)(range.offset + range.range));
 			}
 		}
 		

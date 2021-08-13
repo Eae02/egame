@@ -100,8 +100,8 @@ namespace eg::graphics_api::vk
 		
 		//Processes color attachments
 		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
-		rpDescription.numColorAttachments = createInfo.colorAttachments.size();
-		for (uint32_t i = 0; i < createInfo.colorAttachments.size(); i++)
+		rpDescription.numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
+		for (size_t i = 0; i < createInfo.colorAttachments.size(); i++)
 		{
 			framebuffer->colorAttachments[i] = ProcessAttachment(createInfo.colorAttachments[i],
 				rpDescription.colorAttachments[i].format);
@@ -109,9 +109,9 @@ namespace eg::graphics_api::vk
 		}
 		
 		//Processes color resolve attachments
-		rpDescription.numResolveColorAttachments = createInfo.colorResolveAttachments.size();
+		rpDescription.numResolveColorAttachments = (uint32_t)createInfo.colorResolveAttachments.size();
 		std::fill_n(framebuffer->resolveColorAttachments, MAX_COLOR_ATTACHMENTS, nullptr);
-		for (uint32_t i = 0; i < createInfo.colorResolveAttachments.size(); i++)
+		for (size_t i = 0; i < createInfo.colorResolveAttachments.size(); i++)
 		{
 			if (createInfo.colorResolveAttachments[i].texture != nullptr)
 			{
@@ -361,7 +361,7 @@ namespace eg::graphics_api::vk
 		ctxState.framebufferW = extent.width;
 		ctxState.framebufferH = extent.height;
 		
-		SetViewport(cc, 0, 0, extent.width, extent.height);
+		SetViewport(cc, 0.0f, 0.0f, (float)extent.width, (float)extent.height);
 		SetScissor(cc, 0, 0, extent.width, extent.height);
 	}
 	

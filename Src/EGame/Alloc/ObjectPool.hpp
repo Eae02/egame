@@ -50,7 +50,7 @@ namespace eg
 					{
 						if ((page->inUse[o] & (1 << b)) == 0)
 						{
-							page->inUse[o] |= 1 << b;
+							page->inUse[o] |= (uint8_t)(1 << b);
 							return page->objects + (o * 8 + b);
 						}
 					}
@@ -84,7 +84,7 @@ namespace eg
 				if (t >= page->objects && t < page->objects + page->size)
 				{
 					const size_t idx = static_cast<size_t>(t - page->objects);
-					page->inUse[idx / 8] &= ~InUseMask(idx);
+					page->inUse[idx / 8] &= (uint8_t)~InUseMask(idx);
 					return;
 				}
 			}

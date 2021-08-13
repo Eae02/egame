@@ -9,12 +9,12 @@ namespace eg
 {
 	std::vector<std::string> GetStackTrace()
 	{
-		std::array<void*, 128> trace;
+		std::array<void*, 128> trace = {};
 		size_t traceSize = backtrace(trace.data(), trace.size());
 		if (traceSize == 0)
 			return { };
 		
-		char** traceSybmols = backtrace_symbols(trace.data(), traceSize);
+		char** traceSybmols = backtrace_symbols(trace.data(), (int)traceSize);
 		if (traceSybmols == nullptr)
 			return { };
 		

@@ -8,7 +8,7 @@ namespace eg
 	void TextEdit::InsertText(std::string_view text)
 	{
 		m_data.insert(m_data.begin() + m_cursorPos, text.begin(), text.end());
-		m_cursorPos += text.size();
+		m_cursorPos += (int)text.size();
 		m_cursorBlinkProgress = 0;
 	}
 	
@@ -110,8 +110,8 @@ namespace eg
 		
 		if (m_wasEnabled)
 		{
-			float fontH = m_font->Size() * m_fontScale;
-			TextInputActive(eg::Rectangle(cursorX, CurrentResolutionY() - position.y, 100, fontH));
+			float fontH = (float)m_font->Size() * m_fontScale;
+			TextInputActive(eg::Rectangle((float)cursorX, (float)CurrentResolutionY() - position.y, 100.0f, fontH));
 		}
 		
 		if (m_cursorBlinkProgress < 1)
@@ -119,7 +119,7 @@ namespace eg
 			const float CURSOR_EXTRA_H = 2;
 			
 			spriteBatch.DrawLine(glm::vec2(cursorX, position.y - CURSOR_EXTRA_H),
-				glm::vec2(cursorX, position.y + m_font->Size() * m_fontScale + CURSOR_EXTRA_H), color);
+				glm::vec2(cursorX, position.y + (float)m_font->Size() * m_fontScale + CURSOR_EXTRA_H), color);
 		}
 	}
 }

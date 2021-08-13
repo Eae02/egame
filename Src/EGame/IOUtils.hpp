@@ -1,6 +1,7 @@
 #pragma once
 
 #include "API.hpp"
+#include "Utils.hpp"
 
 #include <cstddef>
 #include <streambuf>
@@ -50,7 +51,9 @@ namespace eg
 	template <typename StreamTp>
 	inline void BinWriteString(StreamTp& stream, std::string_view string)
 	{
-		BinWrite<uint16_t>(stream, string.size());
+		if (string.size() > UINT16_MAX)
+			EG_PANIC("String passed to BinWriteString was too long");
+		BinWrite<uint16_t>(stream, (uint16_t)string.size());
 		stream.write(string.data(), string.size());
 	}
 	

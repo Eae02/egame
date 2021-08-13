@@ -42,8 +42,8 @@ namespace eg
 		
 	private:
 		void _AddModelMesh(const class Model& model, size_t meshIndex, const IMaterial& material,
-			const void* data, size_t dataSize, float order, const std::type_info& instanceDataType);
-		void _Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data, size_t dataSize,
+			const void* data, uint32_t dataSize, float order, const std::type_info& instanceDataType);
+		void _Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data, uint32_t dataSize,
 			float order, const std::type_info& instanceDataType);
 		
 		struct Instance

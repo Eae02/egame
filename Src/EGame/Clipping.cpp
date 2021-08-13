@@ -5,7 +5,7 @@ namespace eg
 {
 	inline bool IsZero(float x)
 	{
-		return abs(x) < 1E-5f;
+		return std::abs(x) < 1E-5f;
 	}
 	
 	float SweepPointToPlane(const glm::vec3& point, const glm::vec3& move, const Plane& plane)

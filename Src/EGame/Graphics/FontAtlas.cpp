@@ -152,7 +152,7 @@ namespace eg
 			ft::Done_Face(face);
 			return {};
 		}
-		atlas.m_spaceAdvance = face->glyph->advance.x / 64.0f;
+		atlas.m_spaceAdvance = (float)face->glyph->advance.x / 64.0f;
 		
 		std::vector<stbrp_rect> rectangles;
 		std::vector<std::unique_ptr<uint8_t[]>> bitmapCopies;
@@ -182,7 +182,7 @@ namespace eg
 			character.height = (uint16_t)face->glyph->bitmap.rows;
 			character.xOffset = face->glyph->bitmap_left;
 			character.yOffset = face->glyph->bitmap_top;
-			character.xAdvance = face->glyph->advance.x / 64.0f;
+			character.xAdvance = (float)face->glyph->advance.x / 64.0f;
 			
 			rectangle.w = character.width + PADDING;
 			rectangle.h = character.height + PADDING;
@@ -243,8 +243,8 @@ namespace eg
 		for (const stbrp_rect& rectangle : rectangles)
 		{
 			Character& character = atlas.m_characters[rectangle.id];
-			character.textureX = rectangle.x + PADDING / 2;
-			character.textureY = rectangle.y + PADDING / 2;
+			character.textureX = (uint16_t)rectangle.x + PADDING / 2;
+			character.textureY = (uint16_t)rectangle.y + PADDING / 2;
 			
 			uint8_t* bitmapCopy = bitmapCopies[rectangle.id].get();
 			for (uint32_t r = 0; r < character.height; r++)
@@ -315,7 +315,7 @@ namespace eg
 			
 			if (IsCommand("common"))
 			{
-				atlas.m_lineHeight = GetPartValueI("lineHeight");
+				atlas.m_lineHeight = (float)GetPartValueI("lineHeight");
 				atlas.m_size = GetPartValueI("base");
 				
 				if (atlas.m_lineHeight == INT_MIN || atlas.m_size == INT_MIN)
@@ -368,7 +368,7 @@ namespace eg
 				
 				if (id == ' ')
 				{
-					atlas.m_spaceAdvance = xAdvance;
+					atlas.m_spaceAdvance = (float)xAdvance;
 					continue;
 				}
 				
@@ -379,8 +379,8 @@ namespace eg
 				character.width = (uint16_t)width;
 				character.height = (uint16_t)height;
 				character.xOffset = xOffset;
-				character.yOffset = atlas.m_lineHeight - yOffset;
-				character.xAdvance = xAdvance;
+				character.yOffset = (int)atlas.m_lineHeight - yOffset;
+				character.xAdvance = (float)xAdvance;
 			}
 			else if (IsCommand("kerning"))
 			{
@@ -439,7 +439,7 @@ namespace eg
 			},
 			[&] (const std::string& imageName, struct AtlasData& data)
 			{
-				data.data = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(imgData.data()), imgData.size(),
+				data.data = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(imgData.data()), (int)imgData.size(),
 					reinterpret_cast<int*>(&data.width), reinterpret_cast<int*>(&data.height), nullptr, 1);
 				
 				if (data.data == nullptr)
@@ -532,7 +532,7 @@ namespace eg
 			
 			const int kerning = GetKerning(prev, c);
 			
-			x += fontChar.xAdvance + kerning;
+			x += fontChar.xAdvance + (float)kerning;
 			extentsY = std::max(extentsY, fontChar.height);
 		}
 		
@@ -568,7 +568,7 @@ namespace eg
 			
 			const int kerning = GetKerning(prev, c);
 			
-			x += GetCharacterOrDefault(c).xAdvance + kerning;
+			x += GetCharacterOrDefault(c).xAdvance + (float)kerning;
 			if (x > maxWidth && lastBreak != -1)
 			{
 				if (!result.empty())

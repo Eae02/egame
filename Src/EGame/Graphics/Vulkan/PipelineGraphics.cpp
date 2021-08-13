@@ -420,7 +420,7 @@ namespace eg::graphics_api::vk
 		{
 			std::ostringstream msgStream;
 			msgStream << "Creating pipeline on demand stalled CPU for " <<
-				std::setprecision(2) << (elapsed * 1E-6) << "ms.";
+				std::setprecision(2) << ((double)elapsed * 1E-6) << "ms.";
 			
 			if (!pipeline.label.empty())
 				msgStream << " Label of affected pipeline: '" << pipeline.label << "'.";

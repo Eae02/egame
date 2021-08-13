@@ -147,11 +147,11 @@ namespace eg
 		{
 			for (int y = 0; y < 2; y++)
 			{
-				const float u = (texRectangle.x + uOffsets[x]) / texture.Width();
-				const float v = (texRectangle.y + vOffsets[y]) / texture.Height();
+				const float u = (texRectangle.x + uOffsets[x]) / (float)texture.Width();
+				const float v = (texRectangle.y + vOffsets[y]) / (float)texture.Height();
 				
-				const float offX = texRectangle.w * x - origin.x;
-				const float offY = -(texRectangle.h * y - origin.y);
+				const float offX = texRectangle.w * (float)x - origin.x;
+				const float offY = -(texRectangle.h * (float)y - origin.y);
 				const float rOffX = offX * cosR - offY * sinR;
 				const float rOffY = offX * sinR + offY * cosR;
 				
@@ -179,9 +179,10 @@ namespace eg
 		{
 			for (int y = 0; y < 2; y++)
 			{
-				const float u = (texRectangle.x + uOffsets[x]) / texture.Width();
-				const float v = (texRectangle.y + vOffsets[y]) / texture.Height();
-				m_vertices.emplace_back(glm::vec2(rectangle.x + rectangle.w * x, rectangle.y + rectangle.h * y),
+				const float u = (texRectangle.x + uOffsets[x]) / (float)texture.Width();
+				const float v = (texRectangle.y + vOffsets[y]) / (float)texture.Height();
+				m_vertices.emplace_back(
+					glm::vec2(rectangle.x + rectangle.w * (float)x, rectangle.y + rectangle.h * (float)y),
 					glm::vec2(u, v), color, opacityScale);
 			}
 		}
@@ -206,7 +207,8 @@ namespace eg
 			{
 				const float u = uOffsets[x];
 				const float v = vOffsets[y];
-				m_vertices.emplace_back(glm::vec2(rectangle.x + rectangle.w * x, rectangle.y + rectangle.h * y),
+				m_vertices.emplace_back(
+					glm::vec2(rectangle.x + rectangle.w * (float)x, rectangle.y + rectangle.h * (float)y),
 					glm::vec2(u, v), color, opacityScale);
 			}
 		}
@@ -231,11 +233,11 @@ namespace eg
 		
 		for (int s = 0; s < 2; s++)
 		{
-			m_vertices.emplace_back(begin + dO * (width * (s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
+			m_vertices.emplace_back(begin + dO * (width * (float)(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
 		}
 		for (int s = 0; s < 2; s++)
 		{
-			m_vertices.emplace_back(end + dO * (width * (s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
+			m_vertices.emplace_back(end + dO * (width * (float)(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
 		}
 	}
 	
@@ -249,7 +251,8 @@ namespace eg
 		{
 			for (int y = 0; y < 2; y++)
 			{
-				m_vertices.emplace_back(glm::vec2(rectangle.x + rectangle.w * x, rectangle.y + rectangle.h * y),
+				m_vertices.emplace_back(
+					glm::vec2(rectangle.x + rectangle.w * (float)x, rectangle.y + rectangle.h * (float)y),
 					glm::vec2(0, 0), color, opacityScale);
 			}
 		}
@@ -313,8 +316,8 @@ namespace eg
 			const int kerning = font.GetKerning(prev, c);
 			
 			Rectangle rectangle;
-			rectangle.x = position.x + (x + fontChar.xOffset + kerning) * scale;
-			rectangle.y = position.y - (0 - fontChar.yOffset + fontChar.height) * scale;
+			rectangle.x = position.x + (x + (float)fontChar.xOffset + (float)kerning) * scale;
+			rectangle.y = position.y - (float)(0 - fontChar.yOffset + (int)fontChar.height) * scale;
 			rectangle.w = fontChar.width * scale;
 			rectangle.h = fontChar.height * scale;
 			
@@ -335,7 +338,7 @@ namespace eg
 			
 			Draw(font.Tex(), rectangle, *currentColor, srcRectangle, SpriteFlags::RedToAlpha);
 			
-			x += fontChar.xAdvance + kerning;
+			x += fontChar.xAdvance + (float)kerning;
 			sizeOut->y = std::max(sizeOut->y, rectangle.h);
 		}
 		
@@ -350,7 +353,7 @@ namespace eg
 		//Reallocates the vertex buffer if it's too small
 		if (m_vertexBufferCapacity < m_vertices.size())
 		{
-			m_vertexBufferCapacity = RoundToNextMultiple<uint32_t>(m_vertices.size(), 1024);
+			m_vertexBufferCapacity = RoundToNextMultiple((uint32_t)m_vertices.size(), 1024);
 			m_vertexBuffer = Buffer(BufferFlags::CopyDst | BufferFlags::VertexBuffer,
 				m_vertexBufferCapacity * sizeof(Vertex), nullptr);
 		}
@@ -358,7 +361,7 @@ namespace eg
 		//Reallocates the index buffer if it's too small
 		if (m_indexBufferCapacity < m_indices.size())
 		{
-			m_indexBufferCapacity = RoundToNextMultiple<uint32_t>(m_indices.size(), 1024);
+			m_indexBufferCapacity = RoundToNextMultiple((uint32_t)m_indices.size(), 1024);
 			m_indexBuffer = Buffer(BufferFlags::CopyDst | BufferFlags::IndexBuffer,
 				m_indexBufferCapacity * sizeof(uint32_t), nullptr);
 		}
@@ -417,9 +420,14 @@ namespace eg
 	void SpriteBatch::End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo)
 	{
 		glm::mat3 transform = glm::translate(glm::mat3(1), glm::vec2(-1)) *
-			glm::scale(glm::mat3(1), glm::vec2(2.0f / screenWidth, 2.0f / screenHeight));
+			glm::scale(glm::mat3(1), glm::vec2(2.0f / (float)screenWidth, 2.0f / (float)screenHeight));
 		
 		End(screenWidth, screenHeight, rpBeginInfo, transform);
+	}
+	
+	void SpriteBatch::PushScissorF(float x, float y, float width, float height)
+	{
+		PushScissor((int)std::round(x), (int)std::round(y), (int)std::ceil(width), (int)std::ceil(height));
 	}
 	
 	void SpriteBatch::PushScissor(int x, int y, int width, int height)

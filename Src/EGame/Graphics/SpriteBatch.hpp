@@ -37,6 +37,7 @@ namespace eg
 		void Begin();
 		
 		void PushScissor(int x, int y, int width, int height);
+		void PushScissorF(float x, float y, float width, float height);
 		
 		void PopScissor()
 		{

@@ -31,6 +31,8 @@ add_library(yaml-cpp STATIC ${YAML_SOURCE_FILES})
 add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
+target_compile_options(EGame PRIVATE -Wconversion)
+
 if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(ZLIB REQUIRED)
 	find_package(Threads REQUIRED)
@@ -58,7 +60,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	
 	if (NOT ${FREETYPE_FOUND})
 		message("Freetype not found, freetype loading will be disabled")
-		target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE)
+		target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE -Wconversion -Werror -fmax-errors=20)
 	else()
 		target_include_directories(EGame PRIVATE
 			${FREETYPE_INCLUDE_DIRS}

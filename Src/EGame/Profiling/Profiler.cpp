@@ -45,7 +45,7 @@ namespace eg
 	
 	CPUTimer Profiler::StartCPUTimer(std::string name)
 	{
-		size_t index = m_cpuTimers.size();
+		int index = (int)m_cpuTimers.size();
 		CPUTimerEntry& entry = m_cpuTimers.emplace_back();
 		entry.startTime = NanoTime();
 		entry.name = std::move(name);
@@ -73,11 +73,11 @@ namespace eg
 		TimerEntry& entry = m_gpuTimers.emplace_back();
 		entry.name = std::move(name);
 		entry.parentTimer = m_lastGPUTimer;
-		m_lastGPUTimer = index;
+		m_lastGPUTimer = (int)index;
 		
 		DC.WriteTimestamp(m_queryPools[poolIndex], (index % TIMERS_PER_POOL) * 2);
 		
-		return GPUTimer(this, index);
+		return GPUTimer(this, (int)index);
 	}
 	
 	template <typename T, typename GetTimeCB>
@@ -90,7 +90,7 @@ namespace eg
 		timer.totalChildren = 0;
 		timer.depth = depth;
 		timer.name = std::move(timersIn[rootTimer].name);
-		timer.timeNS = getTime(rootTimer);
+		timer.timeNS = (float)getTime(rootTimer);
 		
 		for (size_t i = 0; i < timersIn.size(); i++)
 		{
@@ -119,10 +119,10 @@ namespace eg
 	std::optional<ProfilingResults> Profiler::GetResults()
 	{
 		//Fetches timestamps from queries
-		const uint32_t numTimestamps = m_gpuTimers.size() * 2;
+		const uint32_t numTimestamps = (uint32_t)m_gpuTimers.size() * 2;
 		const uint32_t timestampBytes = numTimestamps * sizeof(uint64_t);
 		uint64_t* timestamps = reinterpret_cast<uint64_t*>(alloca(timestampBytes));
-		for (size_t i = 0; i * TIMERS_PER_POOL < m_gpuTimers.size(); i++)
+		for (uint32_t i = 0; i * TIMERS_PER_POOL < m_gpuTimers.size(); i++)
 		{
 			uint32_t firstTimestamp = i * QUERIES_PER_POOL;
 			uint32_t lastTimestamp = std::min<uint32_t>(numTimestamps, (i + 1) * QUERIES_PER_POOL);
@@ -148,7 +148,7 @@ namespace eg
 		
 		InitTimerTree(results.m_gpuTimers, m_gpuTimers, [&] (size_t i)
 		{
-			float elapsedNS = (timestamps[i * 2 + 1] - timestamps[i * 2]) * GetGraphicsDeviceInfo().timerTicksPerNS;
+			float elapsedNS = (float)(timestamps[i * 2 + 1] - timestamps[i * 2]) * GetGraphicsDeviceInfo().timerTicksPerNS;
 			return (int64_t)std::round(elapsedNS);
 		});
 		

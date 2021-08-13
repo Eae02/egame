@@ -263,8 +263,8 @@ namespace eg::asset_gen::gltf
 		const Accessor* normalAccessor   = TryGetAccessor("NORMAL", ElementType::VEC3);
 		const Accessor* texCoordAccessor = TryGetAccessor("TEXCOORD_0", ElementType::VEC2);
 		const Accessor* colorAccessor = TryGetAccessor("COLOR_0", ElementType::VEC4);
-		const Accessor* weightsAccessor  = TryGetAccessor("WEIGHTS_0", ElementType::VEC4);
-		const Accessor* jointsAccessor   = TryGetAccessor("JOINTS_0", ElementType::VEC4);
+		//const Accessor* weightsAccessor  = TryGetAccessor("WEIGHTS_0", ElementType::VEC4);
+		//const Accessor* jointsAccessor   = TryGetAccessor("JOINTS_0", ElementType::VEC4);
 		
 		//Checks required accessors
 		if (positionAccessor == nullptr || positionAccessor->componentType != ComponentType::Float)
@@ -280,8 +280,8 @@ namespace eg::asset_gen::gltf
 		const char* normalBuffer   = gltfData.GetAccessorData(*normalAccessor);
 		const char* texCoordBuffer = texCoordAccessor ? gltfData.GetAccessorData(*texCoordAccessor) : nullptr;
 		const char* colorBuffer = colorAccessor ? gltfData.GetAccessorData(*colorAccessor) : nullptr;
-		const char* weightsBuffer  = weightsAccessor ? gltfData.GetAccessorData(*weightsAccessor) : nullptr;
-		const char* jointsBuffer   = jointsAccessor ? gltfData.GetAccessorData(*jointsAccessor) : nullptr;
+		//const char* weightsBuffer  = weightsAccessor ? gltfData.GetAccessorData(*weightsAccessor) : nullptr;
+		//const char* jointsBuffer   = jointsAccessor ? gltfData.GetAccessorData(*jointsAccessor) : nullptr;
 		
 		//Reads vertices
 		mesh.vertices.resize(numVertices);

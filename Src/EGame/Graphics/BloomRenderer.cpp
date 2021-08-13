@@ -147,8 +147,8 @@ namespace eg
 			
 			const uint32_t outWidth = renderTarget.m_mainTexture.Width() >> l;
 			const uint32_t outHeight = renderTarget.m_mainTexture.Height() >> l;
-			const float pixelWidth = 1.0f / outWidth;
-			const float pixelHeight = 1.0f / outHeight;
+			const float pixelWidth = 1.0f / (float)outWidth;
+			const float pixelHeight = 1.0f / (float)outHeight;
 			
 			const float pc[] = { pixelWidth, 0.0f, pixelWidth, pixelHeight };
 			DC.PushConstants(0, sizeof(pc), pc);
@@ -174,8 +174,8 @@ namespace eg
 			
 			const uint32_t outWidth = renderTarget.m_mainTexture.Width() >> l;
 			const uint32_t outHeight = renderTarget.m_mainTexture.Height() >> l;
-			const float pixelWidth = 1.0f / outWidth;
-			const float pixelHeight = 1.0f / outHeight;
+			const float pixelWidth = 1.0f / (float)outWidth;
+			const float pixelHeight = 1.0f / (float)outHeight;
 			
 			const float pc[] = { 0.0f, pixelHeight, pixelWidth, pixelHeight };
 			DC.PushConstants(0, sizeof(pc), pc);
@@ -200,7 +200,7 @@ namespace eg
 			const uint32_t outWidth = renderTarget.m_mainTexture.Width() >> (l - 1);
 			const uint32_t outHeight = renderTarget.m_mainTexture.Height() >> (l - 1);
 			
-			const float pc[] = { 1.0f / outWidth, 1.0f / outHeight };
+			const float pc[] = { 1.0f / (float)outWidth, 1.0f / (float)outHeight };
 			DC.PushConstants(0, sizeof(pc), pc);
 			
 			Dispatch(outWidth, outHeight);

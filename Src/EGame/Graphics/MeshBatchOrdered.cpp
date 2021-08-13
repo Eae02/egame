@@ -36,7 +36,7 @@ namespace eg
 	}
 	
 	void MeshBatchOrdered::_AddModelMesh(const Model& model, size_t meshIndex, const IMaterial& material,
-			const void* data, size_t dataSize, float order, const std::type_info& instanceDataType)
+			const void* data, uint32_t dataSize, float order, const std::type_info& instanceDataType)
 	{
 		CheckRequirements(material, &instanceDataType);
 		
@@ -55,7 +55,7 @@ namespace eg
 	}
 	
 	void MeshBatchOrdered::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material, const void* data,
-			size_t dataSize, float order, const std::type_info& instanceDataType)
+	                            uint32_t dataSize, float order, const std::type_info& instanceDataType)
 	{
 		CheckRequirements(material, &instanceDataType);
 		

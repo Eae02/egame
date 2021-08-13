@@ -174,7 +174,7 @@ namespace eg
 		
 		void OnButtonDown(Button button)
 		{
-			m_isButtonDown[(int)button / 8] |= 1 << ((int)button % 8);
+			m_isButtonDown[(int)button / 8] |= (char)(1 << ((int)button % 8));
 			m_pressed = button;
 		}
 		
@@ -182,7 +182,7 @@ namespace eg
 		{
 			if (button == m_pressed)
 				m_pressed = Button::Unknown;
-			m_isButtonDown[(int)button / 8] &= ~(1 << ((int)button % 8));
+			m_isButtonDown[(int)button / 8] &= (char)~(1 << ((int)button % 8));
 		}
 		
 		void OnAxisMoved(ControllerAxis axis, float newValue)

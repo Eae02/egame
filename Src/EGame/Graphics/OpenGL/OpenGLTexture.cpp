@@ -78,7 +78,7 @@ namespace eg::graphics_api::gl
 		EG_UNREACHABLE
 	}
 	
-	inline float ClampMaxAnistropy(int _maxAnistropy)
+	inline int ClampMaxAnistropy(int _maxAnistropy)
 	{
 		return glm::clamp(_maxAnistropy, 1, maxAnistropy);
 	}
@@ -95,7 +95,7 @@ namespace eg::graphics_api::gl
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, TranslateWrapMode(description.wrapU));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, TranslateWrapMode(description.wrapV));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, TranslateWrapMode(description.wrapW));
-		glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, ClampMaxAnistropy(description.maxAnistropy));
+		glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)ClampMaxAnistropy(description.maxAnistropy));
 #ifndef EG_GLES
 		glSamplerParameterf(sampler, GL_TEXTURE_LOD_BIAS, description.mipLodBias);
 #endif
@@ -127,7 +127,7 @@ namespace eg::graphics_api::gl
 		glTexParameteri(textureType, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
 		glTexParameteri(textureType, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
 		glTexParameteri(textureType, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
-		glTexParameterf(textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT, ClampMaxAnistropy(samplerDesc.maxAnistropy));
+		glTexParameterf(textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)ClampMaxAnistropy(samplerDesc.maxAnistropy));
 		
 #ifndef __EMSCRIPTEN__
 		glTexParameterfv(textureType, GL_TEXTURE_BORDER_COLOR, borderColor.data());

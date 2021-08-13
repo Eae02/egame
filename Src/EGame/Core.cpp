@@ -76,7 +76,7 @@ namespace eg
 		auto frameBeginTime = high_resolution_clock::now();
 		
 		uint64_t deltaNS = duration_cast<nanoseconds>(frameBeginTime - lastFrameBeginTime).count();
-		dt = deltaNS / 1E9f;
+		dt = (float)deltaNS / 1E9f;
 		
 		*detail::previousIS = *detail::currentIS;
 		detail::currentIS->cursorDeltaX = 0;
@@ -360,7 +360,8 @@ namespace eg
 				GraphicsMemoryStat memStat = gal::GetMemoryStat();
 				
 				std::ostringstream amountUsedStream;
-				amountUsedStream << std::setprecision(2) << std::fixed << (memStat.allocatedBytes / (1024.0 * 1024.0));
+				amountUsedStream << std::setprecision(2) << std::fixed <<
+					((double)memStat.allocatedBytes / (1024.0 * 1024.0));
 				std::string amountUsedString = amountUsedStream.str();
 				
 				writer.Write(console::InfoColor, "Graphics memory info: ");

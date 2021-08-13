@@ -403,7 +403,7 @@ namespace eg
 				
 				std::ostringstream msg;
 				msg << "Generated asset '" << assetToLoad.name << "' in " <<
-					std::setprecision(2) << std::fixed << (genDuration * 1E-6) << "ms";
+					std::setprecision(2) << std::fixed << ((double)genDuration * 1E-6) << "ms";
 				eg::Log(LogLevel::Info, "as", "{0}", msg.str());
 				
 				//Don't cache if the resource generated in less than 0.5ms
@@ -492,7 +492,7 @@ namespace eg
 		
 		auto NextString = [&]
 		{
-			uint16_t nameLen = reinterpret_cast<const uint16_t*>(uncompressedData.get())[dataPos];
+			uint16_t nameLen = *reinterpret_cast<const uint16_t*>(uncompressedData.get() + dataPos);
 			dataPos += sizeof(uint16_t);
 			if (dataPos + nameLen > uncompressedDataSize)
 				EG_PANIC("Corrupt EAP");
@@ -515,8 +515,8 @@ namespace eg
 			}
 			
 			//Checks that the format version is supported by the loader
-			const uint32_t formatNameHash = reinterpret_cast<const uint32_t*>(uncompressedData.get())[dataPos];
-			const uint32_t formatVersion = reinterpret_cast<const uint32_t*>(uncompressedData.get())[dataPos + 1];
+			const uint32_t formatNameHash = reinterpret_cast<const uint32_t*>(uncompressedData.get() + dataPos)[0];
+			const uint32_t formatVersion = reinterpret_cast<const uint32_t*>(uncompressedData.get() + dataPos)[1];
 			if (formatNameHash != loader->format->nameHash || formatVersion != loader->format->version)
 			{
 				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' uses a format not supported by it's loader ({1})",
@@ -526,7 +526,7 @@ namespace eg
 			dataPos += sizeof(uint32_t) * 2;
 			
 			//Reads the asset's data section
-			uint32_t dataBytes = reinterpret_cast<const uint32_t*>(uncompressedData.get())[dataPos];
+			uint32_t dataBytes = *reinterpret_cast<const uint32_t*>(uncompressedData.get() + dataPos);
 			dataPos += sizeof(uint32_t);
 			if (dataPos + dataBytes > uncompressedDataSize)
 				EG_PANIC("Corrupt EAP");

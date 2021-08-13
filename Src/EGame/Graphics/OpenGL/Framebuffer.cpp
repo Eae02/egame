@@ -201,7 +201,7 @@ namespace eg::graphics_api::gl
 			SetEnabled<GL_MULTISAMPLE>(false);
 #endif
 			
-			SetViewport(cc, 0, 0, drawableWidth, drawableHeight);
+			SetViewport(cc, 0, 0, (float)drawableWidth, (float)drawableHeight);
 			SetScissor(cc, 0, 0, drawableWidth, drawableHeight);
 		}
 		else
@@ -221,7 +221,7 @@ namespace eg::graphics_api::gl
 			SetEnabled<GL_MULTISAMPLE>(framebuffer->multisampled);
 #endif
 			
-			SetViewport(cc, 0, 0, framebuffer->width, framebuffer->height);
+			SetViewport(cc, 0, 0, (float)framebuffer->width, (float)framebuffer->height);
 			SetScissor(cc, 0, 0, framebuffer->width, framebuffer->height);
 		}
 		

@@ -771,7 +771,7 @@ namespace eg::graphics_api::vk
 	
 	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	{
-		deviceInfo.uniformBufferAlignment         = ctx.deviceLimits.minUniformBufferOffsetAlignment;
+		deviceInfo.uniformBufferAlignment         = (uint32_t)ctx.deviceLimits.minUniformBufferOffsetAlignment;
 		deviceInfo.depthRange                     = DepthRange::ZeroToOne;
 		deviceInfo.tessellation                   = ctx.deviceFeatures.tessellationShader;
 		deviceInfo.geometryShader                 = ctx.deviceFeatures.geometryShader;

@@ -189,7 +189,7 @@ namespace eg
 					
 					uint32_t idx = page->livingParticles++;
 					
-					float transformIA = glm::clamp((emissionsMade * emitter.emissionDelay - oldTSE) / dt, 0.0f, 1.0f);
+					float transformIA = glm::clamp(((float)emissionsMade * emitter.emissionDelay - oldTSE) / dt, 0.0f, 1.0f);
 					auto TransformV3 = [&] (const glm::vec3& v, float w)
 					{
 						glm::vec3 prev(emitter.prevTransform * glm::vec4(v, w));
@@ -268,13 +268,13 @@ namespace eg
 						instance.cosR = (uint8_t)((std::cos(page->rotation[i]) + 1.0f) * 127.0f);
 						
 						auto texVariant = page->emitterType->textureVariants[page->textureVariants[i]];
-						int frame = std::min((int)(page->lifeProgress[i] * texVariant.numFrames), texVariant.numFrames - 1);
+						int frame = std::min((int)(page->lifeProgress[i] * (float)texVariant.numFrames), texVariant.numFrames - 1);
 						int texX = texVariant.x + frame * texVariant.width;
 						
-						instance.texCoord[0] = (uint16_t)std::ceil(texX * texCoordScaleX);
-						instance.texCoord[1] = (uint16_t)std::ceil(texVariant.y * texCoordScaleY);
-						instance.texCoord[2] = (uint16_t)std::floor((texX + texVariant.width) * texCoordScaleX);
-						instance.texCoord[3] = (uint16_t)std::floor((texVariant.y + texVariant.height) * texCoordScaleY);
+						instance.texCoord[0] = (uint16_t)std::ceil((float)texX * texCoordScaleX);
+						instance.texCoord[1] = (uint16_t)std::ceil((float)texVariant.y * texCoordScaleY);
+						instance.texCoord[2] = (uint16_t)std::floor((float)(texX + texVariant.width) * texCoordScaleX);
+						instance.texCoord[3] = (uint16_t)std::floor((float)(texVariant.y + texVariant.height) * texCoordScaleY);
 					}
 				}
 			}

@@ -447,7 +447,11 @@ namespace eg::graphics_api::gl
 		
 		if (viewportOutOfDate)
 		{
-			glViewport(currentViewport[0], currentViewport[1], currentViewport[2], currentViewport[3]);
+			glViewport(
+				(GLint)std::round(currentViewport[0]),
+				(GLint)std::round(currentViewport[1]),
+				(GLint)std::round(currentViewport[2]),
+				(GLint)std::round(currentViewport[3]));
 			viewportOutOfDate = false;
 		}
 		

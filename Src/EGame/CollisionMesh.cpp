@@ -23,7 +23,7 @@ namespace eg
 		if (transform != nullptr)
 		{
 			positionsCopy.resize(m_numVertices);
-			for (size_t i = 0; i < m_numVertices; i++)
+			for (uint32_t i = 0; i < m_numVertices; i++)
 			{
 				positionsCopy[i] = *transform * glm::vec4(Vertex(i), 1.0f);
 				positionsCopy[i].w = 0;
@@ -84,7 +84,7 @@ namespace eg
 	
 	void CollisionMesh::Transform(const glm::mat4& transform)
 	{
-		for (size_t i = 0; i < m_numVertices; i++)
+		for (uint32_t i = 0; i < m_numVertices; i++)
 		{
 			*reinterpret_cast<glm::vec3*>(&m_vertices[i]) = glm::vec3(transform * glm::vec4(Vertex(i), 1));
 		}

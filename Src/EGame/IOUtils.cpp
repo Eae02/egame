@@ -26,7 +26,7 @@ namespace eg
 		std::ios_base::seekdir dir, std::ios_base::openmode which)
 	{
 		if(dir == std::ios_base::cur)
-			gbump(off);
+			gbump((int)off);
 		else if(dir == std::ios_base::end)
 			setg(m_begin, m_end + off, m_end);
 		else if(dir == std::ios_base::beg)
@@ -125,7 +125,7 @@ namespace eg
 		{
 			auto& outBuffer = compressedData.emplace_back();
 			
-			deflateStream.avail_out = outBuffer.size();
+			deflateStream.avail_out = (uint32_t)outBuffer.size();
 			deflateStream.next_out = reinterpret_cast<Bytef*>(outBuffer.data());
 			
 			int status = deflate(&deflateStream, Z_FINISH);

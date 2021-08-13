@@ -71,11 +71,11 @@ namespace eg
 		if (size < 1024)
 			stream << size << "B";
 		else if (size < 1024 * 1024)
-			stream << (size / (double)1024) << "KiB";
+			stream << ((double)size / 1024.0) << "KiB";
 		else if (size < 1024 * 1024 * 1024)
-			stream << (size / (double)(1024 * 1024)) << "MiB";
+			stream << ((double)size / (1024.0 * 1024.0)) << "MiB";
 		else
-			stream << (size / (double)(1024 * 1024 * 1024)) << "GiB";
+			stream << ((double)size / (1024.0 * 1024.0 * 1024.0)) << "GiB";
 		return stream.str();
 	}
 	
