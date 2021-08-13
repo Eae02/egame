@@ -60,7 +60,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	
 	if (NOT ${FREETYPE_FOUND})
 		message("Freetype not found, freetype loading will be disabled")
-		target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE -Wconversion -Werror -fmax-errors=20)
+		target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE)
 	else()
 		target_include_directories(EGame PRIVATE
 			${FREETYPE_INCLUDE_DIRS}
