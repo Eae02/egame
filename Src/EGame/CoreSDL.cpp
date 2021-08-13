@@ -174,6 +174,11 @@ namespace eg
 			return 1;
 		}
 		
+		if (DevMode())
+		{
+			SDL_SetHint("SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR", "0");
+		}
+		
 		graphics_api::vk::EarlyInitializeMemoized();
 		
 		constexpr int DISPLAY_INDEX = 0;
