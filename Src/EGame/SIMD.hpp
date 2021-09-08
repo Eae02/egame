@@ -31,6 +31,8 @@ namespace eg::sse
 	}
 }
 #else
+#include <glm/glm.hpp>
+
 namespace eg
 {
 	using m128 = glm::vec4;

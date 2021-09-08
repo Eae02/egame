@@ -24,6 +24,8 @@ namespace eg
 		};
 		
 		EG_API extern std::vector<ModelVertexType> modelVertexTypes;
+		
+		void ModelAssetWriterEnd(std::ostream& stream, const Skeleton& skeleton, std::span<const Animation> animations);
 	}
 	
 	template <typename V>
@@ -34,10 +36,14 @@ namespace eg
 	
 	EG_API bool ModelAssetLoader(const class AssetLoadContext& loadContext);
 	
+	EG_API MeshAccess ParseMeshAccessMode(std::string_view accessModeString, MeshAccess def = MeshAccess::GPUOnly);
+	
 	template <typename V>
 	class ModelAssetWriter
 	{
 	public:
+		using VertexType = V;
+		
 		explicit ModelAssetWriter(std::ostream& stream)
 			: m_stream(&stream)
 		{
@@ -71,8 +77,12 @@ namespace eg
 		
 		void End()
 		{
-			BinWrite<uint32_t>(*m_stream, 0);
-			BinWrite<uint32_t>(*m_stream, 0);
+			detail::ModelAssetWriterEnd(*m_stream, Skeleton(), {});
+		}
+		
+		void End(const Skeleton& skeleton, std::span<const Animation> animations)
+		{
+			detail::ModelAssetWriterEnd(*m_stream, skeleton, animations);
 		}
 		
 	private:

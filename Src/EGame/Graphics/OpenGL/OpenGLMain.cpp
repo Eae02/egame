@@ -274,10 +274,12 @@ namespace eg::graphics_api::gl
 	
 	void SetEnableVSync(bool enableVSync)
 	{
+#ifndef __EMSCRIPTEN__
 		if (!enableVSync)
 			SDL_GL_SetSwapInterval(0);
 		else if (SDL_GL_SetSwapInterval(-1) == -1)
 			SDL_GL_SetSwapInterval(1);
+#endif
 	}
 	
 	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
@@ -289,13 +291,14 @@ namespace eg::graphics_api::gl
 			return res;
 		};
 		
-		deviceInfo.uniformBufferAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
-		deviceInfo.geometryShader             = true;
-		deviceInfo.concurrentResourceCreation = false;
-		deviceInfo.depthRange                 = depthRange;
-		deviceInfo.timerTicksPerNS            = 1.0f;
-		deviceInfo.deviceName                 = rendererName;
-		deviceInfo.deviceVendorName           = vendorName;
+		deviceInfo.uniformBufferOffsetAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
+		deviceInfo.geometryShader               = true;
+		deviceInfo.concurrentResourceCreation   = false;
+		deviceInfo.depthRange                   = depthRange;
+		deviceInfo.timerTicksPerNS              = 1.0f;
+		deviceInfo.deviceName                   = rendererName;
+		deviceInfo.deviceVendorName             = vendorName;
+		deviceInfo.maxMSAA                      = (uint32_t)GetIntegerLimit(GL_MAX_SAMPLES);
 		
 #ifdef EG_GLES
 		deviceInfo.blockTextureCompression =
@@ -305,7 +308,6 @@ namespace eg::graphics_api::gl
 		deviceInfo.tessellation             = false;
 		deviceInfo.textureCubeMapArray      = false;
 		deviceInfo.maxTessellationPatchSize = 0;
-		deviceInfo.maxMSAA                  = 1;
 		deviceInfo.maxClipDistances         = 0;
 		deviceInfo.computeShader            = false;
 #else
@@ -318,9 +320,9 @@ namespace eg::graphics_api::gl
 			deviceInfo.maxComputeWorkGroupSize[i] = ans;
 		}
 		deviceInfo.maxComputeWorkGroupInvocations = GetIntegerLimit(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS);
+		deviceInfo.storageBufferOffsetAlignment = (uint32_t)GetIntegerLimit(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT);
 		
 		deviceInfo.maxClipDistances         = (uint32_t)GetIntegerLimit(GL_MAX_CLIP_DISTANCES);
-		deviceInfo.maxMSAA                  = (uint32_t)GetIntegerLimit(GL_MAX_SAMPLES);
 		deviceInfo.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
 		deviceInfo.tessellation             = true;
 		deviceInfo.computeShader            = true;
@@ -407,16 +409,22 @@ namespace eg::graphics_api::gl
 	
 	void DebugLabelBegin(CommandContextHandle, const char* label, const float* color)
 	{
+#ifndef __EMSCRIPTEN__
 		glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, label);
+#endif
 	}
 	
 	void DebugLabelEnd(CommandContextHandle)
 	{
+#ifndef __EMSCRIPTEN__
 		glPopDebugGroup();
+#endif
 	}
 	
 	void DebugLabelInsert(CommandContextHandle, const char* label, const float* color)
 	{
+#ifndef __EMSCRIPTEN__
 		glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, label);
+#endif
 	}
 }

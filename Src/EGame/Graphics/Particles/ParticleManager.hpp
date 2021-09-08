@@ -11,8 +11,7 @@
 
 namespace eg
 {
-#pragma pack(push, 1)
-	struct ParticleInstance
+	struct __attribute__ ((__packed__)) ParticleInstance
 	{
 		float position[3];
 		float size;
@@ -22,7 +21,6 @@ namespace eg
 		uint8_t opacity;
 		uint8_t additiveBlend;
 	};
-#pragma pack(pop)
 	
 	class EG_API ParticleManager
 	{

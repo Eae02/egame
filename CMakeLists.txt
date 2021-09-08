@@ -84,7 +84,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 			${OGG_VORBIS_LIBRARIES}
 		)
 		
-		target_include_directories(EGameAssetGen PRIVATE
+		target_include_directories(EGameAssetGen SYSTEM PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR}/Inc
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 			${OGG_VORBIS_INCLUDE_DIRS}
@@ -144,11 +144,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STRE
 	PROPERTIES
 		COMPILE_FLAGS "-O3"
 	)
-	set_source_files_properties(
-		Src/AssetGen/ShaderResource.cpp
-	PROPERTIES
-		COMPILE_FLAGS "-std=c++2a"
-	)
 	target_compile_options(yaml-cpp PRIVATE -fPIC)
 endif()
 
@@ -168,7 +163,7 @@ add_dependencies(EGSandbox EGame)
 target_link_libraries(EGSandbox EGame)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
-	set(EMCC_FLAGS "-s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -s FORCE_FILESYSTEM=1 -s FETCH=1")
+	set(EMCC_FLAGS "-lopenal -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -s FORCE_FILESYSTEM=1 -s FETCH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0")
 	
 	if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 		set(EMCC_FLAGS "${EMCC_FLAGS} -g4")
@@ -178,9 +173,9 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	
 	set_target_properties(EGSandbox PROPERTIES OUTPUT_NAME game)
 	
-	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -s USE_ZLIB=1)
+	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -DEG_NO_FREETYPE -s USE_ZLIB=1 -Wno-sign-conversion)
 	set_target_properties(EGame PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
-	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
+	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
 endif()
 
 export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)

@@ -91,15 +91,7 @@ namespace eg
 	
 	[[noreturn]] EG_API void ReleasePanic(const std::string& message);
 	
-	template <typename T>
-	inline T& Deref(T* ptr)
-	{
-		if (ptr == nullptr)
-			EG_PANIC("Deref called with null pointer")
-		return *ptr;
-	}
-	
-	EG_API std::string ReadableSize(uint64_t size);
+	EG_API std::string ReadableBytesSize(uint64_t size);
 	
 	/***
 	 * Checks the the given bitfield has a specific flag set.
@@ -129,7 +121,7 @@ namespace eg
 	inline void HashAppend(std::size_t& seed, const T& v)
 	{
 		std::hash<T> hasher;
-		seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+		seed ^= (size_t)hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
 	}
 	
 	EG_API int64_t NanoTime();
@@ -196,16 +188,6 @@ namespace eg
 			return (len == 0 || *str == '\0') ? value : CalcHash(str + 1, len - 1, (value ^ (uint32_t)str[0]) * FNV_PRIME);
 		}
 	};
-	
-	inline bool StringEndsWith(std::string_view string, std::string_view suffix)
-	{
-		return string.size() >= suffix.size() && string.compare(string.size() - suffix.size(), suffix.size(), suffix) == 0;
-	}
-	
-	inline bool StringStartsWith(std::string_view string, std::string_view prefix)
-	{
-		return string.size() >= prefix.size() && string.compare(0, prefix.size(), prefix) == 0;
-	}
 	
 	/**
 	 * Invokes a callback for each parts of a string that is separated by a given delimiter. Empty parts are skipped.

@@ -333,7 +333,7 @@ namespace eg
 			{
 				auto filePartIt = std::find_if(parts.begin(), parts.end(), [&] (std::string_view part)
 				{
-					return StringStartsWith(part, "file=");
+					return part.starts_with("file=");
 				});
 				
 				if (filePartIt == parts.end())

@@ -8,8 +8,7 @@ namespace eg
 	
 	TextureQuality TextureAssetQuality = TextureQuality::Medium;
 	
-#pragma pack(push, 1)
-	struct Header
+	struct __attribute__ ((__packed__)) Header
 	{
 		uint32_t numLayers;
 		uint32_t format;
@@ -19,7 +18,6 @@ namespace eg
 		uint32_t width;
 		uint32_t height;
 	};
-#pragma pack(pop)
 	
 	enum
 	{

@@ -7,14 +7,12 @@
 
 namespace eg
 {
-#pragma pack(push, 1)
-	struct AudioClipAssetHeader
+	struct __attribute__ ((__packed__)) AudioClipAssetHeader
 	{
 		uint8_t channelCount;
 		uint64_t frequency;
 		uint64_t samples;
 	};
-#pragma pack(pop)
 	
 	EG_API extern const AssetFormat AudioClipAssetFormat;
 	

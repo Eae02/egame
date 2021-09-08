@@ -64,6 +64,8 @@ namespace eg
 		RegisterAssetLoader("AudioClip", &AudioClipAssetLoader, AudioClipAssetFormat);
 		
 		DefineModelVertexType<StdVertex>();
+		DefineModelVertexType<StdVertexAnim8>();
+		DefineModelVertexType<StdVertexAnim16>();
 		
 		BindAssetExtension("glsl", "Shader", "Shader");
 		BindAssetExtension("png", "Texture2D", "Texture2D");

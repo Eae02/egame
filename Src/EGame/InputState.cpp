@@ -373,6 +373,7 @@ namespace eg
 	
 	void TextInputActive(const std::optional<Rectangle>& textInputRect)
 	{
+#ifndef __EMSCRIPTEN__
 		if (!textInputActive)
 		{
 			SDL_StartTextInput();
@@ -389,5 +390,6 @@ namespace eg
 			hasSetTextInputRect = true;
 		}
 		hasCalledTextInputActive = true;
+#endif
 	}
 }

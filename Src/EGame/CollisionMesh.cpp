@@ -1,6 +1,8 @@
 #include "CollisionMesh.hpp"
 #include "Ray.hpp"
 
+#ifndef __EMSCRIPTEN__
+
 namespace eg
 {
 	CollisionMesh::CollisionMesh(uint32_t numVertices, uint32_t numIndices)
@@ -144,3 +146,5 @@ namespace eg
 		return result;
 	}
 }
+
+#endif

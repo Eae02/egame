@@ -51,16 +51,24 @@ namespace eg::graphics_api::gl
 		for (uint32_t i = 0; i < numQueries; i++)
 		{
 			uint32_t queryIndex = firstQuery + i;
+			GLuint query = queryPool->queries[queryIndex];
 			
 			if constexpr (CheckAvail)
 			{
 				GLuint available;
-				glGetQueryObjectuiv(queryPool->queries[queryIndex], GL_QUERY_RESULT_AVAILABLE, &available);
+				glGetQueryObjectuiv(query, GL_QUERY_RESULT_AVAILABLE, &available);
 				if (!available)
 					return false;
 			}
 			
-			glGetQueryObjectui64v(queryPool->queries[queryIndex], GL_QUERY_RESULT, (uint64_t*)data + i);
+			
+#ifdef __EMSCRIPTEN__
+			GLuint value;
+			glGetQueryObjectuiv(query, GL_QUERY_RESULT, &value);
+			((uint64_t*)data)[i] = value;
+#else
+			glGetQueryObjectui64v(query, GL_QUERY_RESULT, (uint64_t*)data + i);
+#endif
 		}
 		
 		return true;

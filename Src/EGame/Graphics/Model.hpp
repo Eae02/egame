@@ -2,6 +2,8 @@
 
 #include "AbstractionHL.hpp"
 #include "StdVertex.hpp"
+#include "Animation/Animation.hpp"
+#include "Animation/Skeleton.hpp"
 #include "../CollisionMesh.hpp"
 #include "../API.hpp"
 #include "../Ray.hpp"
@@ -86,6 +88,7 @@ namespace eg
 			return data;
 		}
 		
+#ifndef __EMSCRIPTEN__
 		template <typename V = StdVertex, typename I = uint32_t>
 		CollisionMesh MakeCollisionMesh(size_t index) const
 		{
@@ -107,6 +110,7 @@ namespace eg
 			}
 			return CollisionMesh::Join(meshes);
 		}
+#endif
 		
 		void Bind(CommandContext& cc = DC, uint32_t vertexBinding = 0) const;
 		
@@ -117,6 +121,15 @@ namespace eg
 		int RequireMaterialIndex(std::string_view name) const;
 		
 		const std::string& GetMaterialName(size_t i) const { return m_materialNames[i]; }
+		
+		const std::vector<Animation>& Animations() const
+		{
+			return m_animations;
+		}
+		
+		void SetAnimations(std::vector<Animation> animations);
+		
+		const Animation* FindAnimation(std::string_view name) const;
 		
 		BufferRef VertexBuffer() const
 		{
@@ -132,6 +145,8 @@ namespace eg
 		{
 			return m_indexTypeE;
 		}
+		
+		Skeleton skeleton;
 		
 	private:
 		struct InternalMesh : Mesh
@@ -150,6 +165,8 @@ namespace eg
 		
 		Buffer m_vertexBuffer;
 		Buffer m_indexBuffer;
+		
+		std::vector<Animation> m_animations;
 	};
 	
 	class EG_API ModelBuilderUnformatted

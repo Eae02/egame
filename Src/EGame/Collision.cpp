@@ -35,6 +35,7 @@ namespace eg
 		return std::numeric_limits<float>::quiet_NaN();
 	}
 	
+#ifndef __EMSCRIPTEN__
 	void CheckEllipsoidMeshCollision(CollisionInfo& info, const CollisionEllipsoid& ellipsoid, const glm::vec3& move,
 	                                 const CollisionMesh& mesh, const glm::mat4& meshTransform)
 	{
@@ -167,4 +168,5 @@ namespace eg
 			}
 		}
 	}
+#endif
 }

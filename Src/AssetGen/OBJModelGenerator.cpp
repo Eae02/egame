@@ -87,17 +87,8 @@ namespace eg::asset_gen
 			bool addDefaultNormal = false;
 			bool addDefaultTexCoord = false;
 			
-			MeshAccess access = MeshAccess::All;
-			std::string accessStr = generateContext.YAMLNode()["access"].as<std::string>("gpu");
-			if (accessStr == "gpu")
-				access = MeshAccess::GPUOnly;
-			else if (accessStr == "cpu")
-				access = MeshAccess::CPUOnly;
-			else if (accessStr == "all")
-				access = MeshAccess::All;
-			else
-				Log(LogLevel::Warning, "as", "Unknown mesh access mode: '{0}'. Should be 'gpu', 'cpu' or 'all'.", accessStr);
-			
+			std::string accessStr = generateContext.YAMLNode()["access"].as<std::string>("");
+			MeshAccess access = ParseMeshAccessMode(accessStr);
 			bool removeNameSuffix = generateContext.YAMLNode()["removeNameSuffix"].as<bool>(false);
 			
 			std::string line;

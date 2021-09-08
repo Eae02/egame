@@ -7,7 +7,6 @@
 
 namespace eg
 {
-#pragma pack(push, 1)
 	/**
 	 * Represents a color in an undefined color space
 	 */
@@ -32,7 +31,6 @@ namespace eg
 			return Color(r, g, b, a * scale);
 		}
 	};
-#pragma pack(pop)
 	
 	/**
 	 * Converts a single float value from sRGB space to linear space.

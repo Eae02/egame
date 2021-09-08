@@ -287,11 +287,11 @@ namespace eg
 		return true;
 	}
 	
-	static uint64_t HashYAMLNode(const YAML::Node& node)
+	static size_t HashYAMLNode(const YAML::Node& node)
 	{
 		if (!node.IsDefined())
 			return 0;
-		uint64_t hash = std::hash<std::string>()(node.Tag());
+		size_t hash = std::hash<std::string>()(node.Tag());
 		if (node.IsSequence() || node.IsMap())
 		{
 			for (YAML::const_iterator it = node.begin(); it != node.end(); ++it)

@@ -72,10 +72,12 @@ namespace eg::graphics_api::gl
 		
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
 		
+#ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_FRAMEBUFFER, framebuffer->framebuffer, -1, createInfo.label);
 		}
+#endif
 		
 		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
 		framebuffer->hasDepth = false;

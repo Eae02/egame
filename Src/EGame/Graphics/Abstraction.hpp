@@ -641,7 +641,8 @@ namespace eg
 	
 	struct GraphicsDeviceInfo
 	{
-		uint32_t uniformBufferAlignment;
+		uint32_t uniformBufferOffsetAlignment;
+		uint32_t storageBufferOffsetAlignment;
 		uint32_t maxTessellationPatchSize;
 		uint32_t maxClipDistances;
 		uint32_t maxMSAA;

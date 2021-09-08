@@ -5,6 +5,8 @@
 
 namespace eg
 {
+	static_assert(sizeof(SerializedParticleEmitter) == 4 * 21);
+	
 	const AssetFormat ParticleEmitterType::AssetFormat { "EG::ParticleEmitter", 0 };
 	
 	inline Vec3Generator ReadVec3Generator(uint32_t type, std::istream& stream)

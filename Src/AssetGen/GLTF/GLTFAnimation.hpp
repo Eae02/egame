@@ -1,10 +1,15 @@
 #pragma once
-/*
-#include "../../Jade/Graphics/Animation/Animation.h"
-#include "GLTFData.h"
 
-#include <json.hpp>
+#include "../../EGame/Graphics/Animation/Animation.hpp"
+#include "../../EGame/Graphics/Animation/Skeleton.hpp"
+#include "GLTFData.hpp"
 
-Jade::Animation ImportAnimation(const GLTF::GLTFData& data, const nlohmann::json& animationEl,
-                                const class ImportedModel& model);
-*/
+#include <nlohmann/json.hpp>
+
+namespace eg::asset_gen::gltf
+{
+	Animation ImportAnimation(const GLTFData& data, const nlohmann::json& animationEl, size_t numTargets,
+	                          const std::function<std::vector<int>(int)>& getTargetIndicesFromNodeIndex);
+	
+	Skeleton ImportSkeleton(const GLTFData& gltfData, const nlohmann::json& nodesArray, const nlohmann::json& skinEl);
+}

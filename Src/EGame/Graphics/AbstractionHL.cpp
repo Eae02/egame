@@ -17,9 +17,9 @@ namespace eg
 	ShaderModule ShaderModule::CreateFromFile(const std::string& path)
 	{
 		ShaderStage stage;
-		if (StringEndsWith(path, ".fs.spv") || StringEndsWith(path, ".frag.spv"))
+		if (path.ends_with(".fs.spv") || path.ends_with(".frag.spv"))
 			stage = ShaderStage::Fragment;
-		else if (StringEndsWith(path, ".vs.spv") || StringEndsWith(path, ".vert.spv"))
+		else if (path.ends_with(".vs.spv") || path.ends_with(".vert.spv"))
 			stage = ShaderStage::Vertex;
 		else
 			EG_PANIC("Unrecognized shader stage file extension in '" << path << "'.");
@@ -126,7 +126,7 @@ namespace eg
 			uint64_t allocSize = std::max(RoundToNextMultiple<uint64_t>(size, 1024 * 1024), MIN_BUFFER_SIZE);
 			selected = &uploadBuffers.emplace_back(allocSize);
 			
-			Log(LogLevel::Info, "gfx", "Created upload buffer with size {0}.", ReadableSize(allocSize));
+			Log(LogLevel::Info, "gfx", "Created upload buffer with size {0}.", ReadableBytesSize(allocSize));
 		}
 		else if (selected->lastUsedFrame != FrameIdx())
 		{

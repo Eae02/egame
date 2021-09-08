@@ -177,7 +177,7 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			
 			for (const std::pair<std::string_view, EShLanguage>& stageExtension : stageExtensions)
 			{
-				if (StringEndsWith(sourcePath, stageExtension.first))
+				if (sourcePath.ends_with(stageExtension.first))
 				{
 					return stageExtension.second;
 				}

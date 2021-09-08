@@ -4,6 +4,7 @@
 
 #include <variant>
 #include <sstream>
+#include <unordered_map>
 
 #ifdef _WIN32
 #define DEFINE_CONSOLEV2_PROPERTIES

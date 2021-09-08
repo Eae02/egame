@@ -64,7 +64,7 @@ namespace eg
 		}
 	}
 	
-	std::string ReadableSize(uint64_t size)
+	std::string ReadableBytesSize(uint64_t size)
 	{
 		std::ostringstream stream;
 		stream << std::setprecision(3);

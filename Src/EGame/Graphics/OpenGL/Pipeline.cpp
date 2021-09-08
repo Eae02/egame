@@ -270,19 +270,25 @@ namespace eg::graphics_api::gl
 						{
 							std::cout << "Push constant uniform not found: '" << name <<
 							          "' (expected '" << uniformName << "'). All uniforms:\n";
-#ifndef EG_GLES
+//#ifndef EG_GLES
 							GLint numUniforms;
 							glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &numUniforms);
 							for (int u = 0; u < numUniforms; u++)
 							{
+								GLsizei uniformNameLen;
+								GLint uniformSize;
+								GLenum uniformType;
+								
 								char uniformNameBuffer[512];
-								glGetActiveUniformName(program, u, sizeof(uniformNameBuffer), nullptr,
-								                       uniformNameBuffer);
+								glGetActiveUniform(program, u, sizeof(uniformNameBuffer), &uniformNameLen, &uniformSize, &uniformType, uniformNameBuffer);
+								
+								//glGetActiveUniformName(program, u, sizeof(uniformNameBuffer), nullptr,
+								//                       uniformNameBuffer);
 								std::cout << "  " << uniformNameBuffer << "\n";
 							}
-#else
-							std::cout << "  Not implemented in GLES\n";
-#endif
+//#else
+//							std::cout << "  Not implemented in GLES\n";
+//#endif
 							std::cout << std::flush;
 						}
 						

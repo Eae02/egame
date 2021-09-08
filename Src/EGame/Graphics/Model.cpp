@@ -54,6 +54,20 @@ namespace eg
 		std::abort();
 	}
 	
+	void Model::SetAnimations(std::vector<Animation> animations)
+	{
+		EG_ASSERT(std::is_sorted(animations.begin(), animations.end(), AnimationNameCompare()));
+		m_animations = std::move(animations);
+	}
+	
+	const Animation* Model::FindAnimation(std::string_view name) const
+	{
+		auto it = std::lower_bound(m_animations.begin(), m_animations.end(), name, AnimationNameCompare());
+		if (it == m_animations.end() || it->name != name)
+			return nullptr;
+		return &*it;
+	}
+	
 	std::tuple<void*, void*> ModelBuilderUnformatted::AddMesh(uint32_t numVertices, uint32_t numIndices, std::string name,
 		MeshAccess access, int materialIndex, const Sphere* boundingSphere, const eg::AABB* boundingAABB)
 	{

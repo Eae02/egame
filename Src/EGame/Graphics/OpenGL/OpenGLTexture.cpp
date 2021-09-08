@@ -567,12 +567,16 @@ namespace eg::graphics_api::gl
 	void CopyTextureData(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle,
 	                     const TextureRange& srcRange, const TextureOffset& dstOffset)
 	{
+#ifdef __EMSCRIPTEN__
+		Log(LogLevel::Error, "gl", "CopyTextureData not available in WebGL");
+#else
 		Texture* srcTex = UnwrapTexture(srcHandle);
 		Texture* dstTex = UnwrapTexture(dstHandle);
 		glCopyImageSubData(
 			srcTex->texture, srcTex->type, srcRange.mipLevel, srcRange.offsetX, srcRange.offsetY, srcRange.offsetZ,
 			dstTex->texture, dstTex->type, dstOffset.mipLevel, dstOffset.offsetX, dstOffset.offsetY, dstOffset.offsetZ,
 			srcRange.sizeX, srcRange.sizeY, srcRange.sizeZ);
+#endif
 	}
 	
 	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const void* color)

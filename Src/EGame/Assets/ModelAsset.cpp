@@ -28,9 +28,10 @@ namespace eg
 		while (true)
 		{
 			const uint32_t numVertices = BinRead<uint32_t>(stream);
-			const uint32_t numIndices = BinRead<uint32_t>(stream);
-			if (numVertices == 0 || numIndices == 0)
+			if (numVertices == 0)
 				break;
+			
+			const uint32_t numIndices = BinRead<uint32_t>(stream);
 			
 			MeshAccess access = (MeshAccess)BinRead<uint8_t>(stream);
 			std::string materialName = BinReadString(stream);
@@ -52,13 +53,63 @@ namespace eg
 			
 			int materialIndex = modelBuilder.AddMaterial(materialName);
 			
-			auto [vertices, indices] = modelBuilder.AddMesh(numVertices, numIndices, std::move(name), access, materialIndex, &sphere, &aabb);
+			auto [vertices, indices] = modelBuilder.AddMesh(
+				numVertices, numIndices, std::move(name), access, materialIndex, &sphere, &aabb);
 			
 			stream.read(static_cast<char*>(vertices), numVertices * vertexTypeIt->size);
 			stream.read(static_cast<char*>(indices), numIndices * sizeof(uint32_t));
 		}
 		
-		loadContext.CreateResult<Model>() = modelBuilder.CreateAndReset();
+		Model& model = loadContext.CreateResult<Model>();
+		model = modelBuilder.CreateAndReset();
+		
+		if (uint32_t numAnimationsPlus1 = BinRead<uint32_t>(stream))
+		{
+			model.skeleton = Skeleton::Deserialize(stream);
+			
+			const size_t numTargets = model.skeleton.NumBones() + model.NumMeshes();
+			
+			std::vector<Animation> animations;
+			animations.reserve(numAnimationsPlus1 - 1);
+			for (uint32_t i = 1; i < numAnimationsPlus1; i++)
+			{
+				animations.emplace_back(numTargets).Deserialize(stream);
+			}
+		}
+		
 		return true;
+	}
+	
+	MeshAccess ParseMeshAccessMode(std::string_view accessModeString, MeshAccess def)
+	{
+		if (accessModeString == "gpu")
+			return MeshAccess::GPUOnly;
+		if (accessModeString == "cpu")
+			return MeshAccess::CPUOnly;
+		if (accessModeString == "all")
+			return MeshAccess::All;
+		if (accessModeString != "")
+		{
+			Log(LogLevel::Warning, "as", "Unknown mesh access mode: '{0}'. "
+				"Should be 'gpu', 'cpu' or 'all'.", accessModeString);
+		}
+		return def;
+	}
+	
+	void detail::ModelAssetWriterEnd(std::ostream& stream, const Skeleton& skeleton, std::span<const Animation> animations)
+	{
+		if (!std::is_sorted(animations.begin(), animations.end(), AnimationNameCompare()))
+			EG_PANIC("Animations passed to ModelAssetWriter::End must be sorted.");
+		
+		BinWrite<uint32_t>(stream, 0);
+		
+		BinWrite(stream, static_cast<uint32_t>(animations.size() + 1));
+		
+		skeleton.Serialize(stream);
+		
+		for (const Animation& animation : animations)
+		{
+			animation.Serialize(stream);
+		}
 	}
 }

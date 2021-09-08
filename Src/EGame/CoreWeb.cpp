@@ -16,14 +16,12 @@ namespace eg
 	{
 		GraphicsAPIInitArguments apiInitArguments;
 		apiInitArguments.window = nullptr;
-		apiInitArguments.enableVSync = HasFlag(runConfig.flags, RunFlags::VSync);
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
-		
 		if (!InitializeGraphicsAPI(eg::GraphicsAPI::OpenGL, apiInitArguments))
 		{
 			return 1;
 		}
-		
+		std::cout << "LOL" << std::endl;
 		return 0;
 	}
 	

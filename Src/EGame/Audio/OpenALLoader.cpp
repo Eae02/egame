@@ -23,6 +23,12 @@ namespace eg::al
 	decltype(&alSourcePause)         SourcePause;
 	decltype(&alListenerf)           Listenerf;
 	
+#ifdef __EMSCRIPTEN__
+	static bool StartLoadOpenAL() { return true; }
+	
+	#define LOAD_AL_FUNC(prefix, name) eg::al::name = &::prefix ## name;
+#else
+	
 	static DynamicLibrary openalLibrary;
 	
 #if defined(__linux__)
@@ -33,7 +39,11 @@ namespace eg::al
 	static const char* OPENAL_LIB_NAME = nullptr;
 #endif
 	
-	bool LoadOpenAL()
+	#define LOAD_AL_FUNC(prefix, name) \
+		eg::al::name = reinterpret_cast<decltype(eg::al::name)>(openalLibrary.GetSymbol(#prefix #name)); \
+		if (eg::al::name == nullptr) return false;
+	
+	static bool StartLoadOpenAL()
 	{
 		if (OPENAL_LIB_NAME == nullptr)
 			return false;
@@ -44,9 +54,13 @@ namespace eg::al
 			return false;
 		}
 		
-		#define LOAD_AL_FUNC(prefix, name) \
-			eg::al::name = reinterpret_cast<decltype(eg::al::name)>(openalLibrary.GetSymbol(#prefix #name)); \
-			if (eg::al::name == nullptr) return false;
+		return true;
+	}
+#endif
+	
+	bool LoadOpenAL()
+	{
+		if (!StartLoadOpenAL()) return false;
 		
 		LOAD_AL_FUNC(alc, MakeContextCurrent)
 		LOAD_AL_FUNC(alc, OpenDevice)

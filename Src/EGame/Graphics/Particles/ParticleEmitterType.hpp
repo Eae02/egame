@@ -9,7 +9,7 @@
 
 namespace eg
 {
-	enum class ParticleFlags
+	enum class ParticleFlags : uint32_t
 	{
 		AlignToVelocity = 0x1,
 		BlendAdditive = 0x2
@@ -55,7 +55,6 @@ namespace eg
 		static bool AssetLoader(const class AssetLoadContext& loadContext);
 	};
 	
-#pragma pack(push, 1)
 	struct SerializedParticleEmitter
 	{
 		float emissionRate;
@@ -80,5 +79,4 @@ namespace eg
 		uint32_t velocityGeneratorType;
 		uint32_t numTextureVariants;
 	};
-#pragma pack(pop)
 }

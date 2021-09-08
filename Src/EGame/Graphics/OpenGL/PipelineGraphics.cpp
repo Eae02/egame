@@ -473,11 +473,13 @@ namespace eg::graphics_api::gl
 		if (enableDepthTest && curState.depthFunc != depthFunc)
 			glDepthFunc(curState.depthFunc = depthFunc);
 		
+#ifndef EG_GLES
 		if (curState.wireframe != wireframe)
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 			curState.wireframe = wireframe;
 		}
+#endif
 		
 		SetEnabled<GL_CULL_FACE>(enableFaceCull);
 		SetEnabled<GL_DEPTH_TEST>(enableDepthTest);

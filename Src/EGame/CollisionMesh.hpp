@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <span>
 
+#ifndef __EMSCRIPTEN__
+
 namespace eg
 {
 	class EG_API CollisionMesh
@@ -144,3 +146,5 @@ namespace eg
 		AABB m_aabb;
 	};
 }
+
+#endif
