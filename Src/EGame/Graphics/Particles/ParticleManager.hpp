@@ -88,7 +88,7 @@ namespace eg
 		
 		Emitter& GetEmitter(uint32_t id);
 		
-		void ThreadTarget();
+		void SimulateOneStep();
 		
 		static constexpr size_t PARTICLES_PER_PAGE = 1024;
 		
@@ -136,11 +136,15 @@ namespace eg
 		std::vector<ParticlePage*> m_pages;
 		std::vector<ParticlePage*> m_emptyPages;
 		
+		std::vector<ParticleInstance> m_particleInstances;
+		std::vector<std::pair<float, int>> m_particleDepths;
+		
 		uint32_t m_nextEmitterId = 0;
 		std::vector<Emitter> m_btEmitters;
 		std::vector<Emitter> m_mtEmitters;
 		
 		float m_currentTime = 0;
+		float m_lastSimTime = 0;
 		m128 m_frustumPlanes[6];
 		m128 m_cameraForward;
 		
@@ -149,10 +153,10 @@ namespace eg
 		int m_textureWidth = 1;
 		int m_textureHeight = 1;
 		
-		std::mutex m_mutex;
+		std::mt19937 m_random;
 		
-		std::condition_variable m_simulationDoneSignal;
-		std::condition_variable m_stepDoneSignal;
+#ifndef __EMSCRIPTEN__
+		void ThreadTarget();
 		
 		enum class State
 		{
@@ -162,8 +166,12 @@ namespace eg
 		};
 		State m_state = State::Simulate;
 		
-		std::mt19937 m_random;
+		std::mutex m_mutex;
+		
+		std::condition_variable m_simulationDoneSignal;
+		std::condition_variable m_stepDoneSignal;
 		
 		std::thread m_thread;
+#endif
 	};
 }

@@ -3,12 +3,22 @@
 
 namespace eg::graphics_api::gl
 {
+#ifdef __EMSCRIPTEN__
+	PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo)
+	{
+		Log(LogLevel::Error, "gl", "Compute shaders are not supported in WebGL");
+		return nullptr;
+	}
+	
+	void DispatchCompute(CommandContextHandle, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)
+	{
+		Log(LogLevel::Error, "gl", "Compute shaders are not supported in WebGL");
+	}
+#else
 	struct ComputePipeline : public AbstractPipeline
 	{
 		GLuint shaderModule;
-		
 		void Free() override;
-		
 		void Bind() override;
 	};
 	
@@ -16,10 +26,6 @@ namespace eg::graphics_api::gl
 	
 	PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo)
 	{
-#ifdef __EMSCRIPTEN__
-		Log(LogLevel::Error, "gl", "Compute shaders are not supported in WebGL");
-		return nullptr;
-#else
 		ComputePipeline* pipeline = computePipelinePool.New();
 		
 		pipeline->shaderModule = glCreateShader(GL_COMPUTE_SHADER);
@@ -28,7 +34,9 @@ namespace eg::graphics_api::gl
 		
 		spirv_cross::CompilerGLSL spvCompiler(computeShaderModule->parsedIR);
 		SetSpecializationConstants(createInfo.computeShader, spvCompiler);
-		pipeline->Initialize(1, &spvCompiler, &pipeline->shaderModule);
+		
+		std::pair<spirv_cross::CompilerGLSL*, GLuint> shaderStagePair(&spvCompiler, pipeline->shaderModule);
+		pipeline->Initialize({ &shaderStagePair, 1 });
 		
 		if (createInfo.label != nullptr)
 		{
@@ -37,7 +45,6 @@ namespace eg::graphics_api::gl
 		}
 		
 		return WrapPipeline(pipeline);
-#endif
 	}
 	
 	void ComputePipeline::Free()
@@ -50,11 +57,8 @@ namespace eg::graphics_api::gl
 	
 	void DispatchCompute(CommandContextHandle, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)
 	{
-#ifdef __EMSCRIPTEN__
-		Log(LogLevel::Error, "gl", "Compute shaders are not supported in WebGL");
-#else
 		glDispatchCompute(sizeX, sizeY, sizeZ);
 		ClearBarriers();
-#endif
 	}
+#endif
 }

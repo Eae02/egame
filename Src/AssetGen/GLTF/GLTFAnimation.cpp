@@ -146,29 +146,33 @@ namespace eg::asset_gen::gltf
 		return animation;
 	}
 	
-	Skeleton ImportSkeleton(const GLTFData& gltfData, const json& nodesArray, const json& skinEl)
+	ImportedSkeleton ImportSkeleton(const GLTFData& gltfData, const json& nodesArray, const json& skinEl)
 	{
-		Skeleton skeleton;
+		ImportedSkeleton result;
 		
-		const glm::mat4* inverseBindMatrices = nullptr;
+		const glm::mat4* invBindMatrices = nullptr;
 		auto inverseBindMatricesIt = skinEl.find("inverseBindMatrices");
 		if (inverseBindMatricesIt != skinEl.end())
 		{
 			const Accessor& accessor = gltfData.GetAccessor(*inverseBindMatricesIt);
 			//TODO: Validate accessor format
 			
-			inverseBindMatrices = reinterpret_cast<const glm::mat4*>(gltfData.GetAccessorData(accessor));
+			invBindMatrices = reinterpret_cast<const glm::mat4*>(gltfData.GetAccessorData(accessor));
 		}
 		
 		auto jointsEl = skinEl.at("joints");
 		std::vector<std::optional<uint32_t>> boneParentIds(jointsEl.size());
+		result.boneIdNodeIndex.resize(jointsEl.size());
 		for (size_t i = 0; i < jointsEl.size(); i++)
 		{
-			const json& nodeEl = nodesArray.at(jointsEl[i].get<int>());
+			const int nodeIndex = jointsEl[i].get<int>();
+			const json& nodeEl = nodesArray.at(nodeIndex);
 			auto nameIt = nodeEl.find("name");
 			std::string name = nameIt == nodeEl.end() ? "" : *nameIt;
 			
-			skeleton.AddBone(std::move(name), inverseBindMatrices ? inverseBindMatrices[i] : glm::mat4(1.0f));
+			result.skeleton.AddBone(std::move(name), invBindMatrices ? invBindMatrices[i] : glm::mat4(1.0f));
+			
+			result.boneIdNodeIndex[i] = nodeIndex;
 			
 			//Iterates child nodes and sets the parent field of the corresponding bone (if any).
 			auto childrenIt = nodeEl.find("children");
@@ -193,13 +197,13 @@ namespace eg::asset_gen::gltf
 		
 		for (size_t i = 0; i < jointsEl.size(); i++)
 		{
-			skeleton.SetBoneParent(i, boneParentIds[i]);
+			result.skeleton.SetBoneParent(i, boneParentIds[i]);
 		}
 		
-		skeleton.InitDualBones();
+		result.skeleton.InitDualBones();
 		
-		//TODO: Set skeleton.rootTransform to the skeleton node's transform
+		//TODO: Set result.skeleton.rootTransform to the skeleton node's transform
 		
-		return skeleton;
+		return result;
 	}
 }

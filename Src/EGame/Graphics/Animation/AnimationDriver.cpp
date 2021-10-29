@@ -76,10 +76,11 @@ namespace eg
 		if (numTargets != m_numAllocatedTargetMatrices)
 		{
 #if __cpp_lib_shared_ptr_arrays == 201707L
-			m_targetMatrices = std::make_shared<glm::mat4[]>(m_numAllocatedTargetMatrices);
+			m_targetMatrices = std::make_shared<glm::mat4[]>(numTargets);
 #else
-			m_targetMatrices = std::make_unique<glm::mat4[]>(m_numAllocatedTargetMatrices);
+			m_targetMatrices = std::make_unique<glm::mat4[]>(numTargets);
 #endif
+			m_numAllocatedTargetMatrices = numTargets;
 			m_targetMatricesAreIdentity = false;
 		}
 		

@@ -166,14 +166,14 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	set(EMCC_FLAGS "-lopenal -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -s FORCE_FILESYSTEM=1 -s FETCH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0")
 	
 	if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-		set(EMCC_FLAGS "${EMCC_FLAGS} -g4")
-		target_compile_options(EGame PRIVATE -g4)
-		target_compile_options(EGSandbox PRIVATE -g4)
+		set(EMCC_FLAGS "${EMCC_FLAGS} -gsource-map")
+		target_compile_options(EGame PRIVATE -gsource-map)
+		target_compile_options(EGSandbox PRIVATE -gsource-map)
 	endif()
 	
 	set_target_properties(EGSandbox PROPERTIES OUTPUT_NAME game)
 	
-	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -DEG_NO_FREETYPE -s USE_ZLIB=1 -Wno-sign-conversion)
+	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -DEG_NO_FREETYPE -s USE_ZLIB=1 -Wno-sign-conversion -Wno-shorten-64-to-32)
 	set_target_properties(EGame PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
 	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
 endif()

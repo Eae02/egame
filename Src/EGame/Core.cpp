@@ -1,6 +1,7 @@
 #include "Core.hpp"
 #include "MainThreadInvoke.hpp"
 #include "Platform/FontConfig.hpp"
+#include "Platform/Debug.hpp"
 #include "Graphics/AbstractionHL.hpp"
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
@@ -47,6 +48,7 @@ namespace eg
 	void PlatformStartFrame();
 	void PlatformRunGameLoop(std::unique_ptr<IGame> game);
 	
+	static bool profilingEnabled;
 	static std::list<Profiler> profilers;
 	static std::vector<Profiler*> availProfilers;
 	static std::vector<std::pair<Profiler*, uint64_t>> pendingProfilers;
@@ -71,6 +73,16 @@ namespace eg
 		RaiseEvent<ButtonEvent>({ button, false, isRepeat });
 	}
 	
+	void EnableProfiling()
+	{
+		if (profilingEnabled)
+			return;
+		profilingEnabled = true;
+		eg::Log(eg::LogLevel::Info, "p", "Profiling enabled");
+		
+		profilerPane = std::make_unique<ProfilerPane>();
+	}
+	
 	void RunFrame(IGame& game)
 	{
 		auto frameBeginTime = high_resolution_clock::now();
@@ -83,7 +95,7 @@ namespace eg
 		detail::currentIS->cursorDeltaY = 0;
 		detail::inputtedText.clear();
 		
-		if (DevMode())
+		if (profilingEnabled)
 		{
 			if (availProfilers.empty())
 			{
@@ -173,7 +185,7 @@ namespace eg
 		
 		frameCPUTimer.Stop();
 		
-		if (DevMode())
+		if (Profiler::current != nullptr)
 		{
 			pendingProfilers.emplace_back(Profiler::current, FrameIdx());
 		}
@@ -244,30 +256,38 @@ namespace eg
 		if (DevMode())
 		{
 			SpriteFont::LoadDevFont();
-			
-			profilerPane = std::make_unique<ProfilerPane>();
-			
-			console::AddCommand("ppane", 0, [&] (std::span<const std::string_view> args, console::Writer& writer)
-			{
-				bool visible = !profilerPane->visible;
-				if (args.size() == 1)
-				{
-					if (args[0] == "show")
-						visible = true;
-					else if (args[0] == "hide")
-						visible = false;
-					else
-					{
-						writer.WriteLine(console::ErrorColor, "Invalid argument to ppane, should be 'show' or 'hide'");
-						return;
-					}
-				}
-				profilerPane->visible = visible;
-			});
+			EnableProfiling();
 		}
 		
 		if (runConfig.initialize)
 			runConfig.initialize();
+		
+		console::AddCommand("enableProfiling", 0, [&] (std::span<const std::string_view> args, console::Writer& writer)
+		{
+			if (profilingEnabled)
+				writer.WriteLine(console::InfoColor, "Profiling already enabled");
+			else
+				EnableProfiling();
+		});
+		
+		console::AddCommand("ppane", 0, [&] (std::span<const std::string_view> args, console::Writer& writer)
+		{
+			EnableProfiling();
+			bool visible = !profilerPane->visible;
+			if (args.size() == 1)
+			{
+				if (args[0] == "show")
+					visible = true;
+				else if (args[0] == "hide")
+					visible = false;
+				else
+				{
+					writer.WriteLine(console::ErrorColor, "Invalid argument to ppane, should be 'show' or 'hide'");
+					return;
+				}
+			}
+			profilerPane->visible = visible;
+		});
 		
 		console::AddCommand("modelInfo", 1, [&] (std::span<const std::string_view> args, console::Writer& writer)
 		{
@@ -283,6 +303,13 @@ namespace eg
 			writer.Write(console::InfoColor, "Information about ");
 			writer.Write(console::InfoColorSpecial, args[0]);
 			writer.WriteLine(console::InfoColor, ":");
+			
+			
+			writer.Write(console::InfoColor, "  vtype:");
+			std::string demangledTypeName = DemangeTypeName(model->VertexType().name());
+			writer.Write(console::InfoColorSpecial, demangledTypeName);
+			writer.Write(console::InfoColor, " itype:");
+			writer.WriteLine(console::InfoColorSpecial, model->IndexType() == IndexType::UInt32 ? "uint32" : "uint16");
 			
 			//Prepares column data
 			size_t nameColLen = 0;
@@ -326,11 +353,21 @@ namespace eg
 				totIndices += model->GetMesh(i).numIndices;
 			}
 			
+			//Writes information about materials
 			for (size_t i = 0; i < model->NumMaterials(); i++)
 			{
 				std::string str = "  mat[" + std::to_string(i) + "] '";
 				writer.Write(console::InfoColor, str);
 				writer.Write(console::InfoColorSpecial, model->GetMaterialName(i));
+				writer.WriteLine(console::InfoColor, "'");
+			}
+			
+			//Writes information about animations
+			for (size_t i = 0; i < model->Animations().size(); i++)
+			{
+				std::string str = "  anim[" + std::to_string(i) + "] '";
+				writer.Write(console::InfoColor, str);
+				writer.Write(console::InfoColorSpecial, model->Animations()[i].name);
 				writer.WriteLine(console::InfoColor, "'");
 			}
 			
@@ -341,6 +378,13 @@ namespace eg
 			writer.Write(console::InfoColor, "  total triangles: ");
 			std::string totalTrianglesStr = std::to_string(totIndices / 3);
 			writer.WriteLine(console::InfoColorSpecial, totalTrianglesStr);
+			
+			if (!model->skeleton.Empty())
+			{
+				writer.Write(console::InfoColor, "  total bones: ");
+				std::string totalBonesStr = std::to_string(model->skeleton.NumBones());
+				writer.WriteLine(console::InfoColorSpecial, totalBonesStr);
+			}
 		});
 		
 		console::SetCompletionProvider("modelInfo", 0, [] (std::span<const std::string_view> args, eg::console::CompletionsList& list)

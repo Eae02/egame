@@ -16,7 +16,7 @@ namespace eg::asset_gen
 		
 		void ParseYAMLSettings(const YAML::Node& node);
 		
-		bool AddLayer(std::istream& imageStream);
+		bool AddLayer(std::istream& imageStream, std::string_view fileName = {});
 		
 		[[nodiscard]]
 		bool Write(std::ostream& stream) const;

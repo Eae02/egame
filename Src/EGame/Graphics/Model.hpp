@@ -88,7 +88,6 @@ namespace eg
 			return data;
 		}
 		
-#ifndef __EMSCRIPTEN__
 		template <typename V = StdVertex, typename I = uint32_t>
 		CollisionMesh MakeCollisionMesh(size_t index) const
 		{
@@ -110,7 +109,6 @@ namespace eg
 			}
 			return CollisionMesh::Join(meshes);
 		}
-#endif
 		
 		void Bind(CommandContext& cc = DC, uint32_t vertexBinding = 0) const;
 		
@@ -144,6 +142,11 @@ namespace eg
 		eg::IndexType IndexType() const
 		{
 			return m_indexTypeE;
+		}
+		
+		std::type_index VertexType() const
+		{
+			return m_vertexType;
 		}
 		
 		Skeleton skeleton;

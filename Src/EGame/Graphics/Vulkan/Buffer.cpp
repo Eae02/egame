@@ -277,7 +277,8 @@ namespace eg::graphics_api::vk
 		vkBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		
 		vkCmdPipelineBarrier(cb, GetBarrierStageFlags(barrier.oldUsage, barrier.oldAccess),
-		                     GetBarrierStageFlags(barrier.newUsage, barrier.newAccess), 0, 0, nullptr, 1, &vkBarrier, 0, nullptr);
+		                     GetBarrierStageFlags(barrier.newUsage, barrier.newAccess),
+		                     0, 0, nullptr, 1, &vkBarrier, 0, nullptr);
 	}
 	
 	void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
@@ -340,7 +341,7 @@ namespace eg::graphics_api::vk
 	}
 	
 	void BindUniformBuffer(CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set,
-		uint32_t binding, uint64_t offset, uint64_t range)
+	                       uint32_t binding, uint64_t offset, uint64_t range)
 	{
 		Buffer* buffer = UnwrapBuffer(bufferHandle);
 		RefResource(cc, *buffer);
@@ -365,7 +366,7 @@ namespace eg::graphics_api::vk
 	}
 	
 	void BindStorageBuffer(CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set,
-		uint32_t binding, uint64_t offset, uint64_t range)
+	                       uint32_t binding, uint64_t offset, uint64_t range)
 	{
 		Buffer* buffer = UnwrapBuffer(bufferHandle);
 		RefResource(cc, *buffer);

@@ -70,9 +70,11 @@ namespace eg::graphics_api::gl
 		BlendState blend[8];
 		float blendConstants[4];
 		ColorWriteMask colorWriteMasks[8];
-		uint32_t maxVertexBinding;
 		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		VertexAttribute vertexAttribs[MAX_VERTEX_ATTRIBUTES];
+		
+		uint32_t numActiveVertexAttribs;
+		uint32_t activeVertexAttribsSortedByBinding[MAX_VERTEX_ATTRIBUTES];
 		
 		void Free() override;
 		
@@ -121,12 +123,11 @@ namespace eg::graphics_api::gl
 		
 		pipeline->minSampleShading = createInfo.enableSampleShading ? createInfo.minSampleShading : 0.0f;
 		
+		std::pair<spirv_cross::CompilerGLSL*, GLuint> shaderStages[5];
 		auto* spvCompilers = static_cast<spirv_cross::CompilerGLSL*>(alloca(sizeof(spirv_cross::CompilerGLSL) * 5));
 		
 		//Attaches shaders to the pipeline's program
-#ifdef EG_GLES
 		uint32_t currentIOGroup = 0;
-#endif
 		auto MaybeAddStage = [&] (const ShaderStageInfo& stageInfo, ShaderStage expectedStage)
 		{
 			if (stageInfo.shaderModule == nullptr)
@@ -145,37 +146,58 @@ namespace eg::graphics_api::gl
 			
 			GLuint shader = glCreateShader(ShaderTypes[(int)expectedStage]);
 			pipeline->shaderModules[pipeline->numShaderModules] = shader;
+			shaderStages[pipeline->numShaderModules] = { compiler, shader };
 			pipeline->numShaderModules++;
 			
-#ifdef EG_GLES
-			//Renames interface variables
-			for (uint32_t ivar : compiler->get_active_interface_variables())
+			if (useGLESPath)
 			{
-				spv::StorageClass storageClass = compiler->get_storage_class(ivar);
-				uint32_t location = compiler->get_decoration(ivar, spv::DecorationLocation);
-				if (storageClass == spv::StorageClassInput && expectedStage != ShaderStage::Vertex)
+				//Renames interface variables
+				for (uint32_t ivar : compiler->get_active_interface_variables())
 				{
-					std::ostringstream nameStream;
-					nameStream << "_io" << currentIOGroup << "_" << location;
-					compiler->set_name(ivar, nameStream.str());
+					spv::StorageClass storageClass = compiler->get_storage_class(ivar);
+					uint32_t location = compiler->get_decoration(ivar, spv::DecorationLocation);
+					if (storageClass == spv::StorageClassInput && expectedStage != ShaderStage::Vertex)
+					{
+						std::ostringstream nameStream;
+						nameStream << "_io" << currentIOGroup << "_" << location;
+						compiler->set_name(ivar, nameStream.str());
+					}
+					else if (storageClass == spv::StorageClassOutput && expectedStage != ShaderStage::Fragment)
+					{
+						std::ostringstream nameStream;
+						nameStream << "_io" << (currentIOGroup + 1) << "_" << location;
+						compiler->set_name(ivar, nameStream.str());
+					}
 				}
-				else if (storageClass == spv::StorageClassOutput && expectedStage != ShaderStage::Fragment)
+				currentIOGroup++;
+				
+				/*if (createInfo.numClipDistances != 0)
 				{
-					std::ostringstream nameStream;
-					nameStream << "_io" << (currentIOGroup + 1) << "_" << location;
-					compiler->set_name(ivar, nameStream.str());
-				}
+					std::ostringstream extraCodeStream;
+					if (expectedStage == eg::ShaderStage::Vertex)
+					{
+						extraCodeStream << "#define gl_ClipDistance _clipDistances\n";
+					}
+					else if (expectedStage == eg::ShaderStage::Fragment)
+					{
+						extraCodeStream <<
+							"in highp float _clipDistances[" << createInfo.numClipDistances << "];\n";
+							//"void _main();\n"
+							//"void main() {\n"
+							//"    for (int i = 0; i < " << createInfo.numClipDistances << "; i++) { if (_clipDistances[i] < 0.0) discard; }\n"
+							//"    _main();\n"
+							//"}\n"
+							//"#define main _main\n";
+					}
+					compiler->add_header_line(extraCodeStream.str());
+				}*/
 			}
-			currentIOGroup++;
-#endif
 			
-#ifndef __EMSCRIPTEN__
 			if (createInfo.label != nullptr)
 			{
 				std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[(int)expectedStage] });
 				glObjectLabel(GL_SHADER, shader, -1, shaderLabel.c_str());
 			}
-#endif
 		};
 		MaybeAddStage(createInfo.vertexShader, eg::ShaderStage::Vertex);
 		MaybeAddStage(createInfo.tessControlShader, eg::ShaderStage::TessControl);
@@ -183,7 +205,7 @@ namespace eg::graphics_api::gl
 		MaybeAddStage(createInfo.geometryShader, eg::ShaderStage::Geometry);
 		MaybeAddStage(createInfo.fragmentShader, eg::ShaderStage::Fragment);
 		
-		pipeline->Initialize(pipeline->numShaderModules, spvCompilers, pipeline->shaderModules);
+		pipeline->Initialize({ &shaderStages[0], pipeline->numShaderModules });
 		
 		for (uint32_t i = 0; i < pipeline->numShaderModules; i++)
 		{
@@ -191,63 +213,81 @@ namespace eg::graphics_api::gl
 		}
 		spvCompilers = nullptr;
 		
-		// ** Sets up VAOs **
-		
-		glGenVertexArrays(1, &pipeline->vertexArray);
-		glBindVertexArray(pipeline->vertexArray);
-#ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_PROGRAM, pipeline->program, -1, createInfo.label);
 		}
 		
-		for (uint32_t i = 0; i < MAX_VERTEX_ATTRIBUTES; i++)
-		{
-			uint32_t binding = createInfo.vertexAttributes[i].binding;
-			if (binding == UINT32_MAX)
-				continue;
-			
-			glEnableVertexAttribArray(i);
-			glVertexAttribBinding(i, binding);
-			
-			DataType type = createInfo.vertexAttributes[i].type;
-			GLenum glType = TranslateDataType(type);
-			
-			if (eg::Contains(intDataTypes, type))
-			{
-				glVertexAttribIFormat(i, createInfo.vertexAttributes[i].components,
-					glType, createInfo.vertexAttributes[i].offset);
-			}
-			else
-			{
-				auto normalized = static_cast<GLboolean>(eg::Contains(normDataTypes, type));
-				glVertexAttribFormat(i, createInfo.vertexAttributes[i].components,
-					glType, normalized, createInfo.vertexAttributes[i].offset);
-			}
-		}
-#else
-		std::copy_n(createInfo.vertexAttributes, MAX_VERTEX_ATTRIBUTES, pipeline->vertexAttribs);
+		// ** Sets up VAOs **
 		
+		glGenVertexArrays(1, &pipeline->vertexArray);
+		glBindVertexArray(pipeline->vertexArray);
+		
+		std::copy_n(createInfo.vertexAttributes, MAX_VERTEX_ATTRIBUTES, pipeline->vertexAttribs);
+		std::copy_n(createInfo.vertexBindings, MAX_VERTEX_BINDINGS, pipeline->vertexBindings);
+		
+		pipeline->numActiveVertexAttribs = 0;
 		for (uint32_t i = 0; i < MAX_VERTEX_ATTRIBUTES; i++)
 		{
 			if (pipeline->vertexAttribs[i].binding != UINT32_MAX)
 			{
+				pipeline->activeVertexAttribsSortedByBinding[pipeline->numActiveVertexAttribs] = i;
+				pipeline->numActiveVertexAttribs++;
 				glEnableVertexAttribArray(i);
 			}
 		}
-#endif
 		
-		//Sets up vertex bindings
-		pipeline->maxVertexBinding = 0;
-		for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
+		std::stable_sort(
+			pipeline->activeVertexAttribsSortedByBinding,
+			pipeline->activeVertexAttribsSortedByBinding + pipeline->numActiveVertexAttribs,
+			[&] (uint32_t a, uint32_t b) { return pipeline->vertexAttribs[a].binding < pipeline->vertexAttribs[b].binding; }
+		);
+		
+		if (!useGLESPath)
 		{
-			pipeline->vertexBindings[i] = createInfo.vertexBindings[i];
-			if (createInfo.vertexBindings[i].stride != UINT32_MAX)
+			for (uint32_t i = 0; i < MAX_VERTEX_ATTRIBUTES; i++)
 			{
-				pipeline->maxVertexBinding = i + 1;
-#ifndef __EMSCRIPTEN__
-				glVertexBindingDivisor(i, (GLuint)createInfo.vertexBindings[i].inputRate);
-#endif
+				uint32_t binding = createInfo.vertexAttributes[i].binding;
+				if (binding == UINT32_MAX)
+					continue;
+				
+				glEnableVertexAttribArray(i);
+				glVertexAttribBinding(i, binding);
+				
+				DataType type = createInfo.vertexAttributes[i].type;
+				GLenum glType = TranslateDataType(type);
+				
+				if (eg::Contains(intDataTypes, type))
+				{
+					glVertexAttribIFormat(i, createInfo.vertexAttributes[i].components,
+					                      glType, createInfo.vertexAttributes[i].offset);
+				}
+				else
+				{
+					auto normalized = static_cast<GLboolean>(eg::Contains(normDataTypes, type));
+					glVertexAttribFormat(i, createInfo.vertexAttributes[i].components,
+					                     glType, normalized, createInfo.vertexAttributes[i].offset);
+				}
+			}
+			
+			for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
+			{
+				if (createInfo.vertexBindings[i].stride != UINT32_MAX)
+				{
+					glVertexBindingDivisor(i, (GLuint)createInfo.vertexBindings[i].inputRate);
+				}
+			}
+		}
+		
+		if (useGLESPath)
+		{
+			for (uint32_t i = 1; i < MAX_COLOR_ATTACHMENTS; i++)
+			{
+				if (createInfo.blendStates[i].enabled)
+				{
+					Log(LogLevel::Error, "gl", "Multi-target blend is not supported in GLES");
+					break;
+				}
 			}
 		}
 		
@@ -384,7 +424,7 @@ namespace eg::graphics_api::gl
 			case 0b1000: face = GL_BACK; break;
 			case 0b0100: face = GL_FRONT; break;
 			case 0b1100: face = GL_FRONT_AND_BACK; break;
-			default: EG_UNREACHABLE; break;
+			default: EG_UNREACHABLE
 			}
 			
 			glStencilMaskSeparate(face, val);
@@ -518,6 +558,9 @@ namespace eg::graphics_api::gl
 			curState.stencilReferenceFront = frontStencilState.reference;
 		}
 		
+		InitScissorTest();
+		
+#ifndef __EMSCRIPTEN__
 		while (numClipDistances > curState.numClipDistances)
 		{
 			glEnable(GL_CLIP_DISTANCE0 + curState.numClipDistances);
@@ -529,9 +572,6 @@ namespace eg::graphics_api::gl
 			glDisable(GL_CLIP_DISTANCE0 + curState.numClipDistances);
 		}
 		
-		InitScissorTest();
-		
-#ifndef __EMSCRIPTEN__
 		if (minSampleShading != curState.minSampleShading)
 		{
 			glMinSampleShading(minSampleShading);
@@ -557,49 +597,54 @@ namespace eg::graphics_api::gl
 			std::copy_n(blendConstants, 4, curState.blendConstants);
 		}
 		
-#ifdef __EMSCRIPTEN__
-		if (curState.colorWriteMasks[0] != colorWriteMasks[0])
+		if (useGLESPath)
 		{
-			glColorMask(HasFlag(colorWriteMasks[0], ColorWriteMask::R),
-			            HasFlag(colorWriteMasks[0], ColorWriteMask::G),
-			            HasFlag(colorWriteMasks[0], ColorWriteMask::B),
-			            HasFlag(colorWriteMasks[0], ColorWriteMask::A));
-			curState.colorWriteMasks[0] = colorWriteMasks[0];
-		}
-		SetEnabled<GL_BLEND>(blend[0].enabled);
-		if (blend[0].enabled)
-		{
-			glBlendEquationSeparate(blend[0].colorFunc, blend[0].alphaFunc);
-			glBlendFuncSeparate(blend[0].srcColorFactor, blend[0].dstColorFactor,
-				blend[0].srcAlphaFactor, blend[0].dstAlphaFactor);
-		}
-#else
-		for (GLuint i = 0; i < 8; i++)
-		{
-			if (curState.colorWriteMasks[i] != colorWriteMasks[i])
+			if (curState.colorWriteMasks[0] != colorWriteMasks[0])
 			{
-				glColorMaski(i, HasFlag(colorWriteMasks[i], ColorWriteMask::R),
-				             HasFlag(colorWriteMasks[i], ColorWriteMask::G),
-				             HasFlag(colorWriteMasks[i], ColorWriteMask::B),
-				             HasFlag(colorWriteMasks[i], ColorWriteMask::A));
-				curState.colorWriteMasks[i] = colorWriteMasks[i];
+				glColorMask(HasFlag(colorWriteMasks[0], ColorWriteMask::R),
+				            HasFlag(colorWriteMasks[0], ColorWriteMask::G),
+				            HasFlag(colorWriteMasks[0], ColorWriteMask::B),
+				            HasFlag(colorWriteMasks[0], ColorWriteMask::A));
+				curState.colorWriteMasks[0] = colorWriteMasks[0];
 			}
-			if (curState.blendEnabled[i] != blend[i].enabled)
+			SetEnabled<GL_BLEND>(blend[0].enabled);
+			if (blend[0].enabled)
 			{
+				glBlendEquationSeparate(blend[0].colorFunc, blend[0].alphaFunc);
+				glBlendFuncSeparate(blend[0].srcColorFactor, blend[0].dstColorFactor,
+				                    blend[0].srcAlphaFactor, blend[0].dstAlphaFactor);
+			}
+		}
+		else
+		{
+#ifndef EG_GLES
+			for (GLuint i = 0; i < 8; i++)
+			{
+				if (curState.colorWriteMasks[i] != colorWriteMasks[i])
+				{
+					glColorMaski(i, HasFlag(colorWriteMasks[i], ColorWriteMask::R),
+					             HasFlag(colorWriteMasks[i], ColorWriteMask::G),
+					             HasFlag(colorWriteMasks[i], ColorWriteMask::B),
+					             HasFlag(colorWriteMasks[i], ColorWriteMask::A));
+					curState.colorWriteMasks[i] = colorWriteMasks[i];
+				}
+				if (curState.blendEnabled[i] != blend[i].enabled)
+				{
+					if (blend[i].enabled)
+						glEnablei(GL_BLEND, i);
+					else
+						glDisablei(GL_BLEND, i);
+					curState.blendEnabled[i] = blend[i].enabled;
+				}
 				if (blend[i].enabled)
-					glEnablei(GL_BLEND, i);
-				else
-					glDisablei(GL_BLEND, i);
-				curState.blendEnabled[i] = blend[i].enabled;
+				{
+					glBlendEquationSeparatei(i, blend[i].colorFunc, blend[i].alphaFunc);
+					glBlendFuncSeparatei(i, blend[i].srcColorFactor, blend[i].dstColorFactor,
+					                     blend[i].srcAlphaFactor, blend[i].dstAlphaFactor);
+				}
 			}
-			if (blend[i].enabled)
-			{
-				glBlendEquationSeparatei(i, blend[i].colorFunc, blend[i].alphaFunc);
-				glBlendFuncSeparatei(i, blend[i].srcColorFactor, blend[i].dstColorFactor,
-					blend[i].srcAlphaFactor, blend[i].dstAlphaFactor);
-			}
-		}
 #endif
+		}
 		
 		updateVAOBindings = true;
 	}
@@ -608,55 +653,73 @@ namespace eg::graphics_api::gl
 	static uint32_t indexBufferOffset;
 	static GLuint indexBuffer;
 	static uint32_t currentFirstVertex = 0;
+	static uint32_t currentFirstInstance = 0;
 	static std::pair<GLuint, uint32_t> vertexBuffers[MAX_VERTEX_BINDINGS];
 	
-	inline void MaybeUpdateVAO(uint32_t firstVertex)
+	inline void MaybeUpdateVAO(uint32_t firstVertex, uint32_t firstInstance)
 	{
-#ifdef __EMSCRIPTEN__
-		if (firstVertex != currentFirstVertex)
+		if (useGLESPath && (firstVertex != currentFirstVertex || firstInstance != currentFirstInstance))
 			updateVAOBindings = true;
-#endif
 		
 		if (!updateVAOBindings)
 			return;
 		updateVAOBindings = false;
 		currentFirstVertex = firstVertex;
+		currentFirstInstance = firstInstance;
 		
 		const GraphicsPipeline* pipeline = static_cast<const GraphicsPipeline*>(currentPipeline);
-		for (uint32_t i = 0; i < pipeline->maxVertexBinding; i++)
+		
+		if (useGLESPath)
 		{
-			if (pipeline->vertexBindings[i].stride == UINT32_MAX)
-				continue;
-			
-#ifdef __EMSCRIPTEN__
-			glBindBuffer(GL_ARRAY_BUFFER, vertexBuffers[i].first);
-			for (uint32_t j = 0; j < MAX_VERTEX_ATTRIBUTES; j++)
+			uint32_t binding = UINT32_MAX;
+			for (uint32_t i = 0; i < pipeline->numActiveVertexAttribs; i++)
 			{
-				if (pipeline->vertexAttribs[j].binding != i)
-					continue;
+				uint32_t attrib = pipeline->activeVertexAttribsSortedByBinding[i];
 				
-				DataType type = pipeline->vertexAttribs[j].type;
-				GLenum glType = TranslateDataType(type);
-				GLsizeiptr stride = pipeline->vertexBindings[i].stride;
-				void* offsetPtr = reinterpret_cast<void*>(pipeline->vertexAttribs[j].offset + firstVertex * stride);
+				if (binding != pipeline->vertexAttribs[attrib].binding)
+				{
+					binding = pipeline->vertexAttribs[attrib].binding;
+					glBindBuffer(GL_ARRAY_BUFFER, vertexBuffers[binding].first);
+				}
+				
+				const DataType type = pipeline->vertexAttribs[attrib].type;
+				const GLenum glType = TranslateDataType(type);
+				const GLsizeiptr stride = pipeline->vertexBindings[binding].stride;
+				
+				const uint32_t first =
+					pipeline->vertexBindings[binding].inputRate == InputRate::Vertex ? firstVertex : firstInstance;
+				
+				uintptr_t offset =
+					pipeline->vertexAttribs[attrib].offset +
+					vertexBuffers[binding].second +
+					first * stride;
+				
+				void* offsetPtr = reinterpret_cast<void*>(offset);
 				
 				if (eg::Contains(intDataTypes, type))
 				{
-					glVertexAttribIPointer(j, pipeline->vertexAttribs[j].components, glType, stride, offsetPtr);
+					glVertexAttribIPointer(attrib, pipeline->vertexAttribs[attrib].components, glType, stride, offsetPtr);
 				}
 				else
 				{
 					auto normalized = static_cast<GLboolean>(eg::Contains(normDataTypes, type));
-					glVertexAttribPointer(j, pipeline->vertexAttribs[j].components,
-						glType, normalized, stride, offsetPtr);
+					glVertexAttribPointer(attrib, pipeline->vertexAttribs[attrib].components,
+					                      glType, normalized, stride, offsetPtr);
 				}
 				
-				glVertexAttribDivisor(j, (GLuint)pipeline->vertexBindings[i].inputRate);
+				glVertexAttribDivisor(attrib, (GLuint)pipeline->vertexBindings[binding].inputRate);
 			}
-#else
-			glBindVertexBuffer(i, vertexBuffers[i].first, vertexBuffers[i].second,
-			                   pipeline->vertexBindings[i].stride);
-#endif
+		}
+		else
+		{
+			for (uint32_t binding = 0; binding < MAX_VERTEX_BINDINGS; binding++)
+			{
+				if (pipeline->vertexBindings[binding].stride != UINT32_MAX)
+				{
+					glBindVertexBuffer(binding, vertexBuffers[binding].first, vertexBuffers[binding].second,
+					                   pipeline->vertexBindings[binding].stride);
+				}
+			}
 		}
 		
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -679,18 +742,20 @@ namespace eg::graphics_api::gl
 	void Draw(CommandContextHandle, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
 	{
 		CommitViewportAndScissor();
-		MaybeUpdateVAO(0);
+		MaybeUpdateVAO(0, firstInstance);
 		
-#ifdef EG_GLES
-		if (firstInstance != 0)
-			Log(LogLevel::Error, "gl", "Draw with firstInstance is not supported in GLES");
+		GLenum topology = static_cast<const GraphicsPipeline*>(currentPipeline)->topology;
 		
-		glDrawArraysInstanced(static_cast<const GraphicsPipeline*>(currentPipeline)->topology,
-			firstVertex, numVertices, numInstances);
-#else
-		glDrawArraysInstancedBaseInstance(static_cast<const GraphicsPipeline*>(currentPipeline)->topology,
-			firstVertex, numVertices, numInstances, firstInstance);
+		if (useGLESPath)
+		{
+			glDrawArraysInstanced(topology, firstVertex, numVertices, numInstances);
+		}
+		else
+		{
+#ifndef EG_GLES
+			glDrawArraysInstancedBaseInstance(topology, firstVertex, numVertices, numInstances, firstInstance);
 #endif
+		}
 		
 		ClearBarriers();
 	}
@@ -699,7 +764,7 @@ namespace eg::graphics_api::gl
 		uint32_t firstInstance, uint32_t numInstances)
 	{
 		CommitViewportAndScissor();
-		MaybeUpdateVAO(firstVertex);
+		MaybeUpdateVAO(firstVertex, firstInstance);
 		
 		uintptr_t indexOffset = indexBufferOffset + firstIndex * 2;
 		GLenum indexType = GL_UNSIGNED_SHORT;
@@ -710,21 +775,19 @@ namespace eg::graphics_api::gl
 			indexOffset += firstIndex * 2;
 		}
 		
-#ifdef EG_GLES
-		if (firstInstance != 0)
-			Log(LogLevel::Error, "gl", "Draw with firstInstance is not supported in GLES");
+		GLenum topology = static_cast<const GraphicsPipeline*>(currentPipeline)->topology;
 		
-#ifdef __EMSCRIPTEN__
-		glDrawElementsInstanced(static_cast<const GraphicsPipeline*>(currentPipeline)->topology,
-			numIndices, indexType, (void*)indexOffset, numInstances);
-#else
-		glDrawElementsInstancedBaseVertex(static_cast<const GraphicsPipeline*>(currentPipeline)->topology,
-			numIndices, indexType, (void*)indexOffset, numInstances, firstVertex);
+		if (useGLESPath)
+		{
+			glDrawElementsInstanced(topology, numIndices, indexType, (void*)indexOffset, numInstances);
+		}
+		else
+		{
+#ifndef EG_GLES
+			glDrawElementsInstancedBaseVertexBaseInstance(
+				topology, numIndices, indexType, (void*)indexOffset, numInstances, firstVertex, firstInstance);
 #endif
-#else
-		glDrawElementsInstancedBaseVertexBaseInstance(static_cast<const GraphicsPipeline*>(currentPipeline)->topology,
-			numIndices, indexType, (void*)indexOffset, numInstances, firstVertex, firstInstance);
-#endif
+		}
 		
 		ClearBarriers();
 	}

@@ -44,7 +44,9 @@ namespace eg::graphics_api::gl
 		std::vector<MappedBinding> bindings;
 		PipelineDescriptorSet sets[MAX_DESCRIPTOR_SETS];
 		
-		void Initialize(uint32_t numShaderModules, spirv_cross::CompilerGLSL* spvCompilers, GLuint* shaderModules);
+		bool HasBinding(uint32_t set, uint32_t binding) const;
+		
+		void Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages);
 		
 		virtual void Free() = 0;
 		

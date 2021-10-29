@@ -4,7 +4,7 @@
 #include "Graphics/Graphics.hpp"
 
 #ifdef __EMSCRIPTEN__
-
+#include <emscripten/html5.h>
 #else
 #include <SDL.h>
 #endif
@@ -354,9 +354,14 @@ namespace eg
 	
 	void SetRelativeMouseMode(bool relMouseMode)
 	{
+		if (g_relMouseMode == relMouseMode)
+			return;
 		g_relMouseMode = relMouseMode;
 #ifdef __EMSCRIPTEN__
-		
+		if (relMouseMode)
+			emscripten_request_pointerlock(nullptr, true);
+		else
+			emscripten_exit_pointerlock();
 #else
 		SDL_SetRelativeMouseMode((SDL_bool)relMouseMode);
 #endif

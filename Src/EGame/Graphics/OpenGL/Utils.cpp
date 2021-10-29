@@ -3,6 +3,14 @@
 
 namespace eg::graphics_api::gl
 {
+#ifndef EG_GLES
+	bool useGLESPath;
+#endif
+	
+	std::string rendererName;
+	std::string vendorName;
+	GLVendor glVendor;
+	
 	GLenum TranslateFormat(Format format)
 	{
 		switch (format)
@@ -192,12 +200,10 @@ namespace eg::graphics_api::gl
 	
 	void MaybeInsertBarrier(GLenum barrier)
 	{
-#ifndef __EMSCRIPTEN__
 		if (!Contains(insertedBarriers, barrier))
 		{
 			glMemoryBarrier(barrier);
 			insertedBarriers.push_back(barrier);
 		}
-#endif
 	}
 }

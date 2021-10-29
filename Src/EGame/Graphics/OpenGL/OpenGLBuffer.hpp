@@ -11,9 +11,7 @@ namespace eg::graphics_api::gl
 		uint64_t size;
 		char* persistentMapping;
 		BufferUsage currentUsage;
-#ifdef EG_GLES
-		bool isHostBuffer;
-#endif
+		bool isFakeHostBuffer; //Used for faked mappings in GLES mode
 		
 		void ChangeUsage(BufferUsage newUsage);
 	};

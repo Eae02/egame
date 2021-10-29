@@ -43,9 +43,7 @@ namespace eg
 		}
 	};
 	
-#ifndef __EMSCRIPTEN__
 	//Checks for collision between an ellipsoid and a mesh.
 	EG_API void CheckEllipsoidMeshCollision(CollisionInfo& info, const CollisionEllipsoid& ellipsoid, const glm::vec3& move,
 	                                        const class CollisionMesh& mesh, const glm::mat4& meshTransform);
-#endif
 }

@@ -1,54 +1,41 @@
 #include "CollisionMesh.hpp"
 #include "Ray.hpp"
 
-#ifndef __EMSCRIPTEN__
-
 namespace eg
 {
-	CollisionMesh::CollisionMesh(uint32_t numVertices, uint32_t numIndices)
-		: m_numVertices(numVertices), m_numIndices(numIndices),
-		  m_indices(new uint32_t[numIndices]), m_vertices(new __m128[numIndices]) { }
-	
 	int CollisionMesh::Intersect(const Ray& ray, float& distanceOut, const glm::mat4* transform) const
 	{
 		int ans = -1;
 		distanceOut = INFINITY;
-
-		alignas(16) float rayDirA[4] = { ray.GetDirection().x, ray.GetDirection().y, ray.GetDirection().z, 0.0f };
-		__m128 rayDir = _mm_load_ps(rayDirA);
 		
-		alignas(16) float rayStartA[4] = { ray.GetStart().x, ray.GetStart().y, ray.GetStart().z, 0.0f };
-		__m128 rayStart = _mm_load_ps(rayStartA);
-		
-		const __m128* positions;
-		std::vector<glm::vec4> positionsCopy;
+		std::vector<glm::vec3> positionsCopy;
+		const glm::vec3* positions;
 		if (transform != nullptr)
 		{
-			positionsCopy.resize(m_numVertices);
-			for (uint32_t i = 0; i < m_numVertices; i++)
+			positionsCopy.resize(m_vertices.size());
+			for (uint32_t i = 0; i < m_vertices.size(); i++)
 			{
-				positionsCopy[i] = *transform * glm::vec4(Vertex(i), 1.0f);
-				positionsCopy[i].w = 0;
+				positionsCopy[i] = *transform * glm::vec4(m_vertices[i], 1.0f);
 			}
-			positions = reinterpret_cast<const __m128*>(positionsCopy.data());
+			positions = positionsCopy.data();
 		}
 		else
 		{
-			positions = m_vertices;
+			positions = m_vertices.data();
 		}
 		
-		for (uint32_t i = 0; i < m_numIndices; i += 3)
+		for (uint32_t i = 0; i < m_indices.size(); i += 3)
 		{
-			__m128 v0 = positions[m_indices[i + 0]];
-			__m128 v1 = positions[m_indices[i + 1]];
-			__m128 v2 = positions[m_indices[i + 2]];
+			glm::vec3 v0 = positions[m_indices[i + 0]];
+			glm::vec3 v1 = positions[m_indices[i + 1]];
+			glm::vec3 v2 = positions[m_indices[i + 2]];
 
-			__m128 d1 = _mm_sub_ps(v1, v0);
-			__m128 d2 = _mm_sub_ps(v2, v0);
-			__m128 pn = sse::Normalize(sse::Cross(d1, d2));
-			float pd = sse::Dot(pn, v0);
-			float dv = sse::Dot(pn, rayDir);
-			float ps = sse::Dot(rayStart, pn);
+			glm::vec3 d1 = v1 - v0;
+			glm::vec3 d2 = v2 - v0;
+			glm::vec3 pn = glm::normalize(glm::cross(d1, d2));
+			float pd = glm::dot(pn, v0);
+			float dv = glm::dot(pn, ray.GetDirection());
+			float ps = glm::dot(ray.GetStart(), pn);
 			
 			if (std::abs(dv) < 1E-6f)
 				continue;
@@ -56,16 +43,16 @@ namespace eg
 			float pdist = (pd - ps) / dv;
 			if (pdist > 0 && pdist < distanceOut)
 			{
-				__m128 pos = _mm_add_ps(rayStart, _mm_mul_ps(rayDir, _mm_load_ps1(&pdist)));
+				glm::vec3 pos = ray.GetPoint(pdist);
 				
-				float a = sse::Dot(d1, d1);
-				float b = sse::Dot(d1, d2);
-				float c = sse::Dot(d2, d2);
+				float a = glm::dot(d1, d1);
+				float b = glm::dot(d1, d2);
+				float c = glm::dot(d2, d2);
 				
-				__m128 vp = _mm_sub_ps(pos, v0);
+				glm::vec3 vp = pos - v0;
 				
-				float d = sse::Dot(vp, d1);
-				float e = sse::Dot(vp, d2);
+				float d = glm::dot(vp, d1);
+				float e = glm::dot(vp, d2);
 				
 				float ac_bb = (a * c) - (b * b);
 				
@@ -86,16 +73,16 @@ namespace eg
 	
 	void CollisionMesh::Transform(const glm::mat4& transform)
 	{
-		for (uint32_t i = 0; i < m_numVertices; i++)
+		for (glm::vec3& v : m_vertices)
 		{
-			*reinterpret_cast<glm::vec3*>(&m_vertices[i]) = glm::vec3(transform * glm::vec4(Vertex(i), 1));
+			v = glm::vec3(transform * glm::vec4(v, 1));
 		}
 		InitAABB();
 	}
 	
 	void CollisionMesh::FlipWinding()
 	{
-		for (uint32_t i = 0; i < m_numIndices; i += 3)
+		for (uint32_t i = 0; i < m_indices.size(); i += 3)
 		{
 			std::swap(m_indices[i], m_indices[i + 1]);
 		}
@@ -103,15 +90,15 @@ namespace eg
 	
 	void CollisionMesh::InitAABB()
 	{
-		if (m_numVertices == 0)
+		if (m_vertices.empty())
 			return;
 		
-		__m128 min = VerticesM128()[0];
-		__m128 max = VerticesM128()[0];
-		for (uint32_t i = 1; i < m_numVertices; i++)
+		glm::vec3 min = m_vertices[0];
+		glm::vec3 max = m_vertices[0];
+		for (uint32_t i = 1; i < m_vertices.size(); i++)
 		{
-			min = _mm_min_ps(VerticesM128()[i], min);
-			max = _mm_max_ps(VerticesM128()[i], max);
+			min = glm::min(m_vertices[i], min);
+			max = glm::max(m_vertices[i], max);
 		}
 		
 		m_aabb.min = glm::vec3(min[0], min[1], min[2]);
@@ -120,31 +107,31 @@ namespace eg
 	
 	CollisionMesh CollisionMesh::Join(std::span<const CollisionMesh> meshes)
 	{
-		CollisionMesh result;
+		uint32_t totIndices = 0;
+		uint32_t totVertices = 0;
 		for (const CollisionMesh& mesh : meshes)
 		{
-			result.m_numIndices += mesh.m_numIndices;
-			result.m_numVertices += mesh.m_numVertices;
+			totIndices += mesh.m_indices.size();
+			totVertices += mesh.m_vertices.size();
 		}
 		
-		result.m_vertices = new __m128[result.m_numVertices];
-		result.m_indices = new uint32_t[result.m_numIndices];
+		CollisionMesh result;
+		result.m_vertices.resize(totVertices);
+		result.m_indices.resize(totIndices);
 		
 		uint32_t nextIndex = 0;
 		uint32_t nextVertex = 0;
 		for (const CollisionMesh& mesh : meshes)
 		{
-			for (uint32_t i = 0; i < mesh.m_numIndices; i++)
+			for (uint32_t i = 0; i < mesh.m_indices.size(); i++)
 			{
 				result.m_indices[nextIndex++] = mesh.m_indices[i] + nextVertex;
 			}
-			std::copy_n(mesh.m_vertices, mesh.m_numVertices, result.m_vertices + nextVertex);
-			nextVertex += mesh.m_numVertices;
+			std::copy_n(mesh.m_vertices.data(), mesh.m_vertices.size(), result.m_vertices.data() + nextVertex);
+			nextVertex += mesh.m_vertices.size();
 		}
 		
 		result.InitAABB();
 		return result;
 	}
 }
-
-#endif

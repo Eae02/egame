@@ -246,14 +246,25 @@ namespace eg::asset_gen
 		}
 	}
 	
-	bool Texture2DWriter::AddLayer(std::istream& imageStream)
+	bool Texture2DWriter::AddLayer(std::istream& imageStream, std::string_view fileName)
 	{
+		std::string messagePrefix;
+		if (!fileName.empty())
+			messagePrefix = Concat({"Texture '", fileName, "': "});
+		
 		ImageLoader loader(imageStream);
 		
 		if (m_width == -1)
 			m_width = loader.Width();
 		if (m_height == -1)
 			m_height = loader.Height();
+		
+		if (IsCompressedFormat(m_format) && (m_width % 4 != 0 || m_height % 4 != 0))
+		{
+			Log(LogLevel::Warning, "as", "{0}Compressed textures must have a size divisible by 4 (got {1}x{2}).",
+				messagePrefix, m_width, m_height);
+			return false;
+		}
 		
 		if (m_numMipLevels == 0)
 		{
@@ -283,8 +294,8 @@ namespace eg::asset_gen
 		//Resizes the image if the size doesn't match
 		if (m_width != loader.Width() || m_height != loader.Height())
 		{
-			Log(LogLevel::Warning, "as", "Inconsistent texture array resolution, "
-			                             "layer '{0}' will be resized to {1}x{2}.", m_numLayers, m_width, m_height);
+			Log(LogLevel::Warning, "as", "{0}Inconsistent texture array resolution, layer '{1}' will be resized to {2}x{3}.",
+				messagePrefix, m_numLayers, m_width, m_height);
 			
 			uint8_t* newData = reinterpret_cast<uint8_t*>(std::malloc(m_width * m_height * loadChannels));
 			m_freeDelUP.emplace_back(newData);

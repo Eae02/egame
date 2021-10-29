@@ -57,35 +57,43 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	void AbstractPipeline::Initialize(uint32_t numShaderModules, spirv_cross::CompilerGLSL* spvCompilers,
-		GLuint* shaderModules)
+	bool AbstractPipeline::HasBinding(uint32_t set, uint32_t binding) const
+	{
+		for (const MappedBinding& b : bindings)
+		{
+			if (b.set == set && b.binding == binding)
+				return true;
+		}
+		return false;
+	}
+	
+	static const std::pair<spirv_cross::SmallVector<spirv_cross::Resource> spirv_cross::ShaderResources::*, BindingType> bindingTypes[] =
+	{
+		{ &spirv_cross::ShaderResources::uniform_buffers, BindingType::UniformBuffer },
+		{ &spirv_cross::ShaderResources::storage_buffers, BindingType::StorageBuffer },
+		{ &spirv_cross::ShaderResources::sampled_images, BindingType::Texture },
+		{ &spirv_cross::ShaderResources::storage_images, BindingType::StorageImage },
+	};
+	
+	void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages)
 	{
 		//Detects resources used in shaders
-		std::for_each(spvCompilers, spvCompilers + numShaderModules,
-			[&] (const spirv_cross::CompilerGLSL& spvCompiler)
+		for (auto [compiler, _] : shaderStages)
 		{
-			auto ProcessResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
-			                             BindingType type)
+			const spirv_cross::ShaderResources& resources = compiler->get_shader_resources();
+			for (auto [resourceFieldPtr, bindingType] : bindingTypes)
 			{
-				for (const spirv_cross::Resource& res : resources)
+				for (const spirv_cross::Resource& res : resources.*resourceFieldPtr)
 				{
-					const uint32_t set = spvCompiler.get_decoration(res.id, spv::DecorationDescriptorSet);
-					const uint32_t binding = spvCompiler.get_decoration(res.id, spv::DecorationBinding);
-					bool exists = std::any_of(bindings.begin(), bindings.end(),
-						[&] (const MappedBinding& mb) { return mb.set == set && mb.binding == binding; });
-					if (!exists)
+					const uint32_t set = compiler->get_decoration(res.id, spv::DecorationDescriptorSet);
+					const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
+					if (!HasBinding(set, binding))
 					{
-						bindings.push_back({ set, binding, type, 0 });
+						bindings.push_back({ set, binding, bindingType, 0 });
 					}
 				}
-			};
-			
-			const spirv_cross::ShaderResources& resources = spvCompiler.get_shader_resources();
-			ProcessResources(resources.uniform_buffers, BindingType::UniformBuffer);
-			ProcessResources(resources.storage_buffers, BindingType::StorageBuffer);
-			ProcessResources(resources.sampled_images, BindingType::Texture);
-			ProcessResources(resources.storage_images, BindingType::StorageImage);
-		});
+			}
+		}
 		
 		std::sort(bindings.begin(), bindings.end());
 		
@@ -132,27 +140,22 @@ namespace eg::graphics_api::gl
 		std::vector<std::string> glslCodeStages;
 		
 		//Updates the bindings used by resources and uploads code to shader modules
-		for (uint32_t i = 0; i < numShaderModules; i++)
+		for (auto [compiler, shader] : shaderStages)
 		{
-			auto ProcessResources = [&] (const spirv_cross::SmallVector<spirv_cross::Resource>& resources)
+			const spirv_cross::ShaderResources& shResources = compiler->get_shader_resources();
+			for (auto [resourceFieldPtr, bindingType] : bindingTypes)
 			{
-				for (const spirv_cross::Resource& res : resources)
+				for (const spirv_cross::Resource& res : shResources.*resourceFieldPtr)
 				{
-					const uint32_t set = spvCompilers[i].get_decoration(res.id, spv::DecorationDescriptorSet);
-					const uint32_t binding = spvCompilers[i].get_decoration(res.id, spv::DecorationBinding);
+					const uint32_t set = compiler->get_decoration(res.id, spv::DecorationDescriptorSet);
+					const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
 					auto it = std::lower_bound(bindings.begin(), bindings.end(), MappedBinding { set, binding });
-					spvCompilers[i].set_decoration(res.id, spv::DecorationDescriptorSet, 0);
-					spvCompilers[i].set_decoration(res.id, spv::DecorationBinding, it->glBinding);
+					compiler->set_decoration(res.id, spv::DecorationDescriptorSet, 0);
+					compiler->set_decoration(res.id, spv::DecorationBinding, it->glBinding);
 				}
-			};
+			}
 			
-			const spirv_cross::ShaderResources& shResources = spvCompilers[i].get_shader_resources();
-			ProcessResources(shResources.uniform_buffers);
-			ProcessResources(shResources.storage_buffers);
-			ProcessResources(shResources.sampled_images);
-			ProcessResources(shResources.storage_images);
-			
-			spirv_cross::CompilerGLSL::Options options = spvCompilers[i].get_common_options();
+			spirv_cross::CompilerGLSL::Options options = compiler->get_common_options();
 #ifdef EG_GLES
 			options.version = 300;
 			options.es = true;
@@ -160,25 +163,25 @@ namespace eg::graphics_api::gl
 #else
 			options.version = 430;
 #endif
-			spvCompilers[i].set_common_options(options);
-			std::string glslCode = spvCompilers[i].compile();
+			compiler->set_common_options(options);
+			std::string glslCode = compiler->compile();
 			
 			const GLchar* glslCodeC = glslCode.c_str();
 			const GLint glslCodeLen = (GLint)glslCode.size();
-			glShaderSource(shaderModules[i], 1, &glslCodeC, &glslCodeLen);
+			glShaderSource(shader, 1, &glslCodeC, &glslCodeLen);
 			
-			glCompileShader(shaderModules[i]);
+			glCompileShader(shader);
 			
 			//Checks the shader's compile status.
 			GLint compileStatus = GL_FALSE;
-			glGetShaderiv(shaderModules[i], GL_COMPILE_STATUS, &compileStatus);
+			glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus);
 			if (!compileStatus)
 			{
 				GLint infoLogLen = 0;
-				glGetShaderiv(shaderModules[i], GL_INFO_LOG_LENGTH, &infoLogLen);
+				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLen);
 				
 				std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
-				glGetShaderInfoLog(shaderModules[i], infoLogLen, nullptr, infoLog.data());
+				glGetShaderInfoLog(shader, infoLogLen, nullptr, infoLog.data());
 				infoLog.back() = '\0';
 				
 				std::cout << "Shader failed to compile!\n\n --- GLSL Code --- \n" << glslCode <<
@@ -187,9 +190,25 @@ namespace eg::graphics_api::gl
 				std::abort();
 			}
 			
-			glAttachShader(program, shaderModules[i]);
+			glAttachShader(program, shader);
 			glslCodeStages.push_back(std::move(glslCode));
 		}
+		
+#ifdef __EMSCRIPTEN__
+		//Webgl doesn't seem to support having only a vertex shader, so add a dummy fragment shader
+		if (numShaderModules == 1)
+		{
+			static std::optional<GLuint> dummyFragmentShader;
+			if (!dummyFragmentShader.has_value())
+			{
+				dummyFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+				const GLchar* glslCodeC = "#version 300 es\nvoid main() { }\n";
+				glShaderSource(*dummyFragmentShader, 1, &glslCodeC, nullptr);
+				glCompileShader(*dummyFragmentShader);
+			}
+			glAttachShader(program, *dummyFragmentShader);
+		}
+#endif
 		
 		glLinkProgram(program);
 		
@@ -216,27 +235,26 @@ namespace eg::graphics_api::gl
 		}
 		
 		//Processes push constant blocks
-		std::for_each(spvCompilers, spvCompilers + numShaderModules,
-			[&] (const spirv_cross::CompilerGLSL& spvCrossCompiler)
+		for (auto [compiler, _] : shaderStages)
 		{
-			const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
+			const spirv_cross::ShaderResources& resources = compiler->get_shader_resources();
 			
 			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
 			{
-				const SPIRType& type = spvCrossCompiler.get_type(pcBlock.base_type_id);
+				const SPIRType& type = compiler->get_type(pcBlock.base_type_id);
 				uint32_t numMembers = (uint32_t)type.member_types.size();
 				
-				std::string blockName = spvCrossCompiler.get_name(pcBlock.id);
+				std::string blockName = compiler->get_name(pcBlock.id);
 				if (blockName.empty())
 				{
-					blockName = spvCrossCompiler.get_fallback_name(pcBlock.id);
+					blockName = compiler->get_fallback_name(pcBlock.id);
 				}
 				
-				auto activeRanges = spvCrossCompiler.get_active_buffer_ranges(pcBlock.id);
+				auto activeRanges = compiler->get_active_buffer_ranges(pcBlock.id);
 				
 				for (uint32_t i = 0; i < numMembers; i++)
 				{
-					const SPIRType& memberType = spvCrossCompiler.get_type(type.member_types[i]);
+					const SPIRType& memberType = compiler->get_type(type.member_types[i]);
 					
 					//Only process supported base types
 					static const SPIRType::BaseType supportedBaseTypes[] = 
@@ -246,7 +264,7 @@ namespace eg::graphics_api::gl
 					if (!Contains(supportedBaseTypes, memberType.basetype))
 						continue;
 					
-					const uint32_t offset = spvCrossCompiler.type_struct_member_offset(type, i);
+					const uint32_t offset = compiler->type_struct_member_offset(type, i);
 					
 					bool active = false;
 					for (const spirv_cross::BufferRange& range : activeRanges)
@@ -261,7 +279,7 @@ namespace eg::graphics_api::gl
 						continue;
 					
 					//Gets the name and uniform location of this member
-					const std::string& name = spvCrossCompiler.get_member_name(type.self, i);
+					const std::string& name = compiler->get_member_name(type.self, i);
 					std::string uniformName = Concat({ blockName, ".", name });
 					int location = glGetUniformLocation(program, uniformName.c_str());
 					if (location == -1)
@@ -270,7 +288,7 @@ namespace eg::graphics_api::gl
 						{
 							std::cout << "Push constant uniform not found: '" << name <<
 							          "' (expected '" << uniformName << "'). All uniforms:\n";
-//#ifndef EG_GLES
+							
 							GLint numUniforms;
 							glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &numUniforms);
 							for (int u = 0; u < numUniforms; u++)
@@ -280,15 +298,17 @@ namespace eg::graphics_api::gl
 								GLenum uniformType;
 								
 								char uniformNameBuffer[512];
-								glGetActiveUniform(program, u, sizeof(uniformNameBuffer), &uniformNameLen, &uniformSize, &uniformType, uniformNameBuffer);
+								glGetActiveUniform(program, u, sizeof(uniformNameBuffer),
+									&uniformNameLen, &uniformSize, &uniformType, uniformNameBuffer);
 								
-								//glGetActiveUniformName(program, u, sizeof(uniformNameBuffer), nullptr,
-								//                       uniformNameBuffer);
 								std::cout << "  " << uniformNameBuffer << "\n";
 							}
-//#else
-//							std::cout << "  Not implemented in GLES\n";
-//#endif
+							
+							for (const std::string& code : glslCodeStages)
+							{
+								std::cout << "\n\n --- GLSL ---\n" << code;
+							}
+							
 							std::cout << std::flush;
 						}
 						
@@ -314,7 +334,7 @@ namespace eg::graphics_api::gl
 						pushConstant.arraySize *= arraySize;
 				}
 			}
-		});
+		}
 	}
 	
 	template <typename T>

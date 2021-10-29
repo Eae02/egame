@@ -35,12 +35,13 @@ namespace eg
 		ProcessTimers(results.GetGPUTimerCursor(), true);
 		
 		m_lastResult = std::move(results);
+		m_hasAnyResults = true;
 		m_historyPos++;
 	}
 	
 	void ProfilerPane::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 	{
-		if (!visible)
+		if (!visible || !m_hasAnyResults)
 			return;
 		
 		float paneWidth = std::max((float)screenWidth * 0.25f, 400.0f);

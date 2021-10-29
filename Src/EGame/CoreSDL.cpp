@@ -138,6 +138,7 @@ namespace eg
 		apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
 		apiInitArguments.defaultDepthStencilFormat = defaultDSFormat;
 		apiInitArguments.preferIntegrated = HasFlag(runConfig.flags, RunFlags::PreferIntegratedGPU);
+		apiInitArguments.preferGLESPath = HasFlag(runConfig.flags, RunFlags::PreferGLESPath);
 		apiInitArguments.preferredDeviceName = runConfig.preferredGPUName;
 		
 		if (!InitializeGraphicsAPI(runConfig.graphicsAPI, apiInitArguments))
@@ -231,7 +232,7 @@ namespace eg
 				detail::shouldClose = true;
 				break;
 			case SDL_KEYDOWN:
-				detail::ButtonDownEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
+				detail::ButtonDownEvent(detail::TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
 				
 				if (RelativeMouseModeActive() && DevMode() && !event.key.repeat &&
 				    event.key.keysym.scancode == SDL_SCANCODE_F10)
@@ -241,18 +242,18 @@ namespace eg
 				}
 				break;
 			case SDL_KEYUP:
-				detail::ButtonUpEvent(TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
+				detail::ButtonUpEvent(detail::TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
 				break;
 			case SDL_CONTROLLERBUTTONDOWN:
 				if (SDL_GameControllerFromInstanceID(event.cbutton.which) == activeController)
 				{
-					detail::ButtonDownEvent(TranslateSDLControllerButton(event.cbutton.button), false);
+					detail::ButtonDownEvent(detail::TranslateSDLControllerButton(event.cbutton.button), false);
 				}
 				break;
 			case SDL_CONTROLLERBUTTONUP:
 				if (SDL_GameControllerFromInstanceID(event.cbutton.which) == activeController)
 				{
-					detail::ButtonUpEvent(TranslateSDLControllerButton(event.cbutton.button), false);
+					detail::ButtonUpEvent(detail::TranslateSDLControllerButton(event.cbutton.button), false);
 				}
 				break;
 			case SDL_CONTROLLERAXISMOTION:
@@ -272,10 +273,10 @@ namespace eg
 				AddGameController(SDL_GameControllerFromInstanceID(event.cdevice.which));
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				detail::ButtonDownEvent(TranslateSDLMouseButton(event.button.button), false);
+				detail::ButtonDownEvent(detail::TranslateSDLMouseButton(event.button.button), false);
 				break;
 			case SDL_MOUSEBUTTONUP:
-				detail::ButtonUpEvent(TranslateSDLMouseButton(event.button.button), false);
+				detail::ButtonUpEvent(detail::TranslateSDLMouseButton(event.button.button), false);
 				break;
 			case SDL_MOUSEMOTION:
 				if (firstMouseMotionEvent)

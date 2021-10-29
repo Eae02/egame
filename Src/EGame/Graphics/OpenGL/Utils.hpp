@@ -18,6 +18,23 @@ namespace eg::graphics_api::gl
 	
 	std::optional<UniformType> GetUniformType(GLenum glType);
 	
+	enum class GLVendor
+	{
+		Unknown,
+		Nvidia,
+		Intel
+	};
+	
+	extern std::string rendererName;
+	extern std::string vendorName;
+	extern GLVendor glVendor;
+	
+#ifdef EG_GLES
+	constexpr bool useGLESPath = true;
+#else
+	extern bool useGLESPath;
+#endif
+	
 	extern std::vector<GLenum> insertedBarriers;
 	
 	inline void ClearBarriers()
@@ -37,5 +54,12 @@ namespace eg::graphics_api::gl
 		else if (!enable && currentlyEnabled)
 			glDisable(E);
 		currentlyEnabled = enable;
+	}
+	
+	inline int GetIntegerLimit(GLenum name)
+	{
+		int res;
+		glGetIntegerv(name, &res);
+		return res;
 	}
 }

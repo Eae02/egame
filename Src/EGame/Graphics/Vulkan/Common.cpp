@@ -130,20 +130,6 @@ namespace eg::graphics_api::vk
 	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*)
 	{
-		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-InconsistentSpirv") == 0)
-		//	return VK_FALSE;
-		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-Shader-OutputNotConsumed") == 0)
-		//	return VK_FALSE;
-		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-features-limits-maxComputeWorkGroupInvocations") == 0)
-		//	return VK_FALSE;
-		//if (std::strcmp(callbackData->pMessageIdName, "UNASSIGNED-CoreValidation-DrawState-InvalidQuery") == 0)
-		//	return VK_FALSE;
-		
-		//if (std::strstr(callbackData->pMessage, "can result in undefined behavior if this memory is used by the device. Only GENERAL or PREINITIALIZED should be used."))
-		//	return VK_FALSE;
-		//if (std::strstr(callbackData->pMessage, "All child objects created on device must have been destroyed prior to destroying device"))
-		//	return VK_FALSE;
-		
 		std::cerr << "Vk[" << callbackData->messageIdNumber << " " << callbackData->pMessageIdName << "]: \n" <<
 			callbackData->pMessage << std::endl;
 		
@@ -175,31 +161,31 @@ namespace eg::graphics_api::vk
 	{
 		switch (result)
 		{
-		#define ERROR_TYPE(name) case VK_ERROR_ ## name: EG_PANIC("Vulkan error " #name); break;
-		ERROR_TYPE(OUT_OF_HOST_MEMORY)
-		ERROR_TYPE(OUT_OF_DEVICE_MEMORY)
-		ERROR_TYPE(INITIALIZATION_FAILED)
-		ERROR_TYPE(DEVICE_LOST)
-		ERROR_TYPE(MEMORY_MAP_FAILED)
-		ERROR_TYPE(LAYER_NOT_PRESENT)
-		ERROR_TYPE(EXTENSION_NOT_PRESENT)
-		ERROR_TYPE(FEATURE_NOT_PRESENT)
-		ERROR_TYPE(INCOMPATIBLE_DRIVER)
-		ERROR_TYPE(TOO_MANY_OBJECTS)
-		ERROR_TYPE(FORMAT_NOT_SUPPORTED)
-		ERROR_TYPE(FRAGMENTED_POOL)
-		ERROR_TYPE(OUT_OF_POOL_MEMORY)
-		ERROR_TYPE(INVALID_EXTERNAL_HANDLE)
-		ERROR_TYPE(SURFACE_LOST_KHR)
-		ERROR_TYPE(NATIVE_WINDOW_IN_USE_KHR)
-		ERROR_TYPE(OUT_OF_DATE_KHR)
-		ERROR_TYPE(INCOMPATIBLE_DISPLAY_KHR)
-		ERROR_TYPE(VALIDATION_FAILED_EXT)
-		ERROR_TYPE(INVALID_SHADER_NV)
-		ERROR_TYPE(FRAGMENTATION_EXT)
-		ERROR_TYPE(NOT_PERMITTED_EXT)
-		ERROR_TYPE(INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT)
-		ERROR_TYPE(INVALID_DEVICE_ADDRESS_EXT)
+		#define ERROR_TYPE(name) case name: EG_PANIC("Vulkan error " #name); break;
+		ERROR_TYPE(VK_ERROR_OUT_OF_HOST_MEMORY)
+		ERROR_TYPE(VK_ERROR_OUT_OF_DEVICE_MEMORY)
+		ERROR_TYPE(VK_ERROR_INITIALIZATION_FAILED)
+		ERROR_TYPE(VK_ERROR_DEVICE_LOST)
+		ERROR_TYPE(VK_ERROR_MEMORY_MAP_FAILED)
+		ERROR_TYPE(VK_ERROR_LAYER_NOT_PRESENT)
+		ERROR_TYPE(VK_ERROR_EXTENSION_NOT_PRESENT)
+		ERROR_TYPE(VK_ERROR_FEATURE_NOT_PRESENT)
+		ERROR_TYPE(VK_ERROR_INCOMPATIBLE_DRIVER)
+		ERROR_TYPE(VK_ERROR_TOO_MANY_OBJECTS)
+		ERROR_TYPE(VK_ERROR_FORMAT_NOT_SUPPORTED)
+		ERROR_TYPE(VK_ERROR_FRAGMENTED_POOL)
+		ERROR_TYPE(VK_ERROR_OUT_OF_POOL_MEMORY)
+		ERROR_TYPE(VK_ERROR_INVALID_EXTERNAL_HANDLE)
+		ERROR_TYPE(VK_ERROR_SURFACE_LOST_KHR)
+		ERROR_TYPE(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR)
+		ERROR_TYPE(VK_ERROR_OUT_OF_DATE_KHR)
+		ERROR_TYPE(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR)
+		ERROR_TYPE(VK_ERROR_VALIDATION_FAILED_EXT)
+		ERROR_TYPE(VK_ERROR_INVALID_SHADER_NV)
+		ERROR_TYPE(VK_ERROR_FRAGMENTATION_EXT)
+		ERROR_TYPE(VK_ERROR_NOT_PERMITTED_EXT)
+		ERROR_TYPE(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT)
+		ERROR_TYPE(VK_ERROR_INVALID_DEVICE_ADDRESS_EXT)
 		default: break;
 		}
 	}

@@ -515,11 +515,14 @@ namespace eg
 		int maxI = 0;
 	};
 	
-	static std::unordered_map<std::string_view, TweakVar> tweakVars;
+	static std::unordered_map<std::string_view, TweakVar>* tweakVars;
 	
 	inline TweakVar* AddTweakVar(std::string_view name, TweakVarValue value) noexcept
 	{
-		auto emplaceRes = tweakVars.emplace(name, TweakVar());
+		if (tweakVars == nullptr)
+			tweakVars = new std::unordered_map<std::string_view, TweakVar>;
+		
+		auto emplaceRes = tweakVars->emplace(name, TweakVar());
 		if (!emplaceRes.second)
 		{
 			EG_PANIC("Multiple tweakable variables share the name '" << name << "'.");
@@ -558,9 +561,9 @@ namespace eg
 	
 	void TweakCommandsCompletionProvider(std::span<const std::string_view> prevWords, console::CompletionsList& list)
 	{
-		if (!eg::DevMode())
+		if (!tweakVars)
 			return;
-		for (const auto& var : tweakVars)
+		for (const auto& var : *tweakVars)
 			list.Add(var.first);
 	}
 	
@@ -575,10 +578,10 @@ namespace eg
 	
 	static inline TweakVar* FindTweakVarOrPrintError(std::string_view name)
 	{
-		if (DevMode())
+		if (tweakVars)
 		{
-			auto it = tweakVars.find(name);
-			if (it != tweakVars.end())
+			auto it = tweakVars->find(name);
+			if (it != tweakVars->end())
 				return &it->second;
 		}
 		std::string msg = Concat({ "Tweakable variable not found: '", name, "'." });
@@ -674,9 +677,9 @@ namespace eg
 		});
 		console::SetCompletionProvider("toggle", 0, [] (std::span<const std::string_view> prevWords, console::CompletionsList& list)
 		{
-			if (!eg::DevMode())
+			if (!tweakVars)
 				return;
-			for (const auto& var : tweakVars)
+			for (const auto& var : *tweakVars)
 			{
 				if (std::holds_alternative<int>(var.second.value) && var.second.minI == 0 && var.second.maxI == 1)
 				{
@@ -687,14 +690,14 @@ namespace eg
 		
 		console::AddCommand("lsvar", 0, [] (std::span<const std::string_view> args, console::Writer& writer)
 		{
-			if (tweakVars.empty() || !eg::DevMode())
+			if (tweakVars == nullptr || tweakVars->empty() || !eg::DevMode())
 			{
 				writer.WriteLine(console::ErrorColor, "There are no tweakable variables");
 				return;
 			}
 			
 			std::vector<const TweakVar*> variables;
-			for (const auto& var : tweakVars)
+			for (const auto& var : *tweakVars)
 			{
 				if (args.size() == 0 || var.first.find(args[0]) != std::string::npos)
 				{

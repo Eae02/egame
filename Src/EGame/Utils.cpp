@@ -29,6 +29,7 @@ namespace eg
 				"  --vk     Force rendering with Vulkan" << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::Vulkan) <<
 				"  --igpu   Prefer integrated GPU" << LineEndDefWithFlag(RunFlags::PreferIntegratedGPU) <<
 				"  --dgpu   Prefer dedicated GPU" << LineEndDefWithoutFlag(RunFlags::PreferIntegratedGPU) <<
+				"  --gles   Prefer GLES path when using OpenGL" << LineEndDefWithFlag(RunFlags::PreferGLESPath) <<
 				"  --eap    Create asset package" << LineEndDefWithFlag(RunFlags::CreateAssetPackage) <<
 				"  --dev    Run in dev mode" << LineEndDefWithFlag(RunFlags::DevMode) <<
 				"  --nodev  Do not run in dev mode" << LineEndDefWithoutFlag(RunFlags::DevMode) <<
@@ -49,6 +50,8 @@ namespace eg
 				runConfig.flags |= RunFlags::PreferIntegratedGPU;
 			else if (arg == "--dgpu")
 				runConfig.flags &= ~RunFlags::PreferIntegratedGPU;
+			else if (arg == "--gles")
+				runConfig.flags |= RunFlags::PreferGLESPath;
 			else if (arg == "--eap")
 				runConfig.flags |= RunFlags::CreateAssetPackage;
 			else if (arg == "--dev")

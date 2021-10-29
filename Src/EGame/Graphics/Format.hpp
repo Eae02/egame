@@ -1,7 +1,11 @@
 #pragma once
 
 #include "../API.hpp"
+#include "../Color.hpp"
+
 #include <cstdint>
+#include <variant>
+#include <array>
 
 namespace eg
 {
@@ -75,6 +79,12 @@ namespace eg
 	EG_API bool IsSRGBFormat(Format format);
 	
 	EG_API uint32_t GetImageByteSize(uint32_t width, uint32_t height, Format format);
+	
+	template <typename T>
+	std::array<T, 4> GetClearValueAs(const std::variant<ColorLin, glm::ivec4, glm::uvec4>& clearValueVariant)
+	{
+		return std::visit([] (const auto& x) { return std::array<T, 4> { (T)x.r, (T)x.g, (T)x.b, (T)x.a }; }, clearValueVariant);
+	}
 	
 	enum class DataType
 	{

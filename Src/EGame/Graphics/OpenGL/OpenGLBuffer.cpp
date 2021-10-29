@@ -26,12 +26,12 @@ namespace eg::graphics_api::gl
 		Buffer* buffer = bufferPool.New();
 		buffer->size = createInfo.size;
 		buffer->persistentMapping = nullptr;
+		buffer->isFakeHostBuffer = false;
 		
-#ifdef EG_GLES
-		if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
+		if (useGLESPath && HasFlag(createInfo.flags, BufferFlags::HostAllocate))
 		{
 			buffer->buffer = 0;
-			buffer->isHostBuffer = true;
+			buffer->isFakeHostBuffer = true;
 			buffer->persistentMapping = new char[createInfo.size];
 			if (createInfo.initialData != nullptr)
 			{
@@ -39,8 +39,6 @@ namespace eg::graphics_api::gl
 			}
 			return reinterpret_cast<BufferHandle>(buffer);
 		}
-		buffer->isHostBuffer = false;
-#endif
 		
 		glGenBuffers(1, &buffer->buffer);
 		
@@ -56,56 +54,58 @@ namespace eg::graphics_api::gl
 		
 		glBindBuffer(target, buffer->buffer);
 		
-#ifdef EG_GLES
-		GLenum usageFlags = GL_DYNAMIC_DRAW;
-		if (HasFlag(createInfo.flags, BufferFlags::Update))
+		if (useGLESPath)
 		{
-			usageFlags = GL_STREAM_DRAW;
-		}
-		
-		glBufferData(target, createInfo.size, createInfo.initialData, usageFlags);
-#else
-		GLenum mapFlags = 0;
-		
-		GLenum storageFlags = 0;
-		if (HasFlag(createInfo.flags, BufferFlags::MapWrite))
-		{
-			storageFlags |= GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
-			mapFlags |= GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT;
-		}
-		if (HasFlag(createInfo.flags, BufferFlags::MapRead))
-		{
-			storageFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-			mapFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-		}
-		if (HasFlag(createInfo.flags, BufferFlags::Update))
-		{
-			storageFlags |= GL_DYNAMIC_STORAGE_BIT;
-		}
-		if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
-		{
-			storageFlags |= GL_CLIENT_STORAGE_BIT;
-		}
-		
-		glBufferStorage(target, createInfo.size, createInfo.initialData, storageFlags);
-		
-		if (mapFlags)
-		{
-			buffer->persistentMapping = reinterpret_cast<char*>(
-				glMapBufferRange(target, 0, createInfo.size, mapFlags));
+			GLenum usageFlags = GL_DYNAMIC_DRAW;
+			if (HasFlag(createInfo.flags, BufferFlags::Update))
+			{
+				usageFlags = GL_STREAM_DRAW;
+			}
+			glBufferData(target, createInfo.size, createInfo.initialData, usageFlags);
 		}
 		else
 		{
-			buffer->persistentMapping = nullptr;
-		}
+#ifndef EG_GLES
+			GLenum mapFlags = 0;
+			
+			GLenum storageFlags = 0;
+			if (HasFlag(createInfo.flags, BufferFlags::MapWrite))
+			{
+				storageFlags |= GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
+				mapFlags |= GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT;
+			}
+			if (HasFlag(createInfo.flags, BufferFlags::MapRead))
+			{
+				storageFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+				mapFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+			}
+			if (HasFlag(createInfo.flags, BufferFlags::Update))
+			{
+				storageFlags |= GL_DYNAMIC_STORAGE_BIT;
+			}
+			if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
+			{
+				storageFlags |= GL_CLIENT_STORAGE_BIT;
+			}
+			
+			glBufferStorage(target, createInfo.size, createInfo.initialData, storageFlags);
+			
+			if (mapFlags)
+			{
+				buffer->persistentMapping = reinterpret_cast<char*>(
+					glMapBufferRange(target, 0, createInfo.size, mapFlags));
+			}
+			else
+			{
+				buffer->persistentMapping = nullptr;
+			}
 #endif
+		}
 		
-#ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_BUFFER, buffer->buffer, -1, createInfo.label);
 		}
-#endif
 		
 		return reinterpret_cast<BufferHandle>(buffer);
 	}
@@ -115,20 +115,15 @@ namespace eg::graphics_api::gl
 		Buffer* buffer = UnwrapBuffer(handle);
 		MainThreadInvoke([buffer]
 		{
-#ifdef EG_GLES
-			if (buffer->isHostBuffer)
+			if (buffer->isFakeHostBuffer)
 			{
 				delete[] buffer->persistentMapping;
 			}
-			else
+			if (buffer->buffer == currentTempBuffer)
 			{
-#endif
-				if (buffer->buffer == currentTempBuffer)
-					currentTempBuffer = UINT32_MAX;
-				glDeleteBuffers(1, &buffer->buffer);
-#ifdef EG_GLES
+				currentTempBuffer = UINT32_MAX;
 			}
-#endif
+			glDeleteBuffers(1, &buffer->buffer);
 			bufferPool.Delete(buffer);
 		});
 	}
@@ -138,20 +133,19 @@ namespace eg::graphics_api::gl
 		Buffer* buffer = UnwrapBuffer(handle);
 		if (offset + range > buffer->size)
 			EG_PANIC("MapBuffer out of range!");
-#ifdef EG_GLES
-		if (!buffer->isHostBuffer)
+		if (useGLESPath && !buffer->isFakeHostBuffer)
 			EG_PANIC("Attempted to map a non host buffer!")
-#endif
 		return buffer->persistentMapping + offset;
 	}
 	
 	void FlushBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
 	{
-#ifndef EG_GLES
-		Buffer* buffer = UnwrapBuffer(handle);
-		BindTempBuffer(buffer->buffer);
-		glFlushMappedBufferRange(TEMP_BUFFER_BINDING, modOffset, modRange);
-#endif
+		if (!useGLESPath)
+		{
+			Buffer* buffer = UnwrapBuffer(handle);
+			BindTempBuffer(buffer->buffer);
+			glFlushMappedBufferRange(TEMP_BUFFER_BINDING, modOffset, modRange);
+		}
 	}
 	
 	void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange) { }
@@ -159,13 +153,13 @@ namespace eg::graphics_api::gl
 	void UpdateBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
-#ifdef EG_GLES
-		if (buffer->isHostBuffer)
+		
+		if (buffer->isFakeHostBuffer)
 		{
 			std::memcpy(buffer->persistentMapping + offset, data, size);
 			return;
 		}
-#endif
+		
 		buffer->ChangeUsage(BufferUsage::CopyDst);
 		
 		BindTempBuffer(buffer->buffer);
@@ -175,23 +169,27 @@ namespace eg::graphics_api::gl
 	void FillBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
-#ifdef EG_GLES
-		if (buffer->isHostBuffer)
+		if (buffer->isFakeHostBuffer)
 		{
 			std::memset(buffer->persistentMapping + offset, data, size);
 			return;
 		}
-#endif
+		
 		buffer->ChangeUsage(BufferUsage::CopyDst);
 		
 		BindTempBuffer(buffer->buffer);
-#ifdef EG_GLES
-		std::vector<char> dataVec(size);
-		memset(dataVec.data(), data, size);
-		glBufferSubData(TEMP_BUFFER_BINDING, offset, size, dataVec.data());
-#else
-		glClearBufferData(TEMP_BUFFER_BINDING, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &data);
+		if (useGLESPath)
+		{
+			std::vector<char> dataVec(size);
+			memset(dataVec.data(), data, size);
+			glBufferSubData(TEMP_BUFFER_BINDING, offset, size, dataVec.data());
+		}
+		else
+		{
+#ifndef EG_GLES
+			glClearBufferData(TEMP_BUFFER_BINDING, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &data);
 #endif
+		}
 	}
 	
 	void CopyBuffer(CommandContextHandle, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
@@ -202,24 +200,25 @@ namespace eg::graphics_api::gl
 		srcBuffer->ChangeUsage(BufferUsage::CopySrc);
 		dstBuffer->ChangeUsage(BufferUsage::CopyDst);
 		
-#ifdef EG_GLES
-		if (srcBuffer->isHostBuffer && !dstBuffer->isHostBuffer)
+		if (useGLESPath)
 		{
-			BindTempBuffer(dstBuffer->buffer);
-			glBufferSubData(TEMP_BUFFER_BINDING, dstOffset, size, srcBuffer->persistentMapping + srcOffset);
-			return;
+			if (srcBuffer->isFakeHostBuffer && !dstBuffer->isFakeHostBuffer)
+			{
+				BindTempBuffer(dstBuffer->buffer);
+				glBufferSubData(TEMP_BUFFER_BINDING, dstOffset, size, srcBuffer->persistentMapping + srcOffset);
+				return;
+			}
+			if (!srcBuffer->isFakeHostBuffer && dstBuffer->isFakeHostBuffer)
+			{
+				Log(LogLevel::Warning, "gl", "Device to host buffer copy is not implemented in GLES.");
+				return;
+			}
+			if (srcBuffer->isFakeHostBuffer && dstBuffer->isFakeHostBuffer)
+			{
+				std::memcpy(dstBuffer->persistentMapping + dstOffset, srcBuffer->persistentMapping + srcOffset, size);
+				return;
+			}
 		}
-		if (!srcBuffer->isHostBuffer && dstBuffer->isHostBuffer)
-		{
-			Log(LogLevel::Warning, "gl", "Device to host buffer copy is not implemented.");
-			return;
-		}
-		if (srcBuffer->isHostBuffer && dstBuffer->isHostBuffer)
-		{
-			std::memcpy(dstBuffer->persistentMapping + dstOffset, srcBuffer->persistentMapping + srcOffset, size);
-			return;
-		}
-#endif
 		
 		glBindBuffer(GL_COPY_READ_BUFFER, srcBuffer->buffer);
 		BindTempBuffer(dstBuffer->buffer);

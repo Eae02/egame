@@ -25,6 +25,7 @@ namespace eg::graphics_api::gl
 	{
 		GLuint framebuffer;
 		uint32_t numColorAttachments;
+		Format colorAttachmentFormats[MAX_COLOR_ATTACHMENTS];
 		bool hasSRGB;
 		bool hasDepth;
 		bool hasStencil;
@@ -32,6 +33,7 @@ namespace eg::graphics_api::gl
 		uint32_t width;
 		uint32_t height;
 		std::vector<ResolveFBO> resolveFBOs;
+		std::vector<Texture*> attachmentsWithGenTracking;
 	};
 	
 	static ObjectPool<Framebuffer> framebuffers;
@@ -41,27 +43,59 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<Framebuffer*>(handle);
 	}
 	
-	void AttachTexture(GLenum target, GLuint framebuffer, const FramebufferAttachment& attachment)
+	void AssertFramebufferComplete(GLenum target)
+	{
+		switch (glCheckFramebufferStatus(target))
+		{
+		#define FRAMEBUFFER_STATUS_CASE(id) case id: EG_PANIC("Incomplete framebuffer: " #id);
+		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT)
+		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT)
+		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_UNSUPPORTED)
+		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE)
+		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS)
+		default: break;
+		}
+	}
+	
+	void AttachTexture(GLenum target, Framebuffer& framebuffer, GLuint fbo, const FramebufferAttachment& attachment)
 	{
 		Texture* texture = UnwrapTexture(attachment.texture);
 		
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer);
+		if (texture->createFakeTextureViews)
+		{
+			framebuffer.attachmentsWithGenTracking.push_back(texture);
+		}
+		
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
 		
 		if ((texture->type == GL_TEXTURE_2D_ARRAY || texture->type == GL_TEXTURE_CUBE_MAP_ARRAY ||
 		     texture->type == GL_TEXTURE_CUBE_MAP) && attachment.subresource.numArrayLayers == 1)
 		{
-			glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, target, texture->texture,
-				attachment.subresource.mipLevel, attachment.subresource.firstArrayLayer);
+			if (useGLESPath && texture->type == GL_TEXTURE_CUBE_MAP)
+			{
+				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target,
+				                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + attachment.subresource.firstArrayLayer,
+				                       texture->texture, attachment.subresource.mipLevel);
+				return;
+			}
+			else
+			{
+				glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, target, texture->texture,
+				                          attachment.subresource.mipLevel, attachment.subresource.firstArrayLayer);
+			}
 		}
 		else
 		{
-#ifdef EG_GLES
-			glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target, GL_TEXTURE_2D,
-				texture->GetView(attachment.subresource.AsSubresource()), 0);
-#else
-			glFramebufferTexture(GL_READ_FRAMEBUFFER, target,
-				texture->GetView(attachment.subresource.AsSubresource()), 0);
-#endif
+			GLuint view = texture->GetView(attachment.subresource.AsSubresource());
+			
+			if (useGLESPath)
+			{
+				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target, GL_TEXTURE_2D, view, 0);
+			}
+			else
+			{
+				glFramebufferTexture(GL_READ_FRAMEBUFFER, target, view, 0);
+			}
 		}
 	}
 	
@@ -72,12 +106,10 @@ namespace eg::graphics_api::gl
 		
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
 		
-#ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_FRAMEBUFFER, framebuffer->framebuffer, -1, createInfo.label);
 		}
-#endif
 		
 		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
 		framebuffer->hasDepth = false;
@@ -101,12 +133,14 @@ namespace eg::graphics_api::gl
 		
 		GLenum drawBuffers[MAX_COLOR_ATTACHMENTS];
 		
-		auto Attach = [&] (GLenum target, const FramebufferAttachment& attachment)
+		auto Attach = [&] (GLenum target, const FramebufferAttachment& attachment, Format* formatOut)
 		{
 			Texture* texture = UnwrapTexture(attachment.texture);
 			
 			if (texture->sampleCount > 1)
 				framebuffer->multisampled = true;
+			if (formatOut != nullptr)
+				*formatOut = texture->format;
 			
 			uint32_t realWidth = texture->width >> attachment.subresource.mipLevel;
 			uint32_t realHeight = texture->height >> attachment.subresource.mipLevel;
@@ -114,12 +148,12 @@ namespace eg::graphics_api::gl
 			if (IsSRGBFormat(texture->format))
 				framebuffer->hasSRGB = true;
 			
-			AttachTexture(target, framebuffer->framebuffer, attachment);
+			AttachTexture(target, *framebuffer, framebuffer->framebuffer, attachment);
 		};
 		
 		for (uint32_t i = 0; i < createInfo.colorAttachments.size(); i++)
 		{
-			Attach(GL_COLOR_ATTACHMENT0 + i, createInfo.colorAttachments[i]);
+			Attach(GL_COLOR_ATTACHMENT0 + i, createInfo.colorAttachments[i], &framebuffer->colorAttachmentFormats[i]);
 			drawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
 		}
 		
@@ -129,11 +163,11 @@ namespace eg::graphics_api::gl
 			{
 			case Format::Depth32:
 			case Format::Depth16:
-				Attach(GL_DEPTH_ATTACHMENT, createInfo.depthStencilAttachment);
+				Attach(GL_DEPTH_ATTACHMENT, createInfo.depthStencilAttachment, nullptr);
 				break;
 			case Format::Depth24Stencil8:
 			case Format::Depth32Stencil8:
-				Attach(GL_DEPTH_STENCIL_ATTACHMENT, createInfo.depthStencilAttachment);
+				Attach(GL_DEPTH_STENCIL_ATTACHMENT, createInfo.depthStencilAttachment, nullptr);
 				break;
 			default:
 				EG_PANIC("Invalid depth stencil attachment format");
@@ -143,9 +177,10 @@ namespace eg::graphics_api::gl
 		
 		if (!createInfo.colorAttachments.empty())
 		{
-			glDrawBuffers((GLsizei)createInfo.colorAttachments.size(),
-				drawBuffers);
+			glDrawBuffers((GLsizei)createInfo.colorAttachments.size(), drawBuffers);
 		}
+		
+		AssertFramebufferComplete(GL_FRAMEBUFFER);
 		
 		for (size_t i = 0; i < createInfo.colorResolveAttachments.size(); i++)
 		{
@@ -155,8 +190,10 @@ namespace eg::graphics_api::gl
 			auto& fboPair = framebuffer->resolveFBOs.emplace_back();
 			fboPair.mask = GL_COLOR_BUFFER_BIT;
 			glGenFramebuffers(2, fboPair.framebuffers);
-			AttachTexture(GL_COLOR_ATTACHMENT0, fboPair.framebuffers[0], createInfo.colorAttachments[i]);
-			AttachTexture(GL_COLOR_ATTACHMENT0, fboPair.framebuffers[1], createInfo.colorResolveAttachments[i]);
+			AttachTexture(GL_COLOR_ATTACHMENT0, *framebuffer, fboPair.framebuffers[0], createInfo.colorAttachments[i]);
+			AttachTexture(GL_COLOR_ATTACHMENT0, *framebuffer, fboPair.framebuffers[1], createInfo.colorResolveAttachments[i]);
+			glReadBuffer(GL_COLOR_ATTACHMENT0);
+			AssertFramebufferComplete(GL_READ_FRAMEBUFFER);
 		}
 		
 		if (createInfo.depthStencilResolveAttachment.texture != nullptr)
@@ -164,8 +201,9 @@ namespace eg::graphics_api::gl
 			auto& fboPair = framebuffer->resolveFBOs.emplace_back();
 			fboPair.mask = GL_DEPTH_BUFFER_BIT;
 			glGenFramebuffers(2, fboPair.framebuffers);
-			AttachTexture(GL_DEPTH_ATTACHMENT, fboPair.framebuffers[0], createInfo.depthStencilAttachment);
-			AttachTexture(GL_DEPTH_ATTACHMENT, fboPair.framebuffers[1], createInfo.depthStencilResolveAttachment);
+			AttachTexture(GL_DEPTH_ATTACHMENT, *framebuffer, fboPair.framebuffers[0], createInfo.depthStencilAttachment);
+			AttachTexture(GL_DEPTH_ATTACHMENT, *framebuffer, fboPair.framebuffers[1], createInfo.depthStencilResolveAttachment);
+			AssertFramebufferComplete(GL_READ_FRAMEBUFFER);
 		}
 		
 		return reinterpret_cast<FramebufferHandle>(framebuffer);
@@ -182,17 +220,39 @@ namespace eg::graphics_api::gl
 	
 	Framebuffer* currentFramebuffer = nullptr;
 	
+	void BindCorrectFramebuffer()
+	{
+		uint32_t fbWidth;
+		uint32_t fbHeight;
+		
+		if (currentFramebuffer != nullptr)
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, currentFramebuffer->framebuffer);
+			fbWidth = currentFramebuffer->width;
+			fbHeight = currentFramebuffer->height;
+		}
+		else
+		{
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			fbWidth = drawableWidth;
+			fbHeight = drawableHeight;
+		}
+		
+		SetViewport(nullptr, 0, 0, (float)fbWidth, (float)fbHeight);
+		SetScissor(nullptr, 0, 0, fbWidth, fbHeight);
+	}
+	
 	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 	{
+		currentFramebuffer = UnwrapFramebuffer(beginInfo.framebuffer);
+		BindCorrectFramebuffer();
+		
 		uint32_t numColorAttachments;
 		bool hasDepth;
 		bool hasStencil;
 		bool forceClear;
 		if (beginInfo.framebuffer == nullptr)
 		{
-			currentFramebuffer = nullptr;
-			
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			numColorAttachments = 1;
 			hasDepth = defaultFramebufferHasDepth;
 			hasStencil = defaultFramebufferHasStencil;
@@ -202,29 +262,18 @@ namespace eg::graphics_api::gl
 			SetEnabled<GL_FRAMEBUFFER_SRGB>(srgbBackBuffer);
 			SetEnabled<GL_MULTISAMPLE>(false);
 #endif
-			
-			SetViewport(cc, 0, 0, (float)drawableWidth, (float)drawableHeight);
-			SetScissor(cc, 0, 0, drawableWidth, drawableHeight);
 		}
 		else
 		{
-			Framebuffer* framebuffer = UnwrapFramebuffer(beginInfo.framebuffer);
-			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->framebuffer);
-			
-			currentFramebuffer = framebuffer;
-			
-			numColorAttachments = framebuffer->numColorAttachments;
-			hasDepth = framebuffer->hasDepth;
-			hasStencil = framebuffer->hasStencil;
+			numColorAttachments = currentFramebuffer->numColorAttachments;
+			hasDepth = currentFramebuffer->hasDepth;
+			hasStencil = currentFramebuffer->hasStencil;
 			forceClear = false;
 			
 #ifndef EG_GLES
 			SetEnabled<GL_FRAMEBUFFER_SRGB>(true);
-			SetEnabled<GL_MULTISAMPLE>(framebuffer->multisampled);
+			SetEnabled<GL_MULTISAMPLE>(currentFramebuffer->multisampled);
 #endif
-			
-			SetViewport(cc, 0, 0, (float)framebuffer->width, (float)framebuffer->height);
-			SetScissor(cc, 0, 0, framebuffer->width, framebuffer->height);
 		}
 		
 		SetEnabled<GL_SCISSOR_TEST>(false);
@@ -300,7 +349,25 @@ namespace eg::graphics_api::gl
 			const RenderPassColorAttachment& attachment = beginInfo.colorAttachments[i];
 			if (attachment.loadOp == AttachmentLoadOp::Clear || forceClear)
 			{
-				glClearBufferfv(GL_COLOR, i, &attachment.clearValue.r);
+				FormatTypes expectedFormatType = FormatTypes::Float;
+				if (currentFramebuffer != nullptr)
+					expectedFormatType = GetFormatType(currentFramebuffer->colorAttachmentFormats[i]);
+				
+				if (expectedFormatType == FormatTypes::UInt)
+				{
+					std::array<GLuint, 4> clearValue = GetClearValueAs<GLuint>(attachment.clearValue);
+					glClearBufferuiv(GL_COLOR, i, clearValue.data());
+				}
+				else if (expectedFormatType == FormatTypes::SInt)
+				{
+					std::array<GLint, 4> clearValue = GetClearValueAs<GLint>(attachment.clearValue);
+					glClearBufferiv(GL_COLOR, i, clearValue.data());
+				}
+				else
+				{
+					std::array<float, 4> clearValue = GetClearValueAs<float>(attachment.clearValue);
+					glClearBufferfv(GL_COLOR, i, clearValue.data());
+				}
 			}
 			else if (attachment.loadOp == AttachmentLoadOp::Discard)
 			{
@@ -337,6 +404,10 @@ namespace eg::graphics_api::gl
 				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, resolveFBO.framebuffers[1]);
 				glBlitFramebuffer(0, 0, currentFramebuffer->width, currentFramebuffer->height, 0, 0,
 					currentFramebuffer->width, currentFramebuffer->height, resolveFBO.mask, GL_NEAREST);
+			}
+			for (Texture* texture : currentFramebuffer->attachmentsWithGenTracking)
+			{
+				texture->generation++;
 			}
 		}
 	}

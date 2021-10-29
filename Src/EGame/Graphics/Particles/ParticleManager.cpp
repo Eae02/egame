@@ -9,309 +9,317 @@
 namespace eg
 {
 	ParticleManager::ParticleManager()
-		: m_random(std::time(nullptr)), m_thread(&ParticleManager::ThreadTarget, this)
+		: m_random(std::time(nullptr))
+#ifndef __EMSCRIPTEN__
+		, m_thread(&ParticleManager::ThreadTarget, this)
+#endif
 	{
 		SetGravity(glm::vec3(0, -5, 0));
 	}
 	
 	ParticleManager::~ParticleManager()
 	{
+#ifndef __EMSCRIPTEN__
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
 			m_state = State::Stop;
 		}
 		m_stepDoneSignal.notify_one();
 		m_thread.join();
+#endif
 	}
 	
-	void ParticleManager::ThreadTarget()
+	void ParticleManager::SimulateOneStep()
 	{
-		std::vector<ParticleInstance> particleInstances;
-		std::vector<std::pair<float, int>> particleDepths;
+		float dt = m_currentTime - m_lastSimTime;
+		m_lastSimTime = m_currentTime;
 		
-		float lastSimTime = m_currentTime;
-		while (true)
+#ifdef EG_HAS_SIMD
+		__m128 dt4 = _mm_set1_ps(dt);
+#endif
+		
+		int particleCount = 0;
+		
+		//Updates existing particles
+		for (ParticlePage* page : m_pages)
 		{
-			float dt = m_currentTime - lastSimTime;
-			lastSimTime = m_currentTime;
+			int numAlive = page->livingParticles;
+			int numAliveDiv4 = (page->livingParticles + 3) / 4;
+			
+			int numDead = 0;
+			int deadIndices[PARTICLES_PER_PAGE];
 			
 #ifdef EG_HAS_SIMD
-			__m128 dt4 = _mm_set1_ps(dt);
-#endif
+			__m128* rotationM = reinterpret_cast<__m128*>(page->rotation);
+			__m128* angularVelocityM = reinterpret_cast<__m128*>(page->angularVelocity);
+			__m128* lifeProgressM = reinterpret_cast<__m128*>(page->lifeProgress);
+			__m128* oneOverLifeTimeM = reinterpret_cast<__m128*>(page->oneOverLifeTime);
 			
-			int particleCount = 0;
-			
-			//Updates existing particles
-			for (ParticlePage* page : m_pages)
+			//Increases life progress
+			for (int i = numAliveDiv4 - 1; i >= 0; i--)
 			{
-				int numAlive = page->livingParticles;
-				int numAliveDiv4 = (page->livingParticles + 3) / 4;
+				lifeProgressM[i] = _mm_add_ps(lifeProgressM[i], _mm_mul_ps(oneOverLifeTimeM[i], dt4));
 				
-				int numDead = 0;
-				int deadIndices[PARTICLES_PER_PAGE];
+				alignas(16) float lp[4];
+				_mm_store_ps(lp, lifeProgressM[i]);
 				
-#ifdef EG_HAS_SIMD
-				__m128* rotationM = reinterpret_cast<__m128*>(page->rotation);
-				__m128* angularVelocityM = reinterpret_cast<__m128*>(page->angularVelocity);
-				__m128* lifeProgressM = reinterpret_cast<__m128*>(page->lifeProgress);
-				__m128* oneOverLifeTimeM = reinterpret_cast<__m128*>(page->oneOverLifeTime);
-				
-				//Increases life progress
-				for (int i = numAliveDiv4 - 1; i >= 0; i--)
+				for (int j = 3; j >= 0; j--)
 				{
-					lifeProgressM[i] = _mm_add_ps(lifeProgressM[i], _mm_mul_ps(oneOverLifeTimeM[i], dt4));
-					
-					alignas(16) float lp[4];
-					_mm_store_ps(lp, lifeProgressM[i]);
-					
-					for (int j = 3; j >= 0; j--)
+					if (lp[j] > 1.0f)
 					{
-						if (lp[j] > 1.0f)
-						{
-							deadIndices[numDead++] = i * 4 + j;
-						}
+						deadIndices[numDead++] = i * 4 + j;
 					}
 				}
-#else
-				//Increases life progress
-				for (int i = numAlive - 1; i >= 0; i--)
-				{
-					page->lifeProgress[i] += page->oneOverLifeTime[i] * dt;
-					if (page->lifeProgress[i] >= 1.0f)
-					{
-						deadIndices[numDead++] = i;
-					}
-				}
-#endif
-				
-				//Removes dead particles
-				for (int i = 0; i < numDead; i++)
-				{
-					int idx = deadIndices[i];
-					if (idx >= (int)page->livingParticles)
-						continue;
-					
-					numAlive--;
-					page->position[idx] = page->position[numAlive];
-					page->velocity[idx] = page->velocity[numAlive];
-					page->textureVariants[idx] = page->textureVariants[numAlive];
-					page->lifeProgress[idx] = page->lifeProgress[numAlive];
-					page->oneOverLifeTime[idx] = page->oneOverLifeTime[numAlive];
-					page->rotation[idx] = page->rotation[numAlive];
-					page->angularVelocity[idx] = page->angularVelocity[numAlive];
-					page->initialOpacity[idx] = page->initialOpacity[numAlive];
-					page->deltaOpacity[idx] = page->deltaOpacity[numAlive];
-					page->initialSize[idx] = page->initialSize[numAlive];
-					page->deltaSize[idx] = page->deltaSize[numAlive];
-				}
-				page->livingParticles = numAlive;
-				numAliveDiv4 = (numAlive + 3) / 4;
-				
-#ifdef EG_HAS_SIMD
-				//Updates rotation and writes current size and opacity
-				__m128* initialOpacityM = reinterpret_cast<__m128*>(page->initialOpacity);
-				__m128* deltaOpacityM = reinterpret_cast<__m128*>(page->deltaOpacity);
-				__m128* currentOpacityM = reinterpret_cast<__m128*>(page->currentOpacity);
-				__m128* initialSizeM = reinterpret_cast<__m128*>(page->initialSize);
-				__m128* deltaSizeM = reinterpret_cast<__m128*>(page->deltaSize);
-				__m128* currentSizeM = reinterpret_cast<__m128*>(page->currentSize);
-				for (int i = 0; i < numAliveDiv4; i++)
-				{
-					rotationM[i] = _mm_add_ps(rotationM[i], _mm_mul_ps(angularVelocityM[i], dt4));
-					currentOpacityM[i] = _mm_mul_ps(
-						_mm_add_ps(initialOpacityM[i], _mm_mul_ps(deltaOpacityM[i], lifeProgressM[i])),
-						_mm_set1_ps(255.0f));
-					currentSizeM[i] = _mm_add_ps(initialSizeM[i], _mm_mul_ps(deltaSizeM[i], lifeProgressM[i]));
-				}
-				
-				//Updates velocity and position
-				__m128 deltaVelGravity = _mm_mul_ps(m_gravity, _mm_set1_ps(dt * page->emitterType->gravity));
-				__m128 deltaVelDragFactor = _mm_set1_ps(-dt * page->emitterType->drag);
-				for (int i = 0; i < numAlive; i++)
-				{
-					__m128 vel = page->velocity[i];
-					vel = _mm_add_ps(vel, _mm_mul_ps(deltaVelDragFactor, vel));
-					vel = _mm_add_ps(vel, deltaVelGravity);
-					page->position[i] = _mm_add_ps(page->position[i], _mm_mul_ps(vel, dt4));
-					page->velocity[i] = vel;
-				}
-#else
-				glm::vec4 deltaVelGravity = m_gravity * (dt * page->emitterType->gravity);
-				float deltaVelDragFactor = -dt * page->emitterType->drag;
-				for (int i = 0; i < numAlive; i++)
-				{
-					page->rotation[i] += page->angularVelocity[i] * dt;
-					page->currentOpacity[i] = (page->initialOpacity[i] + page->deltaOpacity[i] * page->lifeProgress[i]) * 255;
-					page->currentSize[i] = page->initialSize[i] + (page->deltaSize[i] * page->lifeProgress[i]);
-					
-					page->velocity[i] += deltaVelDragFactor * page->velocity[i];
-					page->velocity[i] += deltaVelGravity;
-					
-					page->position[i] += page->velocity[i] * dt;
-				}
-#endif
-				
-				particleCount += numAlive;
 			}
-			
-			for (int64_t i = (int64_t)m_pages.size() - 1; i >= 0; i--)
+#else
+			//Increases life progress
+			for (int i = numAlive - 1; i >= 0; i--)
 			{
-				if (m_pages[i]->livingParticles == 0)
+				page->lifeProgress[i] += page->oneOverLifeTime[i] * dt;
+				if (page->lifeProgress[i] >= 1.0f)
 				{
-					m_emptyPages.push_back(m_pages[i]);
-					m_pages[i] = m_pages.back();
-					m_pages.pop_back();
+					deadIndices[numDead++] = i;
 				}
 			}
-			
-			//Spawns new particles
-			for (Emitter& emitter : m_btEmitters)
-			{
-				if (!emitter.hasSetTransform)
-					continue;
-				if (!emitter.hasSetOldTransform)
-				{
-					emitter.prevTransform = emitter.transform;
-					emitter.hasSetOldTransform = true;
-					continue;
-				}
-				
-				float oldTSE = emitter.timeSinceEmit;
-				emitter.timeSinceEmit += dt;
-				
-				int emissionsMade = 1;
-				while (emitter.timeSinceEmit > emitter.emissionDelay)
-				{
-					ParticlePage* page = GetPage(*emitter.type);
-					EG_ASSERT(page->livingParticles < PARTICLES_PER_PAGE);
-					
-					auto Vec3GenVisitor = [&] (const auto& generator) { return generator(m_random); };
-					
-					uint32_t idx = page->livingParticles++;
-					
-					float transformIA = glm::clamp(((float)emissionsMade * emitter.emissionDelay - oldTSE) / dt, 0.0f, 1.0f);
-					auto TransformV3 = [&] (const glm::vec3& v, float w)
-					{
-						glm::vec3 prev(emitter.prevTransform * glm::vec4(v, w));
-						glm::vec3 next(emitter.transform * glm::vec4(v, w));
-						return glm::mix(prev, next, transformIA);
-					};
-					
-					glm::vec4 position(TransformV3(std::visit(Vec3GenVisitor, emitter.type->positionGenerator), 1), 1);
-					glm::vec4 velocity(TransformV3(std::visit(Vec3GenVisitor, emitter.type->velocityGenerator), 0), 0);
-					
-#ifdef EG_HAS_SIMD
-					page->position[idx] = _mm_loadu_ps(&position.x);
-					page->velocity[idx] = _mm_loadu_ps(&velocity.x);
-#else
-					page->position[idx] = position;
-					page->velocity[idx] = velocity;
 #endif
-					
-					page->oneOverLifeTime[idx] = 1.0f / emitter.type->lifeTime(m_random);
-					page->lifeProgress[idx] = 0;
-					page->rotation[idx] = emitter.type->initialRotation(m_random);
-					page->angularVelocity[idx] = emitter.type->angularVelocity(m_random);
-					
-					page->initialOpacity[idx] = emitter.type->initialOpacity(m_random);
-					float finalOpacity = emitter.type->finalOpacity(m_random) * page->initialOpacity[idx];
-					page->deltaOpacity[idx] = finalOpacity - page->initialOpacity[idx];
-					
-					page->initialSize[idx] = emitter.type->initialSize(m_random);
-					float finalSize = emitter.type->finalSize(m_random) * page->initialSize[idx];
-					page->deltaSize[idx] = finalSize - page->initialSize[idx];
-					
-					emitter.timeSinceEmit -= emitter.emissionDelay;
-					emissionsMade++;
-				}
+			
+			//Removes dead particles
+			for (int i = 0; i < numDead; i++)
+			{
+				int idx = deadIndices[i];
+				if (idx >= (int)page->livingParticles)
+					continue;
 				
+				numAlive--;
+				page->position[idx] = page->position[numAlive];
+				page->velocity[idx] = page->velocity[numAlive];
+				page->textureVariants[idx] = page->textureVariants[numAlive];
+				page->lifeProgress[idx] = page->lifeProgress[numAlive];
+				page->oneOverLifeTime[idx] = page->oneOverLifeTime[numAlive];
+				page->rotation[idx] = page->rotation[numAlive];
+				page->angularVelocity[idx] = page->angularVelocity[numAlive];
+				page->initialOpacity[idx] = page->initialOpacity[numAlive];
+				page->deltaOpacity[idx] = page->deltaOpacity[numAlive];
+				page->initialSize[idx] = page->initialSize[numAlive];
+				page->deltaSize[idx] = page->deltaSize[numAlive];
+			}
+			page->livingParticles = numAlive;
+			numAliveDiv4 = (numAlive + 3) / 4;
+			
+#ifdef EG_HAS_SIMD
+			//Updates rotation and writes current size and opacity
+			__m128* initialOpacityM = reinterpret_cast<__m128*>(page->initialOpacity);
+			__m128* deltaOpacityM = reinterpret_cast<__m128*>(page->deltaOpacity);
+			__m128* currentOpacityM = reinterpret_cast<__m128*>(page->currentOpacity);
+			__m128* initialSizeM = reinterpret_cast<__m128*>(page->initialSize);
+			__m128* deltaSizeM = reinterpret_cast<__m128*>(page->deltaSize);
+			__m128* currentSizeM = reinterpret_cast<__m128*>(page->currentSize);
+			for (int i = 0; i < numAliveDiv4; i++)
+			{
+				rotationM[i] = _mm_add_ps(rotationM[i], _mm_mul_ps(angularVelocityM[i], dt4));
+				currentOpacityM[i] = _mm_mul_ps(
+					_mm_add_ps(initialOpacityM[i], _mm_mul_ps(deltaOpacityM[i], lifeProgressM[i])),
+					_mm_set1_ps(255.0f));
+				currentSizeM[i] = _mm_add_ps(initialSizeM[i], _mm_mul_ps(deltaSizeM[i], lifeProgressM[i]));
+			}
+			
+			//Updates velocity and position
+			__m128 deltaVelGravity = _mm_mul_ps(m_gravity, _mm_set1_ps(dt * page->emitterType->gravity));
+			__m128 deltaVelDragFactor = _mm_set1_ps(-dt * page->emitterType->drag);
+			for (int i = 0; i < numAlive; i++)
+			{
+				__m128 vel = page->velocity[i];
+				vel = _mm_add_ps(vel, _mm_mul_ps(deltaVelDragFactor, vel));
+				vel = _mm_add_ps(vel, deltaVelGravity);
+				page->position[i] = _mm_add_ps(page->position[i], _mm_mul_ps(vel, dt4));
+				page->velocity[i] = vel;
+			}
+#else
+			glm::vec4 deltaVelGravity = m_gravity * (dt * page->emitterType->gravity);
+			float deltaVelDragFactor = -dt * page->emitterType->drag;
+			for (int i = 0; i < numAlive; i++)
+			{
+				page->rotation[i] += page->angularVelocity[i] * dt;
+				page->currentOpacity[i] = (page->initialOpacity[i] + page->deltaOpacity[i] * page->lifeProgress[i]) * 255;
+				page->currentSize[i] = page->initialSize[i] + (page->deltaSize[i] * page->lifeProgress[i]);
+				
+				page->velocity[i] += deltaVelDragFactor * page->velocity[i];
+				page->velocity[i] += deltaVelGravity;
+				
+				page->position[i] += page->velocity[i] * dt;
+			}
+#endif
+			
+			particleCount += numAlive;
+		}
+		
+		for (int64_t i = (int64_t)m_pages.size() - 1; i >= 0; i--)
+		{
+			if (m_pages[i]->livingParticles == 0)
+			{
+				m_emptyPages.push_back(m_pages[i]);
+				m_pages[i] = m_pages.back();
+				m_pages.pop_back();
+			}
+		}
+		
+		//Spawns new particles
+		for (Emitter& emitter : m_btEmitters)
+		{
+			if (!emitter.hasSetTransform)
+				continue;
+			if (!emitter.hasSetOldTransform)
+			{
 				emitter.prevTransform = emitter.transform;
+				emitter.hasSetOldTransform = true;
+				continue;
 			}
 			
-			float texCoordScaleX = (float)UINT16_MAX / (float)m_textureWidth;
-			float texCoordScaleY = (float)UINT16_MAX / (float)m_textureHeight;
+			float oldTSE = emitter.timeSinceEmit;
+			emitter.timeSinceEmit += dt;
 			
-			//Writes visible particles to the particle instances list
-			particleInstances.clear();
-			particleDepths.clear();
-			for (ParticlePage* page : m_pages)
+			int emissionsMade = 1;
+			while (emitter.timeSinceEmit > emitter.emissionDelay)
 			{
-				for (int i = page->livingParticles - 1; i >= 0; i--)
-				{
-					bool draw = true;
-					for (int p = 0; p < 6; p++)
-					{
-						float dst = sse::Dot(page->position[i], m_frustumPlanes[p]);
-						if (dst < -page->currentSize[i])
-						{
-							draw = false;
-							break;
-						}
-					}
-					
-					if (draw)
-					{
-						float depth = sse::Dot(page->position[i], m_cameraForward);
-						particleDepths.emplace_back(depth, particleInstances.size());
-						
-						ParticleInstance& instance = particleInstances.emplace_back();
-#ifdef EG_HAS_SSE
-						_mm_storeu_ps(instance.position, page->position[i]);
-#else
-						for (int j = 0; j < 3; j++)
-							instance.position[j] = page->position[i][j];
-#endif
-						instance.size = page->currentSize[i];
-						instance.opacity = (uint8_t)glm::clamp(page->currentOpacity[i], 0.0f, 255.0f);
-						instance.additiveBlend = HasFlag(page->emitterType->flags, ParticleFlags::BlendAdditive) ? 0xFF : 0;
-						instance.sinR = (uint8_t)((std::sin(page->rotation[i]) + 1.0f) * 127.0f);
-						instance.cosR = (uint8_t)((std::cos(page->rotation[i]) + 1.0f) * 127.0f);
-						
-						auto texVariant = page->emitterType->textureVariants[page->textureVariants[i]];
-						int frame = std::min((int)(page->lifeProgress[i] * (float)texVariant.numFrames), texVariant.numFrames - 1);
-						int texX = texVariant.x + frame * texVariant.width;
-						
-						instance.texCoord[0] = (uint16_t)std::ceil((float)texX * texCoordScaleX);
-						instance.texCoord[1] = (uint16_t)std::ceil((float)texVariant.y * texCoordScaleY);
-						instance.texCoord[2] = (uint16_t)std::floor((float)(texX + texVariant.width) * texCoordScaleX);
-						instance.texCoord[3] = (uint16_t)std::floor((float)(texVariant.y + texVariant.height) * texCoordScaleY);
-					}
-				}
-			}
-			
-			std::sort(particleDepths.begin(), particleDepths.end(), std::greater<>());
-			
-			for (ParticleUploadBuffer& buffer : m_particleUploadBuffers)
-			{
-				buffer.reuseDelay = std::max(buffer.reuseDelay - 1, 0);
-			}
-			
-			//Writes particles to upload buffers
-			m_missingUploadBuffers = 0;
-			size_t uploadBufferIdx = 0;
-			for (size_t i = 0; i < particleInstances.size(); i++)
-			{
-				while (uploadBufferIdx < m_particleUploadBuffers.size() &&
-					(m_particleUploadBuffers[uploadBufferIdx].reuseDelay != 0 ||
-					 m_particleUploadBuffers[uploadBufferIdx].instancesWritten == PARTICLES_PER_UPLOAD_BUFFER))
-				{
-					uploadBufferIdx++;
-				}
+				ParticlePage* page = GetPage(*emitter.type);
+				EG_DEBUG_ASSERT(page->livingParticles < PARTICLES_PER_PAGE);
 				
-				if (uploadBufferIdx == m_particleUploadBuffers.size())
+				auto Vec3GenVisitor = [&] (const auto& generator) { return generator(m_random); };
+				
+				uint32_t idx = page->livingParticles++;
+				
+				float transformIA = glm::clamp(((float)emissionsMade * emitter.emissionDelay - oldTSE) / dt, 0.0f, 1.0f);
+				auto TransformV3 = [&] (const glm::vec3& v, float w)
 				{
-					if (!GetGraphicsDeviceInfo().concurrentResourceCreation)
+					glm::vec3 prev(emitter.prevTransform * glm::vec4(v, w));
+					glm::vec3 next(emitter.transform * glm::vec4(v, w));
+					return glm::mix(prev, next, transformIA);
+				};
+				
+				glm::vec4 position(TransformV3(std::visit(Vec3GenVisitor, emitter.type->positionGenerator), 1), 1);
+				glm::vec4 velocity(TransformV3(std::visit(Vec3GenVisitor, emitter.type->velocityGenerator), 0), 0);
+				
+#ifdef EG_HAS_SIMD
+				page->position[idx] = _mm_loadu_ps(&position.x);
+				page->velocity[idx] = _mm_loadu_ps(&velocity.x);
+#else
+				page->position[idx] = position;
+				page->velocity[idx] = velocity;
+#endif
+				
+				page->oneOverLifeTime[idx] = 1.0f / emitter.type->lifeTime(m_random);
+				page->lifeProgress[idx] = 0;
+				page->rotation[idx] = emitter.type->initialRotation(m_random);
+				page->angularVelocity[idx] = emitter.type->angularVelocity(m_random);
+				
+				page->initialOpacity[idx] = emitter.type->initialOpacity(m_random);
+				float finalOpacity = emitter.type->finalOpacity(m_random) * page->initialOpacity[idx];
+				page->deltaOpacity[idx] = finalOpacity - page->initialOpacity[idx];
+				
+				page->initialSize[idx] = emitter.type->initialSize(m_random);
+				float finalSize = emitter.type->finalSize(m_random) * page->initialSize[idx];
+				page->deltaSize[idx] = finalSize - page->initialSize[idx];
+				
+				emitter.timeSinceEmit -= emitter.emissionDelay;
+				emissionsMade++;
+			}
+			
+			emitter.prevTransform = emitter.transform;
+		}
+		
+		float texCoordScaleX = (float)UINT16_MAX / (float)m_textureWidth;
+		float texCoordScaleY = (float)UINT16_MAX / (float)m_textureHeight;
+		
+		//Writes visible particles to the particle instances list
+		m_particleInstances.clear();
+		m_particleDepths.clear();
+		for (ParticlePage* page : m_pages)
+		{
+			for (int i = page->livingParticles - 1; i >= 0; i--)
+			{
+				bool draw = true;
+				for (int p = 0; p < 6; p++)
+				{
+					float dst = sse::Dot(page->position[i], m_frustumPlanes[p]);
+					if (dst < -page->currentSize[i])
 					{
-						m_missingUploadBuffers = (particleInstances.size() - i + PARTICLES_PER_UPLOAD_BUFFER - 1)
-							/ PARTICLES_PER_UPLOAD_BUFFER;
+						draw = false;
 						break;
 					}
-					AddUploadBuffer();
 				}
 				
-				size_t pos = m_particleUploadBuffers[uploadBufferIdx].instancesWritten++;
-				m_particleUploadBuffers[uploadBufferIdx].instances[pos] = particleInstances[particleDepths[i].second];
+				if (draw)
+				{
+					float depth = sse::Dot(page->position[i], m_cameraForward);
+					m_particleDepths.emplace_back(depth, m_particleInstances.size());
+					
+					ParticleInstance& instance = m_particleInstances.emplace_back();
+#ifdef EG_HAS_SSE
+					_mm_storeu_ps(instance.position, page->position[i]);
+#else
+					for (int j = 0; j < 3; j++)
+						instance.position[j] = page->position[i][j];
+#endif
+					instance.size = page->currentSize[i];
+					instance.opacity = (uint8_t)glm::clamp(page->currentOpacity[i], 0.0f, 255.0f);
+					instance.additiveBlend = HasFlag(page->emitterType->flags, ParticleFlags::BlendAdditive) ? 0xFF : 0;
+					instance.sinR = (uint8_t)((std::sin(page->rotation[i]) + 1.0f) * 127.0f);
+					instance.cosR = (uint8_t)((std::cos(page->rotation[i]) + 1.0f) * 127.0f);
+					
+					auto texVariant = page->emitterType->textureVariants[page->textureVariants[i]];
+					int frame = std::min((int)(page->lifeProgress[i] * (float)texVariant.numFrames), texVariant.numFrames - 1);
+					int texX = texVariant.x + frame * texVariant.width;
+					
+					instance.texCoord[0] = (uint16_t)std::ceil((float)texX * texCoordScaleX);
+					instance.texCoord[1] = (uint16_t)std::ceil((float)texVariant.y * texCoordScaleY);
+					instance.texCoord[2] = (uint16_t)std::floor((float)(texX + texVariant.width) * texCoordScaleX);
+					instance.texCoord[3] = (uint16_t)std::floor((float)(texVariant.y + texVariant.height) * texCoordScaleY);
+				}
 			}
+		}
+		
+		std::sort(m_particleDepths.begin(), m_particleDepths.end(), std::greater<>());
+		
+		for (ParticleUploadBuffer& buffer : m_particleUploadBuffers)
+		{
+			buffer.reuseDelay = std::max(buffer.reuseDelay - 1, 0);
+		}
+		
+		//Writes particles to upload buffers
+		m_missingUploadBuffers = 0;
+		size_t uploadBufferIdx = 0;
+		for (size_t i = 0; i < m_particleInstances.size(); i++)
+		{
+			while (uploadBufferIdx < m_particleUploadBuffers.size() &&
+				(m_particleUploadBuffers[uploadBufferIdx].reuseDelay != 0 ||
+					m_particleUploadBuffers[uploadBufferIdx].instancesWritten == PARTICLES_PER_UPLOAD_BUFFER))
+			{
+				uploadBufferIdx++;
+			}
+			
+			if (uploadBufferIdx == m_particleUploadBuffers.size())
+			{
+				if (!GetGraphicsDeviceInfo().concurrentResourceCreation)
+				{
+					m_missingUploadBuffers = (m_particleInstances.size() - i + PARTICLES_PER_UPLOAD_BUFFER - 1)
+						/ PARTICLES_PER_UPLOAD_BUFFER;
+					break;
+				}
+				AddUploadBuffer();
+			}
+			
+			size_t pos = m_particleUploadBuffers[uploadBufferIdx].instancesWritten++;
+			m_particleUploadBuffers[uploadBufferIdx].instances[pos] = m_particleInstances[m_particleDepths[i].second];
+		}
+	}
+	
+#ifndef __EMSCRIPTEN__
+	void ParticleManager::ThreadTarget()
+	{
+		m_lastSimTime = m_currentTime;
+		while (true)
+		{
+			SimulateOneStep();
 			
 			std::unique_lock<std::mutex> lock(m_mutex);
 			if (m_state == State::Stop)
@@ -323,6 +331,7 @@ namespace eg
 				break;
 		}
 	}
+#endif
 	
 	void ParticleManager::AddUploadBuffer()
 	{
@@ -376,8 +385,12 @@ namespace eg
 	
 	void ParticleManager::Step(float dt, const Frustum& frustum, const glm::vec3& cameraForward)
 	{
+#ifdef __EMSCRIPTEN__
+		SimulateOneStep();
+#else
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_simulationDoneSignal.wait(lock, [&] { return m_state == State::SimulationDone; });
+#endif
 		
 		while (m_missingUploadBuffers > 0)
 		{
@@ -465,8 +478,10 @@ namespace eg
 			m_btEmitters.push_back(m_mtEmitters[i]);
 		}
 		
+#ifndef __EMSCRIPTEN__
 		m_state = State::Simulate;
 		m_stepDoneSignal.notify_one();
+#endif
 	}
 	
 	ParticleEmitterInstance ParticleManager::AddEmitter(const ParticleEmitterType& type)

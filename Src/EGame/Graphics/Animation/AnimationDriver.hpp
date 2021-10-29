@@ -142,7 +142,7 @@ namespace eg
 		std::unique_ptr<glm::mat4[]> m_targetMatrices;
 #endif
 		
-		uint32_t m_numAllocatedTargetMatrices;
+		uint32_t m_numAllocatedTargetMatrices = 0;
 		uint32_t m_numBoneMatrices = 0;
 		uint32_t m_numMeshMatrices = 0;
 		

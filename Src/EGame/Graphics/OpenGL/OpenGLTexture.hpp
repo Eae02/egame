@@ -13,6 +13,10 @@ namespace eg::graphics_api::gl
 		GLenum type;
 		Format format;
 		TextureSubresource subresource;
+		
+		//Used for fake texture views
+		uint32_t generation;
+		std::vector<GLuint> blitFboMipLevels; //Used to blit for fake texture views
 	};
 	
 	struct Texture
@@ -31,10 +35,11 @@ namespace eg::graphics_api::gl
 		uint32_t sampleCount;
 		TextureUsage currentUsage;
 		
-		bool hasBlitFBO = false;
-		GLuint blitFBO;
+		uint32_t generation = 0; //Incremented each time the texture is written to, used to synchronize fake texture views
+		bool createFakeTextureViews = false;
 		
-		void MaybeInitBlitFBO();
+		std::optional<GLuint> fbo;
+		void LazyInitializeTextureFBO();
 		
 		void BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource);
 		

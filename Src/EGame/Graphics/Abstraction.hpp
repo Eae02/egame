@@ -8,6 +8,7 @@
 
 #include <span>
 #include <tuple>
+#include <variant>
 
 struct SDL_Window;
 
@@ -455,14 +456,31 @@ namespace eg
 	
 	enum class TextureFlags
 	{
-		None                  = 0,
-		ManualBarrier         = 1,  //Barriers will be inserted manually (also disables automatic barriers).
-		CopySrc               = 2,  //Allows copy operations from the texture to other textures and buffers.
-		CopyDst               = 4,  //Allows copy operations to the texture from other textures and buffers.
-		GenerateMipmaps       = 8,  //Allows automatic mipmap generation for this texture.
-		ShaderSample          = 16, //The texture can be sampled in a shader.
-		StorageImage          = 32, //The texture can be bound as a storage image.
-		FramebufferAttachment = 64, //The texture can be used as a framebuffer attachment.
+		None = 0,
+		
+		//Barriers will be inserted manually (also disables automatic barriers).
+		ManualBarrier = 1,
+		
+		//Allows copy operations from the texture to other textures and buffers.
+		CopySrc = 2,
+		
+		//Allows copy operations to the texture from other textures and buffers.
+		CopyDst = 4,
+		
+		//Allows automatic mipmap generation for this texture.
+		GenerateMipmaps = 8,
+		
+		//The texture can be sampled in a shader.
+		ShaderSample = 16,
+		
+		//The texture can be bound as a storage image.
+		StorageImage = 32,
+		
+		//The texture can be used as a framebuffer attachment.
+		FramebufferAttachment = 64,
+		
+		//Allow fake texture views by creating copies of the texture in APIs where texture views are unsupported.
+		AllowFakeTextureViews = 128,
 	};
 	
 	EG_BIT_FIELD(TextureFlags)
@@ -616,7 +634,7 @@ namespace eg
 	struct RenderPassColorAttachment
 	{
 		AttachmentLoadOp loadOp = AttachmentLoadOp::Discard;
-		ColorLin clearValue;
+		std::variant<ColorLin, glm::ivec4, glm::uvec4> clearValue;
 	};
 	
 	struct RenderPassBeginInfo
@@ -673,6 +691,7 @@ namespace eg
 		bool defaultFramebufferSRGB;
 		bool forceDepthZeroToOne;
 		bool preferIntegrated;
+		bool preferGLESPath;
 		std::string_view preferredDeviceName;
 	};
 	

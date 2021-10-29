@@ -21,7 +21,7 @@ namespace eg
 		{
 			return 1;
 		}
-		std::cout << "LOL" << std::endl;
+		
 		return 0;
 	}
 	
@@ -126,6 +126,9 @@ namespace eg
 	static std::string newInputtedText;
 	static std::vector<std::pair<Button, bool>> newButtonDownEvents;
 	static std::vector<std::pair<Button, bool>> newButtonUpEvents;
+	static glm::ivec2 pendingCursorDelta;
+	static double scrollX = 0;
+	static double scrollY = 0;
 	
 	void PlatformRunGameLoop(std::unique_ptr<IGame> _game)
 	{
@@ -151,6 +154,46 @@ namespace eg
 			return EM_TRUE;
 		});
 		
+		emscripten_set_mousedown_callback(nullptr, nullptr, true,
+			[] (int eventType, const EmscriptenMouseEvent* mouseEvent, void* userData)
+		{
+			if (mouseEvent->button >= 0 && mouseEvent->button <= 2)
+				newButtonDownEvents.emplace_back((Button)((int)Button::MouseLeft + mouseEvent->button), false);
+			return EM_TRUE;
+		});
+		
+		emscripten_set_mouseup_callback(nullptr, nullptr, true,
+			[] (int eventType, const EmscriptenMouseEvent* mouseEvent, void* userData)
+		{
+			if (mouseEvent->button >= 0 && mouseEvent->button <= 2)
+				newButtonUpEvents.emplace_back((Button)((int)Button::MouseLeft + mouseEvent->button), false);
+			return EM_TRUE;
+		});
+		
+		emscripten_set_mousemove_callback(nullptr, nullptr, true,
+			[] (int eventType, const EmscriptenMouseEvent* mouseEvent, void* userData)
+		{
+			if (detail::currentIS)
+			{
+				detail::currentIS->cursorX = mouseEvent->clientX;
+				detail::currentIS->cursorY = mouseEvent->clientY;
+				pendingCursorDelta.x += mouseEvent->movementX;
+				pendingCursorDelta.y += mouseEvent->movementY;
+			}
+			return EM_TRUE;
+		});
+		
+		emscripten_set_wheel_callback(nullptr, nullptr, true,
+			[] (int eventType, const EmscriptenWheelEvent* wheelEvent, void* userData)
+		{
+			if (detail::currentIS)
+			{
+				scrollY -= wheelEvent->deltaY;
+				scrollX += wheelEvent->deltaX;
+			}
+			return EM_TRUE;
+		});
+		
 		emscripten_set_main_loop([]
 		{
 			if (!gal::IsLoadingComplete() || !SpriteFont::IsDevFontLoaded())
@@ -163,6 +206,13 @@ namespace eg
 	{
 		detail::inputtedText = newInputtedText;
 		newInputtedText.clear();
+		
+		detail::currentIS->scrollX = (int)std::round(scrollX);
+		detail::currentIS->scrollY = (int)std::round(scrollY);
+		
+		detail::currentIS->cursorDeltaX = pendingCursorDelta.x;
+		detail::currentIS->cursorDeltaY = pendingCursorDelta.y;
+		pendingCursorDelta = glm::ivec2(0);
 		
 		for (const std::pair<Button, bool>& event : newButtonDownEvents)
 		{
@@ -187,6 +237,14 @@ namespace eg
 	{
 		
 	}
+	
+	void SetDisplayModeWindowed() { }
+	void SetDisplayModeFullscreenDesktop() { }
+	void SetDisplayModeFullscreen(const FullscreenDisplayMode& displayMode) { }
+	
+	void SetWindowIcon(uint32_t width, uint32_t height, const void* rgbaData) { }
+	
+	bool VulkanAppearsSupported() { return false; }
 }
 
 #endif

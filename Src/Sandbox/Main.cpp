@@ -7,14 +7,8 @@ class Game : public eg::IGame
 public:
 	Game()
 	{
-		
-		std::cout << "TEST" << std::endl;
-		
-		
 		if (!eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/"))
 		{
-	std::cout << "TEST FAIL" << std::endl;
-	
 			EG_PANIC("Error loading assets");
 		}
 		
@@ -59,9 +53,6 @@ extern "C" void WebMain()
 	eg::RunConfig runConfig;
 	runConfig.gameName = "EGame Sandbox";
 	runConfig.flags = eg::RunFlags::DevMode | eg::RunFlags::DefaultFramebufferSRGB;
-	runConfig.initialize = [] {
-	std::cout << "TEST INIT" << std::endl;
-	};
 	
 	eg::Run<Game>(runConfig);
 }

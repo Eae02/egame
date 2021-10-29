@@ -5,6 +5,7 @@
 #include "../../EGame/Log.hpp"
 #include "../../EGame/IOUtils.hpp"
 #include "../../EGame/Sphere.hpp"
+#include "../../EGame/Platform/FileSystem.hpp"
 
 #include "GLTFAnimation.hpp"
 #include "GLTFData.hpp"
@@ -197,7 +198,7 @@ namespace eg::asset_gen::gltf
 		bool hasTextureCoordinates = false;
 		
 		std::string name;
-		size_t sourceNodeIndex;
+		int sourceNodeIndex;
 		uint16_t materialIndex;
 		glm::mat4 transform;
 		
@@ -461,7 +462,7 @@ namespace eg::asset_gen::gltf
 				}
 				else
 				{
-					std::string depPath = generateContext.FileDependency(uri);
+					std::string depPath = generateContext.FileDependency(std::string(ParentPath(relSourcePath)) + uri);
 					std::ifstream depStream(depPath, std::ios::binary);
 					if (!depStream)
 					{
@@ -695,7 +696,7 @@ namespace eg::asset_gen::gltf
 			}
 			
 			// ** Imports the skeleton **
-			Skeleton skeleton;
+			ImportedSkeleton skeleton;
 			if (skinIndexToImport != -1)
 			{
 				skeleton = ImportSkeleton(data, nodesArray, jsonRoot.at("skins").at(skinIndexToImport));
@@ -704,10 +705,10 @@ namespace eg::asset_gen::gltf
 					Log(LogLevel::Warning, "gltf", "{0}: The model has a skeleton, "
 					    "but vertex type (std) does not include bone indices.", generateContext.AssetName());
 				}
-				else if (vertexType == VertexType::Anim8 && skeleton.NumBones() > 256)
+				else if (vertexType == VertexType::Anim8 && skeleton.skeleton.NumBones() > 256)
 				{
 					Log(LogLevel::Warning, "gltf", "{0}: Vertex type anim8 was selected, but the skeleton has "
-					    "more than 256 bones ({1}).", generateContext.AssetName(), skeleton.NumBones());
+					    "more than 256 bones ({1}).", generateContext.AssetName(), skeleton.skeleton.NumBones());
 				}
 				
 				for (ImportedMesh& mesh : meshes)
@@ -716,7 +717,7 @@ namespace eg::asset_gen::gltf
 					{
 						for (uint16_t boneId : vtx.boneIndices)
 						{
-							if (boneId != 0 && boneId >= skeleton.NumBones())
+							if (boneId != 0 && boneId >= skeleton.skeleton.NumBones())
 							{
 								Log(LogLevel::Error, "gltf", "{0}: Invalid vertex to bone reference, "
 									"bone {1} does not exist.", generateContext.AssetName(), boneId);
@@ -738,10 +739,26 @@ namespace eg::asset_gen::gltf
 			std::vector<Animation> animations;
 			if (animationsIt != jsonRoot.end())
 			{
-				const size_t numTargets = skeleton.NumBones() + meshes.size();
+				const size_t numTargets = skeleton.skeleton.NumBones() + meshes.size();
 				const std::function<std::vector<int>(int)> getTargetIndicesFromNodeIndex = [&] (int nodeIndex)
 				{
 					std::vector<int> targetIndices;
+					
+					for (size_t i = 0; i < skeleton.boneIdNodeIndex.size(); i++)
+					{
+						if (skeleton.boneIdNodeIndex[i] == nodeIndex)
+						{
+							targetIndices.push_back(i);
+						}
+					}
+					
+					for (size_t i = 0; i < meshes.size(); i++)
+					{
+						if (meshes[i].sourceNodeIndex == nodeIndex)
+						{
+							targetIndices.push_back(skeleton.skeleton.NumBones() + i);
+						}
+					}
 					
 					return targetIndices;
 				};
@@ -811,7 +828,7 @@ namespace eg::asset_gen::gltf
 					writer.WriteMesh(ConvertVertices(mesh.vertices, verticesOutput), mesh.indices, mesh.name, access,
 					                 mesh.boundingSphere, mesh.boundingBox, materialNames[mesh.materialIndex]);
 				}
-				writer.End(skeleton, animations);
+				writer.End(skeleton.skeleton, animations);
 			};
 			
 			switch (vertexType)

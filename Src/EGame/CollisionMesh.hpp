@@ -1,13 +1,11 @@
 #pragma once
 
-#include "SIMD.hpp"
 #include "AABB.hpp"
 
 #include <algorithm>
 #include <cstdint>
 #include <span>
-
-#ifndef __EMSCRIPTEN__
+#include <vector>
 
 namespace eg
 {
@@ -16,52 +14,19 @@ namespace eg
 	public:
 		CollisionMesh() = default;
 		
-		~CollisionMesh()
-		{
-			delete[] m_vertices;
-			delete[] m_indices;
-		}
-		
-		CollisionMesh(CollisionMesh&& other)
-			: m_numVertices(other.m_numVertices), m_numIndices(other.m_numIndices),
-			  m_indices(other.m_indices), m_vertices(other.m_vertices), m_aabb(other.m_aabb)
-		{
-			other.m_numVertices = 0;
-			other.m_numIndices = 0;
-			other.m_indices = nullptr;
-			other.m_vertices = nullptr;
-		}
-		
-		CollisionMesh(const CollisionMesh& other)
-			: CollisionMesh(other.m_numVertices, other.m_numIndices)
-		{
-			std::copy_n(other.m_indices, other.m_numIndices, m_indices);
-			std::copy_n(other.m_vertices, other.m_numVertices, m_vertices);
-			m_aabb = other.m_aabb;
-		}
-		
-		CollisionMesh& operator=(CollisionMesh other)
-		{
-			m_numVertices = other.m_numVertices;
-			m_numIndices = other.m_numIndices;
-			m_aabb = other.m_aabb;
-			std::swap(m_vertices, other.m_vertices);
-			std::swap(m_indices, other.m_indices);
-			return *this;
-		}
-		
 		template <typename V, typename I>
 		static CollisionMesh Create(std::span<const V> vertices, std::span<const I> indices)
 		{
-			CollisionMesh mesh(vertices.size(), indices.size());
-			std::copy(indices.begin(), indices.end(), mesh.m_indices);
+			CollisionMesh mesh;
+			mesh.m_vertices.resize(vertices.size());
+			mesh.m_indices.resize(indices.size());
+			std::copy(indices.begin(), indices.end(), mesh.m_indices.begin());
 			for (size_t i = 0; i < vertices.size(); i++)
 			{
 				for (int j = 0; j < 3; j++)
 				{
 					mesh.m_vertices[i][j] = vertices[i].position[j];
 				}
-				mesh.m_vertices[i][3] = 0;
 			}
 			
 			mesh.InitAABB();
@@ -71,17 +36,11 @@ namespace eg
 		template <typename I>
 		static CollisionMesh CreateV3(std::span<const glm::vec3> vertices, std::span<const I> indices)
 		{
-			CollisionMesh mesh(vertices.size(), indices.size());
-			std::copy(indices.begin(), indices.end(), mesh.m_indices);
-			for (size_t i = 0; i < vertices.size(); i++)
-			{
-				for (int j = 0; j < 3; j++)
-				{
-					mesh.m_vertices[i][j] = vertices[i][j];
-				}
-				mesh.m_vertices[i][3] = 0;
-			}
-			
+			CollisionMesh mesh;
+			mesh.m_vertices.resize(vertices.size());
+			mesh.m_indices.resize(indices.size());
+			std::copy(vertices.begin(), vertices.end(), mesh.m_vertices.begin());
+			std::copy(indices.begin(), indices.end(), mesh.m_indices.begin());
 			mesh.InitAABB();
 			return mesh;
 		}
@@ -94,37 +53,32 @@ namespace eg
 		
 		int Intersect(const class Ray& ray, float& intersectPos, const glm::mat4* transform = nullptr) const;
 		
-		uint32_t NumIndices() const
+		size_t NumIndices() const
 		{
-			return m_numIndices;
+			return m_indices.size();
 		}
 		
-		uint32_t NumVertices() const
+		size_t NumVertices() const
 		{
-			return m_numVertices;
+			return m_vertices.size();
 		}
 		
-		const uint32_t* Indices() const
+		std::span<const uint32_t> Indices() const
 		{
 			return m_indices;
 		}
 		
-		const float* Vertices() const
+		std::span<const glm::vec3> Vertices() const
 		{
-			return reinterpret_cast<const float*>(m_vertices);
+			return m_vertices;
 		}
 		
-		const __m128* VerticesM128() const
+		const glm::vec3& Vertex(size_t i) const
 		{
-			return reinterpret_cast<const __m128*>(m_vertices);
+			return m_vertices[i];
 		}
 		
-		const glm::vec3& Vertex(uint32_t i) const
-		{
-			return *reinterpret_cast<const glm::vec3*>(&m_vertices[i]);
-		}
-		
-		const glm::vec3& VertexByIndex(uint32_t i) const
+		const glm::vec3& VertexByIndex(size_t i) const
 		{
 			return Vertex(m_indices[i]);
 		}
@@ -135,16 +89,11 @@ namespace eg
 		}
 		
 	private:
-		CollisionMesh(uint32_t numVertices, uint32_t numIndices);
-		
 		void InitAABB();
 		
-		uint32_t m_numVertices = 0;
-		uint32_t m_numIndices = 0;
-		uint32_t* m_indices = nullptr;
-		__m128* m_vertices = nullptr;
+		std::vector<uint32_t> m_indices;
+		std::vector<glm::vec3> m_vertices;
+		
 		AABB m_aabb;
 	};
 }
-
-#endif

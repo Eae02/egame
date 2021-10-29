@@ -75,6 +75,8 @@ namespace eg
 			{
 				animations.emplace_back(numTargets).Deserialize(stream);
 			}
+			
+			model.SetAnimations(std::move(animations));
 		}
 		
 		return true;

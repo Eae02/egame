@@ -75,17 +75,17 @@ namespace eg::graphics_api::gl
 	}
 	
 	bool GetQueryResults(QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries,
-		uint64_t dataSize, void* data)
+	                     uint64_t dataSize, void* data)
 	{
 #ifdef EG_GLES
 		return true;
-#endif
-		
+#else
 		if (dataSize < sizeof(uint64_t) * numQueries)
 		{
 			EG_PANIC("GetQueryResults: dataSize too small")
 		}
 		return _GetQueryResults<true>(queryPoolHandle, firstQuery, numQueries, data);
+#endif
 	}
 	
 	void CopyQueryResults(CommandContextHandle, QueryPoolHandle queryPoolHandle,
@@ -121,10 +121,7 @@ namespace eg::graphics_api::gl
 #endif
 	}
 	
-	void ResetQueries(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries)
-	{
-		
-	}
+	void ResetQueries(CommandContextHandle, QueryPoolHandle, uint32_t, uint32_t) { }
 	
 	void BeginQuery(CommandContextHandle, QueryPoolHandle queryPoolHandle, uint32_t query)
 	{

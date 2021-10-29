@@ -340,8 +340,11 @@ namespace eg::graphics_api::vk
 			}
 			else if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Clear)
 			{
-				std::copy_n(&beginInfo.colorAttachments[i].clearValue.r, 4,
-				            clearValues[i + clearValueShift].color.float32);
+				std::visit([&] (const auto& clearValue)
+				{
+					static_assert(sizeof(clearValue) == sizeof(VkClearColorValue));
+					std::memcpy(&clearValues[i + clearValueShift].color, &clearValue.r, sizeof(VkClearColorValue));
+				}, beginInfo.colorAttachments[i].clearValue);
 			}
 			
 			renderPassDescription.resolveColorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;

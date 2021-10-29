@@ -25,7 +25,7 @@ namespace eg
 		
 		EG_API extern std::vector<ModelVertexType> modelVertexTypes;
 		
-		void ModelAssetWriterEnd(std::ostream& stream, const Skeleton& skeleton, std::span<const Animation> animations);
+		EG_API void ModelAssetWriterEnd(std::ostream& stream, const Skeleton& skeleton, std::span<const Animation> animations);
 	}
 	
 	template <typename V>

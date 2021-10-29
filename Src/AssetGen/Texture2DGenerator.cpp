@@ -28,7 +28,7 @@ namespace eg::asset_gen
 				return false;
 			}
 			
-			if (!textureWriter.AddLayer(stream))
+			if (!textureWriter.AddLayer(stream, sourcePath))
 				return false;
 			
 			return textureWriter.Write(generateContext.outputStream);

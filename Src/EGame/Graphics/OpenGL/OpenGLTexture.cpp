@@ -1,11 +1,12 @@
 #include "OpenGL.hpp"
 #include "OpenGLTexture.hpp"
 #include "OpenGLBuffer.hpp"
+#include "Framebuffer.hpp"
 #include "Pipeline.hpp"
 #include "Utils.hpp"
-#include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
+#include "PipelineGraphics.hpp"
 
 #ifndef __EMSCRIPTEN__
 #include <GL/glext.h>
@@ -28,6 +29,9 @@ namespace eg::graphics_api::gl
 		case WrapMode::ClampToEdge:
 			return GL_CLAMP_TO_EDGE;
 		case WrapMode::ClampToBorder:
+#ifdef __EMSCRIPTEN__
+			EG_PANIC("WrapMode::ClampToBorder is not supported in WebGL");
+#endif
 			return GL_CLAMP_TO_BORDER;
 		}
 		
@@ -95,11 +99,11 @@ namespace eg::graphics_api::gl
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, TranslateWrapMode(description.wrapU));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, TranslateWrapMode(description.wrapV));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, TranslateWrapMode(description.wrapW));
+#ifndef __EMSCRIPTEN__
 		glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)ClampMaxAnistropy(description.maxAnistropy));
-#ifndef EG_GLES
 		glSamplerParameterf(sampler, GL_TEXTURE_LOD_BIAS, description.mipLodBias);
-#endif
 		glSamplerParameterfv(sampler, GL_TEXTURE_BORDER_COLOR, borderColor.data());
+#endif
 		
 		if (description.enableCompare)
 		{
@@ -127,13 +131,10 @@ namespace eg::graphics_api::gl
 		glTexParameteri(textureType, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
 		glTexParameteri(textureType, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
 		glTexParameteri(textureType, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
-		glTexParameterf(textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)ClampMaxAnistropy(samplerDesc.maxAnistropy));
 		
 #ifndef __EMSCRIPTEN__
+		glTexParameterf(textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)ClampMaxAnistropy(samplerDesc.maxAnistropy));
 		glTexParameterfv(textureType, GL_TEXTURE_BORDER_COLOR, borderColor.data());
-#endif
-		
-#ifndef EG_GLES
 		glTexParameterf(textureType, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
 #endif
 		
@@ -146,12 +147,10 @@ namespace eg::graphics_api::gl
 	
 	static void InitTexture(Texture& texture, const TextureCreateInfo& createInfo)
 	{
-#ifndef __EMSCRIPTEN__
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_TEXTURE, texture.texture, -1, createInfo.label);
 		}
-#endif
 		
 		glTexParameteri(texture.type, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
 		
@@ -160,6 +159,8 @@ namespace eg::graphics_api::gl
 			texture.samplerDescription = *createInfo.defaultSamplerDescription;
 			InitTextureSampler(texture.type, *createInfo.defaultSamplerDescription);
 		}
+		
+		texture.createFakeTextureViews = useGLESPath && HasFlag(createInfo.flags, TextureFlags::AllowFakeTextureViews);
 	}
 	
 	TextureHandle CreateTexture2D(const TextureCreateInfo& createInfo)
@@ -318,6 +319,97 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
+	void SyncFakeTextureView(const Texture& texture, TextureView& view)
+	{
+		if (view.blitFboMipLevels.empty())
+			return;
+		
+		EG_ASSERT(view.type == GL_TEXTURE_2D)
+		
+		glBindTexture(view.type, view.texture);
+		
+		for (uint32_t l = 0; l < view.subresource.numMipLevels; l++)
+		{
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, view.blitFboMipLevels[l]);
+			uint32_t mip = view.subresource.firstMipLevel + l;
+			uint32_t mipWidth = std::max(texture.width >> mip, 1U);
+			uint32_t mipHeight = std::max(texture.height >> mip, 1U);
+			glCopyTexSubImage2D(GL_TEXTURE_2D, l, 0, 0, 0, 0, mipWidth, mipHeight);
+		}
+		
+		view.generation = texture.generation;
+	}
+	
+	void InitializeTrueTextureView(const Texture& texture, TextureView& view)
+	{
+#ifdef EG_GLES
+		EG_PANIC("glTextureView is not available in GLES.");
+#else
+		if (useGLESPath)
+		{
+			eg::Log(eg::LogLevel::Warning, "gl", "Creating true texture view while running in GLES-preferred mode, "
+			                                     "this will fail in real GLES.");
+		}
+		
+		glTextureView(view.texture, view.type, texture.texture, TranslateFormat(view.format),
+		              view.subresource.firstMipLevel, view.subresource.numMipLevels,
+		              view.subresource.firstArrayLayer, view.subresource.numArrayLayers);
+#endif
+	}
+	
+	void InitializeFakeTextureView(const Texture& texture, TextureView& view)
+	{
+		if (view.subresource.numArrayLayers != 1)
+		{
+			EG_PANIC("Fake texture views do not support multiple array layers.")
+		}
+		
+		uint32_t viewWidth = std::max(texture.width >> view.subresource.firstMipLevel, 1U);
+		uint32_t viewHeight = std::max(texture.height >> view.subresource.firstMipLevel, 1U);
+		
+		glBindTexture(view.type, view.texture);
+		if (view.type == GL_TEXTURE_2D)
+		{
+			glTexStorage2D(view.type, view.subresource.numMipLevels, TranslateFormat(view.format), viewWidth, viewHeight);
+		}
+		else if (view.type == GL_TEXTURE_2D_ARRAY)
+		{
+			glTexStorage3D(view.type, view.subresource.numMipLevels, TranslateFormat(view.format),
+			               viewWidth, viewHeight, view.subresource.numArrayLayers);
+		}
+		
+		GLenum fboTarget = GetFormatType(view.format) == FormatTypes::DepthStencil ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+		
+		view.blitFboMipLevels.resize(view.subresource.numMipLevels);
+		glGenFramebuffers(view.subresource.numMipLevels, view.blitFboMipLevels.data());
+		for (uint32_t l = 0; l < view.subresource.numMipLevels; l++)
+		{
+			uint32_t mip = view.subresource.firstMipLevel + l;
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, view.blitFboMipLevels[l]);
+			if (view.type == GL_TEXTURE_2D_ARRAY || view.type == GL_TEXTURE_CUBE_MAP_ARRAY)
+			{
+				glFramebufferTextureLayer(
+					GL_READ_FRAMEBUFFER, fboTarget, texture.texture, mip, view.subresource.firstArrayLayer);
+			}
+			else if (view.type == GL_TEXTURE_CUBE_MAP)
+			{
+				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, fboTarget,
+				                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + view.subresource.firstArrayLayer, texture.texture, mip);
+			}
+			else
+			{
+				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, fboTarget, GL_TEXTURE_2D, view.texture, mip);
+			}
+			if (fboTarget != GL_DEPTH_ATTACHMENT)
+			{
+				glReadBuffer(fboTarget);
+			}
+			AssertFramebufferComplete(GL_READ_FRAMEBUFFER);
+		}
+		
+		SyncFakeTextureView(texture, view);
+	}
+	
 	GLuint Texture::GetView(const TextureSubresource& subresource, GLenum forcedViewType, Format differentFormat)
 	{
 		GLenum viewType = forcedViewType == 0 ? type : forcedViewType;
@@ -332,24 +424,31 @@ namespace eg::graphics_api::gl
 		
 		Format realFormat = differentFormat == Format::Undefined ? format : differentFormat;
 		
-#ifdef EG_GLES
-		eg::Log(LogLevel::Error, "gl", "Texture views are not supported in GLES");
-		return texture;
-#else
-		for (const TextureView& view : views)
+		for (TextureView& view : views)
 		{
 			if (view.subresource == resolvedSubresource && view.type == viewType && view.format == realFormat)
 			{
+				if (createFakeTextureViews && view.generation != generation)
+					SyncFakeTextureView(*this, view);
 				return view.texture;
 			}
 		}
 		
 		TextureView& view = views.emplace_back();
+		view.subresource = resolvedSubresource;
+		view.type        = viewType;
+		view.format      = realFormat;
 		
 		glGenTextures(1, &view.texture);
-		glTextureView(view.texture, viewType, texture, TranslateFormat(realFormat),
-		              resolvedSubresource.firstMipLevel, resolvedSubresource.numMipLevels,
-		              resolvedSubresource.firstArrayLayer, resolvedSubresource.numArrayLayers);
+		
+		if (createFakeTextureViews)
+		{
+			InitializeFakeTextureView(*this, view);
+		}
+		else
+		{
+			InitializeTrueTextureView(*this, view);
+		}
 		
 		if (samplerDescription.has_value())
 		{
@@ -357,12 +456,7 @@ namespace eg::graphics_api::gl
 			InitTextureSampler(viewType, *samplerDescription);
 		}
 		
-		view.subresource = resolvedSubresource;
-		view.type        = viewType;
-		view.format      = realFormat;
-		
 		return view.texture;
-#endif
 	}
 	
 	static std::pair<Format, GLenum> compressedUploadFormats[] =
@@ -405,26 +499,23 @@ namespace eg::graphics_api::gl
 		case FormatTypes::Float:
 			return std::make_tuple(floatFormats[componentCount], GL_FLOAT);
 		case FormatTypes::DepthStencil:
-		EG_PANIC("Attempted to set the texture data for a depth/stencil texture.");
+			EG_PANIC("Attempted to set the texture data for a depth/stencil texture.")
 		}
 		
 		EG_UNREACHABLE
 	}
 	
 	void SetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
-		BufferHandle bufferHandle, uint64_t offset)
+	                    BufferHandle bufferHandle, uint64_t offset)
 	{
-		void* offsetPtr = nullptr;
 		const Buffer* buffer = UnwrapBuffer(bufferHandle);
 		
-#ifdef EG_GLES
-		if (buffer->isHostBuffer)
+		void* offsetPtr;
+		if (buffer->isFakeHostBuffer)
 		{
 			offsetPtr = buffer->persistentMapping + offset;
 		}
-#endif
-		
-		if (offsetPtr == nullptr)
+		else
 		{
 			offsetPtr = (void*)(uintptr_t)offset;
 			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer);
@@ -434,6 +525,7 @@ namespace eg::graphics_api::gl
 		auto[format, type] = GetUploadFormat(texture->format);
 		
 		texture->ChangeUsage(TextureUsage::CopyDst);
+		texture->generation++;
 		
 		const bool isCompressed = IsCompressedFormat(texture->format);
 		const uint32_t imageBytes = GetImageByteSize(range.sizeX, range.sizeY, texture->format);
@@ -449,12 +541,12 @@ namespace eg::graphics_api::gl
 				if (isCompressed)
 				{
 					glCompressedTexSubImage2D(glLayer, range.mipLevel, range.offsetX, range.offsetY,
-						range.sizeX, range.sizeY, format, imageBytes, layerOffsetPtr);
+					                          range.sizeX, range.sizeY, format, imageBytes, layerOffsetPtr);
 				}
 				else
 				{
 					glTexSubImage2D(glLayer, range.mipLevel, range.offsetX, range.offsetY,
-						range.sizeX, range.sizeY, format, type, layerOffsetPtr);
+					                range.sizeX, range.sizeY, format, type, layerOffsetPtr);
 				}
 			}
 		}
@@ -463,7 +555,7 @@ namespace eg::graphics_api::gl
 			if (isCompressed)
 			{
 				glCompressedTexSubImage2D(texture->type, range.mipLevel, range.offsetX, range.offsetY,
-					range.sizeX, range.sizeY, format, imageBytes, offsetPtr);
+				                          range.sizeX, range.sizeY, format, imageBytes, offsetPtr);
 			}
 			else
 			{
@@ -485,25 +577,41 @@ namespace eg::graphics_api::gl
 			}
 		}
 		
-		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+		if (!buffer->isFakeHostBuffer)
+		{
+			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+		}
 	}
 	
 	void GetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
-		BufferHandle bufferHandle, uint64_t offset)
+	                    BufferHandle bufferHandle, uint64_t offset)
 	{
 		const Buffer* buffer = UnwrapBuffer(bufferHandle);
-		glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer);
+		
+		void* offsetPtr;
+		if (buffer->isFakeHostBuffer)
+		{
+			offsetPtr = buffer->persistentMapping + offset;
+		}
+		else
+		{
+			glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer);
+			offsetPtr = (void*)(uintptr_t)offset;
+		}
 		
 		Texture* texture = UnwrapTexture(handle);
 		auto[format, type] = GetUploadFormat(texture->format);
 		
 		texture->ChangeUsage(TextureUsage::CopySrc);
-		texture->MaybeInitBlitFBO();
+		texture->LazyInitializeTextureFBO();
 		
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, texture->blitFBO);
-		glReadPixels(range.offsetX, range.offsetY, range.sizeX, range.sizeY, format, type, (void*)offset);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, *texture->fbo);
+		glReadPixels(range.offsetX, range.offsetY, range.sizeX, range.sizeY, format, type, offsetPtr);
 		
-		glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+		if (!buffer->isFakeHostBuffer)
+		{
+			glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+		}
 	}
 	
 	void GenerateMipmaps(CommandContextHandle, TextureHandle handle)
@@ -511,15 +619,22 @@ namespace eg::graphics_api::gl
 		Texture* texture = UnwrapTexture(handle);
 		glBindTexture(texture->type, texture->texture);
 		glGenerateMipmap(texture->type);
+		texture->generation++;
 	}
 	
 	void DestroyTexture(TextureHandle handle)
 	{
 		MainThreadInvoke([texture = UnwrapTexture(handle)]
 		{
+			for (const TextureView& view : texture->views)
+			{
+				glDeleteTextures(1, &view.texture);
+				for (GLuint blitFbo : view.blitFboMipLevels)
+					glDeleteFramebuffers(1, &blitFbo);
+			}
 			glDeleteTextures(1, &texture->texture);
-			if (texture->hasBlitFBO)
-				glDeleteFramebuffers(1, &texture->blitFBO);
+			if (texture->fbo)
+				glDeleteFramebuffers(1, &*texture->fbo);
 			texturePool.Delete(texture);
 		});
 	}
@@ -540,22 +655,26 @@ namespace eg::graphics_api::gl
 	
 	void Texture::BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource)
 	{
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+		Log(LogLevel::Error, "gl", "Storage images are not supported in WebGL");
+#else
 		glBindImageTexture(glBinding, GetView(subresource), 0, GL_TRUE, 0, GL_READ_WRITE, TranslateFormat(format));
 #endif
 	}
 	
-	void Texture::MaybeInitBlitFBO()
+	void Texture::LazyInitializeTextureFBO()
 	{
-		if (hasBlitFBO)
+		if (fbo.has_value())
 			return;
 		
 		GLenum target = GetFormatType(format) == FormatTypes::DepthStencil ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 		
-		hasBlitFBO = true;
-		glGenFramebuffers(1, &blitFBO);
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, blitFBO);
+		GLuint fboHandle;
+		glGenFramebuffers(1, &fboHandle);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, fboHandle);
 		glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target, GL_TEXTURE_2D, texture, 0);
+		AssertFramebufferComplete(GL_READ_FRAMEBUFFER);
+		fbo = fboHandle;
 	}
 	
 	void BindStorageImage(CommandContextHandle, TextureHandle textureHandle, uint32_t set, uint32_t binding,
@@ -567,27 +686,77 @@ namespace eg::graphics_api::gl
 	void CopyTextureData(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle,
 	                     const TextureRange& srcRange, const TextureOffset& dstOffset)
 	{
-#ifdef __EMSCRIPTEN__
-		Log(LogLevel::Error, "gl", "CopyTextureData not available in WebGL");
-#else
 		Texture* srcTex = UnwrapTexture(srcHandle);
 		Texture* dstTex = UnwrapTexture(dstHandle);
-		glCopyImageSubData(
-			srcTex->texture, srcTex->type, srcRange.mipLevel, srcRange.offsetX, srcRange.offsetY, srcRange.offsetZ,
-			dstTex->texture, dstTex->type, dstOffset.mipLevel, dstOffset.offsetX, dstOffset.offsetY, dstOffset.offsetZ,
-			srcRange.sizeX, srcRange.sizeY, srcRange.sizeZ);
+		dstTex->generation++;
+		
+		if (useGLESPath)
+		{
+			if (dstTex->type != GL_TEXTURE_2D)
+			{
+				EG_PANIC("CopyTextureData is only supported for 2D textures in GLES")
+			}
+			if (srcRange.mipLevel != 0)
+			{
+				EG_PANIC("CopyTextureData is only supported for source mip level 0 in GLES")
+			}
+			
+			glBindTexture(dstTex->type, dstTex->texture);
+			
+			srcTex->LazyInitializeTextureFBO();
+			
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, *srcTex->fbo);
+			glCopyTexSubImage2D(dstTex->type, dstOffset.mipLevel, dstOffset.offsetX, dstOffset.offsetY,
+			                    srcRange.offsetX, srcRange.offsetY, srcRange.sizeX, srcRange.sizeY);
+		}
+		else
+		{
+#ifndef EG_GLES
+			glCopyImageSubData(
+				srcTex->texture, srcTex->type, srcRange.mipLevel, srcRange.offsetX, srcRange.offsetY, srcRange.offsetZ,
+				dstTex->texture, dstTex->type, dstOffset.mipLevel, dstOffset.offsetX, dstOffset.offsetY, dstOffset.offsetZ,
+				srcRange.sizeX, srcRange.sizeY, srcRange.sizeZ);
 #endif
+		}
 	}
 	
 	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const void* color)
 	{
-#ifdef EG_GLES
-		Log(LogLevel::Error, "gl", "ClearColorTexture not available in GLES");
-#else
-		const Texture* texture = UnwrapTexture(handle);
-		auto [format, type] = GetUploadFormat(texture->format);
-		glClearTexImage(texture->texture, mipLevel, format, type, color);
+		Texture* texture = UnwrapTexture(handle);
+		texture->generation++;
+		
+		if (useGLESPath)
+		{
+			texture->LazyInitializeTextureFBO();
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, *texture->fbo);
+			glViewport(0, 0, texture->width, texture->height);
+			viewportOutOfDate = true;
+			
+			switch (GetFormatType(texture->format))
+			{
+			case FormatTypes::UInt:
+				glClearBufferuiv(GL_COLOR, 0, static_cast<const GLuint*>(color));
+				break;
+			case FormatTypes::SInt:
+				glClearBufferiv(GL_COLOR, 0, static_cast<const GLint*>(color));
+				break;
+			case FormatTypes::UNorm:
+			case FormatTypes::Float:
+				glClearBufferfv(GL_COLOR, 0, static_cast<const float*>(color));
+				break;
+			case FormatTypes::DepthStencil:
+				EG_PANIC("Cannot clear DepthStencil image using ClearColorTexture")
+			}
+			
+			BindCorrectFramebuffer();
+		}
+		else
+		{
+#ifndef EG_GLES
+			auto[format, type] = GetUploadFormat(texture->format);
+			glClearTexImage(texture->texture, mipLevel, format, type, color);
 #endif
+		}
 	}
 	
 	void ResolveTexture(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle, const ResolveRegion& region)
@@ -595,19 +764,21 @@ namespace eg::graphics_api::gl
 		Texture* src = UnwrapTexture(srcHandle);
 		Texture* dst = UnwrapTexture(dstHandle);
 		
-		src->MaybeInitBlitFBO();
-		dst->MaybeInitBlitFBO();
+		src->LazyInitializeTextureFBO();
+		dst->LazyInitializeTextureFBO();
 		
 		GLenum blitBuffer = GL_COLOR_BUFFER_BIT;
 		if (GetFormatType(src->format) == FormatTypes::DepthStencil)
 			blitBuffer = GL_DEPTH_BUFFER_BIT;
 		
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, src->blitFBO);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dst->blitFBO);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, *src->fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, *dst->fbo);
 		
 		glBlitFramebuffer(region.srcOffset.x, region.srcOffset.y, region.srcOffset.x + region.width, region.srcOffset.y + region.height,
 			region.dstOffset.x, region.dstOffset.y, region.dstOffset.x + region.width, region.dstOffset.y + region.height,
 			blitBuffer, GL_NEAREST);
+		
+		BindCorrectFramebuffer();
 	}
 	
 	inline void MaybeBarrierAfterILS(TextureUsage newUsage)
@@ -633,7 +804,7 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	void TextureBarrier(CommandContextHandle cc, TextureHandle handle, const eg::TextureBarrier& barrier)
+	void TextureBarrier(CommandContextHandle, TextureHandle, const eg::TextureBarrier& barrier)
 	{
 		if (barrier.oldUsage == TextureUsage::ILSWrite || barrier.oldUsage == TextureUsage::ILSReadWrite)
 		{
@@ -641,7 +812,7 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
+	void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags)
 	{
 		UnwrapTexture(handle)->ChangeUsage(newUsage);
 	}

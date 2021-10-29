@@ -16,6 +16,7 @@ namespace eg
 		bool visible = false;
 		
 	private:
+		bool m_hasAnyResults = false;
 		ProfilingResults m_lastResult;
 		
 		size_t m_historyPos = 0;

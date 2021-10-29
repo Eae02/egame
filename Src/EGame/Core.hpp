@@ -21,13 +21,14 @@ namespace eg
 	
 	enum class RunFlags
 	{
-		None = 0,
-		DevMode = 1,
-		CreateAssetPackage = 2,
+		None                   = 0,
+		DevMode                = 1,
+		CreateAssetPackage     = 2,
 		DefaultFramebufferSRGB = 4,
-		VSync = 8,
-		ForceDepthZeroToOne = 16,
-		PreferIntegratedGPU = 32
+		VSync                  = 8,
+		ForceDepthZeroToOne    = 16,
+		PreferIntegratedGPU    = 32,
+		PreferGLESPath         = 64,
 	};
 	
 	EG_BIT_FIELD(RunFlags)
@@ -97,6 +98,8 @@ namespace eg
 	EG_API void SetDisplayModeWindowed();
 	
 	EG_API bool VulkanAppearsSupported();
+	
+	EG_API void EnableProfiling();
 	
 	/**
 	 * Runs a game. This is the main entry point of the library and will block until the game is closed.

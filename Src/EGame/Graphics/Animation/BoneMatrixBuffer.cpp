@@ -90,7 +90,7 @@ namespace eg
 		if (offsetAlignment == 0)
 			ref.matrixOffset = m_position / sizeof(glm::mat4);
 		
-		m_position += numMatrices * sizeof(glm::mat4);
+		m_position += numMatrices * (uint32_t)sizeof(glm::mat4);
 		return ref;
 	}
 	
