@@ -350,7 +350,7 @@ namespace eg
 		return buttonNames[(int)button];
 	}
 	
-	static bool g_relMouseMode = false;
+	bool g_relMouseMode = false;
 	
 	void SetRelativeMouseMode(bool relMouseMode)
 	{

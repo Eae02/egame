@@ -175,7 +175,7 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	void EndFrame()
+	void PlatformSpecificEndFrame()
 	{
 		fences[CFrameIdx()] = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		glFlush();

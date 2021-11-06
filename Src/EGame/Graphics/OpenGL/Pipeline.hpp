@@ -57,6 +57,9 @@ namespace eg::graphics_api::gl
 	
 	void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::CompilerGLSL& compiler);
 	
+	void CompileShaderStage(GLuint shader, std::string_view glslCode);
+	void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeStages);
+	
 	uint32_t ResolveBinding(const AbstractPipeline& pipeline, uint32_t set, uint32_t binding);
 	
 	inline uint32_t ResolveBinding(uint32_t set, uint32_t binding)

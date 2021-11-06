@@ -57,6 +57,60 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
+	void CompileShaderStage(GLuint shader, std::string_view glslCode)
+	{
+		const GLchar* glslCodeC = glslCode.data();
+		const GLint glslCodeLen = (GLint)glslCode.size();
+		glShaderSource(shader, 1, &glslCodeC, &glslCodeLen);
+		
+		glCompileShader(shader);
+		
+		//Checks the shader's compile status.
+		GLint compileStatus = GL_FALSE;
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus);
+		if (!compileStatus)
+		{
+			GLint infoLogLen = 0;
+			glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLen);
+			
+			std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
+			glGetShaderInfoLog(shader, infoLogLen, nullptr, infoLog.data());
+			infoLog.back() = '\0';
+			
+			std::cout << "Shader failed to compile!\n\n --- GLSL Code --- \n" << glslCode <<
+			          "\n\n --- Info Log --- \n" << infoLog.data() << std::endl;
+			
+			std::abort();
+		}
+	}
+	
+	void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeStages)
+	{
+		glLinkProgram(program);
+		
+		//Checks that the program linked successfully
+		int linkStatus = GL_FALSE;
+		glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
+		if (!linkStatus)
+		{
+			int infoLogLen = 0;
+			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLen);
+			
+			std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
+			glGetProgramInfoLog(program, infoLogLen, nullptr, infoLog.data());
+			infoLog.back() = '\0';
+			
+			std::cout << "Shader program failed to link: \n\n --- Info Log --- \n" << infoLog.data();
+			
+			for (const std::string& code : glslCodeStages)
+			{
+				std::cout << "\n\n --- GLSL ---\n" << code;
+			}
+			
+			std::abort();
+		}
+	}
+	
 	bool AbstractPipeline::HasBinding(uint32_t set, uint32_t binding) const
 	{
 		for (const MappedBinding& b : bindings)
@@ -166,29 +220,7 @@ namespace eg::graphics_api::gl
 			compiler->set_common_options(options);
 			std::string glslCode = compiler->compile();
 			
-			const GLchar* glslCodeC = glslCode.c_str();
-			const GLint glslCodeLen = (GLint)glslCode.size();
-			glShaderSource(shader, 1, &glslCodeC, &glslCodeLen);
-			
-			glCompileShader(shader);
-			
-			//Checks the shader's compile status.
-			GLint compileStatus = GL_FALSE;
-			glGetShaderiv(shader, GL_COMPILE_STATUS, &compileStatus);
-			if (!compileStatus)
-			{
-				GLint infoLogLen = 0;
-				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLen);
-				
-				std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
-				glGetShaderInfoLog(shader, infoLogLen, nullptr, infoLog.data());
-				infoLog.back() = '\0';
-				
-				std::cout << "Shader failed to compile!\n\n --- GLSL Code --- \n" << glslCode <<
-					"\n\n --- Info Log --- \n" << infoLog.data() << std::endl;
-				
-				std::abort();
-			}
+			CompileShaderStage(shader, glslCode);
 			
 			glAttachShader(program, shader);
 			glslCodeStages.push_back(std::move(glslCode));
@@ -196,43 +228,55 @@ namespace eg::graphics_api::gl
 		
 #ifdef __EMSCRIPTEN__
 		//Webgl doesn't seem to support having only a vertex shader, so add a dummy fragment shader
-		if (numShaderModules == 1)
+		if (shaderStages.size() == 1)
 		{
 			static std::optional<GLuint> dummyFragmentShader;
 			if (!dummyFragmentShader.has_value())
 			{
 				dummyFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-				const GLchar* glslCodeC = "#version 300 es\nvoid main() { }\n";
-				glShaderSource(*dummyFragmentShader, 1, &glslCodeC, nullptr);
-				glCompileShader(*dummyFragmentShader);
+				CompileShaderStage(*dummyFragmentShader, "#version 300 es\nvoid main() { }\n");
 			}
 			glAttachShader(program, *dummyFragmentShader);
 		}
 #endif
 		
-		glLinkProgram(program);
+		LinkShaderProgram(program, glslCodeStages);
 		
-		//Checks that the program linked successfully
-		int linkStatus = GL_FALSE;
-		glGetProgramiv(program, GL_LINK_STATUS, &linkStatus);
-		if (!linkStatus)
+#ifdef EG_GLES
+		glUseProgram(program);
+		for (auto [compiler, _] : shaderStages)
 		{
-			int infoLogLen = 0;
-			glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLen);
-			
-			std::vector<char> infoLog(static_cast<size_t>(infoLogLen) + 1);
-			glGetProgramInfoLog(program, infoLogLen, nullptr, infoLog.data());
-			infoLog.back() = '\0';
-			
-			std::cout << "Shader program failed to link: \n\n --- Info Log --- \n" << infoLog.data();
-			
-			for (const std::string& code : glslCodeStages)
+			const spirv_cross::ShaderResources& shResources = compiler->get_shader_resources();
+			for (const spirv_cross::Resource& res : shResources.sampled_images)
 			{
-				std::cout << "\n\n --- GLSL ---\n" << code;
+				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
+				int location = glGetUniformLocation(program, res.name.c_str());
+				if (location == -1)
+				{
+					eg::Log(eg::LogLevel::Warning, "gl", "Texture uniform not found: '{0}'", res.name);
+				}
+				else
+				{
+					glUniform1i(location, binding);
+				}
 			}
-			
-			std::abort();
+			for (const spirv_cross::Resource& res : shResources.uniform_buffers)
+			{
+				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
+				int blockIndex = glGetUniformBlockIndex(program, res.name.c_str());
+				if (blockIndex == -1)
+				{
+					eg::Log(eg::LogLevel::Warning, "gl", "Uniform block not found: '{0}'", res.name);
+				}
+				else
+				{
+					glUniformBlockBinding(program, blockIndex, binding);
+				}
+			}
 		}
+		if (currentPipeline)
+			glUseProgram(currentPipeline->program);
+#endif
 		
 		//Processes push constant blocks
 		for (auto [compiler, _] : shaderStages)

@@ -11,4 +11,5 @@ namespace eg::graphics_api::gl
 	void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo);
 	
 	void PlatformSpecificBeginFrame();
+	void PlatformSpecificEndFrame();
 }

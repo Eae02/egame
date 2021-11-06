@@ -125,10 +125,8 @@ namespace eg::graphics_api::gl
 				break;
 			case BindingType::Texture:
 			{
-				GLuint view = dsBinding.texture->GetView(dsBinding.subresource, dsBinding.forcedViewType, dsBinding.textureViewFormat);
-				glActiveTexture(GL_TEXTURE0 + binding.glBinding);
-				glBindTexture(dsBinding.forcedViewType ? dsBinding.forcedViewType : dsBinding.texture->type, view);
-				glBindSampler(binding.glBinding, dsBinding.bufferOrSampler);
+				BindTextureImpl(*dsBinding.texture, dsBinding.bufferOrSampler, binding.glBinding, dsBinding.subresource,
+				                dsBinding.forcedViewType, dsBinding.textureViewFormat);
 				break;
 			}
 			case BindingType::StorageImage:

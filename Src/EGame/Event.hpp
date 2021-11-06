@@ -49,6 +49,8 @@ namespace eg
 		std::string text;
 	};
 	
+	struct RelativeMouseModeLostEvent { };
+	
 	constexpr size_t EVENT_PAGE_SIZE = 512;
 	constexpr size_t MAX_TRAIL_DIST = EVENT_PAGE_SIZE - 32;
 	

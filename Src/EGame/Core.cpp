@@ -231,6 +231,7 @@ namespace eg
 		
 		eg::DefineEventType<ResolutionChangedEvent>();
 		eg::DefineEventType<ButtonEvent>();
+		eg::DefineEventType<RelativeMouseModeLostEvent>();
 		
 		if (devMode)
 		{

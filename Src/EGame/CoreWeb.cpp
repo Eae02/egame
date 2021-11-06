@@ -130,6 +130,8 @@ namespace eg
 	static double scrollX = 0;
 	static double scrollY = 0;
 	
+	extern bool g_relMouseMode;
+	
 	void PlatformRunGameLoop(std::unique_ptr<IGame> _game)
 	{
 		game = std::move(_game);
@@ -190,6 +192,17 @@ namespace eg
 			{
 				scrollY -= wheelEvent->deltaY;
 				scrollX += wheelEvent->deltaX;
+			}
+			return EM_TRUE;
+		});
+		
+		emscripten_set_pointerlockchange_callback(nullptr, nullptr, true,
+			[] (int eventType, const EmscriptenPointerlockChangeEvent *pointerlockChangeEvent, void *userData)
+		{
+			if (g_relMouseMode && !pointerlockChangeEvent->isActive)
+			{
+				g_relMouseMode = false;
+				RaiseEvent<RelativeMouseModeLostEvent>({});
 			}
 			return EM_TRUE;
 		});

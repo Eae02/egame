@@ -2,6 +2,7 @@
 #include "Utils.hpp"
 #include "OpenGLTexture.hpp"
 #include "PipelineGraphics.hpp"
+#include "Pipeline.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 namespace eg::graphics_api::gl
@@ -14,6 +15,9 @@ namespace eg::graphics_api::gl
 	
 	bool srgbBackBuffer;
 	bool hasWrittenToBackBuffer;
+	
+	bool enableDefaultFramebufferSRGBEmulation = false;
+	GLuint defaultFramebuffer = 0;
 	
 	struct ResolveFBO
 	{
@@ -61,6 +65,8 @@ namespace eg::graphics_api::gl
 	{
 		Texture* texture = UnwrapTexture(attachment.texture);
 		
+		TextureSubresourceLayers resolvedSubresource = attachment.subresource.ResolveRem(texture->arrayLayers);
+		
 		if (texture->createFakeTextureViews)
 		{
 			framebuffer.attachmentsWithGenTracking.push_back(texture);
@@ -69,32 +75,30 @@ namespace eg::graphics_api::gl
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
 		
 		if ((texture->type == GL_TEXTURE_2D_ARRAY || texture->type == GL_TEXTURE_CUBE_MAP_ARRAY ||
-		     texture->type == GL_TEXTURE_CUBE_MAP) && attachment.subresource.numArrayLayers == 1)
+		     texture->type == GL_TEXTURE_CUBE_MAP) && resolvedSubresource.numArrayLayers == 1)
 		{
 			if (useGLESPath && texture->type == GL_TEXTURE_CUBE_MAP)
 			{
 				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target,
-				                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + attachment.subresource.firstArrayLayer,
-				                       texture->texture, attachment.subresource.mipLevel);
+				                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + resolvedSubresource.firstArrayLayer,
+				                       texture->texture, resolvedSubresource.mipLevel);
 				return;
 			}
 			else
 			{
 				glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, target, texture->texture,
-				                          attachment.subresource.mipLevel, attachment.subresource.firstArrayLayer);
+				                          resolvedSubresource.mipLevel, resolvedSubresource.firstArrayLayer);
 			}
 		}
 		else
 		{
-			GLuint view = texture->GetView(attachment.subresource.AsSubresource());
-			
 			if (useGLESPath)
 			{
-				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target, GL_TEXTURE_2D, view, 0);
+				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, target, GL_TEXTURE_2D, texture->texture, resolvedSubresource.mipLevel);
 			}
 			else
 			{
-				glFramebufferTexture(GL_READ_FRAMEBUFFER, target, view, 0);
+				glFramebufferTexture(GL_READ_FRAMEBUFFER, target, texture->texture, resolvedSubresource.mipLevel);
 			}
 		}
 	}
@@ -233,7 +237,7 @@ namespace eg::graphics_api::gl
 		}
 		else
 		{
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
 			fbWidth = drawableWidth;
 			fbHeight = drawableHeight;
 		}
@@ -293,7 +297,7 @@ namespace eg::graphics_api::gl
 				}
 				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
 				{
-					if (beginInfo.framebuffer == nullptr)
+					if (beginInfo.framebuffer == nullptr && defaultFramebuffer == 0)
 					{
 						invalidateAttachments[numInvalidateAttachments++] = GL_DEPTH;
 						invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
@@ -312,7 +316,7 @@ namespace eg::graphics_api::gl
 				}
 				else if (beginInfo.depthLoadOp == AttachmentLoadOp::Discard)
 				{
-					if (beginInfo.framebuffer == nullptr)
+					if (beginInfo.framebuffer == nullptr && defaultFramebuffer == 0)
 					{
 						invalidateAttachments[numInvalidateAttachments++] = GL_COLOR;
 					}
@@ -331,7 +335,7 @@ namespace eg::graphics_api::gl
 					}
 					else if (beginInfo.stencilLoadOp == AttachmentLoadOp::Discard)
 					{
-						if (beginInfo.framebuffer == nullptr)
+						if (beginInfo.framebuffer == nullptr && defaultFramebuffer == 0)
 						{
 							invalidateAttachments[numInvalidateAttachments++] = GL_STENCIL;
 						}
@@ -371,7 +375,7 @@ namespace eg::graphics_api::gl
 			}
 			else if (attachment.loadOp == AttachmentLoadOp::Discard)
 			{
-				if (beginInfo.framebuffer == nullptr)
+				if (beginInfo.framebuffer == nullptr && defaultFramebuffer == 0)
 				{
 					invalidateAttachments[numInvalidateAttachments++] = GL_COLOR;
 				}
@@ -409,6 +413,97 @@ namespace eg::graphics_api::gl
 			{
 				texture->generation++;
 			}
+		}
+	}
+	
+	GLuint srgbEmulationTexture;
+	int srgbEmulationTextureWidth = -1;
+	int srgbEmulationTextureHeight = -1;
+	
+	void UpdateSRGBEmulationTexture(int width, int height)
+	{
+		if (enableDefaultFramebufferSRGBEmulation && (srgbEmulationTextureWidth != width || srgbEmulationTextureHeight != height))
+		{
+			if (defaultFramebuffer != 0)
+			{
+				glDeleteFramebuffers(1, &defaultFramebuffer);
+				glDeleteTextures(1, &srgbEmulationTexture);
+			}
+				
+			glGenFramebuffers(1, &defaultFramebuffer);
+			
+			glGenTextures(1, &srgbEmulationTexture);
+			glBindTexture(GL_TEXTURE_2D, srgbEmulationTexture);
+			glTexStorage2D(GL_TEXTURE_2D, 1, GL_SRGB8_ALPHA8, width, height);
+			
+			glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, srgbEmulationTexture, 0);
+			GLenum drawBuffer = GL_COLOR_ATTACHMENT0;
+			glDrawBuffers(1, &drawBuffer);
+			AssertFramebufferComplete(GL_FRAMEBUFFER);
+			BindCorrectFramebuffer();
+			
+			srgbEmulationTextureWidth = width;
+			srgbEmulationTextureHeight = height;
+		}
+	}
+	
+	static GLuint fixSrgbShader;
+	
+	static void LoadFixSRGBShader()
+	{
+		GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+		CompileShaderStage(vertexShader, 
+R"(#version 300 es
+const vec2 positions[] = vec2[](vec2(-1, -1),vec2(-1, 3),vec2(3, -1));
+out vec2 vTexCoord;
+void main() {
+	gl_Position = vec4(positions[gl_VertexID], 0, 1);
+	vTexCoord = gl_Position.xy * vec2(0.5, 0.5) + vec2(0.5);
+})");
+		
+		GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		CompileShaderStage(fragmentShader,
+R"(#version 300 es
+precision highp float;
+uniform sampler2D t;
+in vec2 vTexCoord;
+out vec4 color;
+void main() {
+	vec4 c = texture(t,vTexCoord);
+	bvec4 cutoff = lessThan(c, vec4(0.0031308));
+	vec4 higher = vec4(1.055)*pow(c, vec4(1.0/2.4)) - vec4(0.055);
+	vec4 lower = c * vec4(12.92);
+	color = mix(higher, lower, cutoff);
+})");
+		
+		fixSrgbShader = glCreateProgram();
+		glAttachShader(fixSrgbShader, vertexShader);
+		glAttachShader(fixSrgbShader, fragmentShader);
+		
+		LinkShaderProgram(fixSrgbShader, {});
+	}
+	
+	void SRGBEmulationEndFrame()
+	{
+		if (enableDefaultFramebufferSRGBEmulation && defaultFramebuffer != 0)
+		{
+			if (fixSrgbShader == 0)
+			{
+				LoadFixSRGBShader();
+			}
+			
+			glUseProgram(fixSrgbShader);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, srgbEmulationTexture);
+			
+			glViewport(0, 0, srgbEmulationTextureWidth, srgbEmulationTextureHeight);
+			SetEnabled<GL_SCISSOR_TEST>(false);
+			
+			glDrawArrays(GL_TRIANGLES, 0, 3);
+			
+			currentPipeline = nullptr;
 		}
 	}
 }

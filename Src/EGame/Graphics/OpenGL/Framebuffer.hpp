@@ -13,7 +13,12 @@ namespace eg::graphics_api::gl
 	extern bool srgbBackBuffer;
 	extern bool hasWrittenToBackBuffer;
 	
+	extern bool enableDefaultFramebufferSRGBEmulation;
+	
 	void AssertFramebufferComplete(GLenum target);
 	
 	void BindCorrectFramebuffer();
+	
+	void UpdateSRGBEmulationTexture(int width, int height);
+	void SRGBEmulationEndFrame();
 }

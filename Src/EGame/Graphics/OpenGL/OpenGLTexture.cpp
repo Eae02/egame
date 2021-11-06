@@ -639,18 +639,51 @@ namespace eg::graphics_api::gl
 		});
 	}
 	
+	void BindTextureImpl(Texture& texture, GLuint sampler, uint32_t glBinding, const TextureSubresource& subresource,
+	                     GLenum forcedViewType, Format differentFormat)
+	{
+		TextureSubresource resolvedSubresource = subresource.ResolveRem(texture.mipLevels, texture.arrayLayers);
+		
+		TextureSubresource subresourceForView = resolvedSubresource;
+		if (useGLESPath)
+		{
+			subresourceForView.firstMipLevel = 0;
+			subresourceForView.numMipLevels = texture.mipLevels;
+		}
+		
+		GLenum target = forcedViewType ? forcedViewType : texture.type;
+		
+		glBindSampler(glBinding, sampler);
+		glActiveTexture(GL_TEXTURE0 + glBinding);
+		glBindTexture(target, texture.GetView(subresourceForView, forcedViewType, differentFormat));
+		
+		if (useGLESPath)
+		{
+			float minLod = (float)resolvedSubresource.firstMipLevel;
+			float maxLod = (float)(resolvedSubresource.firstMipLevel + resolvedSubresource.numMipLevels - 1);
+			if (sampler != 0)
+			{
+				glSamplerParameterf(sampler, GL_TEXTURE_MIN_LOD, minLod);
+				glSamplerParameterf(sampler, GL_TEXTURE_MAX_LOD, maxLod);
+			}
+			else
+			{
+				glTexParameterf(target, GL_TEXTURE_MIN_LOD, minLod);
+				glTexParameterf(target, GL_TEXTURE_MAX_LOD, maxLod);
+			}
+		}
+	}
+	
 	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t set, uint32_t binding,
 	                 const TextureSubresource& subresource, TextureBindFlags flags, Format differentFormat)
 	{
-		GLenum forcedViewType = 0;
-		if (HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D))
-			forcedViewType = GL_TEXTURE_2D;
-		
-		uint32_t glBinding = ResolveBinding(set, binding);
-		glBindSampler(glBinding, (GLuint)reinterpret_cast<uintptr_t>(sampler));
-		glActiveTexture(GL_TEXTURE0 + glBinding);
-		Texture* tex = UnwrapTexture(texture);
-		glBindTexture(forcedViewType ? forcedViewType : tex->type, tex->GetView(subresource, forcedViewType));
+		BindTextureImpl(
+			*UnwrapTexture(texture),
+			(GLuint)reinterpret_cast<uintptr_t>(sampler),
+			ResolveBinding(set, binding),
+			subresource,
+			HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D) ? GL_TEXTURE_2D : 0,
+			differentFormat);
 	}
 	
 	void Texture::BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource)

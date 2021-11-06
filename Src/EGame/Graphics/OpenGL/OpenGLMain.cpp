@@ -98,12 +98,19 @@ namespace eg::graphics_api::gl
 	void BeginFrame()
 	{
 		GetDrawableSize(drawableWidth, drawableHeight);
+		UpdateSRGBEmulationTexture(drawableWidth, drawableHeight);
 		
 		viewportOutOfDate = true;
 		scissorOutOfDate = true;
 		hasWrittenToBackBuffer = false;
 		
 		PlatformSpecificBeginFrame();
+	}
+	
+	void EndFrame()
+	{
+		SRGBEmulationEndFrame();
+		PlatformSpecificEndFrame();
 	}
 	
 	void DeviceWaitIdle()

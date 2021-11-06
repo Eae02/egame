@@ -2,6 +2,7 @@
 
 #include "OpenGL.hpp"
 #include "Utils.hpp"
+#include "Framebuffer.hpp"
 
 #include <EGL/egl.h>
 
@@ -26,16 +27,8 @@ namespace eg::graphics_api::gl
 		int numEglConfigs;
 		eglGetConfigs(eglDisplay, &eglConfig, 1, &numEglConfigs);
 		
-		std::vector<EGLint> surfaceAttribs = { EGL_CONTEXT_CLIENT_VERSION, 3 };
-		if (initArguments.defaultFramebufferSRGB)
-		{
-			surfaceAttribs.push_back(EGL_COLORSPACE);
-			surfaceAttribs.push_back(EGL_COLORSPACE_sRGB);
-		}
-		surfaceAttribs.push_back(EGL_NONE);
-		surfaceAttribs.push_back(EGL_NONE);
-		
-		eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, 0, surfaceAttribs.data());
+		EGLint surfaceAttribs[] = { EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE, EGL_NONE };
+		eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, 0, surfaceAttribs);
 		if (eglSurface == EGL_NO_SURFACE)
 		{
 			std::cout << "eglCreateWindowSurface failed: " << std::hex << eglGetError() << std::endl;
@@ -59,6 +52,8 @@ namespace eg::graphics_api::gl
 		requiredExtensions.push_back("GL_EXT_texture_filter_anisotropic");
 		
 		SplitString(reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS)), ' ', supportedExtensions);
+		
+		enableDefaultFramebufferSRGBEmulation = initArguments.defaultFramebufferSRGB;
 		
 		return true;
 	}
@@ -101,7 +96,7 @@ namespace eg::graphics_api::gl
 	
 	void PlatformSpecificBeginFrame() { }
 	
-	void EndFrame() { }
+	void PlatformSpecificEndFrame() { }
 }
 
 #endif

@@ -49,6 +49,9 @@ namespace eg::graphics_api::gl
 		void ChangeUsage(TextureUsage newUsage);
 	};
 	
+	void BindTextureImpl(Texture& texture, GLuint sampler, uint32_t glBinding, const TextureSubresource& subresource,
+	                     GLenum forcedViewType, Format differentFormat);
+	
 	inline Texture* UnwrapTexture(TextureHandle handle)
 	{
 		return reinterpret_cast<Texture*>(handle);
