@@ -115,6 +115,13 @@ namespace eg::graphics_api::gl
 	
 	PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
 	{
+#ifdef __EMSCRIPTEN__
+		if (createInfo.numClipDistances != 0)
+		{
+			Log(LogLevel::Error, "gl", "Shader clip distances are not supported in WebGL");
+		}
+#endif
+		
 		GraphicsPipeline* pipeline = gfxPipelinePool.New();
 		
 		pipeline->isGraphicsPipeline = true;
@@ -170,27 +177,6 @@ namespace eg::graphics_api::gl
 					}
 				}
 				currentIOGroup++;
-				
-				/*if (createInfo.numClipDistances != 0)
-				{
-					std::ostringstream extraCodeStream;
-					if (expectedStage == eg::ShaderStage::Vertex)
-					{
-						extraCodeStream << "#define gl_ClipDistance _clipDistances\n";
-					}
-					else if (expectedStage == eg::ShaderStage::Fragment)
-					{
-						extraCodeStream <<
-							"in highp float _clipDistances[" << createInfo.numClipDistances << "];\n";
-							//"void _main();\n"
-							//"void main() {\n"
-							//"    for (int i = 0; i < " << createInfo.numClipDistances << "; i++) { if (_clipDistances[i] < 0.0) discard; }\n"
-							//"    _main();\n"
-							//"}\n"
-							//"#define main _main\n";
-					}
-					compiler->add_header_line(extraCodeStream.str());
-				}*/
 			}
 			
 			if (createInfo.label != nullptr)

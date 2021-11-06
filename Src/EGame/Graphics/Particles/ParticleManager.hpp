@@ -48,15 +48,7 @@ namespace eg
 			return m_deviceBuffer;
 		}
 		
-		void SetGravity(glm::vec3 gravity)
-		{
-#ifdef EG_HAS_SIMD
-			alignas(16) float setBuf[4] = { gravity.x, gravity.y, gravity.z, 0.0f };
-			m_gravity = _mm_load_ps(setBuf);
-#else
-			m_gravity = glm::vec4(gravity, 0.0f);
-#endif
-		}
+		void SetGravity(glm::vec3 gravity);
 		
 		void SetTextureSize(int width, int height)
 		{
