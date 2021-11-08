@@ -1,5 +1,6 @@
 #ifndef EG_NO_VULKAN
 
+#include <cstring>
 #include "Common.hpp"
 
 namespace eg
@@ -130,6 +131,11 @@ namespace eg::graphics_api::vk
 	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
 		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*)
 	{
+		if (std::strstr(callbackData->pMessageIdName, "CoreValidation-DrawState-InvalidCommandBuffer-VkDescriptorSet"))
+			return VK_FALSE;
+		if (std::strstr(callbackData->pMessageIdName, "CoreValidation-Shader-OutputNotConsumed"))
+			return VK_FALSE;
+		
 		std::cerr << "Vk[" << callbackData->messageIdNumber << " " << callbackData->pMessageIdName << "]: \n" <<
 			callbackData->pMessage << std::endl;
 		

@@ -1,7 +1,7 @@
 SC=glslangValidator
 FLAGS=-V -l
 
-SHADERS=Sprite.fs Sprite.vs Gizmo.fs Gizmo.vs BloomBlur.cs BloomBrightPass.cs BloomUpscale.cs \
+SHADERS=Sprite.fs Sprite.vs Gizmo.fs Gizmo.vs Bloom.vs BloomBrightPass.fs BloomBlurX.fs BloomBlurY.fs \
 BRDFIntegration.cs SPFMapGenerator.cs IrradianceMapGenerator.cs
 
 all: $(addprefix Build/, $(addsuffix .h, $(SHADERS)))

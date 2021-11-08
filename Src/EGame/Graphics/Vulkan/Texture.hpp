@@ -10,6 +10,8 @@ namespace eg::graphics_api::vk
 {
 	VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspectFlags);
 	
+	VkPipelineStageFlags GetBarrierStageFlagsFromUsage(TextureUsage usage, ShaderAccessFlags shaderAccessFlags);
+	
 	struct TextureView
 	{
 		VkImageView view;

@@ -215,6 +215,26 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
+	VkPipelineStageFlags GetBarrierStageFlagsFromUsage(TextureUsage usage, ShaderAccessFlags shaderAccessFlags)
+	{
+		switch (usage)
+		{
+		case TextureUsage::Undefined: return 0;
+		case TextureUsage::CopySrc: return VK_PIPELINE_STAGE_TRANSFER_BIT;
+		case TextureUsage::CopyDst: return VK_PIPELINE_STAGE_TRANSFER_BIT;
+		case TextureUsage::FramebufferAttachment:
+			return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+			       VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+			       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		case TextureUsage::ILSRead:
+		case TextureUsage::ILSWrite:
+		case TextureUsage::ILSReadWrite:
+		case TextureUsage::ShaderSample:
+			return TranslateShaderAccess(shaderAccessFlags);
+		}
+		EG_UNREACHABLE
+	}
+	
 	VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspectFlags)
 	{
 		switch (usage)
@@ -239,26 +259,6 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
-	inline VkPipelineStageFlags GetBarrierStageFlags(TextureUsage usage, ShaderAccessFlags shaderAccessFlags)
-	{
-		switch (usage)
-		{
-		case TextureUsage::Undefined: return 0;
-		case TextureUsage::CopySrc: return VK_PIPELINE_STAGE_TRANSFER_BIT;
-		case TextureUsage::CopyDst: return VK_PIPELINE_STAGE_TRANSFER_BIT;
-		case TextureUsage::FramebufferAttachment:
-			return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
-			       VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
-			       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		case TextureUsage::ILSRead:
-		case TextureUsage::ILSWrite:
-		case TextureUsage::ILSReadWrite:
-		case TextureUsage::ShaderSample:
-			return TranslateShaderAccess(shaderAccessFlags);
-		}
-		EG_UNREACHABLE
-	}
-	
 	void Texture::AutoBarrier(VkCommandBuffer cb, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 	{
 		if (!autoBarrier || currentUsage == newUsage)
@@ -274,7 +274,7 @@ namespace eg::graphics_api::vk
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.subresourceRange = { aspectFlags, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
 		
-		VkPipelineStageFlags dstStageFlags = GetBarrierStageFlags(newUsage, shaderAccessFlags);
+		VkPipelineStageFlags dstStageFlags = GetBarrierStageFlagsFromUsage(newUsage, shaderAccessFlags);
 		if (currentStageFlags == 0)
 			currentStageFlags = dstStageFlags;
 		
@@ -303,8 +303,8 @@ namespace eg::graphics_api::vk
 		vkBarrier.subresourceRange.baseArrayLayer = barrier.subresource.firstArrayLayer;
 		vkBarrier.subresourceRange.layerCount = barrier.subresource.numArrayLayers;
 		
-		VkPipelineStageFlags srcStageFlags = GetBarrierStageFlags(barrier.oldUsage, barrier.oldAccess);
-		VkPipelineStageFlags dstStageFlags = GetBarrierStageFlags(barrier.newUsage, barrier.newAccess);
+		VkPipelineStageFlags srcStageFlags = GetBarrierStageFlagsFromUsage(barrier.oldUsage, barrier.oldAccess);
+		VkPipelineStageFlags dstStageFlags = GetBarrierStageFlagsFromUsage(barrier.newUsage, barrier.newAccess);
 		if (srcStageFlags == 0)
 			srcStageFlags = dstStageFlags;
 		

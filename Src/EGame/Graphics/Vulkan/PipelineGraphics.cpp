@@ -332,10 +332,12 @@ namespace eg::graphics_api::vk
 		renderPassDescription.numColorAttachments = 0;
 		renderPassDescription.depthAttachment.format = format.depthStencilFormat;
 		renderPassDescription.depthAttachment.samples = format.sampleCount;
+		renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		for (uint32_t i = 0; i < 8 && format.colorFormats[i] != VK_FORMAT_UNDEFINED; i++)
 		{
 			renderPassDescription.colorAttachments[i].format = format.colorFormats[i];
 			renderPassDescription.colorAttachments[i].samples = format.sampleCount;
+			renderPassDescription.colorAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			renderPassDescription.numColorAttachments++;
 		}
 		

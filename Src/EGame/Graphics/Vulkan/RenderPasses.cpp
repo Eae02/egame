@@ -5,14 +5,17 @@
 
 namespace eg::graphics_api::vk
 {
-	bool RenderPassAttachment::Equals(const RenderPassAttachment& other, bool checkCompatible) const
+	bool RenderPassAttachment::Equals(const RenderPassAttachment& other, bool equalIfCompatible) const
 	{
 		if (format == VK_FORMAT_UNDEFINED && other.format == VK_FORMAT_UNDEFINED)
 			return true;
-		if (!checkCompatible && loadOp != other.loadOp)
-			return false;
-		if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD && initialLayout != other.initialLayout)
-			return false;
+		if (!equalIfCompatible)
+		{
+			if (loadOp != other.loadOp || storeOp != other.storeOp || finalLayout != other.finalLayout)
+				return false;
+			if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD && initialLayout != other.initialLayout)
+				return false;
+		}
 		return format == other.format && samples == other.samples;
 	}
 	
@@ -65,8 +68,11 @@ namespace eg::graphics_api::vk
 		createInfo.subpassCount = 1;
 		createInfo.pSubpasses = &subpassDescription;
 		
-		auto AddAttachment = [&] (const RenderPassAttachment& attachment, VkImageLayout finalLayout)
+		auto AddAttachment = [&] (const RenderPassAttachment& attachment)
 		{
+			EG_DEBUG_ASSERT(attachment.finalLayout != VK_IMAGE_LAYOUT_UNDEFINED);
+			EG_DEBUG_ASSERT(attachment.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED || attachment.loadOp != VK_ATTACHMENT_LOAD_OP_LOAD);
+			
 			VkAttachmentDescription2KHR& attachmentDesc = attachments[createInfo.attachmentCount++];
 			attachmentDesc.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2_KHR;
 			attachmentDesc.pNext = nullptr;
@@ -74,11 +80,15 @@ namespace eg::graphics_api::vk
 			attachmentDesc.format = attachment.format;
 			attachmentDesc.samples = (VkSampleCountFlagBits)attachment.samples;
 			attachmentDesc.loadOp = attachment.loadOp;
-			attachmentDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 			attachmentDesc.stencilLoadOp = attachment.stencilLoadOp;
-			attachmentDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-			attachmentDesc.initialLayout = attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD ? attachment.initialLayout : VK_IMAGE_LAYOUT_UNDEFINED;
-			attachmentDesc.finalLayout = finalLayout;
+			attachmentDesc.storeOp = attachment.storeOp;
+			attachmentDesc.stencilStoreOp = attachment.storeOp;
+			attachmentDesc.finalLayout = attachment.finalLayout;
+			
+			if (attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)
+				attachmentDesc.initialLayout = attachment.initialLayout;
+			else
+				attachmentDesc.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		};
 		
 		//Adds the depth attachment if one exists
@@ -98,7 +108,7 @@ namespace eg::graphics_api::vk
 				depthStencilAttachmentRef.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 			
 			subpassDescription.pDepthStencilAttachment = &depthStencilAttachmentRef;
-			AddAttachment(description.depthAttachment, layout);
+			AddAttachment(description.depthAttachment);
 		}
 		
 		//Adds color attachments
@@ -112,7 +122,7 @@ namespace eg::graphics_api::vk
 			colorAttachmentRefs[i].attachment = createInfo.attachmentCount;
 			colorAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			colorAttachmentRefs[i].aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			AddAttachment(description.colorAttachments[i], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+			AddAttachment(description.colorAttachments[i]);
 		}
 		
 		//Adds resolve color attachments
@@ -129,7 +139,7 @@ namespace eg::graphics_api::vk
 				description.resolveColorAttachments[i].format != VK_FORMAT_UNDEFINED)
 			{
 				colorResolveAttachmentRefs[i].attachment = createInfo.attachmentCount;
-				AddAttachment(description.resolveColorAttachments[i], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+				AddAttachment(description.resolveColorAttachments[i]);
 			}
 			else
 			{
@@ -156,7 +166,7 @@ namespace eg::graphics_api::vk
 			
 			subpassDescription.pNext = &depthStencilResolve;
 			
-			AddAttachment(description.resolveDepthAttachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+			AddAttachment(description.resolveDepthAttachment);
 		}
 		
 		RenderPass& renderPass = renderPasses.emplace_back();

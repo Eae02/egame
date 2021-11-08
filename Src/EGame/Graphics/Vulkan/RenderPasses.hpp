@@ -12,9 +12,11 @@ namespace eg::graphics_api::vk
 		uint32_t samples = 1;
 		VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		VkAttachmentLoadOp stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //Only used if loadOp is set to load
+		VkImageLayout finalLayout = VK_IMAGE_LAYOUT_UNDEFINED; //Must be changed to something other than undefined
 		
-		bool Equals(const RenderPassAttachment& other, bool checkCompatible) const;
+		bool Equals(const RenderPassAttachment& other, bool equalIfCompatible) const;
 	};
 	
 	struct RenderPassDescription

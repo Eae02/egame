@@ -92,6 +92,7 @@ namespace eg::graphics_api::vk
 		{
 			framebuffer->depthStencilAttachment = ProcessAttachment(createInfo.depthStencilAttachment,
 				rpDescription.depthAttachment.format);
+			rpDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		}
 		else
 		{
@@ -106,6 +107,7 @@ namespace eg::graphics_api::vk
 			framebuffer->colorAttachments[i] = ProcessAttachment(createInfo.colorAttachments[i],
 				rpDescription.colorAttachments[i].format);
 			rpDescription.colorAttachments[i].samples = sampleCount;
+			rpDescription.colorAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		}
 		
 		//Processes color resolve attachments
@@ -117,6 +119,7 @@ namespace eg::graphics_api::vk
 			{
 				framebuffer->resolveColorAttachments[i] =
 					ProcessAttachment(createInfo.colorResolveAttachments[i], rpDescription.resolveColorAttachments[i].format);
+				rpDescription.resolveColorAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			}
 		}
 		
@@ -125,6 +128,7 @@ namespace eg::graphics_api::vk
 		{
 			framebuffer->resolveDepthStencilAttachment = ProcessAttachment(createInfo.depthStencilResolveAttachment,
 				rpDescription.resolveDepthAttachment.format);
+			rpDescription.resolveDepthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		}
 		else
 		{
@@ -173,7 +177,8 @@ namespace eg::graphics_api::vk
 		VkCommandBuffer cb = GetCB(cc);
 		
 		uint32_t numColorAttachments;
-		VkImageLayout colorImageLayouts[MAX_COLOR_ATTACHMENTS];
+		VkImageLayout colorImageInitialLayouts[MAX_COLOR_ATTACHMENTS];
+		VkImageLayout colorImageFinalLayouts[MAX_COLOR_ATTACHMENTS];
 		VkImageLayout depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		VkFramebuffer framebuffer;
 		VkExtent2D extent;
@@ -196,7 +201,8 @@ namespace eg::graphics_api::vk
 			currentFBFormat.colorFormats[0] = ctx.surfaceFormat.format;
 			currentFBFormat.depthStencilFormat = ctx.defaultDSFormat;
 			currentFBFormat.sampleCount = VK_SAMPLE_COUNT_1_BIT;
-			colorImageLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorImageInitialLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorImageFinalLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			changeLoadToClear = ctx.defaultFramebufferInPresentMode;
 			ctx.defaultFramebufferInPresentMode = false;
 		}
@@ -217,19 +223,23 @@ namespace eg::graphics_api::vk
 			{
 				currentFBFormat.colorFormats[i] = framebufferS->colorAttachments[i]->format;
 				
+				colorImageFinalLayouts[i] =
+					ImageLayoutFromUsage(beginInfo.colorAttachments[i].finalUsage, VK_IMAGE_ASPECT_COLOR_BIT);
+				
 				if (framebufferS->colorAttachments[i]->autoBarrier)
 				{
-					colorImageLayouts[i] = framebufferS->colorAttachments[i]->CurrentLayout();
-					framebufferS->colorAttachments[i]->currentUsage = TextureUsage::FramebufferAttachment;
-					framebufferS->colorAttachments[i]->currentStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+					colorImageInitialLayouts[i] = framebufferS->colorAttachments[i]->CurrentLayout();
+					framebufferS->colorAttachments[i]->currentUsage = beginInfo.colorAttachments[i].finalUsage;
+					framebufferS->colorAttachments[i]->currentStageFlags =
+						GetBarrierStageFlagsFromUsage(beginInfo.colorAttachments[i].finalUsage, ShaderAccessFlags::Fragment);
 				}
 				else if (beginInfo.colorAttachments[i].loadOp == eg::AttachmentLoadOp::Load)
 				{
-					colorImageLayouts[i] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+					colorImageInitialLayouts[i] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 				}
 				else
 				{
-					colorImageLayouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
+					colorImageInitialLayouts[i] = VK_IMAGE_LAYOUT_UNDEFINED;
 				}
 			}
 			
@@ -305,6 +315,7 @@ namespace eg::graphics_api::vk
 			renderPassDescription.depthAttachment.loadOp = TranslateLoadOp(beginInfo.depthLoadOp);
 			renderPassDescription.depthAttachment.stencilLoadOp = TranslateLoadOp(beginInfo.stencilLoadOp);
 			renderPassDescription.depthAttachment.initialLayout = depthStencilImageLayout;
+			renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			
 			if (beginInfo.depthLoadOp == AttachmentLoadOp::Load && changeLoadToClear)
 			{
@@ -320,6 +331,7 @@ namespace eg::graphics_api::vk
 			}
 			
 			renderPassDescription.resolveDepthAttachment.format = depthStencilResolveAttachmentFormat;
+			renderPassDescription.resolveDepthAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			renderPassDescription.resolveDepthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 			
 			clearValueShift = 1;
@@ -332,7 +344,8 @@ namespace eg::graphics_api::vk
 			renderPassDescription.colorAttachments[i].loadOp = TranslateLoadOp(beginInfo.colorAttachments[i].loadOp);
 			renderPassDescription.colorAttachments[i].format = currentFBFormat.colorFormats[i];
 			renderPassDescription.colorAttachments[i].samples = currentFBFormat.sampleCount;
-			renderPassDescription.colorAttachments[i].initialLayout = colorImageLayouts[i];
+			renderPassDescription.colorAttachments[i].initialLayout = colorImageInitialLayouts[i];
+			renderPassDescription.colorAttachments[i].finalLayout = colorImageFinalLayouts[i];
 			
 			if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Load && changeLoadToClear)
 			{
@@ -348,6 +361,7 @@ namespace eg::graphics_api::vk
 			}
 			
 			renderPassDescription.resolveColorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			renderPassDescription.resolveColorAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			renderPassDescription.resolveColorAttachments[i].format = resolveAttachmentFormats[i];
 		}
 		

@@ -10,11 +10,12 @@ namespace eg
 		class EG_API RenderTarget
 		{
 		public:
-			RenderTarget(uint32_t inputWidth, uint32_t inputHeight, uint32_t levels = 4);
+			RenderTarget(uint32_t inputWidth, uint32_t inputHeight, uint32_t levels = 4,
+			             Format format = Format::R16G16B16A16_Float);
 			
 			const Texture& OutputTexture() const
 			{
-				return m_mainTexture;
+				return m_levels[0].m_textures[2];
 			}
 			
 			uint32_t InputWidth() const { return m_inputWidth; }
@@ -26,23 +27,26 @@ namespace eg
 			uint32_t m_inputWidth;
 			uint32_t m_inputHeight;
 			
-			Texture m_mainTexture;
-			Texture m_auxTexture;
+			struct Level
+			{
+				Texture m_textures[3];
+				Framebuffer m_framebuffers[3];
+			};
+			
+			std::vector<Level> m_levels;
 		};
-		
-		static constexpr Format FORMAT = Format::R16G16B16A16_Float;
 		
 		BloomRenderer();
 		
 		void Render(const glm::vec3& threshold, eg::TextureRef inputTexture, RenderTarget& renderTarget) const;
 		
 	private:
-		uint32_t m_workGroupSizeY;
-		
 		Pipeline m_brightPassPipeline;
-		Pipeline m_blurPipeline;
-		Pipeline m_upscalePipeline;
+		Pipeline m_blurPipelineX;
+		Pipeline m_blurPipelineY;
 		
 		Sampler m_inputSampler;
+		
+		Texture m_blackPixelTexture;
 	};
 }

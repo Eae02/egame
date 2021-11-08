@@ -186,6 +186,7 @@ namespace eg::graphics_api::vk
 		defaultFBRenderPassDesc.numColorAttachments = 1;
 		defaultFBRenderPassDesc.numResolveColorAttachments = 0;
 		defaultFBRenderPassDesc.colorAttachments[0].format = ctx.surfaceFormat.format;
+		defaultFBRenderPassDesc.colorAttachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		
 		VkImageView attachments[2];
 		
@@ -228,6 +229,7 @@ namespace eg::graphics_api::vk
 			SetObjectName((uint64_t)ctx.defaultDSImageView, VK_OBJECT_TYPE_IMAGE_VIEW, "Default DepthStencil View");
 			
 			defaultFBRenderPassDesc.depthAttachment.format = ctx.defaultDSFormat;
+			defaultFBRenderPassDesc.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 			framebufferCreateInfo.attachmentCount = 2;
 			attachments[0] = ctx.defaultDSImageView;
 		}

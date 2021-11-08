@@ -634,6 +634,10 @@ namespace eg
 	struct RenderPassColorAttachment
 	{
 		AttachmentLoadOp loadOp = AttachmentLoadOp::Discard;
+		
+		//Set to undefined to discard the attachment data
+		TextureUsage finalUsage = TextureUsage::FramebufferAttachment;
+		
 		std::variant<ColorLin, glm::ivec4, glm::uvec4> clearValue;
 	};
 	
