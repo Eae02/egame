@@ -1,6 +1,7 @@
-#include <spirv_glsl.hpp>
 #include "Pipeline.hpp"
 #include "../../MainThreadInvoke.hpp"
+
+#include <spirv_glsl.hpp>
 
 namespace eg::graphics_api::gl
 {
@@ -156,6 +157,7 @@ namespace eg::graphics_api::gl
 		uint32_t nextStorageImageBinding = 0;
 		uint32_t nextUniformBufferBinding = 0;
 		uint32_t nextStorageBufferBinding = 0;
+		bool usesGL4Resources = false;
 		for (uint32_t i = 0; i < bindings.size(); i++)
 		{
 			uint32_t set = bindings[i].set;
@@ -177,6 +179,7 @@ namespace eg::graphics_api::gl
 			case BindingType::StorageBuffer:
 				sets[set].numStorageBuffers++;
 				bindings[i].glBinding = nextStorageBufferBinding++;
+				usesGL4Resources = true;
 				break;
 			case BindingType::Texture:
 				sets[set].numTextures++;
@@ -185,6 +188,7 @@ namespace eg::graphics_api::gl
 			case BindingType::StorageImage:
 				sets[set].numStorageImages++;
 				bindings[i].glBinding = nextStorageImageBinding++;
+				usesGL4Resources = true;
 				break;
 			}
 		}
@@ -210,13 +214,18 @@ namespace eg::graphics_api::gl
 			}
 			
 			spirv_cross::CompilerGLSL::Options options = compiler->get_common_options();
-#ifdef EG_GLES
-			options.version = 300;
-			options.es = true;
-			options.fragment.default_float_precision = spirv_cross::CompilerGLSL::Options::Highp;
-#else
-			options.version = 430;
-#endif
+			
+			if (useGLESPath && !usesGL4Resources)
+			{
+				options.version = 300;
+				options.es = true;
+				options.fragment.default_float_precision = spirv_cross::CompilerGLSL::Options::Highp;
+			}
+			else
+			{
+				options.version = 430;
+			}
+			
 			compiler->set_common_options(options);
 			std::string glslCode = compiler->compile();
 			
@@ -242,41 +251,43 @@ namespace eg::graphics_api::gl
 		
 		LinkShaderProgram(program, glslCodeStages);
 		
-#ifdef EG_GLES
-		glUseProgram(program);
-		for (auto [compiler, _] : shaderStages)
+		//Bindings for textures and uniform blocks cannot be set in the shader code for GLES,
+		// so they need to be set manually.
+		if (useGLESPath && !usesGL4Resources)
 		{
-			const spirv_cross::ShaderResources& shResources = compiler->get_shader_resources();
-			for (const spirv_cross::Resource& res : shResources.sampled_images)
+			glUseProgram(program);
+			for (auto [compiler, _] : shaderStages)
 			{
-				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
-				int location = glGetUniformLocation(program, res.name.c_str());
-				if (location == -1)
+				const spirv_cross::ShaderResources& shResources = compiler->get_shader_resources();
+				for (const spirv_cross::Resource& res : shResources.sampled_images)
 				{
-					eg::Log(eg::LogLevel::Warning, "gl", "Texture uniform not found: '{0}'", res.name);
+					const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
+					int location = glGetUniformLocation(program, res.name.c_str());
+					if (location == -1)
+					{
+						eg::Log(eg::LogLevel::Warning, "gl", "Texture uniform not found: '{0}'", res.name);
+					}
+					else
+					{
+						glUniform1i(location, binding);
+					}
 				}
-				else
+				for (const spirv_cross::Resource& res : shResources.uniform_buffers)
 				{
-					glUniform1i(location, binding);
+					const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
+					int blockIndex = glGetUniformBlockIndex(program, res.name.c_str());
+					if (blockIndex == -1)
+					{
+						eg::Log(eg::LogLevel::Warning, "gl", "Uniform block not found: '{0}'", res.name);
+					}
+					else
+					{
+						glUniformBlockBinding(program, blockIndex, binding);
+					}
 				}
 			}
-			for (const spirv_cross::Resource& res : shResources.uniform_buffers)
-			{
-				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
-				int blockIndex = glGetUniformBlockIndex(program, res.name.c_str());
-				if (blockIndex == -1)
-				{
-					eg::Log(eg::LogLevel::Warning, "gl", "Uniform block not found: '{0}'", res.name);
-				}
-				else
-				{
-					glUniformBlockBinding(program, blockIndex, binding);
-				}
-			}
+			glUseProgram(currentPipeline ? currentPipeline->program : 0);
 		}
-		if (currentPipeline)
-			glUseProgram(currentPipeline->program);
-#endif
 		
 		//Processes push constant blocks
 		for (auto [compiler, _] : shaderStages)
