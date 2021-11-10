@@ -95,7 +95,6 @@ namespace eg
 			RenderPassBeginInfo rpBeginInfo;
 			rpBeginInfo.framebuffer = renderTarget.m_levels[0].m_framebuffers[0].handle;
 			rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Discard;
-			//rpBeginInfo.colorAttachments[0].finalUsage = TextureUsage::ShaderSample;
 			DC.BeginRenderPass(rpBeginInfo);
 			
 			DC.BindPipeline(m_brightPassPipeline);
@@ -117,7 +116,6 @@ namespace eg
 			RenderPassBeginInfo rpBeginInfo;
 			rpBeginInfo.framebuffer = renderTarget.m_levels[l].m_framebuffers[0].handle;
 			rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Discard;
-			//rpBeginInfo.colorAttachments[0].finalUsage = TextureUsage::ShaderSample;
 			DC.BeginRenderPass(rpBeginInfo);
 			
 			DC.BindPipeline(m_brightPassPipeline);
@@ -139,17 +137,11 @@ namespace eg
 			RenderPassBeginInfo rpBeginInfo;
 			rpBeginInfo.framebuffer = renderTarget.m_levels[l].m_framebuffers[1].handle;
 			rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Discard;
-			//rpBeginInfo.colorAttachments[0].finalUsage = TextureUsage::ShaderSample;
 			DC.BeginRenderPass(rpBeginInfo);
 			
 			DC.BindPipeline(m_blurPipelineY);
 			
 			DC.BindTexture(renderTarget.m_levels[l].m_textures[0], 0, 0, &m_inputSampler);
-			
-			const float pixelWidth = 1.0f / (float)renderTarget.m_levels[l].m_textures[0].Width();
-			const float pixelHeight = 1.0f / (float)renderTarget.m_levels[l].m_textures[0].Height();
-			const float pc[] = { pixelWidth, pixelHeight };
-			DC.PushConstants(0, sizeof(pc), pc);
 			
 			DC.Draw(0, 3, 0, 1);
 			
@@ -164,7 +156,6 @@ namespace eg
 			RenderPassBeginInfo rpBeginInfo;
 			rpBeginInfo.framebuffer = renderTarget.m_levels[l].m_framebuffers[2].handle;
 			rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Discard;
-			//rpBeginInfo.colorAttachments[0].finalUsage = TextureUsage::ShaderSample;
 			DC.BeginRenderPass(rpBeginInfo);
 			
 			DC.BindPipeline(m_blurPipelineX);
@@ -175,11 +166,6 @@ namespace eg
 				DC.BindTexture(m_blackPixelTexture, 0, 1, &m_inputSampler);
 			else
 				DC.BindTexture(renderTarget.m_levels[l + 1].m_textures[2], 0, 1, &m_inputSampler);
-			
-			const float pixelWidth = 1.0f / (float)renderTarget.m_levels[l].m_textures[0].Width();
-			const float pixelHeight = 1.0f / (float)renderTarget.m_levels[l].m_textures[0].Height();
-			const float pc[] = { pixelWidth, pixelHeight };
-			DC.PushConstants(0, sizeof(pc), pc);
 			
 			DC.Draw(0, 3, 0, 1);
 			

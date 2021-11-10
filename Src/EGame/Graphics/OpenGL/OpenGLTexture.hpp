@@ -34,6 +34,7 @@ namespace eg::graphics_api::gl
 		uint32_t arrayLayers;
 		uint32_t sampleCount;
 		TextureUsage currentUsage;
+		std::string label;
 		
 		uint32_t generation = 0; //Incremented each time the texture is written to, used to synchronize fake texture views
 		bool createFakeTextureViews = false;

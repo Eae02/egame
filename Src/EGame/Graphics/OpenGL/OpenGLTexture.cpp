@@ -150,6 +150,7 @@ namespace eg::graphics_api::gl
 		if (createInfo.label != nullptr)
 		{
 			glObjectLabel(GL_TEXTURE, texture.texture, -1, createInfo.label);
+			texture.label = createInfo.label;
 		}
 		
 		glTexParameteri(texture.type, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
@@ -345,8 +346,10 @@ namespace eg::graphics_api::gl
 #ifdef EG_GLES
 		EG_PANIC("glTextureView is not available in GLES.");
 #else
-		if (useGLESPath)
+		static bool hasWarnedAboutTextureViews = false;
+		if (useGLESPath && !hasWarnedAboutTextureViews)
 		{
+			hasWarnedAboutTextureViews = true;
 			eg::Log(eg::LogLevel::Warning, "gl", "Creating true texture view while running in GLES-preferred mode, "
 			                                     "this will fail in real GLES.");
 		}
@@ -508,6 +511,8 @@ namespace eg::graphics_api::gl
 	void SetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
 	                    BufferHandle bufferHandle, uint64_t offset)
 	{
+		AssertRenderPassNotActive("SetTextureData");
+		
 		const Buffer* buffer = UnwrapBuffer(bufferHandle);
 		
 		void* offsetPtr;
@@ -586,6 +591,8 @@ namespace eg::graphics_api::gl
 	void GetTextureData(CommandContextHandle, TextureHandle handle, const TextureRange& range,
 	                    BufferHandle bufferHandle, uint64_t offset)
 	{
+		AssertRenderPassNotActive("GetTextureData");
+		
 		const Buffer* buffer = UnwrapBuffer(bufferHandle);
 		
 		void* offsetPtr;
@@ -616,6 +623,7 @@ namespace eg::graphics_api::gl
 	
 	void GenerateMipmaps(CommandContextHandle, TextureHandle handle)
 	{
+		AssertRenderPassNotActive("GenerateMipmaps");
 		Texture* texture = UnwrapTexture(handle);
 		glBindTexture(texture->type, texture->texture);
 		glGenerateMipmap(texture->type);
@@ -650,6 +658,8 @@ namespace eg::graphics_api::gl
 			subresourceForView.firstMipLevel = 0;
 			subresourceForView.numMipLevels = texture.mipLevels;
 		}
+		
+		GLESAssertTextureBindNotInCurrentFramebuffer(texture);
 		
 		GLenum target = forcedViewType ? forcedViewType : texture.type;
 		
@@ -719,6 +729,8 @@ namespace eg::graphics_api::gl
 	void CopyTextureData(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle,
 	                     const TextureRange& srcRange, const TextureOffset& dstOffset)
 	{
+		AssertRenderPassNotActive("CopyTextureData");
+		
 		Texture* srcTex = UnwrapTexture(srcHandle);
 		Texture* dstTex = UnwrapTexture(dstHandle);
 		dstTex->generation++;
@@ -755,6 +767,8 @@ namespace eg::graphics_api::gl
 	
 	void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipLevel, const void* color)
 	{
+		AssertRenderPassNotActive("ClearColorTexture");
+		
 		Texture* texture = UnwrapTexture(handle);
 		texture->generation++;
 		
@@ -794,6 +808,8 @@ namespace eg::graphics_api::gl
 	
 	void ResolveTexture(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle, const ResolveRegion& region)
 	{
+		AssertRenderPassNotActive("ResolveTexture");
+		
 		Texture* src = UnwrapTexture(srcHandle);
 		Texture* dst = UnwrapTexture(dstHandle);
 		

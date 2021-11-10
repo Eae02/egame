@@ -1,9 +1,10 @@
 #include "OpenGL.hpp"
 #include "OpenGLBuffer.hpp"
+#include "Pipeline.hpp"
+#include "Framebuffer.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
-#include "Pipeline.hpp"
 
 namespace eg::graphics_api::gl
 {
@@ -152,6 +153,8 @@ namespace eg::graphics_api::gl
 	
 	void UpdateBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 	{
+		AssertRenderPassNotActive("UpdateBuffer");
+		
 		Buffer* buffer = UnwrapBuffer(handle);
 		
 		if (buffer->isFakeHostBuffer)
@@ -168,6 +171,8 @@ namespace eg::graphics_api::gl
 	
 	void FillBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
 	{
+		AssertRenderPassNotActive("FillBuffer");
+		
 		Buffer* buffer = UnwrapBuffer(handle);
 		if (buffer->isFakeHostBuffer)
 		{
@@ -194,6 +199,8 @@ namespace eg::graphics_api::gl
 	
 	void CopyBuffer(CommandContextHandle, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
 	{
+		AssertRenderPassNotActive("CopyBuffer");
+		
 		Buffer* srcBuffer = UnwrapBuffer(src);
 		Buffer* dstBuffer = UnwrapBuffer(dst);
 		

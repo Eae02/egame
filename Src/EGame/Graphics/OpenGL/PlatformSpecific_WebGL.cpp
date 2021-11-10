@@ -17,7 +17,10 @@ namespace eg::graphics_api::gl
 	bool InitializeGLPlatformSpecific(const GraphicsAPIInitArguments& initArguments, std::vector<const char*>& requiredExtensions)
 	{
 		if (initArguments.forceDepthZeroToOne)
+		{
+			std::cout << "initArguments.forceDepthZeroToOne was true, but this is not supported in WebGL" << std::endl;
 			return false;
+		}
 		
 		eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 		

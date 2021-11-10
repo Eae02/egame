@@ -40,6 +40,21 @@ namespace eg
 		
 		uint32_t mipShift = std::min((uint32_t)header->mipShifts[(int)TextureAssetQuality], header->numMipLevels - 1);
 		
+		if (IsCompressedFormat((Format)header->format))
+		{
+			uint32_t requestedMipShift = mipShift;
+			while (mipShift > 0 && ((header->width >> mipShift) % 4 || (header->height >> mipShift) % 4))
+			{
+				mipShift--;
+			}
+			if (requestedMipShift != mipShift)
+			{
+				eg::Log(eg::LogLevel::Warning, "as", "Mip shift {0} applied instead of the requested {1} because the"
+					" compressed texture '{2}' would otherwise have a resolution that is not a multiple of 4.",
+					mipShift, requestedMipShift, loadContext.AssetPath());
+			}
+		}
+		
 		Texture* texture;
 		
 		TextureCreateInfo createInfo;

@@ -7,6 +7,7 @@
 #include "../Graphics/StdVertex.hpp"
 #include "../Graphics/Particles/ParticleEmitterType.hpp"
 #include "../Log.hpp"
+#include "../Platform/FileSystem.hpp"
 
 namespace eg
 {
@@ -40,9 +41,9 @@ namespace eg
 		return &*it;
 	}
 	
-	Asset* LoadAsset(const AssetLoader& loader, std::string_view dirPath, std::span<const char> data, Asset* asset)
+	Asset* LoadAsset(const AssetLoader& loader, std::string_view assetPath, std::span<const char> data, Asset* asset)
 	{
-		AssetLoadContext context(asset, dirPath, data);
+		AssetLoadContext context(asset, assetPath, data);
 		if (!loader.callback(context))
 			return nullptr;
 		
@@ -53,6 +54,9 @@ namespace eg
 		
 		return context.GetAsset();
 	}
+	
+	AssetLoadContext::AssetLoadContext(Asset* asset, std::string_view assetPath, std::span<const char> data)
+		: m_asset(asset), m_assetPath(assetPath), m_dirPath(ParentPath(assetPath, true)), m_data(data) { }
 	
 	void RegisterAssetLoaders()
 	{

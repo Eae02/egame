@@ -6,19 +6,25 @@ option(BUILD_ASSETGEN "Whether or not to build asset generator library. The asse
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
 set(BUILD_NAME ${CMAKE_BUILD_TYPE}-${CMAKE_SYSTEM_NAME})
-set(OUT_DIR ${CMAKE_SOURCE_DIR}/Bin/${BUILD_NAME})
+set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${BUILD_NAME})
 
-file(GLOB_RECURSE YAML_SOURCE_FILES Deps/yaml-cpp/src/*.cpp)
+option(YAML_CPP_BUILD_CONTRIB "" OFF)
+option(YAML_BUILD_SHARED_LIBS "" OFF)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/)
+
+option(SPIRV_CROSS_ENABLE_TESTS "" OFF)
+option(SPIRV_CROSS_CLI "" OFF)
+option(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS "" ON)
+option(SPIRV_CROSS_ENABLE_HLSL "" OFF)
+option(SPIRV_CROSS_ENABLE_MSL "" OFF)
+option(SPIRV_CROSS_ENABLE_CPP "" OFF)
+option(SPIRV_CROSS_ENABLE_REFLECT "" OFF)
+option(SPIRV_CROSS_ENABLE_C_API "" OFF)
+option(SPIRV_CROSS_FORCE_PIC "" ON)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross/)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
-
-set(SPIRV_CROSS_SOURCE_FILES
-	Deps/spirv_cross/spirv_cross.cpp
-	Deps/spirv_cross/spirv_parser.cpp
-	Deps/spirv_cross/spirv_glsl.cpp
-	Deps/spirv_cross/spirv_cross_parsed_ir.cpp
-	Deps/spirv_cross/spirv_cfg.cpp)
 
 #Adds compile options for warnings
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -27,8 +33,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   add_compile_options(/wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
 endif()
 
-add_library(yaml-cpp STATIC ${YAML_SOURCE_FILES})
-add_library(EGame SHARED ${EGAME_SOURCE_FILES} ${SPIRV_CROSS_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
+add_library(EGame SHARED ${EGAME_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
 target_compile_options(EGame PRIVATE -Wconversion)
@@ -97,9 +102,14 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	endif()
 endif()
 
-target_link_libraries(EGame PUBLIC yaml-cpp)
-
-target_include_directories(yaml-cpp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/include)
+target_link_libraries(EGame
+	PUBLIC
+		yaml-cpp
+	PRIVATE
+		spirv-cross-glsl
+		spirv-cross-util
+		spirv-cross-core
+)
 
 target_include_directories(EGame
 	PUBLIC
@@ -109,7 +119,6 @@ target_include_directories(EGame
 target_include_directories(EGame SYSTEM
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/glm
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/include
 	PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/Inc
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
@@ -117,7 +126,6 @@ target_include_directories(EGame SYSTEM
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/include
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/utfcpp/source
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vulkan-headers/include
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross
 )
 
 target_compile_options(EGame
@@ -125,8 +133,6 @@ target_compile_options(EGame
 		-DGLM_FORCE_RADIANS -DGLM_FORCE_CTOR_INIT -DGLM_ENABLE_EXPERIMENTAL
 	PRIVATE
 		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
-
-set_target_properties(yaml-cpp PROPERTIES CXX_STANDARD 20)
 
 set_target_properties(EGame EGSandbox PROPERTIES
 	CXX_STANDARD 20

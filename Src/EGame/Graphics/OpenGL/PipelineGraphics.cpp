@@ -3,6 +3,7 @@
 #include "Pipeline.hpp"
 #include "OpenGLBuffer.hpp"
 #include "OpenGLTexture.hpp"
+#include "Framebuffer.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
@@ -490,6 +491,8 @@ namespace eg::graphics_api::gl
 	
 	void GraphicsPipeline::Bind()
 	{
+		AssertRenderPassActive("BindPipeline (Graphics)");
+		
 		glBindVertexArray(vertexArray);
 		
 		if (curState.frontFace != frontFace)
@@ -713,12 +716,14 @@ namespace eg::graphics_api::gl
 	
 	void BindVertexBuffer(CommandContextHandle, uint32_t binding, BufferHandle buffer, uint32_t offset)
 	{
+		AssertRenderPassActive("BindVertexBuffer");
 		vertexBuffers[binding] = std::make_pair(reinterpret_cast<Buffer*>(buffer)->buffer, offset);
 		updateVAOBindings = true;
 	}
 	
 	void BindIndexBuffer(CommandContextHandle, IndexType type, BufferHandle buffer, uint32_t offset)
 	{
+		AssertRenderPassActive("BindIndexBuffer");
 		currentIndexType = type;
 		indexBuffer = reinterpret_cast<Buffer*>(buffer)->buffer;
 		indexBufferOffset = offset;
@@ -727,6 +732,8 @@ namespace eg::graphics_api::gl
 	
 	void Draw(CommandContextHandle, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
 	{
+		AssertRenderPassActive("Draw");
+		
 		CommitViewportAndScissor();
 		MaybeUpdateVAO(0, firstInstance);
 		
@@ -749,6 +756,8 @@ namespace eg::graphics_api::gl
 	void DrawIndexed(CommandContextHandle, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex,
 		uint32_t firstInstance, uint32_t numInstances)
 	{
+		AssertRenderPassActive("DrawIndexed");
+		
 		CommitViewportAndScissor();
 		MaybeUpdateVAO(firstVertex, firstInstance);
 		

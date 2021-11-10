@@ -14,14 +14,13 @@ namespace eg
 {
 	int PlatformInit(const RunConfig& runConfig)
 	{
-		GraphicsAPIInitArguments apiInitArguments;
-		apiInitArguments.window = nullptr;
+		GraphicsAPIInitArguments apiInitArguments = {};
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
+		apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
 		if (!InitializeGraphicsAPI(eg::GraphicsAPI::OpenGL, apiInitArguments))
 		{
 			return 1;
 		}
-		
 		return 0;
 	}
 	

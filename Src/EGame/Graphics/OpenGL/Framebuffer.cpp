@@ -19,6 +19,38 @@ namespace eg::graphics_api::gl
 	bool enableDefaultFramebufferSRGBEmulation = false;
 	GLuint defaultFramebuffer = 0;
 	
+	static bool isInsideRenderPass = false;
+	
+	void AssertRenderPassActive(std::string_view opName)
+	{
+		if (!isInsideRenderPass)
+		{
+			EG_PANIC("Attempted to run " << opName <<
+			         " outside a render pass. This operation must be run inside a render pass.");
+		}
+	}
+	
+	void AssertRenderPassNotActive(std::string_view opName)
+	{
+		if (isInsideRenderPass)
+		{
+			EG_PANIC("Attempted to run " << opName <<
+			         " inside a render pass. This operation must be run outside a render pass.");
+		}
+	}
+	
+	void AssertIsInsideRenderPass(bool shouldBeInRenderpass, std::string_view opName)
+	{
+		if (shouldBeInRenderpass && !isInsideRenderPass)
+		{
+			
+		}
+		else if (!shouldBeInRenderpass && isInsideRenderPass)
+		{
+			
+		}
+	}
+	
 	struct ResolveFBO
 	{
 		GLenum mask;
@@ -37,7 +69,7 @@ namespace eg::graphics_api::gl
 		uint32_t width;
 		uint32_t height;
 		std::vector<ResolveFBO> resolveFBOs;
-		std::vector<Texture*> attachmentsWithGenTracking;
+		std::vector<Texture*> attachments;
 	};
 	
 	static ObjectPool<Framebuffer> framebuffers;
@@ -67,10 +99,7 @@ namespace eg::graphics_api::gl
 		
 		TextureSubresourceLayers resolvedSubresource = attachment.subresource.ResolveRem(texture->arrayLayers);
 		
-		if (texture->createFakeTextureViews)
-		{
-			framebuffer.attachmentsWithGenTracking.push_back(texture);
-		}
+		framebuffer.attachments.push_back(texture);
 		
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
 		
@@ -248,6 +277,9 @@ namespace eg::graphics_api::gl
 	
 	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 	{
+		AssertRenderPassNotActive("BeginRenderPass");
+		isInsideRenderPass = true;
+		
 		currentFramebuffer = UnwrapFramebuffer(beginInfo.framebuffer);
 		BindCorrectFramebuffer();
 		
@@ -400,6 +432,8 @@ namespace eg::graphics_api::gl
 	
 	void EndRenderPass(CommandContextHandle)
 	{
+		AssertRenderPassActive("EndRenderPass");
+		isInsideRenderPass = false;
 		if (currentFramebuffer != nullptr)
 		{
 			for (const auto& resolveFBO : currentFramebuffer->resolveFBOs)
@@ -409,9 +443,26 @@ namespace eg::graphics_api::gl
 				glBlitFramebuffer(0, 0, currentFramebuffer->width, currentFramebuffer->height, 0, 0,
 					currentFramebuffer->width, currentFramebuffer->height, resolveFBO.mask, GL_NEAREST);
 			}
-			for (Texture* texture : currentFramebuffer->attachmentsWithGenTracking)
+			for (Texture* texture : currentFramebuffer->attachments)
 			{
 				texture->generation++;
+			}
+		}
+	}
+	
+	void GLESAssertTextureBindNotInCurrentFramebuffer(const Texture& texture)
+	{
+		if (!useGLESPath || !DevMode() || currentFramebuffer == nullptr)
+			return;
+		for (const Texture* attachment : currentFramebuffer->attachments)
+		{
+			if (&texture == attachment)
+			{
+				std::string labelStringToInsert = Concat({" [", texture.label, "]"});
+				
+				EG_PANIC("Attampted to bind texture for reading " << labelStringToInsert <<
+					"while it is part of a framebuffer attachment. "
+					"This might be valid in desktop GL if the subresource is different but it is not valid in GLES.");
 			}
 		}
 	}
@@ -504,6 +555,7 @@ void main() {
 			glDrawArrays(GL_TRIANGLES, 0, 3);
 			
 			currentPipeline = nullptr;
+			viewportOutOfDate = true;
 		}
 	}
 }

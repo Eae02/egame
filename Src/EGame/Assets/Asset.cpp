@@ -252,8 +252,7 @@ namespace eg
 		}
 		
 		//Loads the asset
-		std::string_view dirPath = ParentPath(assetToLoad.name, true);
-		Asset* asset = LoadAsset(*assetToLoad.loader, dirPath, assetToLoad.generatedAsset.data, nullptr);
+		Asset* asset = LoadAsset(*assetToLoad.loader, assetToLoad.name, assetToLoad.generatedAsset.data, nullptr);
 		if (asset == nullptr)
 		{
 			//The asset failed to load
@@ -279,7 +278,7 @@ namespace eg
 		asset->fullName = detail::assetAllocator.MakeStringCopy(assetToLoad.name);
 		asset->name = BaseName(asset->fullName);
 		
-		AssetDirectory* directory = FindDirectory(&destinationDir, dirPath, true);
+		AssetDirectory* directory = FindDirectory(&destinationDir, ParentPath(assetToLoad.name), true);
 		asset->next = directory->firstAsset;
 		directory->firstAsset = asset;
 		
@@ -534,14 +533,13 @@ namespace eg
 			dataPos += dataBytes;
 			
 			//Loads the asset
-			std::string_view dirPath = ParentPath(name, true);
-			Asset* asset = LoadAsset(*loader, dirPath, data, nullptr);
+			Asset* asset = LoadAsset(*loader, name, data, nullptr);
 			if (asset != nullptr)
 			{
 				asset->fullName = detail::assetAllocator.MakeStringCopy(name);
 				asset->name = BaseName(asset->fullName);
 				
-				AssetDirectory* directory = FindDirectory(&mountDir, dirPath, true);
+				AssetDirectory* directory = FindDirectory(&mountDir, ParentPath(name), true);
 				asset->next = directory->firstAsset;
 				directory->firstAsset = asset;
 			}
