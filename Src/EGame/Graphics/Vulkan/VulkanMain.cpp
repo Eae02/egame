@@ -692,23 +692,8 @@ namespace eg::graphics_api::vk
 		}
 		
 		VmaVulkanFunctions allocatorVulkanFunctions = { };
-		allocatorVulkanFunctions.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
-		allocatorVulkanFunctions.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
-		allocatorVulkanFunctions.vkAllocateMemory = vkAllocateMemory;
-		allocatorVulkanFunctions.vkFreeMemory = vkFreeMemory;
-		allocatorVulkanFunctions.vkMapMemory = vkMapMemory;
-		allocatorVulkanFunctions.vkUnmapMemory = vkUnmapMemory;
-		allocatorVulkanFunctions.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
-		allocatorVulkanFunctions.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
-		allocatorVulkanFunctions.vkBindBufferMemory = vkBindBufferMemory;
-		allocatorVulkanFunctions.vkBindImageMemory = vkBindImageMemory;
-		allocatorVulkanFunctions.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
-		allocatorVulkanFunctions.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
-		allocatorVulkanFunctions.vkCreateBuffer = vkCreateBuffer;
-		allocatorVulkanFunctions.vkDestroyBuffer = vkDestroyBuffer;
-		allocatorVulkanFunctions.vkCreateImage = vkCreateImage;
-		allocatorVulkanFunctions.vkDestroyImage = vkDestroyImage;
-		allocatorVulkanFunctions.vkCmdCopyBuffer = vkCmdCopyBuffer;
+		allocatorVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+		allocatorVulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
 		
 		VmaAllocatorCreateInfo allocatorCreateInfo = { };
 		allocatorCreateInfo.physicalDevice = ctx.physDevice;
