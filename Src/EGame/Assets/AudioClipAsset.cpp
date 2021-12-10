@@ -3,7 +3,7 @@
 
 namespace eg
 {
-	const AssetFormat AudioClipAssetFormat { "EG::AudioClip", 0 };
+	const AssetFormat AudioClipAssetFormat { "EG::AudioClip", 1 };
 	
 	bool AudioClipAssetLoader(const AssetLoadContext& loadContext)
 	{

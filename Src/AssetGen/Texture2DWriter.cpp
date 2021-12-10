@@ -402,11 +402,11 @@ namespace eg::asset_gen
 			(uint32_t)m_isArrayTexture << 3U |
 			(uint32_t)m_isCubeMap << 4U | 
 			(uint32_t)m_is3D << 5U;
-		BinWrite(stream, (uint8_t)flags);
+		BinWrite(stream, (uint32_t)flags);
 		
-		BinWrite(stream, (uint8_t)m_mipShiftLow);
-		BinWrite(stream, (uint8_t)m_mipShiftMedium);
-		BinWrite(stream, (uint8_t)m_mipShiftHigh);
+		BinWrite(stream, (uint32_t)m_mipShiftLow);
+		BinWrite(stream, (uint32_t)m_mipShiftMedium);
+		BinWrite(stream, (uint32_t)m_mipShiftHigh);
 		
 		BinWrite(stream, (uint32_t)m_numMipLevels);
 		BinWrite(stream, (uint32_t)m_width);

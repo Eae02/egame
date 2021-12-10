@@ -500,6 +500,8 @@ namespace eg
 			return str;
 		};
 		
+		std::vector<char> dataTempBuffer;
+		
 		for (uint32_t i = 0; i < numAssets; i++)
 		{
 			std::string_view name = NextString();
@@ -529,8 +531,15 @@ namespace eg
 			dataPos += sizeof(uint32_t);
 			if (dataPos + dataBytes > uncompressedDataSize)
 				EG_PANIC("Corrupt EAP");
+			
 			std::span<char> data(uncompressedData.get() + dataPos, dataBytes);
-			dataPos += dataBytes;
+			if ((dataPos % 4) != 4)
+			{
+				if (dataTempBuffer.size() < dataBytes)
+					dataTempBuffer.resize(dataBytes);
+				std::memcpy(dataTempBuffer.data(), data.data(), dataBytes);
+				data = std::span<char>(dataTempBuffer.data(), dataBytes);
+			}
 			
 			//Loads the asset
 			Asset* asset = LoadAsset(*loader, name, data, nullptr);
@@ -543,6 +552,8 @@ namespace eg
 				asset->next = directory->firstAsset;
 				directory->firstAsset = asset;
 			}
+			
+			dataPos += dataBytes;
 		}
 		
 		return true;

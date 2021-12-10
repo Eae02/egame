@@ -4,7 +4,7 @@
 
 namespace eg
 {
-	const AssetFormat Texture2DAssetFormat { "EG::Texture2D", 1 };
+	const AssetFormat Texture2DAssetFormat { "EG::Texture2D", 3 };
 	
 	TextureQuality TextureAssetQuality = TextureQuality::Medium;
 	
@@ -12,8 +12,8 @@ namespace eg
 	{
 		uint32_t numLayers;
 		uint32_t format;
-		uint8_t flags;
-		uint8_t mipShifts[3];
+		uint32_t flags;
+		uint32_t mipShifts[3];
 		uint32_t numMipLevels;
 		uint32_t width;
 		uint32_t height;
@@ -38,7 +38,7 @@ namespace eg
 		auto filter = (header->flags & TF_LinearFiltering) ? eg::TextureFilter::Linear : eg::TextureFilter::Nearest;
 		sampler.minFilter = sampler.magFilter = filter;
 		
-		uint32_t mipShift = std::min((uint32_t)header->mipShifts[(int)TextureAssetQuality], header->numMipLevels - 1);
+		uint32_t mipShift = std::min(header->mipShifts[(int)TextureAssetQuality], header->numMipLevels - 1);
 		
 		if (IsCompressedFormat((Format)header->format))
 		{
