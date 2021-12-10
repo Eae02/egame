@@ -2,15 +2,12 @@ cmake_minimum_required(VERSION 3.12)
 project(EGame)
 
 option(BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
+option(INCLUDE_YAML "Whether or not to link to the yaml-cpp library." ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
 set(BUILD_NAME ${CMAKE_BUILD_TYPE}-${CMAKE_SYSTEM_NAME})
 set(OUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Bin/${BUILD_NAME})
-
-option(YAML_CPP_BUILD_CONTRIB "" OFF)
-option(YAML_BUILD_SHARED_LIBS "" OFF)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/)
 
 option(SPIRV_CROSS_ENABLE_TESTS "" OFF)
 option(SPIRV_CROSS_CLI "" OFF)
@@ -44,6 +41,13 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(Freetype)
 	find_package(PkgConfig REQUIRED)
 	find_package(OpenAL REQUIRED)
+	
+	if (INCLUDE_YAML)
+		find_package(yaml-cpp)
+		if (NOT ${yaml-cpp_FOUND})
+			message("Yaml-cpp was not disabled but was not found")
+		endif()
+	endif()
 	
 	pkg_check_modules(SDL2 REQUIRED sdl2)
 	
@@ -102,9 +106,12 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	endif()
 endif()
 
+if (${yaml-cpp_FOUND})
+	target_link_libraries(EGame PUBLIC yaml-cpp)
+	target_compile_options(EGame PUBLIC -DEG_HAS_YAML_CPP)
+endif()
+
 target_link_libraries(EGame
-	PUBLIC
-		yaml-cpp
 	PRIVATE
 		spirv-cross-glsl
 		spirv-cross-util
@@ -150,7 +157,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STRE
 	PROPERTIES
 		COMPILE_FLAGS "-O3"
 	)
-	target_compile_options(yaml-cpp PRIVATE -fPIC)
 endif()
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
@@ -184,4 +190,4 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
 endif()
 
-export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)
+export(TARGETS EGame FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "AssetFormat.hpp"
+#include "YAMLUtils.hpp"
 #include "../API.hpp"
 #include "../Utils.hpp"
 
-#include <yaml-cpp/yaml.h>
 #include <sstream>
 #include <optional>
 

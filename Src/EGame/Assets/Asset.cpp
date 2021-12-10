@@ -1,18 +1,15 @@
 #include "Asset.hpp"
 #include "AssetGenerator.hpp"
 #include "AssetLoad.hpp"
+#include "YAMLUtils.hpp"
 #include "../Console.hpp"
 #include "../Platform/DynamicLibrary.hpp"
 #include "../Platform/FileSystem.hpp"
-#include "../Alloc/LinearAllocator.hpp"
-#include "../Log.hpp"
 #include "../IOUtils.hpp"
 
-#include <yaml-cpp/yaml.h>
 #include <queue>
 #include <ctime>
 #include <fstream>
-#include <condition_variable>
 #include <filesystem>
 #include <iomanip>
 #include <regex>
@@ -286,26 +283,6 @@ namespace eg
 		return true;
 	}
 	
-	static size_t HashYAMLNode(const YAML::Node& node)
-	{
-		if (!node.IsDefined())
-			return 0;
-		size_t hash = std::hash<std::string>()(node.Tag());
-		if (node.IsSequence() || node.IsMap())
-		{
-			for (YAML::const_iterator it = node.begin(); it != node.end(); ++it)
-			{
-				HashAppend(hash, HashYAMLNode(it->first));
-				HashAppend(hash, HashYAMLNode(it->second));
-			}
-		}
-		else
-		{
-			HashAppend(hash, node.as<std::string>());
-		}
-		return hash;
-	}
-	
 	static const char EAPMagic[] = { (char)0xFF, 'E', 'A', 'P' };
 	
 	static void FindAllFilesInDirectory(const std::filesystem::path& path, std::string prefix, std::vector<std::string>& output)
@@ -328,7 +305,7 @@ namespace eg
 	
 	static bool LoadAssetsYAML(const std::string& path, AssetDirectory& mountDir)
 	{
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) || !defined(EG_HAS_YAML_CPP)
 		return false;
 #else
 		std::string yamlPath = path + "/Assets.yaml";
@@ -477,7 +454,7 @@ namespace eg
 		
 		char magic[sizeof(EAPMagic)];
 		stream.read(magic, sizeof(magic));
-		if (std::memcmp(magic, EAPMagic, sizeof(magic)))
+		if (std::memcmp(magic, EAPMagic, sizeof(magic)) != 0)
 			return false;
 		
 		const uint32_t numAssets = BinRead<uint32_t>(stream);
