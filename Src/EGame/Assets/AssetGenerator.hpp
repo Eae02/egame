@@ -5,6 +5,7 @@
 #include "../API.hpp"
 #include "../Utils.hpp"
 
+#include <memory>
 #include <sstream>
 #include <optional>
 
