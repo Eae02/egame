@@ -300,4 +300,13 @@ namespace eg::graphics_api::gl
 #endif
 		currentUsage = newUsage;
 	}
+	
+	void Buffer::AssertRange(uint64_t begin, uint64_t length) const
+	{
+		if (begin >= size || length > size || begin + length > size)
+		{
+			EG_PANIC("Buffer range starting at " << begin << " with length " << length <<
+			         " is out of range for buffer with length " << size << ".");
+		}
+	}
 }

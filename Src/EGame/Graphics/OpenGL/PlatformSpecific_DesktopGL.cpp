@@ -143,6 +143,7 @@ namespace eg::graphics_api::gl
 		deviceInfo.computeShader            = true;
 		deviceInfo.persistentMappedBuffers  = true;
 		deviceInfo.textureCubeMapArray      = true;
+		deviceInfo.partialTextureViews      = SDL_GL_ExtensionSupported("GL_ARB_texture_view");
 		deviceInfo.blockTextureCompression  =
 			SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
 			SDL_GL_ExtensionSupported("GL_ARB_texture_compression_rgtc");

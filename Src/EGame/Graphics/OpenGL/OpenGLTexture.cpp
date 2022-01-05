@@ -160,8 +160,6 @@ namespace eg::graphics_api::gl
 			texture.samplerDescription = *createInfo.defaultSamplerDescription;
 			InitTextureSampler(texture.type, *createInfo.defaultSamplerDescription);
 		}
-		
-		texture.createFakeTextureViews = useGLESPath && HasFlag(createInfo.flags, TextureFlags::AllowFakeTextureViews);
 	}
 	
 	TextureHandle CreateTexture2D(const TextureCreateInfo& createInfo)
@@ -320,146 +318,89 @@ namespace eg::graphics_api::gl
 		return reinterpret_cast<TextureHandle>(texture);
 	}
 	
-	void SyncFakeTextureView(const Texture& texture, TextureView& view)
+	static inline GLenum TranslateViewType(const Texture& texture, TextureViewType viewType)
 	{
-		if (view.blitFboMipLevels.empty())
-			return;
-		
-		EG_ASSERT(view.type == GL_TEXTURE_2D)
-		
-		glBindTexture(view.type, view.texture);
-		
-		for (uint32_t l = 0; l < view.subresource.numMipLevels; l++)
+		switch (viewType)
 		{
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, view.blitFboMipLevels[l]);
-			uint32_t mip = view.subresource.firstMipLevel + l;
-			uint32_t mipWidth = std::max(texture.width >> mip, 1U);
-			uint32_t mipHeight = std::max(texture.height >> mip, 1U);
-			glCopyTexSubImage2D(GL_TEXTURE_2D, l, 0, 0, 0, 0, mipWidth, mipHeight);
+		case TextureViewType::SameAsTexture: return texture.type;
+		case TextureViewType::Flat1D: return GL_TEXTURE_1D;
+		case TextureViewType::Flat2D: return GL_TEXTURE_2D;
+		case TextureViewType::Flat3D: return GL_TEXTURE_3D;
+		case TextureViewType::Cube: return GL_TEXTURE_CUBE_MAP;
+		case TextureViewType::Array1D: return GL_TEXTURE_1D_ARRAY;
+		case TextureViewType::Array2D: return GL_TEXTURE_2D_ARRAY;
+		case TextureViewType::ArrayCube: return GL_TEXTURE_CUBE_MAP_ARRAY;
+		default: EG_UNREACHABLE
 		}
-		
-		view.generation = texture.generation;
 	}
 	
-	void InitializeTrueTextureView(const Texture& texture, TextureView& view)
+	TextureViewHandle GetTextureView(TextureHandle textureHandle, TextureViewType viewType,
+	                                 const TextureSubresource& subresource, Format format)
 	{
-#ifdef EG_GLES
-		EG_PANIC("glTextureView is not available in GLES.");
-#else
-		static bool hasWarnedAboutTextureViews = false;
-		if (useGLESPath && !hasWarnedAboutTextureViews)
+		Texture* texture = UnwrapTexture(textureHandle);
+		
+		TextureViewKey viewKey;
+		viewKey.type = TranslateViewType(*texture, viewType);
+		viewKey.subresource = subresource.ResolveRem(texture->mipLevels, texture->arrayLayers);
+		viewKey.format = format == Format::Undefined ? texture->format : format;
+		
+		auto it = texture->views.find(viewKey);
+		if (it != texture->views.end())
+			return reinterpret_cast<TextureViewHandle>(&it->second);
+		
+		GLenum glFormat = TranslateFormat(viewKey.format);
+		
+		GLuint viewHandle;
+		if (viewKey.subresource.firstMipLevel == 0 && viewKey.subresource.numMipLevels == texture->mipLevels &&
+			viewKey.subresource.firstArrayLayer == 0 && viewKey.subresource.numArrayLayers == texture->arrayLayers &&
+			viewKey.type == texture->type && viewKey.format == texture->format)
 		{
-			hasWarnedAboutTextureViews = true;
-			eg::Log(eg::LogLevel::Warning, "gl", "Creating true texture view while running in GLES-preferred mode, "
-			                                     "this will fail in real GLES.");
-		}
-		
-		glTextureView(view.texture, view.type, texture.texture, TranslateFormat(view.format),
-		              view.subresource.firstMipLevel, view.subresource.numMipLevels,
-		              view.subresource.firstArrayLayer, view.subresource.numArrayLayers);
-#endif
-	}
-	
-	void InitializeFakeTextureView(const Texture& texture, TextureView& view)
-	{
-		if (view.subresource.numArrayLayers != 1)
-		{
-			EG_PANIC("Fake texture views do not support multiple array layers.")
-		}
-		
-		uint32_t viewWidth = std::max(texture.width >> view.subresource.firstMipLevel, 1U);
-		uint32_t viewHeight = std::max(texture.height >> view.subresource.firstMipLevel, 1U);
-		
-		glBindTexture(view.type, view.texture);
-		if (view.type == GL_TEXTURE_2D)
-		{
-			glTexStorage2D(view.type, view.subresource.numMipLevels, TranslateFormat(view.format), viewWidth, viewHeight);
-		}
-		else if (view.type == GL_TEXTURE_2D_ARRAY)
-		{
-			glTexStorage3D(view.type, view.subresource.numMipLevels, TranslateFormat(view.format),
-			               viewWidth, viewHeight, view.subresource.numArrayLayers);
-		}
-		
-		GLenum fboTarget = GetFormatType(view.format) == FormatTypes::DepthStencil ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
-		
-		view.blitFboMipLevels.resize(view.subresource.numMipLevels);
-		glGenFramebuffers(view.subresource.numMipLevels, view.blitFboMipLevels.data());
-		for (uint32_t l = 0; l < view.subresource.numMipLevels; l++)
-		{
-			uint32_t mip = view.subresource.firstMipLevel + l;
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, view.blitFboMipLevels[l]);
-			if (view.type == GL_TEXTURE_2D_ARRAY || view.type == GL_TEXTURE_CUBE_MAP_ARRAY)
-			{
-				glFramebufferTextureLayer(
-					GL_READ_FRAMEBUFFER, fboTarget, texture.texture, mip, view.subresource.firstArrayLayer);
-			}
-			else if (view.type == GL_TEXTURE_CUBE_MAP)
-			{
-				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, fboTarget,
-				                       GL_TEXTURE_CUBE_MAP_POSITIVE_X + view.subresource.firstArrayLayer, texture.texture, mip);
-			}
-			else
-			{
-				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, fboTarget, GL_TEXTURE_2D, view.texture, mip);
-			}
-			if (fboTarget != GL_DEPTH_ATTACHMENT)
-			{
-				glReadBuffer(fboTarget);
-			}
-			AssertFramebufferComplete(GL_READ_FRAMEBUFFER);
-		}
-		
-		SyncFakeTextureView(texture, view);
-	}
-	
-	GLuint Texture::GetView(const TextureSubresource& subresource, GLenum forcedViewType, Format differentFormat)
-	{
-		GLenum viewType = forcedViewType == 0 ? type : forcedViewType;
-		
-		TextureSubresource resolvedSubresource = subresource.ResolveRem(mipLevels, arrayLayers);
-		if (resolvedSubresource.firstMipLevel == 0 && resolvedSubresource.numMipLevels == mipLevels &&
-			resolvedSubresource.firstArrayLayer == 0 && resolvedSubresource.numArrayLayers == arrayLayers &&
-			viewType == type)
-		{
-			return texture;
-		}
-		
-		Format realFormat = differentFormat == Format::Undefined ? format : differentFormat;
-		
-		for (TextureView& view : views)
-		{
-			if (view.subresource == resolvedSubresource && view.type == viewType && view.format == realFormat)
-			{
-				if (createFakeTextureViews && view.generation != generation)
-					SyncFakeTextureView(*this, view);
-				return view.texture;
-			}
-		}
-		
-		TextureView& view = views.emplace_back();
-		view.subresource = resolvedSubresource;
-		view.type        = viewType;
-		view.format      = realFormat;
-		
-		glGenTextures(1, &view.texture);
-		
-		if (createFakeTextureViews)
-		{
-			InitializeFakeTextureView(*this, view);
+			viewHandle = texture->texture;
 		}
 		else
 		{
-			InitializeTrueTextureView(*this, view);
+			if (glTextureView == nullptr)
+			{
+				EG_PANIC("Partial texture views are not supported by this GL context");
+			}
+			
+			static bool hasWarnedAboutTextureViews = false;
+			if (useGLESPath && !hasWarnedAboutTextureViews)
+			{
+				hasWarnedAboutTextureViews = true;
+				eg::Log(eg::LogLevel::Warning, "gl",
+					"Creating true texture view while running in GLES-preferred mode, this will fail in real GLES.");
+			}
+			
+#ifndef EG_GLES
+			glGenTextures(1, &viewHandle);
+			glTextureView(viewHandle, viewKey.type, texture->texture, glFormat,
+			              viewKey.subresource.firstMipLevel, viewKey.subresource.numMipLevels,
+			              viewKey.subresource.firstArrayLayer, viewKey.subresource.numArrayLayers);
+			
+			if (texture->samplerDescription.has_value())
+			{
+				glBindTexture(viewKey.type, viewHandle);
+				InitTextureSampler(viewKey.type, *texture->samplerDescription);
+			}
+#endif
 		}
 		
-		if (samplerDescription.has_value())
-		{
-			glBindTexture(viewType, view.texture);
-			InitTextureSampler(viewType, *samplerDescription);
-		}
-		
-		return view.texture;
+		TextureView& view = texture->views.emplace(viewKey, TextureView { viewKey, viewHandle, glFormat, texture }).first->second;
+		return reinterpret_cast<TextureViewHandle>(&view);
+	}
+	
+	size_t TextureViewKey::Hash() const
+	{
+		size_t h = subresource.Hash();
+		HashAppend(h, type);
+		HashAppend(h, (uint32_t)format);
+		return h;
+	}
+	
+	bool TextureViewKey::operator==(const TextureViewKey& other) const
+	{
+		return type == other.type && format == other.format && subresource == other.subresource;
 	}
 	
 	static std::pair<Format, GLenum> compressedUploadFormats[] =
@@ -530,7 +471,6 @@ namespace eg::graphics_api::gl
 		auto[format, type] = GetUploadFormat(texture->format);
 		
 		texture->ChangeUsage(TextureUsage::CopyDst);
-		texture->generation++;
 		
 		const bool isCompressed = IsCompressedFormat(texture->format);
 		const uint32_t imageBytes = GetImageByteSize(range.sizeX, range.sizeY, texture->format);
@@ -627,18 +567,16 @@ namespace eg::graphics_api::gl
 		Texture* texture = UnwrapTexture(handle);
 		glBindTexture(texture->type, texture->texture);
 		glGenerateMipmap(texture->type);
-		texture->generation++;
 	}
 	
 	void DestroyTexture(TextureHandle handle)
 	{
 		MainThreadInvoke([texture = UnwrapTexture(handle)]
 		{
-			for (const TextureView& view : texture->views)
+			for (const auto& view : texture->views)
 			{
-				glDeleteTextures(1, &view.texture);
-				for (GLuint blitFbo : view.blitFboMipLevels)
-					glDeleteFramebuffers(1, &blitFbo);
+				if (view.second.handle != texture->texture)
+					glDeleteTextures(1, &view.second.handle);
 			}
 			glDeleteTextures(1, &texture->texture);
 			if (texture->fbo)
@@ -647,30 +585,18 @@ namespace eg::graphics_api::gl
 		});
 	}
 	
-	void BindTextureImpl(Texture& texture, GLuint sampler, uint32_t glBinding, const TextureSubresource& subresource,
-	                     GLenum forcedViewType, Format differentFormat)
+	void TextureView::Bind(GLuint sampler, uint32_t glBinding) const
 	{
-		TextureSubresource resolvedSubresource = subresource.ResolveRem(texture.mipLevels, texture.arrayLayers);
-		
-		TextureSubresource subresourceForView = resolvedSubresource;
-		if (useGLESPath)
-		{
-			subresourceForView.firstMipLevel = 0;
-			subresourceForView.numMipLevels = texture.mipLevels;
-		}
-		
-		GLESAssertTextureBindNotInCurrentFramebuffer(texture);
-		
-		GLenum target = forcedViewType ? forcedViewType : texture.type;
+		GLESAssertTextureBindNotInCurrentFramebuffer(*texture);
 		
 		glBindSampler(glBinding, sampler);
 		glActiveTexture(GL_TEXTURE0 + glBinding);
-		glBindTexture(target, texture.GetView(subresourceForView, forcedViewType, differentFormat));
-		
+		glBindTexture(key.type, handle);
+		/*
 		if (useGLESPath)
 		{
-			float minLod = (float)resolvedSubresource.firstMipLevel;
-			float maxLod = (float)(resolvedSubresource.firstMipLevel + resolvedSubresource.numMipLevels - 1);
+			float minLod = (float)key.subresource.firstMipLevel;
+			float maxLod = (float)(key.subresource.firstMipLevel + key.subresource.numMipLevels - 1);
 			if (sampler != 0)
 			{
 				glSamplerParameterf(sampler, GL_TEXTURE_MIN_LOD, minLod);
@@ -678,31 +604,24 @@ namespace eg::graphics_api::gl
 			}
 			else
 			{
-				glTexParameterf(target, GL_TEXTURE_MIN_LOD, minLod);
-				glTexParameterf(target, GL_TEXTURE_MAX_LOD, maxLod);
+				glTexParameterf(key.type, GL_TEXTURE_MIN_LOD, minLod);
+				glTexParameterf(key.type, GL_TEXTURE_MAX_LOD, maxLod);
 			}
-		}
+		}*/
 	}
 	
-	void BindTexture(CommandContextHandle, TextureHandle texture, SamplerHandle sampler, uint32_t set, uint32_t binding,
-	                 const TextureSubresource& subresource, TextureBindFlags flags, Format differentFormat)
-	{
-		BindTextureImpl(
-			*UnwrapTexture(texture),
-			(GLuint)reinterpret_cast<uintptr_t>(sampler),
-			ResolveBinding(set, binding),
-			subresource,
-			HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D) ? GL_TEXTURE_2D : 0,
-			differentFormat);
-	}
-	
-	void Texture::BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource)
+	void TextureView::BindAsStorageImage(uint32_t glBinding) const
 	{
 #ifdef __EMSCRIPTEN__
 		Log(LogLevel::Error, "gl", "Storage images are not supported in WebGL");
 #else
-		glBindImageTexture(glBinding, GetView(subresource), 0, GL_TRUE, 0, GL_READ_WRITE, TranslateFormat(format));
+		glBindImageTexture(glBinding, handle, 0, GL_TRUE, 0, GL_READ_WRITE, glFormat);
 #endif
+	}
+	
+	void BindTexture(CommandContextHandle, TextureViewHandle textureView, SamplerHandle sampler, uint32_t set, uint32_t binding)
+	{
+		UnwrapTextureView(textureView)->Bind((GLuint)reinterpret_cast<uintptr_t>(sampler), ResolveBinding(set, binding));
 	}
 	
 	void Texture::LazyInitializeTextureFBO()
@@ -720,10 +639,9 @@ namespace eg::graphics_api::gl
 		fbo = fboHandle;
 	}
 	
-	void BindStorageImage(CommandContextHandle, TextureHandle textureHandle, uint32_t set, uint32_t binding,
-		const TextureSubresourceLayers& subresource)
+	void BindStorageImage(CommandContextHandle, TextureViewHandle textureViewHandle, uint32_t set, uint32_t binding)
 	{
-		UnwrapTexture(textureHandle)->BindAsStorageImage(ResolveBinding(set, binding), subresource.AsSubresource());
+		UnwrapTextureView(textureViewHandle)->BindAsStorageImage(ResolveBinding(set, binding));
 	}
 	
 	void CopyTextureData(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle,
@@ -733,7 +651,6 @@ namespace eg::graphics_api::gl
 		
 		Texture* srcTex = UnwrapTexture(srcHandle);
 		Texture* dstTex = UnwrapTexture(dstHandle);
-		dstTex->generation++;
 		
 		if (useGLESPath)
 		{
@@ -770,7 +687,6 @@ namespace eg::graphics_api::gl
 		AssertRenderPassNotActive("ClearColorTexture");
 		
 		Texture* texture = UnwrapTexture(handle);
-		texture->generation++;
 		
 		if (useGLESPath)
 		{

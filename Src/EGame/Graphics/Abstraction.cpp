@@ -106,4 +106,23 @@ namespace eg
 			result.numArrayLayers = maxArrayLayers - firstArrayLayer;
 		return result;
 	}
+	
+	size_t TextureSubresource::Hash() const
+	{
+		size_t h = 0;
+		HashAppend(h, firstMipLevel);
+		HashAppend(h, numMipLevels);
+		HashAppend(h, firstArrayLayer);
+		HashAppend(h, numArrayLayers);
+		return h;
+	}
+	
+	size_t TextureSubresourceLayers::Hash() const
+	{
+		size_t h = 0;
+		HashAppend(h, mipLevel);
+		HashAppend(h, firstArrayLayer);
+		HashAppend(h, numArrayLayers);
+		return h;
+	}
 }

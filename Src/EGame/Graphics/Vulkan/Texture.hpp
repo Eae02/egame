@@ -5,6 +5,7 @@
 #include "Common.hpp"
 
 #include <optional>
+#include <unordered_map>
 
 namespace eg::graphics_api::vk
 {
@@ -12,20 +13,28 @@ namespace eg::graphics_api::vk
 	
 	VkPipelineStageFlags GetBarrierStageFlagsFromUsage(TextureUsage usage, ShaderAccessFlags shaderAccessFlags);
 	
-	struct TextureView
+	struct TextureViewKey
 	{
-		VkImageView view;
 		VkImageAspectFlags aspectFlags;
 		VkImageViewType type;
 		VkFormat format;
 		TextureSubresource subresource;
+		
+		size_t Hash() const;
+		bool operator==(const TextureViewKey& other) const;
+	};
+	
+	struct TextureView
+	{
+		VkImageView view;
+		struct Texture* texture;
 	};
 	
 	struct Texture : Resource
 	{
 		VkImage image;
 		VmaAllocation allocation;
-		std::vector<TextureView> views;
+		std::unordered_map<TextureViewKey, TextureView, MemberFunctionHash<TextureViewKey>> views;
 		VkImageViewType viewType;
 		VkExtent3D extent;
 		uint32_t numMipLevels;
@@ -48,7 +57,7 @@ namespace eg::graphics_api::vk
 		void AutoBarrier(VkCommandBuffer cb, TextureUsage newUsage,
 			ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
 		
-		VkImageView GetView(const TextureSubresource& subresource, VkImageAspectFlags aspectFlags = 0,
+		TextureView& GetView(const TextureSubresource& subresource, VkImageAspectFlags aspectFlags = 0,
 			std::optional<VkImageViewType> forcedViewType = {}, VkFormat differentFormat = VK_FORMAT_UNDEFINED);
 		
 		void Free() override;
@@ -57,6 +66,11 @@ namespace eg::graphics_api::vk
 	inline Texture* UnwrapTexture(TextureHandle handle)
 	{
 		return reinterpret_cast<Texture*>(handle);
+	}
+	
+	inline TextureView* UnwrapTextureView(TextureViewHandle handle)
+	{
+		return reinterpret_cast<TextureView*>(handle);
 	}
 }
 

@@ -231,6 +231,14 @@ namespace eg
 			}
 		}
 		
+		TextureViewHandle GetView(
+			const TextureSubresource& subresource = { },
+			TextureViewType viewType = TextureViewType::SameAsTexture,
+			Format differentFormat = Format::Undefined) const
+		{
+			return gal::GetTextureView(handle, viewType, subresource, differentFormat);
+		}
+		
 		TextureHandle handle;
 	};
 	
@@ -445,16 +453,24 @@ namespace eg
 			}
 		}
 		
-		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr,
-			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None,
-			Format differentFormat = Format::Undefined)
+		void BindTexture(TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr, const TextureSubresource& subresource = { })
 		{
-			gal::BindTextureDS(texture.handle, sampler ? sampler->Handle() : nullptr, handle, binding, subresource, flags, differentFormat);
+			BindTextureView(texture.GetView(subresource), binding, sampler);
 		}
 		
-		void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresourceLayers& subresource = { })
+		void BindTextureView(TextureViewHandle textureView, uint32_t binding, const Sampler* sampler = nullptr)
 		{
-			gal::BindStorageImageDS(texture.handle, handle, binding, subresource);
+			gal::BindTextureDS(textureView, sampler ? sampler->Handle() : nullptr, handle, binding);
+		}
+		
+		void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresource& subresource = { })
+		{
+			BindStorageImageView(texture.GetView(subresource), binding);
+		}
+		
+		void BindStorageImageView(TextureViewHandle textureView, uint32_t binding)
+		{
+			gal::BindStorageImageDS(textureView, handle, binding);
 		}
 		
 		void BindUniformBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
@@ -636,16 +652,24 @@ namespace eg
 		}
 		
 		void BindTexture(TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr,
-			const TextureSubresource& subresource = { }, TextureBindFlags flags = TextureBindFlags::None,
-			Format differentFormat = Format::Undefined)
+		                 const TextureSubresource& subresource = { })
 		{
-			gal::BindTexture(Handle(), texture.handle, sampler ? sampler->Handle() : nullptr, set, binding, subresource, flags, differentFormat);
+			BindTextureView(texture.GetView(subresource), set, binding, sampler);
 		}
 		
-		void BindStorageImage(TextureRef texture, uint32_t set, uint32_t binding,
-			const TextureSubresourceLayers& subresource = { })
+		void BindTextureView(TextureViewHandle textureView, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr)
 		{
-			gal::BindStorageImage(Handle(), texture.handle, set, binding, subresource);
+			gal::BindTexture(Handle(), textureView, sampler ? sampler->Handle() : nullptr, set, binding);
+		}
+		
+		void BindStorageImage(TextureRef texture, uint32_t set, uint32_t binding, const TextureSubresource& subresource = { })
+		{
+			BindStorageImageView(texture.GetView(subresource), set, binding);
+		}
+		
+		void BindStorageImageView(TextureViewHandle textureView, uint32_t set, uint32_t binding)
+		{
+			gal::BindStorageImage(Handle(), textureView, set, binding);
 		}
 		
 		void PushConstants(uint32_t offset, uint32_t range, const void* data)

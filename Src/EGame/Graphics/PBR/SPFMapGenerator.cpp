@@ -21,8 +21,9 @@ namespace eg
 		uint32_t outputRes = output.Width();
 		for (uint32_t i = 0; i < output.MipLevels(); i++)
 		{
-			eg::TextureSubresourceLayers subresource;
-			subresource.mipLevel = i;
+			eg::TextureSubresource subresource;
+			subresource.firstMipLevel = i;
+			subresource.numMipLevels = 1;
 			subresource.firstArrayLayer = arrayLayer * 6;
 			subresource.numArrayLayers = 6;
 			cc.BindStorageImage(output, 0, 1, subresource);

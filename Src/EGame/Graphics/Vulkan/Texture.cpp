@@ -17,8 +17,8 @@ namespace eg::graphics_api::vk
 	
 	void Texture::Free()
 	{
-		for (const TextureView& view : views)
-			vkDestroyImageView(ctx.device, view.view, nullptr);
+		for (const auto& view : views)
+			vkDestroyImageView(ctx.device, view.second.view, nullptr);
 		
 		vmaDestroyImage(ctx.allocator, image, allocation);
 		
@@ -26,7 +26,7 @@ namespace eg::graphics_api::vk
 	}
 	
 	static void InitializeImage(Texture& texture, const TextureCreateInfo& createInfo, VkImageType imageType,
-		VkImageViewType viewType, const VkExtent3D& extent, uint32_t arrayLayers)
+	                            VkImageViewType viewType, const VkExtent3D& extent, uint32_t arrayLayers)
 	{
 		texture.refCount = 1;
 		texture.aspectFlags = GetFormatAspect(createInfo.format);
@@ -90,49 +90,76 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
-	VkImageView Texture::GetView(const TextureSubresource& subresource, VkImageAspectFlags _aspectFlags,
-		std::optional<VkImageViewType> forcedViewType, VkFormat differentFormat)
+	size_t TextureViewKey::Hash() const
 	{
-		if (_aspectFlags == 0)
-			_aspectFlags = aspectFlags;
-		TextureSubresource resolvedSubresource = subresource.ResolveRem(numMipLevels, numArrayLayers);
+		size_t h = subresource.Hash();
+		HashAppend(h, (uint32_t)aspectFlags);
+		HashAppend(h, (uint32_t)type);
+		HashAppend(h, (uint32_t)format);
+		return h;
+	}
+	
+	bool TextureViewKey::operator==(const TextureViewKey& other) const
+	{
+		return aspectFlags == other.aspectFlags && type == other.type && format == other.format && subresource == other.subresource;
+	}
+	
+	TextureView& Texture::GetView(const TextureSubresource& subresource, VkImageAspectFlags _aspectFlags,
+	                              std::optional<VkImageViewType> forcedViewType, VkFormat differentFormat)
+	{
+		TextureViewKey viewKey;
+		viewKey.aspectFlags = _aspectFlags ? _aspectFlags : aspectFlags;
+		viewKey.format = differentFormat == VK_FORMAT_UNDEFINED ? format : differentFormat;
+		viewKey.type = forcedViewType.value_or(viewType);
+		viewKey.subresource = subresource.ResolveRem(numMipLevels, numArrayLayers);
 		
-		VkFormat realFormat = differentFormat == VK_FORMAT_UNDEFINED ? format : differentFormat;
-		VkImageViewType realViewType = forcedViewType ? *forcedViewType : viewType;
-		for (const TextureView& view : views)
-		{
-			if (view.subresource == resolvedSubresource &&
-				view.aspectFlags == _aspectFlags &&
-				view.type == realViewType &&
-				view.format == realFormat)
-			{
-				return view.view;
-			}
-		}
+		auto it = views.find(viewKey);
+		if (it != views.end())
+			return it->second;
 		
 		VkImageViewCreateInfo viewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		viewCreateInfo.viewType = realViewType;
+		viewCreateInfo.viewType = viewKey.type;
 		viewCreateInfo.image = image;
-		viewCreateInfo.format = realFormat;
-		viewCreateInfo.subresourceRange.aspectMask = _aspectFlags;
-		viewCreateInfo.subresourceRange.baseMipLevel = resolvedSubresource.firstMipLevel;
-		viewCreateInfo.subresourceRange.levelCount = resolvedSubresource.numMipLevels;
-		viewCreateInfo.subresourceRange.baseArrayLayer = resolvedSubresource.firstArrayLayer;
-		viewCreateInfo.subresourceRange.layerCount = resolvedSubresource.numArrayLayers;
+		viewCreateInfo.format = viewKey.format;
+		viewCreateInfo.subresourceRange.aspectMask = viewKey.aspectFlags;
+		viewCreateInfo.subresourceRange.baseMipLevel = viewKey.subresource.firstMipLevel;
+		viewCreateInfo.subresourceRange.levelCount = viewKey.subresource.numMipLevels;
+		viewCreateInfo.subresourceRange.baseArrayLayer = viewKey.subresource.firstArrayLayer;
+		viewCreateInfo.subresourceRange.layerCount = viewKey.subresource.numArrayLayers;
 		
-		TextureView& view = views.emplace_back();
-		CheckRes(vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &view.view));
+		VkImageView view;
+		CheckRes(vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &view));
 		
 		if (!viewLabel.empty())
 		{
-			SetObjectName(reinterpret_cast<uint64_t>(view.view), VK_OBJECT_TYPE_IMAGE_VIEW, viewLabel.c_str());
+			SetObjectName(reinterpret_cast<uint64_t>(view), VK_OBJECT_TYPE_IMAGE_VIEW, viewLabel.c_str());
 		}
 		
-		view.aspectFlags = _aspectFlags;
-		view.subresource = resolvedSubresource;
-		view.type        = realViewType;
-		view.format      = realFormat;
-		return view.view;
+		return views.emplace(viewKey, TextureView { view, this }).first->second;
+	}
+	
+	static inline std::optional<VkImageViewType> TranslateViewType(TextureViewType viewType)
+	{
+		switch (viewType)
+		{
+		case TextureViewType::SameAsTexture: return {};
+		case TextureViewType::Flat1D:        return VK_IMAGE_VIEW_TYPE_1D;
+		case TextureViewType::Flat2D:        return VK_IMAGE_VIEW_TYPE_2D;
+		case TextureViewType::Flat3D:        return VK_IMAGE_VIEW_TYPE_3D;
+		case TextureViewType::Cube:          return VK_IMAGE_VIEW_TYPE_CUBE;
+		case TextureViewType::Array1D:       return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+		case TextureViewType::Array2D:       return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		case TextureViewType::ArrayCube:     return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+		default: EG_UNREACHABLE
+		}
+	}
+	
+	TextureViewHandle GetTextureView(TextureHandle texture, TextureViewType viewType, const TextureSubresource& subresource, Format format)
+	{
+		Texture* tex = UnwrapTexture(texture);
+		TextureView& view = tex->GetView(subresource, tex->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT),
+		                                 TranslateViewType(viewType), TranslateFormat(format));
+		return reinterpret_cast<TextureViewHandle>(&view);
 	}
 	
 	inline TextureHandle WrapTexture(Texture* texture)
@@ -522,14 +549,12 @@ namespace eg::graphics_api::vk
 		texture->currentUsage = TextureUsage::CopySrc;
 	}
 	
-	void BindTexture(CommandContextHandle cc, TextureHandle textureHandle, SamplerHandle samplerHandle,
-	                 uint32_t set, uint32_t binding, const TextureSubresource& subresource,
-	                 TextureBindFlags flags, Format differentFormat)
+	void BindTexture(CommandContextHandle cc, TextureViewHandle textureViewHandle, SamplerHandle samplerHandle, uint32_t set, uint32_t binding)
 	{
-		Texture* texture = UnwrapTexture(textureHandle);
-		RefResource(cc, *texture);
+		TextureView* view = UnwrapTextureView(textureViewHandle);
+		RefResource(cc, *view->texture);
 		
-		if (texture->autoBarrier && texture->currentUsage != TextureUsage::ShaderSample)
+		if (view->texture->autoBarrier && view->texture->currentUsage != TextureUsage::ShaderSample)
 		{
 			EG_PANIC("Texture passed to BindTexture not in the correct usage state, did you forget to call UsageHint?");
 		}
@@ -537,24 +562,19 @@ namespace eg::graphics_api::vk
 		VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
 		if (sampler == VK_NULL_HANDLE)
 		{
-			if (texture->defaultSampler == VK_NULL_HANDLE)
+			if (view->texture->defaultSampler == VK_NULL_HANDLE)
 			{
 				EG_PANIC("Attempted to bind texture with no sampler specified.")
 			}
-			sampler = texture->defaultSampler;
+			sampler = view->texture->defaultSampler;
 		}
 		
 		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
 		
-		std::optional<VkImageViewType> forcedViewType;
-		if (HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D))
-			forcedViewType = VK_IMAGE_VIEW_TYPE_2D;
-		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT),
-		                                       forcedViewType, TranslateFormat(differentFormat));
+		imageInfo.imageView = view->view;
 		imageInfo.sampler = sampler;
-		imageInfo.imageLayout = ImageLayoutFromUsage(eg::TextureUsage::ShaderSample, texture->aspectFlags);
+		imageInfo.imageLayout = ImageLayoutFromUsage(eg::TextureUsage::ShaderSample, view->texture->aspectFlags);
 		
 		VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
 		writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -566,14 +586,13 @@ namespace eg::graphics_api::vk
 		vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
 	}
 	
-	void BindStorageImage(CommandContextHandle cc, TextureHandle textureHandle, uint32_t set, uint32_t binding,
-		const TextureSubresourceLayers& subresource)
+	void BindStorageImage(CommandContextHandle cc, TextureViewHandle textureViewHandle, uint32_t set, uint32_t binding)
 	{
-		Texture* texture = UnwrapTexture(textureHandle);
-		RefResource(cc, *texture);
+		TextureView* view = UnwrapTextureView(textureViewHandle);
+		RefResource(cc, *view->texture);
 		
-		if (texture->autoBarrier && texture->currentUsage != TextureUsage::ILSRead &&
-		    texture->currentUsage != TextureUsage::ILSWrite && texture->currentUsage != TextureUsage::ILSReadWrite)
+		if (view->texture->autoBarrier && view->texture->currentUsage != TextureUsage::ILSRead &&
+		    view->texture->currentUsage != TextureUsage::ILSWrite && view->texture->currentUsage != TextureUsage::ILSReadWrite)
 		{
 			EG_PANIC("Texture passed to BindStorageImage not in the correct usage state, did you forget to call UsageHint?");
 		}
@@ -581,7 +600,7 @@ namespace eg::graphics_api::vk
 		AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
 		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource.AsSubresource());
+		imageInfo.imageView = view->view;
 		imageInfo.sampler = VK_NULL_HANDLE;
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		

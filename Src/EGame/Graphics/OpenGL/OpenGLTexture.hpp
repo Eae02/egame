@@ -4,25 +4,35 @@
 #include "../Format.hpp"
 
 #include <optional>
+#include <unordered_map>
 
 namespace eg::graphics_api::gl
 {
-	struct TextureView
+	struct TextureViewKey
 	{
-		GLuint texture;
 		GLenum type;
 		Format format;
 		TextureSubresource subresource;
 		
-		//Used for fake texture views
-		uint32_t generation;
-		std::vector<GLuint> blitFboMipLevels; //Used to blit for fake texture views
+		size_t Hash() const;
+		bool operator==(const TextureViewKey& other) const;
+	};
+	
+	struct TextureView
+	{
+		TextureViewKey key;
+		GLuint handle;
+		GLenum glFormat;
+		struct Texture* texture;
+		
+		void Bind(GLuint sampler, uint32_t glBinding) const;
+		void BindAsStorageImage(uint32_t glBinding) const;
 	};
 	
 	struct Texture
 	{
 		GLuint texture;
-		std::vector<TextureView> views;
+		std::unordered_map<TextureViewKey, TextureView, MemberFunctionHash<TextureViewKey>> views;
 		std::optional<SamplerDescription> samplerDescription;
 		GLenum type;
 		Format format;
@@ -36,25 +46,21 @@ namespace eg::graphics_api::gl
 		TextureUsage currentUsage;
 		std::string label;
 		
-		uint32_t generation = 0; //Incremented each time the texture is written to, used to synchronize fake texture views
-		bool createFakeTextureViews = false;
-		
 		std::optional<GLuint> fbo;
 		void LazyInitializeTextureFBO();
-		
-		void BindAsStorageImage(uint32_t glBinding, const TextureSubresource& subresource);
-		
-		GLuint GetView(const TextureSubresource& subresource, GLenum forcedViewType = 0,
-		               Format differentFormat = Format::Undefined);
 		
 		void ChangeUsage(TextureUsage newUsage);
 	};
 	
-	void BindTextureImpl(Texture& texture, GLuint sampler, uint32_t glBinding, const TextureSubresource& subresource,
-	                     GLenum forcedViewType, Format differentFormat);
+	void BindTextureImpl(Texture& texture, GLuint handle, GLuint sampler, uint32_t glBinding);
 	
 	inline Texture* UnwrapTexture(TextureHandle handle)
 	{
 		return reinterpret_cast<Texture*>(handle);
+	}
+	
+	inline TextureView* UnwrapTextureView(TextureViewHandle handle)
+	{
+		return reinterpret_cast<TextureView*>(handle);
 	}
 }

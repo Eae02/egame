@@ -19,8 +19,9 @@ namespace eg
 		
 		cc.BindTexture(inputEnvMap, 0, 0);
 		
-		eg::TextureSubresourceLayers subresource;
-		subresource.mipLevel = 0;
+		eg::TextureSubresource subresource;
+		subresource.firstMipLevel = 0;
+		subresource.numMipLevels = 1;
 		subresource.firstArrayLayer = arrayLayer * 6;
 		subresource.numArrayLayers = 6;
 		cc.BindStorageImage(output, 0, 1, subresource);

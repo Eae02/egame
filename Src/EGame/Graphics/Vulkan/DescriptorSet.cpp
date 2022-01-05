@@ -99,32 +99,26 @@ namespace eg::graphics_api::vk
 		UnwrapDescriptorSet(set)->UnRef();
 	}
 	
-	void BindTextureDS(TextureHandle textureHandle, SamplerHandle samplerHandle,
-	                   DescriptorSetHandle setHandle, uint32_t binding,
-	                   const TextureSubresource& subresource, TextureBindFlags flags, Format differentFormat)
+	void BindTextureDS(TextureViewHandle textureViewHandle, SamplerHandle samplerHandle,
+	                   DescriptorSetHandle setHandle, uint32_t binding)
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
-		Texture* texture = UnwrapTexture(textureHandle);
+		TextureView* view = UnwrapTextureView(textureViewHandle);
 		
-		ds->AssignResource(binding, texture);
+		ds->AssignResource(binding, view->texture);
 		
 		VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
 		if (sampler == VK_NULL_HANDLE)
 		{
-			if (texture->defaultSampler == VK_NULL_HANDLE)
+			if (view->texture->defaultSampler == VK_NULL_HANDLE)
 			{
 				EG_PANIC("Attempted to bind texture with no sampler specified.")
 			}
-			sampler = texture->defaultSampler;
+			sampler = view->texture->defaultSampler;
 		}
 		
-		std::optional<VkImageViewType> forcedViewType;
-		if (HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D))
-			forcedViewType = VK_IMAGE_VIEW_TYPE_2D;
-		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource, texture->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT),
-		                                       forcedViewType, TranslateFormat(differentFormat));
+		imageInfo.imageView = view->view;
 		imageInfo.sampler = sampler;
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		
@@ -138,16 +132,15 @@ namespace eg::graphics_api::vk
 		vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
 	}
 	
-	void BindStorageImageDS(TextureHandle textureHandle, DescriptorSetHandle setHandle, uint32_t binding,
-		const TextureSubresourceLayers& subresource)
+	void BindStorageImageDS(TextureViewHandle textureViewHandle, DescriptorSetHandle setHandle, uint32_t binding)
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
-		Texture* texture = UnwrapTexture(textureHandle);
+		TextureView* view = UnwrapTextureView(textureViewHandle);
 		
-		ds->AssignResource(binding, texture);
+		ds->AssignResource(binding, view->texture);
 		
 		VkDescriptorImageInfo imageInfo;
-		imageInfo.imageView = texture->GetView(subresource.AsSubresource());
+		imageInfo.imageView = view->view;
 		imageInfo.sampler = VK_NULL_HANDLE;
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		

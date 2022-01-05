@@ -8,10 +8,7 @@ namespace eg::graphics_api::gl
 {
 	struct Binding
 	{
-		Texture* texture;
-		TextureSubresource subresource;
-		GLenum forcedViewType;
-		Format textureViewFormat;
+		TextureView* textureView;
 		GLuint bufferOrSampler;
 		GLsizeiptr offset;
 		GLsizeiptr range;
@@ -21,6 +18,14 @@ namespace eg::graphics_api::gl
 	{
 		uint32_t maxBinding;
 		Binding* bindings;
+		
+		void CheckBinding(uint32_t binding) const
+		{
+			if (binding > maxBinding)
+			{
+				EG_PANIC("Attempted to bind to out of range descriptor set binding: " << binding)
+			}
+		}
 	};
 	
 	inline DescriptorSet* UnwrapDescriptorSet(DescriptorSetHandle handle)
@@ -61,45 +66,39 @@ namespace eg::graphics_api::gl
 		std::free(UnwrapDescriptorSet(set));
 	}
 	
-	void BindTextureDS(TextureHandle texture, SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding,
-	                   const TextureSubresource& subresource, TextureBindFlags flags, Format differentFormat)
+	void BindTextureDS(TextureViewHandle viewHandle, SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding)
 	{
 		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
-		EG_ASSERT(binding <= set->maxBinding);
-		set->bindings[binding].texture = UnwrapTexture(texture);
-		set->bindings[binding].forcedViewType = HasFlag(flags, TextureBindFlags::ArrayLayerAsTexture2D) ? GL_TEXTURE_2D : 0;
-		set->bindings[binding].textureViewFormat = differentFormat;
-		set->bindings[binding].subresource = subresource;
+		set->CheckBinding(binding);
+		set->bindings[binding].textureView = UnwrapTextureView(viewHandle);
 		set->bindings[binding].bufferOrSampler = (GLuint)reinterpret_cast<uintptr_t>(sampler);
 	}
 	
-	void BindStorageImageDS(TextureHandle textureHandle, DescriptorSetHandle setHandle, uint32_t binding,
-		const TextureSubresourceLayers& subresource)
+	void BindStorageImageDS(TextureViewHandle viewHandle, DescriptorSetHandle setHandle, uint32_t binding)
 	{
 		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
-		EG_ASSERT(binding <= set->maxBinding);
-		set->bindings[binding].texture = UnwrapTexture(textureHandle);
-		set->bindings[binding].subresource = subresource.AsSubresource();
+		set->CheckBinding(binding);
+		set->bindings[binding].textureView = UnwrapTextureView(viewHandle);
 	}
 	
-	void BindUniformBufferDS(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding,
-		uint64_t offset, uint64_t range)
+	static inline void BindBuffer(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
 	{
 		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
-		EG_ASSERT(binding <= set->maxBinding);
+		set->CheckBinding(binding);
+		UnwrapBuffer(buffer)->AssertRange(offset, range);
 		set->bindings[binding].bufferOrSampler = UnwrapBuffer(buffer)->buffer;
-		set->bindings[binding].offset = offset;
-		set->bindings[binding].range = range;
+		set->bindings[binding].offset = static_cast<GLsizeiptr>(offset);
+		set->bindings[binding].range = static_cast<GLsizeiptr>(range);
 	}
 	
-	void BindStorageBufferDS(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding,
-		uint64_t offset, uint64_t range)
+	void BindUniformBufferDS(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
 	{
-		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
-		EG_ASSERT(binding <= set->maxBinding);
-		set->bindings[binding].bufferOrSampler = UnwrapBuffer(buffer)->buffer;
-		set->bindings[binding].offset = offset;
-		set->bindings[binding].range = range;
+		BindBuffer(buffer, setHandle, binding, offset, range);
+	}
+	
+	void BindStorageBufferDS(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
+	{
+		BindBuffer(buffer, setHandle, binding, offset, range);
 	}
 	
 	void BindDescriptorSet(CommandContextHandle, uint32_t set, DescriptorSetHandle handle)
@@ -117,20 +116,17 @@ namespace eg::graphics_api::gl
 			{
 			case BindingType::UniformBuffer:
 				glBindBufferRange(GL_UNIFORM_BUFFER, binding.glBinding, dsBinding.bufferOrSampler,
-					dsBinding.offset, dsBinding.range);
+				                  dsBinding.offset, dsBinding.range);
 				break;
 			case BindingType::StorageBuffer:
 				glBindBufferRange(GL_SHADER_STORAGE_BUFFER, binding.glBinding, dsBinding.bufferOrSampler,
-					dsBinding.offset, dsBinding.range);
+				                  dsBinding.offset, dsBinding.range);
 				break;
 			case BindingType::Texture:
-			{
-				BindTextureImpl(*dsBinding.texture, dsBinding.bufferOrSampler, binding.glBinding, dsBinding.subresource,
-				                dsBinding.forcedViewType, dsBinding.textureViewFormat);
+				dsBinding.textureView->Bind(dsBinding.bufferOrSampler, binding.glBinding);
 				break;
-			}
 			case BindingType::StorageImage:
-				dsBinding.texture->BindAsStorageImage(binding.glBinding, dsBinding.subresource);
+				dsBinding.textureView->BindAsStorageImage(binding.glBinding);
 				break;
 			}
 		}

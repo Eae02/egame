@@ -19,6 +19,7 @@ namespace eg
 	
 	typedef struct _Buffer* BufferHandle;
 	typedef struct _Texture* TextureHandle;
+	typedef struct _TextureView* TextureViewHandle;
 	typedef struct _Sampler* SamplerHandle;
 	typedef struct _Framebuffer* FramebufferHandle;
 	typedef struct _ShaderModule* ShaderModuleHandle;
@@ -478,20 +479,21 @@ namespace eg
 		
 		//The texture can be used as a framebuffer attachment.
 		FramebufferAttachment = 64,
-		
-		//Allow fake texture views by creating copies of the texture in APIs where texture views are unsupported.
-		AllowFakeTextureViews = 128,
+	};
+	
+	enum class TextureViewType
+	{
+		SameAsTexture,
+		Flat1D,
+		Flat2D,
+		Flat3D,
+		Cube,
+		Array1D,
+		Array2D,
+		ArrayCube
 	};
 	
 	EG_BIT_FIELD(TextureFlags)
-	
-	enum class TextureBindFlags
-	{
-		None                  = 0,
-		ArrayLayerAsTexture2D = 1
-	};
-	
-	EG_BIT_FIELD(TextureBindFlags)
 	
 	struct TextureCreateInfo
 	{
@@ -561,6 +563,8 @@ namespace eg
 		{
 			return !(rhs == *this);
 		}
+		
+		size_t Hash() const;
 	};
 	
 	struct TextureSubresourceLayers
@@ -586,6 +590,8 @@ namespace eg
 		{
 			return !(rhs == *this);
 		}
+		
+		size_t Hash() const;
 	};
 	
 	struct TextureBarrier
@@ -676,6 +682,7 @@ namespace eg
 		bool computeShader;
 		bool tessellation;
 		bool persistentMappedBuffers;
+		bool partialTextureViews;
 		bool textureCubeMapArray;
 		bool blockTextureCompression;
 		float timerTicksPerNS;

@@ -80,7 +80,8 @@ namespace eg::graphics_api::vk
 				EG_PANIC("Inconsistent framebuffer attachment resolution");
 			}
 			
-			attachments[vkCreateInfo.attachmentCount++] = texture->GetView(attachment.subresource.AsSubresource(), 0, VK_IMAGE_VIEW_TYPE_2D);
+			TextureView& view = texture->GetView(attachment.subresource.AsSubresource(), 0, VK_IMAGE_VIEW_TYPE_2D);
+			attachments[vkCreateInfo.attachmentCount++] = view.view;
 			
 			texture->refCount++;
 			formatOut = texture->format;

@@ -143,6 +143,12 @@ namespace eg
 		seed ^= (size_t)hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
 	}
 	
+	template <typename T>
+	struct MemberFunctionHash
+	{
+		size_t operator()(const T& t) const { return t.Hash(); }
+	};
+	
 	EG_API int64_t NanoTime();
 	
 	template <typename T, typename U>

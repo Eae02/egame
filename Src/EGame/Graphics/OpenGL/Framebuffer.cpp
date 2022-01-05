@@ -443,10 +443,6 @@ namespace eg::graphics_api::gl
 				glBlitFramebuffer(0, 0, currentFramebuffer->width, currentFramebuffer->height, 0, 0,
 					currentFramebuffer->width, currentFramebuffer->height, resolveFBO.mask, GL_NEAREST);
 			}
-			for (Texture* texture : currentFramebuffer->attachments)
-			{
-				texture->generation++;
-			}
 		}
 	}
 	
