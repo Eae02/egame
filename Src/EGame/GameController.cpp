@@ -5,6 +5,7 @@
 namespace eg
 {
 	void LoadGameControllers() { }
+	std::span<const GameController> GameControllers() { return { }; }
 }
 #else
 
@@ -48,6 +49,11 @@ namespace eg
 			}
 			AddGameController(controller);
 		}
+	}
+	
+	std::span<const GameController> GameControllers()
+	{
+		return controllers;
 	}
 }
 #endif
