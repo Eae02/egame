@@ -84,8 +84,8 @@ namespace eg::asset_gen::gltf
 	
 	struct MeshToImport
 	{
-		long meshIndex;
-		long skinIndex;
+		int64_t meshIndex;
+		int64_t skinIndex;
 		size_t nodeIndex;
 		std::string name;
 		glm::mat4 transform;
@@ -114,8 +114,8 @@ namespace eg::asset_gen::gltf
 			auto skinIt = nodeEl.find("skin");
 			
 			MeshToImport mesh;
-			mesh.meshIndex = meshIt->get<long>();
-			mesh.skinIndex = skinIt == nodeEl.end() ? -1 : skinIt->get<long>();
+			mesh.meshIndex = meshIt->get<int64_t>();
+			mesh.skinIndex = skinIt == nodeEl.end() ? -1 : skinIt->get<int64_t>();
 			mesh.nodeIndex = nodeIndex;
 			mesh.name = std::move(name);
 			mesh.transform = nodeTransform;
@@ -503,7 +503,7 @@ namespace eg::asset_gen::gltf
 			{
 				Accessor accessor = { };
 				
-				const auto& view = data.GetBufferView(accessorEl.at("bufferView").get<long>());
+				const auto& view = data.GetBufferView(accessorEl.at("bufferView").get<int64_t>());
 				accessor.bufferIndex = view.bufferIndex;
 				accessor.elementCount = accessorEl.at("count");
 				accessor.componentType = static_cast<ComponentType>(accessorEl.at("componentType").get<int>());
@@ -588,7 +588,7 @@ namespace eg::asset_gen::gltf
 				WalkNodeTree(nodesArray, sceneNode.get<size_t>(), meshesToImport, rootTransform);
 			}
 			
-			long skinIndexToImport = -1;
+			int64_t skinIndexToImport = -1;
 			
 			// ** Imports meshes **
 			std::vector<ImportedMesh> meshes;

@@ -15,7 +15,8 @@ namespace eg
 	{
 		None = 0,
 		NeverCache = 1,
-		NeverPackage = 2
+		NeverPackage = 2,
+		DisableEAPCompression = 4
 	};
 	
 	EG_BIT_FIELD(AssetFlags)

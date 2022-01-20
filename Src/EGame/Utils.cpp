@@ -31,6 +31,7 @@ namespace eg
 				"  --dgpu   Prefer dedicated GPU" << LineEndDefWithoutFlag(RunFlags::PreferIntegratedGPU) <<
 				"  --gles   Prefer GLES path when using OpenGL" << LineEndDefWithFlag(RunFlags::PreferGLESPath) <<
 				"  --eap    Create asset package" << LineEndDefWithFlag(RunFlags::CreateAssetPackage) <<
+				"  --eapf   Create asset package (faster, no compression)" << LineEndDefWithFlag(RunFlags::CreateAssetPackage | RunFlags::AssetPackageFast) <<
 				"  --dev    Run in dev mode" << LineEndDefWithFlag(RunFlags::DevMode) <<
 				"  --nodev  Do not run in dev mode" << LineEndDefWithoutFlag(RunFlags::DevMode) <<
 				"  --vs     Enable vertical sync" << LineEndDefWithFlag(RunFlags::VSync) <<
@@ -54,6 +55,8 @@ namespace eg
 				runConfig.flags |= RunFlags::PreferGLESPath;
 			else if (arg == "--eap")
 				runConfig.flags |= RunFlags::CreateAssetPackage;
+			else if (arg == "--eapf")
+				runConfig.flags |= RunFlags::CreateAssetPackage | RunFlags::AssetPackageFast;
 			else if (arg == "--dev")
 				runConfig.flags |= RunFlags::DevMode;
 			else if (arg == "--nodev")

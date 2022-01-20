@@ -29,6 +29,7 @@ namespace eg
 		ForceDepthZeroToOne    = 16,
 		PreferIntegratedGPU    = 32,
 		PreferGLESPath         = 64,
+		AssetPackageFast       = 128,
 	};
 	
 	EG_BIT_FIELD(RunFlags)

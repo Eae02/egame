@@ -408,7 +408,8 @@ namespace eg
 				DC.SetScissor(0, 0, screenWidth, screenHeight);
 			
 			eg::TextureSubresource subres;
-			subres.firstMipLevel = batch.mipLevel;
+			if (GetGraphicsDeviceInfo().partialTextureViews)
+				subres.firstMipLevel = batch.mipLevel;
 			DC.BindTexture(batch.texture, 0, 0, nullptr, subres);
 			
 			DC.DrawIndexed(batch.firstIndex, batch.numIndices, 0, 0, 1);

@@ -143,11 +143,9 @@ namespace eg::graphics_api::vk
 		switch (viewType)
 		{
 		case TextureViewType::SameAsTexture: return {};
-		case TextureViewType::Flat1D:        return VK_IMAGE_VIEW_TYPE_1D;
 		case TextureViewType::Flat2D:        return VK_IMAGE_VIEW_TYPE_2D;
 		case TextureViewType::Flat3D:        return VK_IMAGE_VIEW_TYPE_3D;
 		case TextureViewType::Cube:          return VK_IMAGE_VIEW_TYPE_CUBE;
-		case TextureViewType::Array1D:       return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
 		case TextureViewType::Array2D:       return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 		case TextureViewType::ArrayCube:     return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 		default: EG_UNREACHABLE

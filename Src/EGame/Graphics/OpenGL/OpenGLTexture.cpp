@@ -323,11 +323,9 @@ namespace eg::graphics_api::gl
 		switch (viewType)
 		{
 		case TextureViewType::SameAsTexture: return texture.type;
-		case TextureViewType::Flat1D: return GL_TEXTURE_1D;
 		case TextureViewType::Flat2D: return GL_TEXTURE_2D;
 		case TextureViewType::Flat3D: return GL_TEXTURE_3D;
 		case TextureViewType::Cube: return GL_TEXTURE_CUBE_MAP;
-		case TextureViewType::Array1D: return GL_TEXTURE_1D_ARRAY;
 		case TextureViewType::Array2D: return GL_TEXTURE_2D_ARRAY;
 		case TextureViewType::ArrayCube: return GL_TEXTURE_CUBE_MAP_ARRAY;
 		default: EG_UNREACHABLE

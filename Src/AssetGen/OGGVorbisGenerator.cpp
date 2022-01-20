@@ -79,6 +79,7 @@ namespace eg::asset_gen
 			header.frequency = info->rate;
 			header.samples = samples.size();
 			
+			generateContext.outputFlags |= eg::AssetFlags::DisableEAPCompression;
 			generateContext.outputStream.write(reinterpret_cast<const char*>(&header), sizeof(header));
 			generateContext.outputStream.write(reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t));
 			

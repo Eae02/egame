@@ -54,15 +54,15 @@ namespace eg
 		std::array<char, 256> outBuffer;
 		std::array<char, 256> inBuffer;
 		
-		long charsLeft = compressedSize;
-		long outputcharsLeft = outputSize;
+		int64_t charsLeft = compressedSize;
+		int64_t outputcharsLeft = outputSize;
 		
 		char* outputPtr = reinterpret_cast<char*>(output);
 		
 		//Inflates the data 256 chars at a time
 		do
 		{
-			long charsToRead = std::min<long>(inBuffer.size(), charsLeft);
+			int64_t charsToRead = std::min<int64_t>(inBuffer.size(), charsLeft);
 			input.read(inBuffer.data(), charsToRead);
 			
 			assert(input.gcount() == charsToRead);
@@ -88,7 +88,7 @@ namespace eg
 				if (status == Z_DATA_ERROR || status == Z_NEED_DICT)
 					return false;
 				
-				long charsDecompressed = static_cast<long>(outBuffer.size()) - static_cast<long>(inflateStream.avail_out);
+				int64_t charsDecompressed = (int64_t)outBuffer.size() - (int64_t)inflateStream.avail_out;
 				if (outputcharsLeft < charsDecompressed)
 					return false;
 				

@@ -15,12 +15,14 @@
 #include <regex>
 #include <span>
 #include <unordered_set>
+#include <unordered_map>
 
 namespace eg
 {
 	LinearAllocator detail::assetAllocator;
 	
 	bool createAssetPackage;
+	bool disableAssetPackageCompression;
 	
 	struct AssetDirectory
 	{
@@ -204,11 +206,13 @@ namespace eg
 	{
 		uint32_t numAssets;
 		std::ostringstream outStream;
+		bool disableAllCompression = false;
 	};
 	
 	//Generates and loads an asset recursively so that all it's load-time dependencies are satisfied.
 	static bool ProcessAsset(AssetToLoad& assetToLoad, AssetDirectory& destinationDir,
-		std::vector<AssetToLoad>& assetsToLoad, EAPWriteContext* eapWriteContext)
+	                         const std::unordered_map<std::string_view, AssetToLoad*>& assetsToLoadByName,
+	                         std::vector<AssetToLoad*>* assetsToposortOut)
 	{
 		switch (assetToLoad.state)
 		{
@@ -227,19 +231,16 @@ namespace eg
 		{
 			std::string fullDepPath = Concat({ ParentPath(assetToLoad.name), dep });
 			std::string fullDepPathCanonical = CanonicalPath(fullDepPath);
-			auto it = std::find_if(assetsToLoad.begin(), assetsToLoad.end(), [&] (const AssetToLoad& asset)
-			{
-				return asset.name == fullDepPathCanonical;
-			});
+			auto it = assetsToLoadByName.find(fullDepPathCanonical);
 			
-			if (it == assetsToLoad.end())
+			if (it == assetsToLoadByName.end())
 			{
 				eg::Log(LogLevel::Warning, "as", "Load-time dependency '{0}' of asset '{1}' not found, "
 				        "this dependency will be ignored", dep, assetToLoad.name);
 				continue;
 			}
 			
-			if (!ProcessAsset(*it, destinationDir, assetsToLoad, eapWriteContext))
+			if (!ProcessAsset(*it->second, destinationDir, assetsToLoadByName, assetsToposortOut))
 			{
 				eg::Log(LogLevel::Warning, "as", "Cannot load asset '{0}' because load-time dependency '{1}' "
 				        "failed to load.", assetToLoad.name, dep);
@@ -257,19 +258,9 @@ namespace eg
 			return false;
 		}
 		
-		//Writes the asset to the EAP stream
-		if (eapWriteContext != nullptr && !HasFlag(assetToLoad.generatedAsset.flags, AssetFlags::NeverPackage))
+		if (assetsToposortOut != nullptr)
 		{
-			BinWriteString(eapWriteContext->outStream, assetToLoad.name);
-			BinWriteString(eapWriteContext->outStream, assetToLoad.loader->name);
-			BinWrite(eapWriteContext->outStream, assetToLoad.loader->format->nameHash);
-			BinWrite(eapWriteContext->outStream, assetToLoad.loader->format->version);
-			
-			const size_t dataBytes = assetToLoad.generatedAsset.data.size();
-			BinWrite(eapWriteContext->outStream, (uint32_t)dataBytes);
-			eapWriteContext->outStream.write(assetToLoad.generatedAsset.data.data(), dataBytes);
-			
-			eapWriteContext->numAssets++;
+			assetsToposortOut->push_back(&assetToLoad);
 		}
 		
 		asset->fullName = detail::assetAllocator.MakeStringCopy(assetToLoad.name);
@@ -319,6 +310,7 @@ namespace eg
 		YAML::Node node = YAML::Load(yamlStream);
 		
 		std::vector<AssetToLoad> assetsToLoad;
+		std::unordered_map<std::string_view, AssetToLoad*> assetsToLoadByName;
 		std::unordered_set<std::string> assetsAlreadyAdded;
 		auto LoadAsset = [&] (std::string name, const YAML::Node& assetNode)
 		{
@@ -423,23 +415,64 @@ namespace eg
 			}
 		}
 		
-		EAPWriteContext eapWriteContext;
-		eapWriteContext.numAssets = 0;
+		for (AssetToLoad& asset : assetsToLoad)
+		{
+			assetsToLoadByName.emplace(asset.name, &asset);
+		}
+		
+		std::vector<AssetToLoad*> assetsToposorted;
 		
 		for (AssetToLoad& asset : assetsToLoad)
 		{
-			ProcessAsset(asset, mountDir, assetsToLoad, createAssetPackage ? &eapWriteContext : nullptr);
+			ProcessAsset(asset, mountDir, assetsToLoadByName, createAssetPackage ? &assetsToposorted : nullptr);
 		}
 		
 		if (createAssetPackage)
 		{
 			std::ofstream eapStream(path + ".eap", std::ios::binary);
 			eapStream.write(EAPMagic, sizeof(EAPMagic));
-			BinWrite(eapStream, eapWriteContext.numAssets);
+			BinWrite(eapStream, (uint32_t)assetsToposorted.size());
 			
-			std::string uncompressedData = eapWriteContext.outStream.str();
-			BinWrite(eapStream, (uint64_t)uncompressedData.size());
-			WriteCompressedSection(eapStream, uncompressedData.data(), uncompressedData.size());
+			//Extracts loader names
+			std::vector<std::string_view> loaderNames;
+			for (const AssetToLoad* asset : assetsToposorted)
+				loaderNames.push_back(asset->loader->name);
+			std::sort(loaderNames.begin(), loaderNames.end());
+			loaderNames.erase(std::unique(loaderNames.begin(), loaderNames.end()), loaderNames.end());
+			
+			//Writes loader names
+			BinWrite(eapStream, (uint32_t)loaderNames.size());
+			for (std::string_view loader : loaderNames)
+				BinWriteString(eapStream, loader);
+			
+			for (const AssetToLoad* asset : assetsToposorted)
+			{
+				uint32_t loaderIndex = std::lower_bound(loaderNames.begin(), loaderNames.end(), asset->loader->name) - loaderNames.begin();
+				
+				BinWriteString(eapStream, asset->name);
+				BinWrite(eapStream, loaderIndex);
+				BinWrite(eapStream, asset->loader->format->nameHash);
+				BinWrite(eapStream, asset->loader->format->version);
+				
+				bool compress = !disableAssetPackageCompression &&
+					!eg::HasFlag(asset->generatedAsset.flags, AssetFlags::DisableEAPCompression);
+				
+				uint64_t dataBytes = asset->generatedAsset.data.size();
+				EG_ASSERT(dataBytes < 0x8000000000000000ULL);
+				if (compress)
+					dataBytes |= 0x8000000000000000ULL;
+				
+				BinWrite(eapStream, dataBytes);
+				
+				if (compress)
+				{
+					WriteCompressedSection(eapStream, asset->generatedAsset.data.data(), dataBytes);
+				}
+				else
+				{
+					eapStream.write(asset->generatedAsset.data.data(), dataBytes);
+				}
+			}
 		}
 		
 		return true;
@@ -458,79 +491,73 @@ namespace eg
 			return false;
 		
 		const uint32_t numAssets = BinRead<uint32_t>(stream);
-		const uint64_t uncompressedDataSize = BinRead<uint64_t>(stream);
-		std::unique_ptr<char[]> uncompressedData = std::make_unique<char[]>(uncompressedDataSize);
-		ReadCompressedSection(stream, uncompressedData.get(), uncompressedDataSize);
-		
-		stream.close();
-		
-		size_t dataPos = 0;
-		
-		auto NextString = [&]
+		const uint32_t numLoaderNames = BinRead<uint32_t>(stream);
+		std::vector<const AssetLoader*> loaders(numLoaderNames);
+		for (uint32_t i = 0; i < numLoaderNames; i++)
 		{
-			uint16_t nameLen = *reinterpret_cast<const uint16_t*>(uncompressedData.get() + dataPos);
-			dataPos += sizeof(uint16_t);
-			if (dataPos + nameLen > uncompressedDataSize)
-				EG_PANIC("Corrupt EAP");
-			std::string_view str(uncompressedData.get() + dataPos, nameLen);
-			dataPos += nameLen;
-			return str;
-		};
+			std::string loaderName = BinReadString(stream);
+			loaders[i] = FindAssetLoader(loaderName);
+			if (loaders[i] == nullptr)
+			{
+				eg::Log(LogLevel::Error, "as", "EAP file references unknown loader '{0}'", loaderName);
+				return false;
+			}
+		}
 		
 		std::vector<char> dataTempBuffer;
 		
 		for (uint32_t i = 0; i < numAssets; i++)
 		{
-			std::string_view name = NextString();
-			std::string_view loaderName = NextString();
+			std::string name = BinReadString(stream);
 			
-			//Finds the loader
-			const AssetLoader* loader = FindAssetLoader(loaderName);
-			if (loader == nullptr)
+			uint32_t loaderIndex = BinRead<uint32_t>(stream);
+			if (loaderIndex >= numLoaderNames)
 			{
-				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' references unknown loader '{1}'", name, loaderName);
+				eg::Log(LogLevel::Error, "as", "Corrupt EAP, references out of range loader {0}.", loaderIndex);
 				return false;
 			}
 			
 			//Checks that the format version is supported by the loader
-			const uint32_t formatNameHash = reinterpret_cast<const uint32_t*>(uncompressedData.get() + dataPos)[0];
-			const uint32_t formatVersion = reinterpret_cast<const uint32_t*>(uncompressedData.get() + dataPos)[1];
-			if (formatNameHash != loader->format->nameHash || formatVersion != loader->format->version)
+			const uint32_t formatNameHash = BinRead<uint32_t>(stream);
+			const uint32_t formatVersion = BinRead<uint32_t>(stream);
+			if (formatNameHash != loaders[loaderIndex]->format->nameHash ||
+				formatVersion != loaders[loaderIndex]->format->version)
 			{
 				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' uses a format not supported by it's loader ({1})",
-					name, loaderName);
+					name, loaders[loaderIndex]->name);
 				return false;
 			}
-			dataPos += sizeof(uint32_t) * 2;
 			
-			//Reads the asset's data section
-			uint32_t dataBytes = *reinterpret_cast<const uint32_t*>(uncompressedData.get() + dataPos);
-			dataPos += sizeof(uint32_t);
-			if (dataPos + dataBytes > uncompressedDataSize)
-				EG_PANIC("Corrupt EAP");
+			uint64_t dataBytes = BinRead<uint64_t>(stream);
+			bool compressed = (dataBytes & 0x8000000000000000ULL) != 0;
+			dataBytes &= ~0x8000000000000000ULL;
 			
-			std::span<char> data(uncompressedData.get() + dataPos, dataBytes);
-			if ((dataPos % 4) != 4)
+			if (dataTempBuffer.size() < dataBytes)
+				dataTempBuffer.resize(dataBytes);
+			
+			if (compressed)
 			{
-				if (dataTempBuffer.size() < dataBytes)
-					dataTempBuffer.resize(dataBytes);
-				std::memcpy(dataTempBuffer.data(), data.data(), dataBytes);
-				data = std::span<char>(dataTempBuffer.data(), dataBytes);
+				ReadCompressedSection(stream, dataTempBuffer.data(), dataBytes);
+			}
+			else
+			{
+				stream.read(dataTempBuffer.data(), dataBytes);
 			}
 			
 			//Loads the asset
-			Asset* asset = LoadAsset(*loader, name, data, nullptr);
-			if (asset != nullptr)
+			Asset* asset = LoadAsset(*loaders[loaderIndex], name, std::span<const char>(dataTempBuffer.data(), dataBytes), nullptr);
+			if (asset == nullptr)
 			{
-				asset->fullName = detail::assetAllocator.MakeStringCopy(name);
-				asset->name = BaseName(asset->fullName);
-				
-				AssetDirectory* directory = FindDirectory(&mountDir, ParentPath(name), true);
-				asset->next = directory->firstAsset;
-				directory->firstAsset = asset;
+				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' failed to load.", name);
+				return false;
 			}
 			
-			dataPos += dataBytes;
+			asset->fullName = detail::assetAllocator.MakeStringCopy(name);
+			asset->name = BaseName(asset->fullName);
+			
+			AssetDirectory* directory = FindDirectory(&mountDir, ParentPath(name), true);
+			asset->next = directory->firstAsset;
+			directory->firstAsset = asset;
 		}
 		
 		return true;

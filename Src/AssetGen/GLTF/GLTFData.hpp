@@ -107,28 +107,28 @@ namespace eg::asset_gen::gltf
 			m_accessors.push_back(accessor);
 		}
 		
-		inline const BufferView& GetBufferView(long index) const
+		inline const BufferView& GetBufferView(int64_t index) const
 		{
 			if (index < 0 || static_cast<size_t>(index) >= m_bufferViews.size())
 				throw std::runtime_error("Buffer view index out of range.");
 			return m_bufferViews[index];
 		}
 		
-		inline const Accessor& GetAccessor(long index) const
+		inline const Accessor& GetAccessor(int64_t index) const
 		{
 			if (index < 0 || static_cast<size_t>(index) >= m_accessors.size())
 				throw std::runtime_error("Accessor index out of range.");
 			return m_accessors[index];
 		}
 		
-		inline bool CheckAccessor(long index, ElementType elementType, ComponentType componentType) const
+		inline bool CheckAccessor(int64_t index, ElementType elementType, ComponentType componentType) const
 		{
 			return index >= 0 && static_cast<size_t>(index) < m_accessors.size() &&
 			       m_accessors[index].elementType == elementType &&
 			       m_accessors[index].componentType == componentType;
 		}
 		
-		inline const char* GetAccessorData(long index) const
+		inline const char* GetAccessorData(int64_t index) const
 		{
 			return m_buffers[GetAccessor(index).bufferIndex].data();
 		}

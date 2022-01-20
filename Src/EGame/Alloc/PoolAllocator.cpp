@@ -64,8 +64,8 @@ namespace eg
 	
 	void PoolAllocator::Free(uint64_t firstElement, uint64_t elementCount)
 	{
-		long prevBlockIndex = -1;
-		long nextBlockIndex = -1;
+		int64_t prevBlockIndex = -1;
+		int64_t nextBlockIndex = -1;
 		
 		const uint64_t nextBlockFirstElement = firstElement + elementCount;
 		

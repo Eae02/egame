@@ -38,6 +38,7 @@ namespace eg
 	int64_t detail::nativeDisplayModeIndex = -1;
 	
 	extern bool createAssetPackage;
+	extern bool disableAssetPackageCompression;
 	
 	void LoadAssetGenLibrary();
 	void RegisterAssetLoaders();
@@ -204,6 +205,7 @@ namespace eg
 		
 		devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
 		createAssetPackage = HasFlag(runConfig.flags, RunFlags::CreateAssetPackage);
+		disableAssetPackageCompression = HasFlag(runConfig.flags, RunFlags::AssetPackageFast);
 		
 		if (const char* devEnv = getenv("EG_DEV"))
 		{
