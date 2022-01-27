@@ -15,6 +15,8 @@ namespace eg
 {
 	bool detail::devMode = false;
 	
+	void (*releasePanicCallback)(const std::string& message);
+	
 	void ParseCommandLineArgs(RunConfig& runConfig, int argc, char** argv)
 	{
 		if (argc == 2 && std::string_view(argv[1]) == "--help")
@@ -140,6 +142,9 @@ namespace eg
 #ifndef __EMSCRIPTEN__
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Runtime Error", message.c_str(), nullptr);
 #endif
+		
+		if (releasePanicCallback)
+			releasePanicCallback(message);
 		
 		std::abort();
 	}

@@ -294,7 +294,7 @@ namespace eg
 		}
 	}
 	
-	static bool LoadAssetsYAML(const std::string& path, AssetDirectory& mountDir)
+	static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 	{
 #if defined(__EMSCRIPTEN__) || !defined(EG_HAS_YAML_CPP)
 		return false;
@@ -420,6 +420,8 @@ namespace eg
 			assetsToLoadByName.emplace(asset.name, &asset);
 		}
 		
+		AssetDirectory& mountDir = *FindDirectory(&assetRootDir, mountPath, true);
+		
 		std::vector<AssetToLoad*> assetsToposorted;
 		
 		for (AssetToLoad& asset : assetsToLoad)
@@ -479,11 +481,9 @@ namespace eg
 #endif
 	}
 	
-	static bool LoadAssetsEAP(const std::string& path, AssetDirectory& mountDir)
+	bool LoadAssetsFromEAPStream(std::istream& stream, std::string_view mountPath)
 	{
-		std::ifstream stream(path + ".eap", std::ios::binary);
-		if (!stream)
-			return false;
+		AssetDirectory& mountDir = *FindDirectory(&assetRootDir, mountPath, true);
 		
 		char magic[sizeof(EAPMagic)];
 		stream.read(magic, sizeof(magic));
@@ -565,16 +565,22 @@ namespace eg
 	
 	bool LoadAssets(const std::string& path, std::string_view mountPath)
 	{
-		AssetDirectory* mountDir = FindDirectory(&assetRootDir, mountPath, true);
-		
 		//First, tries to load assets from a YAML list. If that fails, attempts to load from an EAP.
-		if (!LoadAssetsYAML(path, *mountDir) && !LoadAssetsEAP(path, *mountDir))
+		if (LoadAssetsYAML(path, mountPath))
 		{
-			Log(LogLevel::Error, "as", "Failed to load assets from '{0}'. Both '{0}.eap' and '{0}/Assets.yaml' failed to load.", path);
-			return false;
+			Log(LogLevel::Info, "as", "Loaded asset list '{0}/Assets.yaml'.", path);
+			return true;
 		}
 		
-		return true;
+		std::ifstream stream(path + ".eap", std::ios::binary);
+		if (LoadAssetsFromEAPStream(stream, mountPath))
+		{
+			Log(LogLevel::Info, "as", "Loaded asset package '{0}.eap'.", path);
+			return true;
+		}
+		
+		Log(LogLevel::Error, "as", "Failed to load assets from '{0}'. Both '{0}.eap' and '{0}/Assets.yaml' failed to load.", path);
+		return false;
 	}
 	
 #ifdef __EMSCRIPTEN__

@@ -85,6 +85,8 @@ namespace eg
 	constexpr float TWO_PI = 6.283185307179586f;
 	constexpr float HALF_PI = 1.5707963267948966f;
 	
+	EG_API extern void (*releasePanicCallback)(const std::string& message);
+	
 	/***
 	 * Deleter for use with unique_ptr which calls std::free
 	 */

@@ -60,6 +60,9 @@ namespace eg
 	// Returns true if assets loaded successfully, false otherwise.
 	[[nodiscard]] EG_API bool LoadAssets(const std::string& path, std::string_view mountPath);
 	
+	//Similar to LoadAssets, but loads from an EAP stream
+	[[nodiscard]] EG_API bool LoadAssetsFromEAPStream(std::istream& stream, std::string_view mountPath);
+	
 	EG_API void UnloadAssets();
 	
 	namespace console { struct CompletionsList; }
