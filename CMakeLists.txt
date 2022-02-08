@@ -82,6 +82,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	
 	if (BUILD_ASSETGEN)
 		find_package(GLSLang REQUIRED)
+		find_package(nlohmann_json REQUIRED)
 		pkg_check_modules(OGG_VORBIS REQUIRED ogg vorbis vorbisfile)
 		
 		add_library(EGameAssetGen SHARED ${ASSET_GEN_SOURCE_FILES})
@@ -90,6 +91,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_link_libraries(EGameAssetGen PRIVATE
 			EGame
 			GLSLang::GLSLang
+			nlohmann_json::nlohmann_json
 			${OGG_VORBIS_LIBRARIES}
 		)
 		

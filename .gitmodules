@@ -5,9 +5,6 @@
 [submodule "Deps/stb"]
 	path = Deps/stb
 	url = https://github.com/nothings/stb.git
-[submodule "Deps/yaml-cpp"]
-	path = Deps/yaml-cpp
-	url = https://github.com/jbeder/yaml-cpp.git
 [submodule "Deps/vulkan-headers"]
 	path = Deps/vulkan-headers
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
@@ -23,6 +20,3 @@
 [submodule "Deps/utfcpp"]
 	path = Deps/utfcpp
 	url = https://github.com/ledger/utfcpp.git
-[submodule "Deps/json"]
-	path = Deps/json
-	url = https://github.com/nlohmann/json.git
