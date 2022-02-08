@@ -108,7 +108,7 @@ namespace eg::graphics_api::vk
 		constexpr uint32_t SETS_PER_POOL = 64;
 		
 		VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
-		poolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		poolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 		poolCreateInfo.maxSets = SETS_PER_POOL;
 		poolCreateInfo.poolSizeCount = (uint32_t)cachedSetLayouts[setLayoutIndex].sizes.size();
 		poolCreateInfo.pPoolSizes = cachedSetLayouts[setLayoutIndex].sizes.data();
