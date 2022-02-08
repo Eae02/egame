@@ -2,7 +2,7 @@
 
 const vec2 positions[] = vec2[] (vec2(-1, -1), vec2(-1, 3), vec2(3, -1));
 
-layout(location=__COUNTER__) out vec2 texCoord_out;
+layout(location=0) out vec2 texCoord_out;
 
 void main()
 {
