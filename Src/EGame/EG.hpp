@@ -25,6 +25,7 @@
 #include "Graphics/Animation/BoneMatrixBuffer.hpp"
 #include "Graphics/Animation/KeyFrame.hpp"
 #include "Graphics/Animation/KeyFrameList.hpp"
+#include "Graphics/FullscreenShader.hpp"
 #include "Alloc/LinearAllocator.hpp"
 #include "Alloc/DirectAllocator.hpp"
 #include "Alloc/ObjectPool.hpp"

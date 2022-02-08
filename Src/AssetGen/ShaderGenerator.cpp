@@ -3,61 +3,18 @@
 #include "../EGame/Log.hpp"
 #include "../EGame/IOUtils.hpp"
 #include "../EGame/Platform/FileSystem.hpp"
+#include "../Shaders/Build/Inc/EGame.glh.h"
+#include "../Shaders/Build/Inc/Deferred.glh.h"
 #include "ShaderResource.hpp"
 
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <spirv-tools/optimizer.hpp>
 #include <fstream>
+#include <span>
 
 namespace eg::asset_gen
 {
-	static std::string_view EGameHeader = R"(
-#ifndef EG_GLH
-#define EG_GLH
-
-layout(constant_id=500) const uint _api = 0;
-#define EG_VULKAN (_api == 0)
-#define EG_OPENGL (_api == 1)
-#define EG_FLIPGL(x) (EG_OPENGL ? 1.0 - (x) : (x))
-
-#endif
-)";
-	
-	static std::string_view DeferredGLH = R"(
-#ifndef DEFERRED_GLH
-#define DEFERRED_GLH
-
-#include <EGame.glh>
-
-vec2 SMEncode(vec3 n)
-{
-	if (n.z < -0.999)
-		return vec2(0.5, 1.0);
-	float p = sqrt(n.z * 8.0 + 8.0);
-	return vec2(n.xy / p + 0.5);
-}
-
-vec3 SMDecode(vec2 s)
-{
-	vec2 fenc = s * 4.0 - 2.0;
-	float f = dot(fenc, fenc);
-	float g = sqrt(max(1.0 - f / 4.0, 0.0));
-	return normalize(vec3(fenc * g, 1.0 - f / 2.0));
-}
-
-vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
-{
-	vec4 h = vec4(screenCoord * 2.0 - vec2(1.0), EG_OPENGL ? (depthH * 2.0 - 1.0) : depthH, 1.0);
-	if (!EG_OPENGL)
-		h.y = -h.y;
-	vec4 d = inverseViewProj * h;
-	return d.xyz / d.w;
-}
-
-#endif
-)";
-	
 	class Includer : public glslang::TShader::Includer
 	{
 	public:
@@ -66,10 +23,11 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 		
 		struct CustomIncludeResult : IncludeResult
 		{
-			CustomIncludeResult(const std::string& name, std::vector<char> _data)
-				: IncludeResult(name, _data.data(), _data.size(), nullptr), data(std::move(_data)) { }
+			CustomIncludeResult(const std::string& name, std::span<const char> _data)
+				: IncludeResult(name, _data.data(), _data.size(), nullptr), data(_data) { }
 			
-			std::vector<char> data;
+			std::span<const char> data;
+			std::vector<char> dataOwned;
 		};
 		
 		inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path, const std::string& name)
@@ -78,20 +36,25 @@ vec3 WorldPosFromDepth(float depthH, vec2 screenCoord, mat4 inverseViewProj)
 			if (!stream)
 				return nullptr;
 			std::vector<char> data = ReadStreamContents(stream);
-			return new CustomIncludeResult(name, std::move(data));
+			CustomIncludeResult* result = new CustomIncludeResult(name, data);
+			result->dataOwned = std::move(data);
+			return result;
 		}
 		
 		IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t size) override
 		{
-			if (std::strcmp(headerName, "EGame.glh") == 0)
+			auto CheckSystemHeader = [&] (const char* name, std::span<const unsigned char> headerData) -> CustomIncludeResult*
 			{
-				return new CustomIncludeResult("EGame.glh", { EGameHeader.begin(), EGameHeader.end() });
-			}
-			else if (std::strcmp(headerName, "Deferred.glh") == 0)
-			{
-				return new CustomIncludeResult("EGame.glh", { DeferredGLH.begin(), DeferredGLH.end() });
-			}
+				if (std::strcmp(name, headerName))
+					return nullptr;
+				const char* headerDataChar = reinterpret_cast<const char*>(headerData.data());
+				return new CustomIncludeResult(headerName, { headerDataChar, headerDataChar + headerData.size() });
+			};
 			
+			if (auto result = CheckSystemHeader("EGame.glh", Inc_EGame_glh))
+				return result;
+			if (auto result = CheckSystemHeader("Deferred.glh", Inc_Deferred_glh))
+				return result;
 			return nullptr;
 		}
 		

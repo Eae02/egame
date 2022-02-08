@@ -13,6 +13,7 @@
 #include "TranslationGizmo.hpp"
 #include "RotationGizmo.hpp"
 #include "GameController.hpp"
+#include "Graphics/FullscreenShader.hpp"
 #include "Profiling/Profiler.hpp"
 #include "Profiling/ProfilerPane.hpp"
 
@@ -472,6 +473,7 @@ namespace eg
 		SpriteBatch::DestroyStatic();
 		TranslationGizmo::Destroy();
 		RotationGizmo::Destroy();
+		detail::DestroyFullscreenShaders();
 		UnloadAssets();
 		DestroyUploadBuffers();
 		DestroyGraphicsAPI();
