@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include "Common.hpp"
+#include "../../Assert.hpp"
 
 namespace eg
 {

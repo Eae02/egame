@@ -1,5 +1,6 @@
 #ifndef EG_NO_VULKAN
 #include "DSLCache.hpp"
+#include "../../Assert.hpp"
 
 namespace eg::graphics_api::vk
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AABB.hpp"
+#include "../API.hpp"
 
 #include <algorithm>
 #include <cstdint>

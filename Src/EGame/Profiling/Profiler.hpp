@@ -2,7 +2,6 @@
 
 #include "ProfilingResults.hpp"
 #include "../API.hpp"
-#include "../Utils.hpp"
 #include "../Graphics/AbstractionHL.hpp"
 
 namespace eg

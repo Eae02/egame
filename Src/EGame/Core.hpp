@@ -4,9 +4,13 @@
 #include "Graphics/Graphics.hpp"
 #include "Graphics/Format.hpp"
 #include "InputState.hpp"
+#include "Utils.hpp"
+#include "String.hpp"
 
 #include <span>
 #include <memory>
+#include <vector>
+#include <string>
 
 namespace eg
 {

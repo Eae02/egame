@@ -2,7 +2,6 @@
 
 #include "KeyFrameList.hpp"
 #include "KeyFrame.hpp"
-#include "../../Utils.hpp"
 
 namespace eg
 {

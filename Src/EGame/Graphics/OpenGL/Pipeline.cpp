@@ -1,5 +1,7 @@
 #include "Pipeline.hpp"
 #include "../../MainThreadInvoke.hpp"
+#include "../../Assert.hpp"
+#include "../../String.hpp"
 
 #include <spirv_glsl.hpp>
 

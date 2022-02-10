@@ -1,6 +1,7 @@
 #include "GL.hpp"
 #include "OpenGLBuffer.hpp"
 #include "../Abstraction.hpp"
+#include "../../Assert.hpp"
 #include "../../Alloc/PoolAllocator.hpp"
 
 namespace eg::graphics_api::gl

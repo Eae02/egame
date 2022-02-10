@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.hpp"
+#include "Assert.hpp"
 
 namespace eg
 {

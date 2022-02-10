@@ -3,6 +3,7 @@
 #include "Pipeline.hpp"
 #include "Translation.hpp"
 #include "../Graphics.hpp"
+#include "../../Assert.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 namespace eg::detail
@@ -18,6 +19,14 @@ namespace eg::graphics_api::vk
 	{
 		vmaDestroyBuffer(ctx.allocator, buffer, allocation);
 		bufferPool.Delete(this);
+	}
+	
+	void Buffer::CheckUsageState(BufferUsage requiredUsage, const char* actionName)
+	{
+		if (autoBarrier && currentUsage != requiredUsage)
+		{
+			EG_PANIC("Buffer not in the correct usage state when " << actionName << ", did you forget to call UsageHint?");
+		}
 	}
 	
 	struct PendingInitBuffer

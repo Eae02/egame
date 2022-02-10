@@ -1,5 +1,5 @@
 #include "YAMLUtils.hpp"
-#include "../Utils.hpp"
+#include "../Hash.hpp"
 
 namespace eg
 {

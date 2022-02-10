@@ -6,6 +6,7 @@
 #include "../Platform/DynamicLibrary.hpp"
 #include "../Platform/FileSystem.hpp"
 #include "../IOUtils.hpp"
+#include "../Compression.hpp"
 
 #include <queue>
 #include <ctime>
@@ -229,8 +230,18 @@ namespace eg
 		//Processes dependencies
 		for (const std::string& dep : assetToLoad.generatedAsset.loadDependencies)
 		{
-			std::string fullDepPath = Concat({ ParentPath(assetToLoad.name), dep });
-			std::string fullDepPathCanonical = CanonicalPath(fullDepPath);
+			std::string fullDepPath;
+			std::string_view fullDepPathView;
+			if (dep.at(0) == '/')
+			{
+				fullDepPathView = dep;
+			}
+			else
+			{
+				fullDepPath = Concat({ ParentPath(assetToLoad.name), dep });
+				fullDepPathView = fullDepPath;
+			}
+			std::string fullDepPathCanonical = CanonicalPath(fullDepPathView);
 			auto it = assetsToLoadByName.find(fullDepPathCanonical);
 			
 			if (it == assetsToLoadByName.end())

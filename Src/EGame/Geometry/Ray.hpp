@@ -1,7 +1,8 @@
 #pragma once
 
-#include "API.hpp"
-#include "Graphics/Graphics.hpp"
+#include "../API.hpp"
+
+#include <glm/glm.hpp>
 
 namespace eg
 {
@@ -23,11 +24,7 @@ namespace eg
 		
 		static Ray UnprojectNDC(const glm::mat4& inverseViewProj, const glm::vec2& ndc);
 		
-		static Ray UnprojectScreen(const glm::mat4& inverseViewProj, const glm::vec2& screenCoords)
-		{
-			glm::vec2 c01 = screenCoords / glm::vec2(CurrentResolutionX(), CurrentResolutionY());
-			return UnprojectNDC(inverseViewProj, glm::vec2(c01.x * 2 - 1, 1 - c01.y * 2));
-		}
+		static Ray UnprojectScreen(const glm::mat4& inverseViewProj, const glm::vec2& screenCoords);
 		
 		float GetDistanceToPoint(const glm::vec3& point) const;
 		

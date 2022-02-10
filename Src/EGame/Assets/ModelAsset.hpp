@@ -4,6 +4,7 @@
 #include "../Graphics/Model.hpp"
 #include "../API.hpp"
 #include "../IOUtils.hpp"
+#include "../Assert.hpp"
 
 #include <span>
 

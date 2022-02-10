@@ -8,8 +8,8 @@
 #include <functional>
 
 #include "../Alloc/LinearAllocator.hpp"
+#include "../Assert.hpp"
 #include "../API.hpp"
-#include "../Utils.hpp"
 
 namespace eg
 {

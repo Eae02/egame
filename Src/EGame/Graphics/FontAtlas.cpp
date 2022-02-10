@@ -1,14 +1,14 @@
 #include "FontAtlas.hpp"
-#include "../Utils.hpp"
 #include "../Log.hpp"
 #include "../Platform/FileSystem.hpp"
 #include "../Platform/DynamicLibrary.hpp"
 #include "../IOUtils.hpp"
+#include "../String.hpp"
 
+#include <glm/glm.hpp>
 #include <fstream>
 #include <memory>
 #include <cstring>
-#include <string_view>
 #include <utf8.h>
 #include <stb_rect_pack.h>
 #include <stb_image.h>

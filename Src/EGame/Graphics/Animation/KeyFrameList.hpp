@@ -5,7 +5,7 @@
 #include <ostream>
 
 #include "../../IOUtils.hpp"
-#include "../../Utils.hpp"
+#include "../../Assert.hpp"
 
 namespace eg
 {
@@ -37,7 +37,7 @@ namespace eg
 		
 		void SetSplineTangents(std::vector<SplineTangentsT> tangents)
 		{
-			assert(tangents.size() == m_keyFrames.size());
+			EG_ASSERT(tangents.size() == m_keyFrames.size());
 			m_splineTangents = std::move(tangents);
 		}
 		

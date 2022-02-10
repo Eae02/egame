@@ -3,6 +3,7 @@
 #include <vector>
 #include <string_view>
 #include "../../EGame/Utils.hpp"
+#include "../../EGame/Assert.hpp"
 
 namespace eg::asset_gen::gltf
 {

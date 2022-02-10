@@ -1,5 +1,6 @@
 #ifndef EG_NO_VULKAN
 #include "ShaderModule.hpp"
+#include "../../Assert.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 #include <spirv_cross.hpp>

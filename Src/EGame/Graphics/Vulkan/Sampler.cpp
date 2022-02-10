@@ -1,6 +1,7 @@
 #ifndef EG_NO_VULKAN
 #include "Sampler.hpp"
 #include "Translation.hpp"
+#include "../../Assert.hpp"
 
 namespace eg::graphics_api::vk
 {

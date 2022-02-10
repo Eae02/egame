@@ -1,4 +1,5 @@
 #include "MeshBatch.hpp"
+#include "../Assert.hpp"
 
 namespace eg
 {

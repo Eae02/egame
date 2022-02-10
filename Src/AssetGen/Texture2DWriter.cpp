@@ -1,5 +1,6 @@
 #include "Texture2DWriter.hpp"
-#include "../EGame/Utils.hpp"
+#include "../EGame/String.hpp"
+#include "../EGame/Assert.hpp"
 #include "../EGame/Log.hpp"
 #include "../EGame/IOUtils.hpp"
 #include "../EGame/Graphics/ImageLoader.hpp"

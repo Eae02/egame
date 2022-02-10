@@ -1,23 +1,14 @@
 #pragma once
 
 #include "API.hpp"
-#include "Utils.hpp"
+#include "Assert.hpp"
 
 #include <cstddef>
-#include <streambuf>
 #include <span>
 #include <vector>
 
 namespace eg
 {
-	EG_API bool ReadCompressedSection(std::istream& input, void* output, size_t outputSize);
-	EG_API void WriteCompressedSection(std::ostream& output, const void* data, size_t dataSize);
-	
-	EG_API std::vector<char> Compress(const void* data, size_t dataSize);
-	EG_API bool Decompress(const void* input, size_t inputSize, void* output, size_t outputSize);
-	
-	EG_API std::vector<char> Base64Decode(std::string_view in);
-	
 	EG_API std::vector<char> ReadStreamContents(std::istream& stream);
 	
 	class EG_API MemoryStreambuf : public std::streambuf

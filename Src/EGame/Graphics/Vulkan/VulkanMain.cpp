@@ -6,6 +6,7 @@
 #include "Translation.hpp"
 #include "RenderPasses.hpp"
 #include "../RenderDoc.hpp"
+#include "../../Assert.hpp"
 #include "../../Core.hpp"
 
 #include <SDL_vulkan.h>
@@ -442,7 +443,7 @@ namespace eg::graphics_api::vk
 		};
 		
 		//Selects which physical device to use
-		bool optionalExtensionsSeen[ArrayLen(OPTIONAL_DEVICE_EXTENSIONS)];
+		bool optionalExtensionsSeen[std::size(OPTIONAL_DEVICE_EXTENSIONS)];
 		VkPhysicalDeviceProperties currentDeviceProperties;
 		okDeviceNames.clear();
 		for (VkPhysicalDevice physicalDevice : physicalDevices)
@@ -497,10 +498,10 @@ namespace eg::graphics_api::vk
 			
 			//Checks which device extensions are supported
 			std::fill(std::begin(optionalExtensionsSeen), std::end(optionalExtensionsSeen), false);
-			bool requiredExtensionsSeen[ArrayLen(REQUIRED_DEVICE_EXTENSIONS)] = { };
+			bool requiredExtensionsSeen[std::size(REQUIRED_DEVICE_EXTENSIONS)] = { };
 			for (const VkExtensionProperties& extProperties : devExtensionProperties)
 			{
-				for (size_t i = 0; i < ArrayLen(REQUIRED_DEVICE_EXTENSIONS); i++)
+				for (size_t i = 0; i < std::size(REQUIRED_DEVICE_EXTENSIONS); i++)
 				{
 					if (std::strcmp(REQUIRED_DEVICE_EXTENSIONS[i], extProperties.extensionName) == 0)
 					{
@@ -508,7 +509,7 @@ namespace eg::graphics_api::vk
 						break;
 					}
 				}
-				for (size_t i = 0; i < ArrayLen(OPTIONAL_DEVICE_EXTENSIONS); i++)
+				for (size_t i = 0; i < std::size(OPTIONAL_DEVICE_EXTENSIONS); i++)
 				{
 					if (std::strcmp(OPTIONAL_DEVICE_EXTENSIONS[i], extProperties.extensionName) == 0)
 					{
@@ -519,7 +520,7 @@ namespace eg::graphics_api::vk
 			}
 			
 			bool hasAllExtensions = true;
-			for (size_t i = 0; i < ArrayLen(REQUIRED_DEVICE_EXTENSIONS); i++)
+			for (size_t i = 0; i < std::size(REQUIRED_DEVICE_EXTENSIONS); i++)
 			{
 				if (!requiredExtensionsSeen[i])
 				{
@@ -600,12 +601,12 @@ namespace eg::graphics_api::vk
 		enabledDeviceFeatures.fragmentStoresAndAtomics = ctx.deviceFeatures.fragmentStoresAndAtomics;
 		enabledDeviceFeatures.wideLines = ctx.deviceFeatures.wideLines;
 		
-		uint32_t numEnabledDeviceExtensions = ArrayLen(REQUIRED_DEVICE_EXTENSIONS);
+		uint32_t numEnabledDeviceExtensions = std::size(REQUIRED_DEVICE_EXTENSIONS);
 		const char* enabledDeviceExtensions[32];
 		std::copy(std::begin(REQUIRED_DEVICE_EXTENSIONS), std::end(REQUIRED_DEVICE_EXTENSIONS), enabledDeviceExtensions);
 		
 		//Enables optional device extensions
-		for (size_t i = 0; i < ArrayLen(OPTIONAL_DEVICE_EXTENSIONS); i++)
+		for (size_t i = 0; i < std::size(OPTIONAL_DEVICE_EXTENSIONS); i++)
 		{
 			if (optionalExtensionsSeen[i])
 			{
@@ -615,7 +616,7 @@ namespace eg::graphics_api::vk
 		
 		auto OptionalExtensionAvailable = [&] (const char* name)
 		{
-			for (size_t i = 0; i < ArrayLen(OPTIONAL_DEVICE_EXTENSIONS); i++)
+			for (size_t i = 0; i < std::size(OPTIONAL_DEVICE_EXTENSIONS); i++)
 			{
 				if (std::strcmp(OPTIONAL_DEVICE_EXTENSIONS[i], name) == 0 && optionalExtensionsSeen[i])
 					return true;

@@ -1,7 +1,7 @@
 #ifdef __linux__
 
 #include "DynamicLibrary.hpp"
-#include "../Utils.hpp"
+#include "../String.hpp"
 
 #include <dlfcn.h>
 

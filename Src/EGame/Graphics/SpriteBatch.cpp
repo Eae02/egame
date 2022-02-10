@@ -1,7 +1,7 @@
 #include "SpriteBatch.hpp"
 #include "SpriteFont.hpp"
 #include "Graphics.hpp"
-#include "../Utils.hpp"
+#include "../String.hpp"
 #include "../../Shaders/Build/Sprite.vs.h"
 #include "../../Shaders/Build/Sprite.fs.h"
 

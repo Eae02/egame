@@ -1,5 +1,6 @@
 #include "FlyCamera.hpp"
 #include "InputState.hpp"
+#include "Utils.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 

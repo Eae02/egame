@@ -1,6 +1,7 @@
 #include "Pipeline.hpp"
 #include "OpenGLTexture.hpp"
 #include "OpenGLBuffer.hpp"
+#include "../../Assert.hpp"
 
 #include <cstring>
 

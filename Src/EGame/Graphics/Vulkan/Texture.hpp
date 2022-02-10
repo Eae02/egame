@@ -3,6 +3,7 @@
 #ifndef EG_NO_VULKAN
 
 #include "Common.hpp"
+#include "../../Hash.hpp"
 
 #include <optional>
 #include <unordered_map>

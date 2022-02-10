@@ -3,6 +3,7 @@
 #include "OpenGL.hpp"
 #include "Utils.hpp"
 #include "Framebuffer.hpp"
+#include "../../Assert.hpp"
 
 #include <SDL.h>
 

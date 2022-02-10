@@ -1,6 +1,9 @@
 #include "Abstraction.hpp"
 #include "OpenGL/OpenGL.hpp"
 #include "Vulkan/VulkanMain.hpp"
+#include "../Log.hpp"
+#include "../Hash.hpp"
+#include "../Assert.hpp"
 
 bool eg::SamplerDescription::operator==(const eg::SamplerDescription& rhs) const
 {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../API.hpp"
-#include "../Utils.hpp"
+#include "../Hash.hpp"
 
 namespace eg
 {

@@ -4,6 +4,7 @@
 #include "AssetGenerator.hpp"
 #include "../API.hpp"
 #include "../Utils.hpp"
+#include "../Assert.hpp"
 
 #include <span>
 

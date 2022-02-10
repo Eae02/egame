@@ -4,7 +4,8 @@
 #include "../../EGame/Graphics/TangentGen.hpp"
 #include "../../EGame/Log.hpp"
 #include "../../EGame/IOUtils.hpp"
-#include "../../EGame/Sphere.hpp"
+#include "../../EGame/Compression.hpp"
+#include "../../EGame/Geometry/Sphere.hpp"
 #include "../../EGame/Platform/FileSystem.hpp"
 
 #include "GLTFAnimation.hpp"

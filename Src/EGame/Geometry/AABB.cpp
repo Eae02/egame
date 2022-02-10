@@ -1,5 +1,5 @@
 #include "AABB.hpp"
-#include "Utils.hpp"
+#include "../Assert.hpp"
 
 namespace eg
 {

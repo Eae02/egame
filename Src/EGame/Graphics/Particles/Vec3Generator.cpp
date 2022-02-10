@@ -1,4 +1,8 @@
 #include "Vec3Generator.hpp"
+#include "../../Utils.hpp"
+
+#include <ostream>
+#include <istream>
 
 namespace eg
 {

@@ -1,5 +1,6 @@
 #include "Log.hpp"
 #include "Utils.hpp"
+#include "Assert.hpp"
 #include "Console.hpp"
 
 #include <iomanip>

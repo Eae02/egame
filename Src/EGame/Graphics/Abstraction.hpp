@@ -2,8 +2,8 @@
 
 #include "Graphics.hpp"
 #include "Format.hpp"
-#include "../Utils.hpp"
 #include "../Color.hpp"
+#include "../Utils.hpp"
 #include "../Log.hpp"
 
 #include <span>

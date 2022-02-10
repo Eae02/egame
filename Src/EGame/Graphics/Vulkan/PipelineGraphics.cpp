@@ -6,6 +6,7 @@
 #include "DSLCache.hpp"
 #include "Translation.hpp"
 #include "Pipeline.hpp"
+#include "../../Assert.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 #include <spirv_cross.hpp>

@@ -1,8 +1,12 @@
 #pragma once
 
-#include "../../Utils.hpp"
+#include "../../API.hpp"
 
+#include <vector>
+#include <string>
+#include <string_view>
 #include <optional>
+#include <glm/mat4x4.hpp>
 
 namespace eg
 {

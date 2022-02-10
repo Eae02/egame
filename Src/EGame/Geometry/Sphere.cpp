@@ -1,5 +1,6 @@
 #include "Sphere.hpp"
-#include "Utils.hpp"
+
+#include <algorithm>
 
 namespace eg
 {

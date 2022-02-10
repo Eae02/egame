@@ -4,9 +4,8 @@
 #include <bitset>
 #include <optional>
 
-#include "Utils.hpp"
 #include "API.hpp"
-#include "Rectangle.hpp"
+#include "Geometry/Rectangle.hpp"
 
 namespace eg
 {

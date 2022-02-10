@@ -2,6 +2,7 @@
 
 #include <random>
 #include <variant>
+#include <vector>
 
 #include "Vec3Generator.hpp"
 #include "../../Utils.hpp"

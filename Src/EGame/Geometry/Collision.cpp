@@ -1,7 +1,7 @@
 #include "Collision.hpp"
 #include "CollisionMesh.hpp"
 #include "Plane.hpp"
-#include "Utils.hpp"
+#include "../Utils.hpp"
 
 #include <utility>
 #include <glm/gtx/norm.hpp>

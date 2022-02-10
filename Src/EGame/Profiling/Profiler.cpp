@@ -1,4 +1,5 @@
 #include "Profiler.hpp"
+#include "../Utils.hpp"
 
 namespace eg
 {

@@ -1,5 +1,6 @@
 #include "Animation.hpp"
 #include "TRSTransform.hpp"
+#include "../../Assert.hpp"
 #include "../../IOUtils.hpp"
 
 #include <istream>

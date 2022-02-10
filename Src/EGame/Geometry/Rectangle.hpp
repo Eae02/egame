@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Utils.hpp"
+#include "../API.hpp"
 
 #include <array>
 #include <glm/glm.hpp>
@@ -76,16 +76,6 @@ namespace eg
 		
 		inline bool Empty() const
 		{ return w == 0 || h == 0; }
-		
-		inline bool operator==(const Rectangle& other) const
-		{
-			return FEqual(x, other.x) && FEqual(y, other.y) && FEqual(w, other.w) && FEqual(h, other.h);
-		}
-		
-		inline bool operator!=(const Rectangle& other) const
-		{
-			return !operator==(other);
-		}
 		
 		float x, y, w, h;
 	};

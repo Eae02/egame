@@ -1,6 +1,8 @@
 #include "Console.hpp"
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
+#include "String.hpp"
+#include "Assert.hpp"
 
 #include <variant>
 #include <sstream>

@@ -2,6 +2,7 @@
 
 #include "GL.hpp"
 #include "../Format.hpp"
+#include "../../Hash.hpp"
 
 #include <optional>
 #include <unordered_map>

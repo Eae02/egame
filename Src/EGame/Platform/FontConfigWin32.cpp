@@ -1,7 +1,7 @@
 #ifdef _WIN32
 
 #include "FontConfig.hpp"
-#include "../Utils.hpp"
+#include "../String.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

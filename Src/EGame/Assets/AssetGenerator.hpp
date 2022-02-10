@@ -3,9 +3,13 @@
 #include "AssetFormat.hpp"
 #include "YAMLUtils.hpp"
 #include "../API.hpp"
+#include "../String.hpp"
 #include "../Utils.hpp"
 
 #include <memory>
+#include <string>
+#include <vector>
+#include <string_view>
 #include <sstream>
 #include <optional>
 

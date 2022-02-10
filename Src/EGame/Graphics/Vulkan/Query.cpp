@@ -3,6 +3,7 @@
 #include "Buffer.hpp"
 #include "../Abstraction.hpp"
 #include "../../Alloc/ObjectPool.hpp"
+#include "../../Assert.hpp"
 
 namespace eg::graphics_api::vk
 {

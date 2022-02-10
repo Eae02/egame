@@ -1,5 +1,5 @@
 #include "TranslationGizmo.hpp"
-#include "Plane.hpp"
+#include "Geometry/Plane.hpp"
 #include "../Shaders/Build/Gizmo.vs.h"
 #include "../Shaders/Build/Gizmo.fs.h"
 

@@ -1,5 +1,6 @@
 #include "ModelAsset.hpp"
 #include "AssetLoad.hpp"
+#include "../Assert.hpp"
 
 namespace eg
 {

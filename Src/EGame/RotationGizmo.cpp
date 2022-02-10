@@ -1,6 +1,6 @@
 #include "RotationGizmo.hpp"
-#include "Plane.hpp"
-#include "Ray.hpp"
+#include "Geometry/Plane.hpp"
+#include "Geometry/Ray.hpp"
 
 #include <span>
 #include <optional>

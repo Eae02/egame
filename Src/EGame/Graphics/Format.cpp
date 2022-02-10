@@ -1,4 +1,5 @@
 #include "Format.hpp"
+#include "../Assert.hpp"
 #include "../Utils.hpp"
 
 namespace eg

@@ -1,6 +1,6 @@
 #ifdef __EMSCRIPTEN__
 
-#include "../Utils.hpp"
+#include "../Assert.hpp"
 
 namespace eg
 {

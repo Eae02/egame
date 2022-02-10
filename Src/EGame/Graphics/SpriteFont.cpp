@@ -1,5 +1,6 @@
 #include "SpriteFont.hpp"
-#include "../Utils.hpp"
+#include "../Log.hpp"
+#include "../Assert.hpp"
 #include "../Platform/FontConfig.hpp"
 #include "../../Assets/DevFont.fnt.h"
 #include "../../Assets/DevFont.png.h"

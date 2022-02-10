@@ -2,6 +2,7 @@
 #include "../../Assets/AssetLoad.hpp"
 #include "../../Log.hpp"
 #include "../../IOUtils.hpp"
+#include "../../Assert.hpp"
 
 namespace eg
 {

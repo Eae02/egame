@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../../API.hpp"
-#include "../../Sphere.hpp"
+#include "../../Geometry/Sphere.hpp"
 
 #include <random>
 #include <variant>

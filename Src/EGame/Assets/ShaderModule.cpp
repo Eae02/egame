@@ -1,6 +1,7 @@
 #include "ShaderModule.hpp"
 #include "AssetLoad.hpp"
 #include "../Graphics/AbstractionHL.hpp"
+#include "../Assert.hpp"
 
 namespace eg
 {

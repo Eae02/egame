@@ -1,7 +1,7 @@
 #include "ParticleManager.hpp"
 #include "ParticleEmitterInstance.hpp"
 #include "../../SIMD.hpp"
-#include "../../Utils.hpp"
+#include "../../Assert.hpp"
 
 #include <bitset>
 #include <ctime>

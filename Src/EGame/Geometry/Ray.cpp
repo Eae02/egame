@@ -1,10 +1,17 @@
 #include "Ray.hpp"
 #include "Sphere.hpp"
 #include "Plane.hpp"
-#include "Graphics/AbstractionHL.hpp"
+#include "../Graphics/Graphics.hpp"
+#include "../Graphics/AbstractionHL.hpp"
 
 namespace eg
 {
+	Ray Ray::UnprojectScreen(const glm::mat4& inverseViewProj, const glm::vec2& screenCoords)
+	{
+		glm::vec2 c01 = screenCoords / glm::vec2(CurrentResolutionX(), CurrentResolutionY());
+		return UnprojectNDC(inverseViewProj, glm::vec2(c01.x * 2 - 1, 1 - c01.y * 2));
+	}
+	
 	Ray Ray::UnprojectNDC(const glm::mat4& inverseViewProj, const glm::vec2& ndc)
 	{
 		glm::vec4 nearPoint(ndc, 0, 1);

@@ -2,7 +2,7 @@
 
 #include "AbstractionHL.hpp"
 #include "../Color.hpp"
-#include "../Rectangle.hpp"
+#include "../Geometry/Rectangle.hpp"
 #include "../Utils.hpp"
 
 #include <stack>

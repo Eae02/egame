@@ -17,13 +17,7 @@ namespace eg::graphics_api::vk
 		BufferUsage currentUsage;
 		VkPipelineStageFlags currentStageFlags;
 		
-		inline void CheckUsageState(BufferUsage requiredUsage, const char* actionName)
-		{
-			if (autoBarrier && currentUsage != requiredUsage)
-			{
-				EG_PANIC("Buffer not in the correct usage state when " << actionName << ", did you forget to call UsageHint?");
-			}
-		}
+		void CheckUsageState(BufferUsage requiredUsage, const char* actionName);
 		
 		void AutoBarrier(VkCommandBuffer cb, BufferUsage newUsage,
 			ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);

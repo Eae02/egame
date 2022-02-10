@@ -5,6 +5,8 @@
 #include "RenderPasses.hpp"
 #include "Framebuffer.hpp"
 #include "Translation.hpp"
+#include "../../Assert.hpp"
+#include "../../Hash.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 namespace eg::graphics_api::vk
@@ -370,7 +372,7 @@ namespace eg::graphics_api::vk
 		vkBeginInfo.renderArea.extent = extent;
 		vkBeginInfo.framebuffer = framebuffer;
 		vkBeginInfo.renderPass = GetRenderPass(renderPassDescription, false);
-		vkBeginInfo.clearValueCount = ArrayLen(clearValues);
+		vkBeginInfo.clearValueCount = std::size(clearValues);
 		vkBeginInfo.pClearValues = clearValues;
 		
 		vkCmdBeginRenderPass(cb, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);

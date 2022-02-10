@@ -1,11 +1,14 @@
 #pragma once
 
 #include "../API.hpp"
-#include "../Utils.hpp"
 
 #include <span>
 #include <optional>
 #include <vector>
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <glm/vec2.hpp>
 
 namespace eg
 {

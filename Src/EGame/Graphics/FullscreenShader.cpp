@@ -2,6 +2,7 @@
 #include "../../Shaders/Build/Fullscreen_TCNone.vs.h"
 #include "../../Shaders/Build/Fullscreen_TCNoFlip.vs.h"
 #include "../../Shaders/Build/Fullscreen_TCFlip.vs.h"
+#include "../Assert.hpp"
 
 #include <span>
 

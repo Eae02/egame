@@ -1,5 +1,8 @@
 #include "StdVertex.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 namespace eg
 {
 	static_assert(offsetof(StdVertex, position) == offsetof(StdVertexAnim8, position));
@@ -25,7 +28,7 @@ namespace eg
 		float mul = weightSum < 1E-6f ? 0.0f : 256.0f / weightSum;
 		for (size_t i = 0; i < 4; i++)
 		{
-			weightsOut[i] = (uint8_t)glm::clamp((int)std::round(weightsF[i] * mul), 0, 255);
+			weightsOut[i] = (uint8_t)std::clamp((int)std::round(weightsF[i] * mul), 0, 255);
 		}
 	}
 }

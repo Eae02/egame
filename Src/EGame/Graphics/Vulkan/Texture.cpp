@@ -6,6 +6,9 @@
 #include "Pipeline.hpp"
 #include "../Graphics.hpp"
 #include "../../Alloc/ObjectPool.hpp"
+#include "../../Hash.hpp"
+#include "../../Assert.hpp"
+#include "../../String.hpp"
 #include "../../Utils.hpp"
 
 namespace eg::graphics_api::vk

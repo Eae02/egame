@@ -2,6 +2,7 @@
 #include "ImageLoader.hpp"
 #include "../Alloc/PoolAllocator.hpp"
 #include "../Core.hpp"
+#include "../Assert.hpp"
 #include "../IOUtils.hpp"
 
 #include <fstream>

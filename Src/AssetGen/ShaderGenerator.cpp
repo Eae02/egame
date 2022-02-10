@@ -103,9 +103,9 @@ namespace eg::asset_gen
 			
 			std::ostringstream errorStream;
 			errorStream << sourcePath << ": Invalid shader stage " << stageNameStr << ", should be ";
-			for (size_t i = 0; i < ArrayLen(stageNames); i++)
+			for (size_t i = 0; i < std::size(stageNames); i++)
 			{
-				if (i == ArrayLen(stageNames) - 1)
+				if (i == std::size(stageNames) - 1)
 					errorStream << " or ";
 				else if (i != 0)
 					errorStream << ", ";

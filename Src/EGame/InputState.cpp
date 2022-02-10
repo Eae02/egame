@@ -1,12 +1,12 @@
 #include "InputState.hpp"
-#include "Utils.hpp"
 #include "Log.hpp"
+#include "String.hpp"
 #include "Graphics/Graphics.hpp"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/html5.h>
 #else
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #endif
 
 namespace eg
@@ -335,7 +335,7 @@ namespace eg
 	
 	Button ButtonFromString(std::string_view str)
 	{
-		for (size_t i = 0; i < ArrayLen(buttonNames); i++)
+		for (size_t i = 0; i < std::size(buttonNames); i++)
 		{
 			if (StringEqualCaseInsensitive(buttonNames[i], str))
 				return (Button)i;
@@ -345,7 +345,7 @@ namespace eg
 	
 	std::string_view ButtonToString(Button button)
 	{
-		if ((size_t)button >= ArrayLen(buttonNames))
+		if ((size_t)button >= std::size(buttonNames))
 			return buttonNames[0];
 		return buttonNames[(int)button];
 	}

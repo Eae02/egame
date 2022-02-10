@@ -8,6 +8,8 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
 #include "../../Log.hpp"
+#include "../../Assert.hpp"
+#include "../../String.hpp"
 
 #include <atomic>
 #include <spirv_cross.hpp>

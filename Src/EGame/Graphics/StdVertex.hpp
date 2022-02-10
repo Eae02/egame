@@ -1,6 +1,7 @@
 #pragma once
 
-#include "../Utils.hpp"
+#include "../API.hpp"
+#include "../Hash.hpp"
 
 #include <span>
 #include <array>

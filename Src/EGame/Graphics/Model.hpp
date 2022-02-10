@@ -4,10 +4,11 @@
 #include "StdVertex.hpp"
 #include "Animation/Animation.hpp"
 #include "Animation/Skeleton.hpp"
-#include "../CollisionMesh.hpp"
+#include "../Geometry/CollisionMesh.hpp"
+#include "../Geometry/Ray.hpp"
+#include "../Geometry/Sphere.hpp"
+#include "../Assert.hpp"
 #include "../API.hpp"
-#include "../Ray.hpp"
-#include "../Sphere.hpp"
 
 namespace eg
 {

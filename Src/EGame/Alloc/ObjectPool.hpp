@@ -5,8 +5,6 @@
 #include <cstddef>
 #include <cstring>
 
-#include "../Utils.hpp"
-
 namespace eg
 {
 	template <typename T>

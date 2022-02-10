@@ -1,7 +1,7 @@
 #include "Skeleton.hpp"
-#include "../../Utils.hpp"
 #include "../../IOUtils.hpp"
 #include "../../Log.hpp"
+#include "../../Assert.hpp"
 
 namespace eg
 {

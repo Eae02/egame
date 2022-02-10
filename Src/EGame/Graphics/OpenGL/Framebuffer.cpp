@@ -3,6 +3,8 @@
 #include "OpenGLTexture.hpp"
 #include "PipelineGraphics.hpp"
 #include "Pipeline.hpp"
+#include "../../Assert.hpp"
+#include "../../String.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 namespace eg::graphics_api::gl

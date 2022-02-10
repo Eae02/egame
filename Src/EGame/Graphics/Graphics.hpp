@@ -1,6 +1,8 @@
 #pragma once
 
-#include "../Utils.hpp"
+#include <cstdint>
+
+#include "../API.hpp"
 
 namespace eg
 {

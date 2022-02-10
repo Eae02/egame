@@ -111,8 +111,8 @@ namespace eg
 		uint32_t totVertices = 0;
 		for (const CollisionMesh& mesh : meshes)
 		{
-			totIndices += mesh.m_indices.size();
-			totVertices += mesh.m_vertices.size();
+			totIndices += (uint32_t)mesh.m_indices.size();
+			totVertices += (uint32_t)mesh.m_vertices.size();
 		}
 		
 		CollisionMesh result;

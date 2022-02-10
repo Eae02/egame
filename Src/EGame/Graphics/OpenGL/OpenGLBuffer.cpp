@@ -3,6 +3,7 @@
 #include "Pipeline.hpp"
 #include "Framebuffer.hpp"
 #include "../Graphics.hpp"
+#include "../../Assert.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../MainThreadInvoke.hpp"
 

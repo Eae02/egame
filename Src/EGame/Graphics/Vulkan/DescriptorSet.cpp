@@ -5,6 +5,7 @@
 #include "Texture.hpp"
 #include "Buffer.hpp"
 #include "Translation.hpp"
+#include "../../Assert.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 
 namespace eg::graphics_api::vk

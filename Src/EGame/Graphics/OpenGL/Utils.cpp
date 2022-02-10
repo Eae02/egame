@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include "../../Assert.hpp"
 #include "../../Utils.hpp"
 
 namespace eg::graphics_api::gl

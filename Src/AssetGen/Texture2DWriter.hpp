@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../EGame/Graphics/Format.hpp"
-#include "../EGame/Utils.hpp"
 #include "../EGame/Assets/Texture2DLoader.hpp"
+#include "../EGame/Utils.hpp"
 
 #include <span>
 #include <yaml-cpp/yaml.h>

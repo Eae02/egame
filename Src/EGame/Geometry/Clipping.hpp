@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#include "API.hpp"
+#include "../API.hpp"
 #include "AABB.hpp"
 
 namespace eg

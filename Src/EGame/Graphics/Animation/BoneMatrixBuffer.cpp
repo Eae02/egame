@@ -54,7 +54,7 @@ namespace eg
 	
 	BoneMatrixBuffer::MatrixRangeReference BoneMatrixBuffer::AddNoCopy(std::span<const glm::mat4> matrices)
 	{
-		MatrixRangeReference rangeRef = StepPosition(matrices.size());
+		MatrixRangeReference rangeRef = StepPosition((uint32_t)matrices.size());
 		
 		MatrixRange& matrixRange = m_matrixRanges.emplace_back();
 		matrixRange.matrices = matrices.data();

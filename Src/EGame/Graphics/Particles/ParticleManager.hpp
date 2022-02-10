@@ -3,7 +3,7 @@
 #include "ParticleEmitterType.hpp"
 #include "../AbstractionHL.hpp"
 #include "../../API.hpp"
-#include "../../Frustum.hpp"
+#include "../../Geometry/Frustum.hpp"
 #include "../../SIMD.hpp"
 
 #include <thread>
