@@ -24,7 +24,7 @@ namespace eg
 		pipelineCI.vertexShader = vs.Handle();
 		pipelineCI.fragmentShader = fs.Handle();
 		pipelineCI.enableScissorTest = true;
-		pipelineCI.blendStates[0] = AlphaBlend;
+		pipelineCI.blendStates[0] = eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha);
 		pipelineCI.vertexBindings[0] = { sizeof(Vertex), InputRate::Vertex };
 		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, position) };
 		pipelineCI.vertexAttributes[1] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, texCoord) };
@@ -62,12 +62,18 @@ namespace eg
 		spritePipeline.Destroy();
 	}
 	
-	void SpriteBatch::Begin()
+	void SpriteBatch::PushBlendState(SpriteBlend blendState)
 	{
-		m_batches.clear();
-		m_indices.clear();
-		m_vertices.clear();
-		opacityScale = 1;
+		m_blendStateStack.push_back(blendState);
+	}
+	
+	void SpriteBatch::PopBlendState()
+	{
+		if (m_blendStateStack.size() <= 1)
+		{
+			EG_PANIC("SpriteBatch::PopBlendState called while blend state stack is empty");
+		}
+		m_blendStateStack.pop_back();
 	}
 	
 	void SpriteBatch::InitBatch(const Texture& texture, SpriteFlags flags)
@@ -77,14 +83,15 @@ namespace eg
 		
 		bool needsNewBatch = true;
 		if (!m_batches.empty() && m_batches.back().texture.handle == texture.handle &&
-			m_batches.back().redToAlpha == redToAlpha && m_batches.back().mipLevel == mipLevel)
+			m_batches.back().redToAlpha == redToAlpha && m_batches.back().mipLevel == mipLevel &&
+			m_batches.back().blend == m_blendStateStack.back())
 		{
 			if (!m_batches.back().enableScissor && m_scissorStack.empty())
 			{
 				needsNewBatch = false;
 			}
 			else if (m_batches.back().enableScissor && !m_scissorStack.empty() &&
-			         m_batches.back().scissor == m_scissorStack.top())
+			         m_batches.back().scissor == m_scissorStack.back())
 			{
 				needsNewBatch = false;
 			}
@@ -96,11 +103,12 @@ namespace eg
 			batch.redToAlpha = redToAlpha;
 			batch.mipLevel = mipLevel;
 			batch.texture = texture;
+			batch.blend = m_blendStateStack.back();
 			batch.firstIndex = static_cast<uint32_t>(m_indices.size());
 			batch.numIndices = 0;
 			if ((batch.enableScissor = !m_scissorStack.empty()))
 			{
-				batch.scissor = m_scissorStack.top();
+				batch.scissor = m_scissorStack.back();
 			}
 		}
 	}
@@ -116,6 +124,15 @@ namespace eg
 		}
 		
 		m_batches.back().numIndices += 6;
+	}
+	
+	static inline bool ShouldFlipY(SpriteFlags flags)
+	{
+		if (HasFlag(flags, SpriteFlags::FlipY))
+			return true;
+		if (HasFlag(flags, SpriteFlags::FlipYIfOpenGL) && CurrentGraphicsAPI() == GraphicsAPI::OpenGL)
+			return true;
+		return false;
 	}
 	
 	void SpriteBatch::Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color,
@@ -134,7 +151,7 @@ namespace eg
 			origin.x = texRectangle.w - origin.x;
 		}
 		
-		if ((int)spriteFlags & (int)SpriteFlags::FlipY)
+		if (ShouldFlipY(spriteFlags))
 		{
 			std::swap(vOffsets[0], vOffsets[1]);
 			origin.y = texRectangle.h - origin.y;
@@ -172,7 +189,7 @@ namespace eg
 		
 		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
 			std::swap(uOffsets[0], uOffsets[1]);
-		if ((int)spriteFlags & (int)SpriteFlags::FlipY)
+		if (ShouldFlipY(spriteFlags))
 			std::swap(vOffsets[0], vOffsets[1]);
 		
 		for (int x = 0; x < 2; x++)
@@ -198,7 +215,7 @@ namespace eg
 		float vOffsets[] = { 1, 0 };
 		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
 			std::swap(uOffsets[0], uOffsets[1]);
-		if ((int)spriteFlags & (int)SpriteFlags::FlipY)
+		if (ShouldFlipY(spriteFlags))
 			std::swap(vOffsets[0], vOffsets[1]);
 		
 		for (int x = 0; x < 2; x++)
@@ -345,7 +362,19 @@ namespace eg
 		sizeOut->x = x * scale;
 	}
 	
-	void SpriteBatch::End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3& matrix)
+	void SpriteBatch::Reset()
+	{
+		m_batches.clear();
+		m_indices.clear();
+		m_vertices.clear();
+		m_scissorStack.clear();
+		m_blendStateStack.clear();
+		m_blendStateStack.push_back(SpriteBlend::Alpha);
+		opacityScale = 1;
+		m_canRender = false;
+	}
+	
+	void SpriteBatch::Upload()
 	{
 		if (m_batches.empty())
 			return;
@@ -382,15 +411,35 @@ namespace eg
 		m_vertexBuffer.UsageHint(BufferUsage::VertexBuffer);
 		m_indexBuffer.UsageHint(BufferUsage::IndexBuffer);
 		
-		DC.BeginRenderPass(rpBeginInfo);
+		m_canRender = true;
+	}
+	
+	void SpriteBatch::Render(int screenWidth, int screenHeight, const glm::mat3* matrix) const
+	{
+		if (m_batches.empty())
+			return;
+		
+		if (!m_canRender)
+		{
+			EG_PANIC("SpriteBatch::Render called in an invalid state. Did you forget to call SpriteBatch::Upload?");
+		}
 		
 		DC.BindPipeline(spritePipeline);
+		
+		glm::mat3 defaultMatrix;
+		if (matrix == nullptr)
+		{
+			defaultMatrix =
+				glm::translate(glm::mat3(1), glm::vec2(-1)) *
+				glm::scale(glm::mat3(1), glm::vec2(2.0f / (float)screenWidth, 2.0f / (float)screenHeight));
+			matrix = &defaultMatrix;
+		}
 		
 		float pcData[4 * 3];
 		for (int r = 0; r < 3; r++)
 		{
 			for (int c = 0; c < 3; c++)
-				pcData[r * 4 + c] = matrix[r][c];
+				pcData[r * 4 + c] = (*matrix)[r][c];
 		}
 		DC.PushConstants(0, sizeof(pcData), pcData);
 		
@@ -399,7 +448,17 @@ namespace eg
 		
 		for (const Batch& batch : m_batches)
 		{
-			int32_t pc = (int32_t)batch.redToAlpha;
+			uint32_t pcFlags = 0;
+			if (batch.redToAlpha)
+				pcFlags |= 1;
+			if (batch.blend == SpriteBlend::Alpha)
+				pcFlags |= 2;
+			
+			float setAlpha = batch.blend == SpriteBlend::Additive ? 0.0f : 1.0f;
+			
+			char pc[8];
+			*reinterpret_cast<uint32_t*>(&pc[0]) = pcFlags;
+			*reinterpret_cast<float*>(&pc[4]) = setAlpha;
 			DC.PushConstants(64, sizeof(pc), &pc);
 			
 			if (batch.enableScissor)
@@ -414,16 +473,17 @@ namespace eg
 			
 			DC.DrawIndexed(batch.firstIndex, batch.numIndices, 0, 0, 1);
 		}
-		
-		DC.EndRenderPass();
 	}
 	
-	void SpriteBatch::End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo)
+	void SpriteBatch::UploadAndRender(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3* matrix)
 	{
-		glm::mat3 transform = glm::translate(glm::mat3(1), glm::vec2(-1)) *
-			glm::scale(glm::mat3(1), glm::vec2(2.0f / (float)screenWidth, 2.0f / (float)screenHeight));
-		
-		End(screenWidth, screenHeight, rpBeginInfo, transform);
+		if (!m_batches.empty())
+		{
+			Upload();
+			DC.BeginRenderPass(rpBeginInfo);
+			Render(screenWidth, screenHeight, matrix);
+			DC.EndRenderPass();
+		}
 	}
 	
 	void SpriteBatch::PushScissorF(float x, float y, float width, float height)
@@ -435,15 +495,15 @@ namespace eg
 	{
 		if (m_scissorStack.empty())
 		{
-			m_scissorStack.push({x, y, width, height});
+			m_scissorStack.push_back({x, y, width, height});
 		}
 		else
 		{
-			int ix = std::max(x, m_scissorStack.top().x);
-			int iy = std::max(y, m_scissorStack.top().y);
-			int iw = std::min(x + width, m_scissorStack.top().x + m_scissorStack.top().width) - ix;
-			int ih = std::min(y + height, m_scissorStack.top().y + m_scissorStack.top().height) - iy;
-			m_scissorStack.push({ ix, iy, iw, ih });
+			int ix = std::max(x, m_scissorStack.back().x);
+			int iy = std::max(y, m_scissorStack.back().y);
+			int iw = std::min(x + width, m_scissorStack.back().x + m_scissorStack.back().width) - ix;
+			int ih = std::min(y + height, m_scissorStack.back().y + m_scissorStack.back().height) - iy;
+			m_scissorStack.push_back({ ix, iy, iw, ih });
 		}
 	}
 	

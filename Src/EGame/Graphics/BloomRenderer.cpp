@@ -6,16 +6,29 @@
 
 namespace eg
 {
-	BloomRenderer::RenderTarget::RenderTarget(uint32_t inputWidth, uint32_t inputHeight, uint32_t levels, Format format)
+	static const SamplerDescription bloomTextureSamplerDesc = 
+	{
+		.wrapU = WrapMode::ClampToEdge,
+		.wrapV = WrapMode::ClampToEdge,
+		.wrapW = WrapMode::ClampToEdge,
+		.minFilter = TextureFilter::Linear,
+		.magFilter = TextureFilter::Linear,
+		.mipFilter = TextureFilter::Linear
+	};
+	
+	BloomRenderer::RenderTarget::RenderTarget(
+		uint32_t inputWidth, uint32_t inputHeight, uint32_t levels, Format format, BloomRenderer::RenderTargetFlags flags)
 		: m_inputWidth(inputWidth), m_inputHeight(inputHeight), m_levels(levels)
 	{
 		uint32_t levelWidth = inputWidth;
 		uint32_t levelHeight = inputHeight;
-		for (uint32_t l = 0; l < levels; l++)
+		if (!HasFlag(flags, RenderTargetFlags::FullResolution))
 		{
 			levelWidth /= 2;
 			levelHeight /= 2;
-			
+		}
+		for (uint32_t l = 0; l < levels; l++)
+		{
 			TextureCreateInfo textureCI;
 			textureCI.width = levelWidth;
 			textureCI.height = levelHeight;
@@ -28,11 +41,41 @@ namespace eg
 				char labelBuffer[32];
 				snprintf(labelBuffer, sizeof(labelBuffer), "Bloom:L%u:T%u", l, i);
 				textureCI.label = labelBuffer;
+				
+				if (l == 0 && i == 2 && HasFlag(flags, RenderTargetFlags::OutputTextureWithSampler))
+					textureCI.defaultSamplerDescription = &bloomTextureSamplerDesc;
+				else
+					textureCI.defaultSamplerDescription = nullptr;
+				
 				m_levels[l].m_textures[i] = eg::Texture::Create2D(textureCI);
+				
 				FramebufferAttachment colorAttachment(m_levels[l].m_textures[i].handle);
 				m_levels[l].m_framebuffers[i] = eg::Framebuffer({ &colorAttachment, 1 });
 			}
+			
+			levelWidth /= 2;
+			levelHeight /= 2;
 		}
+	}
+	
+	bool BloomRenderer::RenderTarget::MatchesWindowResolution() const
+	{
+		return (uint32_t)detail::resolutionX == m_inputWidth && (uint32_t)detail::resolutionY == m_inputHeight;
+	}
+	
+	void BloomRenderer::RenderTarget::BeginFirstLayerRenderPass(AttachmentLoadOp loadOp)
+	{
+		RenderPassBeginInfo rpBeginInfo;
+		rpBeginInfo.framebuffer = FirstLayerFramebuffer().handle;
+		rpBeginInfo.colorAttachments[0].loadOp = loadOp;
+		rpBeginInfo.colorAttachments[0].clearValue = ColorLin(Color::Black);
+		DC.BeginRenderPass(rpBeginInfo);
+	}
+	
+	void BloomRenderer::RenderTarget::EndFirstLayerRenderPass()
+	{
+		DC.EndRenderPass();
+		m_levels[0].m_textures[0].UsageHint(eg::TextureUsage::ShaderSample, eg::ShaderAccessFlags::Fragment);
 	}
 	
 	BloomRenderer::BloomRenderer()
@@ -57,14 +100,7 @@ namespace eg
 		blurPipelineYCI.fragmentShader.shaderModule = blurYSM.Handle();
 		m_blurPipelineY = eg::Pipeline::Create(blurPipelineYCI);
 		
-		SamplerDescription inputSamplerDesc;
-		inputSamplerDesc.wrapU = WrapMode::ClampToEdge;
-		inputSamplerDesc.wrapV = WrapMode::ClampToEdge;
-		inputSamplerDesc.wrapW = WrapMode::ClampToEdge;
-		inputSamplerDesc.minFilter = TextureFilter::Linear;
-		inputSamplerDesc.magFilter = TextureFilter::Linear;
-		inputSamplerDesc.mipFilter = TextureFilter::Linear;
-		m_inputSampler = Sampler(inputSamplerDesc);
+		m_inputSampler = Sampler(bloomTextureSamplerDesc);
 		
 		TextureCreateInfo blackPixelTexCI;
 		blackPixelTexCI.width = 1;
@@ -88,28 +124,8 @@ namespace eg
 		m_blackPixelTexture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Fragment);
 	}
 	
-	void BloomRenderer::Render(const glm::vec3& threshold, TextureRef inputTexture, RenderTarget& renderTarget) const
+	void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
 	{
-		//Bright pass from input to texture 0 of level 0
-		{
-			RenderPassBeginInfo rpBeginInfo;
-			rpBeginInfo.framebuffer = renderTarget.m_levels[0].m_framebuffers[0].handle;
-			rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Discard;
-			DC.BeginRenderPass(rpBeginInfo);
-			
-			DC.BindPipeline(m_brightPassPipeline);
-			DC.BindTexture(inputTexture, 0, 0, &m_inputSampler);
-			
-			const float pc[] = { threshold.r, threshold.g, threshold.b, 0.0f };
-			DC.PushConstants(0, sizeof(pc), pc);
-			
-			DC.Draw(0, 3, 0, 1);
-			
-			DC.EndRenderPass();
-			
-			renderTarget.m_levels[0].m_textures[0].UsageHint(eg::TextureUsage::ShaderSample, eg::ShaderAccessFlags::Fragment);
-		}
-		
 		//Downscales texture 0
 		for (uint32_t l = 1; l < renderTarget.m_levels.size(); l++)
 		{
@@ -173,5 +189,22 @@ namespace eg
 			
 			renderTarget.m_levels[l].m_textures[2].UsageHint(eg::TextureUsage::ShaderSample, eg::ShaderAccessFlags::Fragment);
 		}
+	}
+	
+	void BloomRenderer::Render(const glm::vec3& threshold, TextureRef inputTexture, RenderTarget& renderTarget) const
+	{
+		renderTarget.BeginFirstLayerRenderPass(AttachmentLoadOp::Discard);
+		
+		DC.BindPipeline(m_brightPassPipeline);
+		DC.BindTexture(inputTexture, 0, 0, &m_inputSampler);
+		
+		const float pc[] = { threshold.r, threshold.g, threshold.b, 0.0f };
+		DC.PushConstants(0, sizeof(pc), pc);
+		
+		DC.Draw(0, 3, 0, 1);
+		
+		renderTarget.EndFirstLayerRenderPass();
+		
+		RenderNoBrightPass(renderTarget);
 	}
 }

@@ -149,7 +149,7 @@ namespace eg
 			RaiseEvent(ResolutionChangedEvent { detail::resolutionX, detail::resolutionY });
 		}
 		
-		SpriteBatch::overlay.Begin();
+		SpriteBatch::overlay.Reset();
 		
 		game.RunFrame(dt);
 		
@@ -170,7 +170,7 @@ namespace eg
 		eg::RenderPassBeginInfo rpBeginInfo;
 		rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Load;
 		rpBeginInfo.depthLoadOp = AttachmentLoadOp::Load;
-		SpriteBatch::overlay.End(detail::resolutionX, detail::resolutionY, rpBeginInfo);
+		SpriteBatch::overlay.UploadAndRender(detail::resolutionX, detail::resolutionY, rpBeginInfo);
 		
 		gpuTimer.Stop();
 		

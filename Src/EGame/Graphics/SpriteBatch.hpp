@@ -5,8 +5,6 @@
 #include "../Geometry/Rectangle.hpp"
 #include "../Utils.hpp"
 
-#include <stack>
-
 namespace eg
 {
 	enum class SpriteFlags
@@ -15,7 +13,15 @@ namespace eg
 		FlipX = 1,
 		FlipY = 2,
 		RedToAlpha = 4,
-		ForceLowestMipLevel = 8
+		ForceLowestMipLevel = 8,
+		FlipYIfOpenGL = 16
+	};
+	
+	enum class SpriteBlend
+	{
+		Alpha = 0,
+		Additive = 1,
+		Overwrite = 2
 	};
 	
 	EG_BIT_FIELD(SpriteFlags)
@@ -34,15 +40,16 @@ namespace eg
 	public:
 		SpriteBatch() = default;
 		
-		void Begin();
-		
 		void PushScissor(int x, int y, int width, int height);
 		void PushScissorF(float x, float y, float width, float height);
 		
 		void PopScissor()
 		{
-			m_scissorStack.pop();
+			m_scissorStack.pop_back();
 		}
+		
+		void PushBlendState(SpriteBlend blendState);
+		void PopBlendState();
 		
 		/**
 		 * Adds a sprite to the spritebatch.
@@ -50,25 +57,25 @@ namespace eg
 		 * @param position The position of the origin in input space.
 		 * @param color Constant color which will be multiplied with the texture color.
 		 * @param scale Scale factor.
-		 * @param flipFlags Controlls sprite texture flipping.
+		 * @param flags Sprite flags.
 		 * @param rotation Angle of rotation, specified clockwise in radians.
 		 * @param origin Sprite origin in texture space.
 		 */
 		void Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color, float scale = 1,
-			SpriteFlags flipFlags = SpriteFlags::None, float rotation = 0, const glm::vec2& origin = { })
+			SpriteFlags flags = SpriteFlags::None, float rotation = 0, const glm::vec2& origin = { })
 		{
 			Draw(texture, position, color, Rectangle(0, 0, (float)texture.Width(), (float)texture.Height()), scale,
-				flipFlags, rotation, origin);
+				flags, rotation, origin);
 		}
 		
 		void Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color,
-			const Rectangle& texRectangle, float scale = 1, SpriteFlags flipFlags = SpriteFlags::None,
+			const Rectangle& texRectangle, float scale = 1, SpriteFlags flags = SpriteFlags::None,
 			float rotation = 0, glm::vec2 origin = { });
 		
-		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color, SpriteFlags flipFlags = SpriteFlags::None);
+		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color, SpriteFlags flags = SpriteFlags::None);
 		
 		void Draw(const Texture& texture, const Rectangle& rectangle, const ColorLin& color,
-			const Rectangle& texRectangle, SpriteFlags flipFlags = SpriteFlags::None);
+			const Rectangle& texRectangle, SpriteFlags flags = SpriteFlags::None);
 		
 		void DrawTextMultiline(const class SpriteFont& font, std::string_view text, const glm::vec2& position,
 			const ColorLin& color, float scale = 1, float lineSpacing = 0, glm::vec2* sizeOut = nullptr,
@@ -84,9 +91,19 @@ namespace eg
 		
 		void DrawLine(const glm::vec2& begin, const glm::vec2& end, const ColorLin& color, float width = 1);
 		
-		void End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo);
+		void Reset();
+		void Upload();
+		void Render(int screenWidth, int screenHeight, const glm::mat3* matrix = nullptr) const;
+		void UploadAndRender(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3* matrix = nullptr);
 		
-		void End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3& matrix);
+		[[deprecated]]
+		void Begin() { Reset(); }
+		[[deprecated]]
+		void End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo)
+		{ UploadAndRender(screenWidth, screenHeight, rpBeginInfo); }
+		[[deprecated]]
+		void End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3& matrix)
+		{ UploadAndRender(screenWidth, screenHeight, rpBeginInfo, &matrix); }
 		
 		bool Empty() const
 		{
@@ -143,11 +160,13 @@ namespace eg
 			uint32_t numIndices;
 			bool enableScissor;
 			ScissorRectangle scissor;
+			SpriteBlend blend;
 		};
 		
 		std::vector<Batch> m_batches;
 		
-		std::stack<ScissorRectangle> m_scissorStack;
+		std::vector<ScissorRectangle> m_scissorStack;
+		std::vector<SpriteBlend> m_blendStateStack;
 		
 		float m_positionScale[2];
 		
@@ -155,5 +174,7 @@ namespace eg
 		uint32_t m_indexBufferCapacity = 0;
 		Buffer m_vertexBuffer;
 		Buffer m_indexBuffer;
+		
+		bool m_canRender = false;
 	};
 }
