@@ -675,7 +675,7 @@ namespace eg::graphics_api::gl
 				
 				const DataType type = pipeline->vertexAttribs[attrib].type;
 				const GLenum glType = TranslateDataType(type);
-				const GLsizeiptr stride = pipeline->vertexBindings[binding].stride;
+				const GLsizei stride = pipeline->vertexBindings[binding].stride;
 				
 				const uint32_t first =
 					pipeline->vertexBindings[binding].inputRate == InputRate::Vertex ? firstVertex : firstInstance;

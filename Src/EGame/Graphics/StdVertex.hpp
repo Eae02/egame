@@ -8,7 +8,7 @@
 
 namespace eg
 {
-	struct __attribute__ ((__packed__, __may_alias__)) StdVertex
+	struct StdVertex
 	{
 		static constexpr CTStringHash Name = "EG::StdVertex";
 		
@@ -19,7 +19,7 @@ namespace eg
 		uint8_t color[4];
 	};
 	
-	struct __attribute__ ((__packed__, __may_alias__)) StdVertexAnim8
+	struct StdVertexAnim8
 	{
 		static constexpr CTStringHash Name = "EG::StdVertexAnim8";
 		
@@ -34,7 +34,7 @@ namespace eg
 		EG_API void SetBoneWeights(const std::array<float, 4>& weights);
 	};
 	
-	struct __attribute__ ((__packed__, __may_alias__)) StdVertexAnim16
+	struct StdVertexAnim16
 	{
 		static constexpr CTStringHash Name = "EG::StdVertexAnim16";
 		

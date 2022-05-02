@@ -1,5 +1,6 @@
 #include "CollisionMesh.hpp"
 #include "Ray.hpp"
+#include "../Assert.hpp"
 
 namespace eg
 {
@@ -107,13 +108,16 @@ namespace eg
 	
 	CollisionMesh CollisionMesh::Join(std::span<const CollisionMesh> meshes)
 	{
-		uint32_t totIndices = 0;
-		uint32_t totVertices = 0;
+		size_t totIndices = 0;
+		size_t totVertices = 0;
 		for (const CollisionMesh& mesh : meshes)
 		{
-			totIndices += (uint32_t)mesh.m_indices.size();
-			totVertices += (uint32_t)mesh.m_vertices.size();
+			totIndices += mesh.m_indices.size();
+			totVertices += mesh.m_vertices.size();
 		}
+		
+		EG_ASSERT(totIndices <= UINT32_MAX);
+		EG_ASSERT(totVertices <= UINT32_MAX);
 		
 		CollisionMesh result;
 		result.m_vertices.resize(totVertices);
@@ -128,7 +132,7 @@ namespace eg
 				result.m_indices[nextIndex++] = mesh.m_indices[i] + nextVertex;
 			}
 			std::copy_n(mesh.m_vertices.data(), mesh.m_vertices.size(), result.m_vertices.data() + nextVertex);
-			nextVertex += mesh.m_vertices.size();
+			nextVertex += (uint32_t)mesh.m_vertices.size();
 		}
 		
 		result.InitAABB();

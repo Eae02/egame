@@ -5,6 +5,10 @@
 
 namespace eg
 {
+	static_assert(sizeof(StdVertex) == 32);
+	static_assert(sizeof(StdVertexAnim8) == 40);
+	static_assert(sizeof(StdVertexAnim16) == 44);
+	
 	static_assert(offsetof(StdVertex, position) == offsetof(StdVertexAnim8, position));
 	static_assert(offsetof(StdVertex, texCoord) == offsetof(StdVertexAnim8, texCoord));
 	static_assert(offsetof(StdVertex, normal)   == offsetof(StdVertexAnim8, normal));
