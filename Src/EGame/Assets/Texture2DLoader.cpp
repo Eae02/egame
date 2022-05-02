@@ -130,4 +130,36 @@ namespace eg
 		
 		return true;
 	}
+	
+	void Texture2DLoaderPrintInfo(std::span<const char> data, std::ostream& outStream)
+	{
+		const Header* header = reinterpret_cast<const Header*>(data.data());
+		
+		uint32_t depth = 0;
+		const char* type;
+		if (header->flags & TF_CubeMap)
+		{
+			type = "cubemap";
+		}
+		else if (header->flags & TF_3D)
+		{
+			type = "3d";
+			depth = header->numLayers;
+		}
+		else if (header->flags & TF_ArrayTexture)
+		{
+			type = "array";
+			depth = header->numLayers;
+		}
+		else
+		{
+			type = "2d";
+		}
+		
+		outStream << " " << type << " " << header->width << "x" << header->height;
+		if (depth)
+			outStream << "x" << depth;
+		
+		outStream << " " << FormatToString((Format)header->format) << std::endl;
+	}
 }

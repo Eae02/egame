@@ -9,9 +9,11 @@
 
 namespace eg
 {
-	bool ReadCompressedSection(std::istream& input, void* output, size_t outputSize)
+	bool ReadCompressedSection(std::istream& input, void* output, size_t outputSize, uint64_t* compressedSizeOut)
 	{
 		const uint64_t compressedSize = BinRead<uint64_t>(input);
+		if (compressedSizeOut)
+			*compressedSizeOut = compressedSize;
 		
 		z_stream inflateStream = { };
 		if (inflateInit(&inflateStream) != Z_OK)

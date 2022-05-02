@@ -13,6 +13,15 @@ namespace eg
 		AssetFormat() = default;
 		AssetFormat(CTStringHash name, uint32_t _version)
 			: nameHash(name.hash), version(_version) { }
+		
+		bool operator==(const AssetFormat& other) const
+		{
+			return nameHash == other.nameHash && version == other.version;
+		}
+		bool operator!=(const AssetFormat& other) const
+		{
+			return !operator==(other);
+		}
 	};
 	
 	EG_API extern const AssetFormat DefaultGeneratorFormat;

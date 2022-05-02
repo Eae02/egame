@@ -1,6 +1,7 @@
 #include "Asset.hpp"
 #include "AssetGenerator.hpp"
 #include "AssetLoad.hpp"
+#include "EAPFile.hpp"
 #include "YAMLUtils.hpp"
 #include "../Console.hpp"
 #include "../Platform/DynamicLibrary.hpp"
@@ -145,7 +146,7 @@ namespace eg
 		
 		char magic[sizeof(cachedAssetMagic)];
 		stream.read(magic, sizeof(magic));
-		if (std::memcmp(cachedAssetMagic, magic, sizeof(magic)))
+		if (std::memcmp(cachedAssetMagic, magic, sizeof(magic)) != 0)
 			return { };
 		
 		uint64_t yamlHash = BinRead<uint64_t>(stream);
@@ -197,17 +198,10 @@ namespace eg
 			STATE_FAILED
 		};
 		
-		State state;
+		State state = STATE_INITIAL;
 		std::string name;
 		GeneratedAsset generatedAsset;
-		const AssetLoader* loader;
-	};
-	
-	struct EAPWriteContext
-	{
-		uint32_t numAssets;
-		std::ostringstream outStream;
-		bool disableAllCompression = false;
+		const AssetLoader* loader = nullptr;
 	};
 	
 	//Generates and loads an asset recursively so that all it's load-time dependencies are satisfied.
@@ -285,11 +279,9 @@ namespace eg
 		return true;
 	}
 	
-	static const char EAPMagic[] = { (char)0xFF, 'E', 'A', 'P' };
-	
-	static void FindAllFilesInDirectory(const std::filesystem::path& path, std::string prefix, std::vector<std::string>& output)
+	static void FindAllFilesInDirectory(const std::filesystem::path& path, const std::string& prefix, std::vector<std::string>& output)
 	{
-		for (auto directoryEntry : std::filesystem::directory_iterator(path))
+		for (const auto& directoryEntry : std::filesystem::directory_iterator(path))
 		{
 			std::string fileName = directoryEntry.path().filename().string();
 			if (fileName[0] == '.')
@@ -442,50 +434,22 @@ namespace eg
 		
 		if (createAssetPackage)
 		{
-			std::ofstream eapStream(path + ".eap", std::ios::binary);
-			eapStream.write(EAPMagic, sizeof(EAPMagic));
-			BinWrite(eapStream, (uint32_t)assetsToposorted.size());
-			
-			//Extracts loader names
-			std::vector<std::string_view> loaderNames;
-			for (const AssetToLoad* asset : assetsToposorted)
-				loaderNames.push_back(asset->loader->name);
-			std::sort(loaderNames.begin(), loaderNames.end());
-			loaderNames.erase(std::unique(loaderNames.begin(), loaderNames.end()), loaderNames.end());
-			
-			//Writes loader names
-			BinWrite(eapStream, (uint32_t)loaderNames.size());
-			for (std::string_view loader : loaderNames)
-				BinWriteString(eapStream, loader);
-			
-			for (const AssetToLoad* asset : assetsToposorted)
+			std::vector<EAPAsset> eapAssets(assetsToLoad.size());
+			std::transform(assetsToLoad.begin(), assetsToLoad.end(), eapAssets.begin(), [&] (const AssetToLoad& asset)
 			{
-				uint32_t loaderIndex = std::lower_bound(loaderNames.begin(), loaderNames.end(), asset->loader->name) - loaderNames.begin();
-				
-				BinWriteString(eapStream, asset->name);
-				BinWrite(eapStream, loaderIndex);
-				BinWrite(eapStream, asset->loader->format->nameHash);
-				BinWrite(eapStream, asset->loader->format->version);
-				
-				bool compress = !disableAssetPackageCompression &&
-					!eg::HasFlag(asset->generatedAsset.flags, AssetFlags::DisableEAPCompression);
-				
-				uint64_t dataBytes = asset->generatedAsset.data.size();
-				EG_ASSERT(dataBytes < 0x8000000000000000ULL);
-				if (compress)
-					dataBytes |= 0x8000000000000000ULL;
-				
-				BinWrite(eapStream, dataBytes);
-				
-				if (compress)
-				{
-					WriteCompressedSection(eapStream, asset->generatedAsset.data.data(), dataBytes);
-				}
-				else
-				{
-					eapStream.write(asset->generatedAsset.data.data(), dataBytes);
-				}
-			}
+				EAPAsset eapAsset;
+				eapAsset.assetName = asset.name;
+				eapAsset.loaderName = asset.loader->name;
+				eapAsset.format = *asset.loader->format;
+				eapAsset.generatedAssetData = { asset.generatedAsset.data.data(), asset.generatedAsset.data.size() };
+				eapAsset.compress =
+					!HasFlag(asset.generatedAsset.flags, AssetFlags::DisableEAPCompression) &&
+					!disableAssetPackageCompression;
+				return eapAsset;
+			});
+			
+			std::ofstream eapStream(path + ".eap", std::ios::binary);
+			WriteEAPFile(eapAssets, eapStream);
 		}
 		
 		return true;
@@ -496,77 +460,42 @@ namespace eg
 	{
 		AssetDirectory& mountDir = *FindDirectory(&assetRootDir, mountPath, true);
 		
-		char magic[sizeof(EAPMagic)];
-		stream.read(magic, sizeof(magic));
-		if (std::memcmp(magic, EAPMagic, sizeof(magic)) != 0)
-			return false;
-		
-		const uint32_t numAssets = BinRead<uint32_t>(stream);
-		const uint32_t numLoaderNames = BinRead<uint32_t>(stream);
-		std::vector<const AssetLoader*> loaders(numLoaderNames);
-		for (uint32_t i = 0; i < numLoaderNames; i++)
+		LinearAllocator allocator;
+		auto eapReadResult = ReadEAPFile(stream, allocator);
+		if (!eapReadResult)
 		{
-			std::string loaderName = BinReadString(stream);
-			loaders[i] = FindAssetLoader(loaderName);
-			if (loaders[i] == nullptr)
-			{
-				eg::Log(LogLevel::Error, "as", "EAP file references unknown loader '{0}'", loaderName);
-				return false;
-			}
+			eg::Log(LogLevel::Error, "as", "Invalid EAP file");
+			return false;
 		}
 		
-		std::vector<char> dataTempBuffer;
-		
-		for (uint32_t i = 0; i < numAssets; i++)
+		for (const EAPAsset& eapAsset : *eapReadResult)
 		{
-			std::string name = BinReadString(stream);
-			
-			uint32_t loaderIndex = BinRead<uint32_t>(stream);
-			if (loaderIndex >= numLoaderNames)
+			if (eapAsset.loader == nullptr)
 			{
-				eg::Log(LogLevel::Error, "as", "Corrupt EAP, references out of range loader {0}.", loaderIndex);
-				return false;
+				eg::Log(LogLevel::Error, "as", "EAP file references unknown loader '{0}' (by the asset '{1}')",
+				        eapAsset.loaderName, eapAsset.assetName);
 			}
 			
 			//Checks that the format version is supported by the loader
-			const uint32_t formatNameHash = BinRead<uint32_t>(stream);
-			const uint32_t formatVersion = BinRead<uint32_t>(stream);
-			if (formatNameHash != loaders[loaderIndex]->format->nameHash ||
-				formatVersion != loaders[loaderIndex]->format->version)
+			if (*eapAsset.loader->format != eapAsset.format)
 			{
 				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' uses a format not supported by it's loader ({1})",
-					name, loaders[loaderIndex]->name);
-				return false;
-			}
-			
-			uint64_t dataBytes = BinRead<uint64_t>(stream);
-			bool compressed = (dataBytes & 0x8000000000000000ULL) != 0;
-			dataBytes &= ~0x8000000000000000ULL;
-			
-			if (dataTempBuffer.size() < dataBytes)
-				dataTempBuffer.resize(dataBytes);
-			
-			if (compressed)
-			{
-				ReadCompressedSection(stream, dataTempBuffer.data(), dataBytes);
-			}
-			else
-			{
-				stream.read(dataTempBuffer.data(), dataBytes);
+				        eapAsset.assetName, eapAsset.loaderName);
 			}
 			
 			//Loads the asset
-			Asset* asset = LoadAsset(*loaders[loaderIndex], name, std::span<const char>(dataTempBuffer.data(), dataBytes), nullptr);
+			Asset* asset = LoadAsset(*eapAsset.loader, eapAsset.assetName, eapAsset.generatedAssetData, nullptr);
 			if (asset == nullptr)
 			{
-				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' failed to load.", name);
+				eg::Log(LogLevel::Error, "as", "EAP asset '{0}' failed to load (with loader '{1}').",
+						eapAsset.assetName, eapAsset.loaderName);
 				return false;
 			}
 			
-			asset->fullName = detail::assetAllocator.MakeStringCopy(name);
+			asset->fullName = detail::assetAllocator.MakeStringCopy(eapAsset.assetName);
 			asset->name = BaseName(asset->fullName);
 			
-			AssetDirectory* directory = FindDirectory(&mountDir, ParentPath(name), true);
+			AssetDirectory* directory = FindDirectory(&mountDir, ParentPath(eapAsset.assetName), true);
 			asset->next = directory->firstAsset;
 			directory->firstAsset = asset;
 		}

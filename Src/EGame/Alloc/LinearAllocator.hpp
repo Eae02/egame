@@ -57,6 +57,8 @@ namespace eg
 		
 		static constexpr size_t STD_POOL_SIZE = 16 * 1024 * 1024; //16 MiB
 		
+		bool disableMultiPoolWarning = false;
+		
 	private:
 		struct Pool
 		{

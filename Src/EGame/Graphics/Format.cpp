@@ -234,4 +234,61 @@ namespace eg
 			return width * height * GetFormatSize(format);
 		}
 	}
+	
+	std::string_view FormatToString(Format format)
+	{
+		switch (format)
+		{
+			case Format::DefaultColor: return "DefaultColor";
+			case Format::DefaultDepthStencil: return "DefaultDepthStencil";
+			case Format::R8_UNorm: return "R8_UNorm";
+			case Format::R8_UInt: return "R8_UInt";
+			case Format::R8_SInt: return "R8_SInt";
+			case Format::R16_UInt: return "R16_UInt";
+			case Format::R16_SInt: return "R16_SInt";
+			case Format::R16_Float: return "R16_Float";
+			case Format::R32_UInt: return "R32_UInt";
+			case Format::R32_SInt: return "R32_SInt";
+			case Format::R32_Float: return "R32_Float";
+			case Format::R8G8_UNorm: return "R8G8_UNorm";
+			case Format::R8G8_UInt: return "R8G8_UInt";
+			case Format::R8G8_SInt: return "R8G8_SInt";
+			case Format::R16G16_UInt: return "R16G16_UInt";
+			case Format::R16G16_SInt: return "R16G16_SInt";
+			case Format::R16G16_Float: return "R16G16_Float";
+			case Format::R32G32_UInt: return "R32G32_UInt";
+			case Format::R32G32_SInt: return "R32G32_SInt";
+			case Format::R32G32_Float: return "R32G32_Float";
+			case Format::R8G8B8_sRGB: return "R8G8B8_sRGB";
+			case Format::R16G16B16_UInt: return "R16G16B16_UInt";
+			case Format::R16G16B16_SInt: return "R16G16B16_SInt";
+			case Format::R16G16B16_Float: return "R16G16B16_Float";
+			case Format::R32G32B32_UInt: return "R32G32B32_UInt";
+			case Format::R32G32B32_SInt: return "R32G32B32_SInt";
+			case Format::R32G32B32_Float: return "R32G32B32_Float";
+			case Format::R8G8B8A8_sRGB: return "R8G8B8A8_sRGB";
+			case Format::R8G8B8A8_UNorm: return "R8G8B8A8_UNorm";
+			case Format::R8G8B8A8_UInt: return "R8G8B8A8_UInt";
+			case Format::R8G8B8A8_SInt: return "R8G8B8A8_SInt";
+			case Format::R16G16B16A16_UInt: return "R16G16B16A16_UInt";
+			case Format::R16G16B16A16_SInt: return "R16G16B16A16_SInt";
+			case Format::R16G16B16A16_Float: return "R16G16B16A16_Float";
+			case Format::R32G32B32A32_UInt: return "R32G32B32A32_UInt";
+			case Format::R32G32B32A32_SInt: return "R32G32B32A32_SInt";
+			case Format::R32G32B32A32_Float: return "R32G32B32A32_Float";
+			case Format::BC1_RGBA_UNorm: return "BC1_RGBA_UNorm";
+			case Format::BC1_RGBA_sRGB: return "BC1_RGBA_sRGB";
+			case Format::BC1_RGB_UNorm: return "BC1_RGB_UNorm";
+			case Format::BC1_RGB_sRGB: return "BC1_RGB_sRGB";
+			case Format::BC3_UNorm: return "BC3_UNorm";
+			case Format::BC3_sRGB: return "BC3_sRGB";
+			case Format::BC4_UNorm: return "BC4_UNorm";
+			case Format::BC5_UNorm: return "BC5_UNorm";
+			case Format::Depth16: return "Depth16";
+			case Format::Depth32: return "Depth32";
+			case Format::Depth24Stencil8: return "Depth24Stencil8";
+			case Format::Depth32Stencil8: return "Depth32Stencil8";
+			default: return "Undefined";
+		}
+	}
 }

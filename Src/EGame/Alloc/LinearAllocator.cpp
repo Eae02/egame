@@ -31,12 +31,13 @@ namespace eg
 			return pool->memory + allocPos;
 		}
 		
-	#ifndef NDEBUG
-		if (m_firstPool != nullptr)
+#ifndef NDEBUG
+		if (m_firstPool != nullptr && !disableMultiPoolWarning)
 		{
 			Log(LogLevel::Warning, "gen", "Linear allocator creating multiple pools. Consider increasing pool size.");
+			disableMultiPoolWarning = true;
 		}
-	#endif
+#endif
 		
 		Pool* pool = AllocatePool(std::max(m_poolSize, size));
 		pool->pos = size;

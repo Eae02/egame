@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(EGame)
 
 option(BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
+option(BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
 option(INCLUDE_YAML "Whether or not to link to the yaml-cpp library." ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
@@ -22,6 +23,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross/)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
+file(GLOB_RECURSE ASSET_MAN_SOURCE_FILES Src/AssetMan/*.cpp Src/AssetMan/*.hpp)
 
 #Adds compile options for warnings
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -104,6 +106,22 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		set_target_properties(EGameAssetGen PROPERTIES
 			CXX_STANDARD 20
 			LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
+		)
+	endif()
+	
+	if (BUILD_ASSETMAN)
+		add_executable(EGameAssetMan ${ASSET_MAN_SOURCE_FILES})
+		
+		add_dependencies(EGameAssetMan EGame)
+		target_link_libraries(EGameAssetMan PRIVATE EGame)
+		
+		target_include_directories(EGameAssetMan SYSTEM PRIVATE
+			${CMAKE_CURRENT_SOURCE_DIR}/Inc
+		)
+		
+		set_target_properties(EGameAssetMan PROPERTIES
+			CXX_STANDARD 20
+			RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}
 		)
 	endif()
 endif()
