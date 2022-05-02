@@ -788,20 +788,21 @@ namespace eg::graphics_api::vk
 	
 	GraphicsMemoryStat GetMemoryStat()
 	{
-		VmaStats vmaStats;
-		vmaCalculateStats(ctx.allocator, &vmaStats);
-		GraphicsMemoryStat stat;
-		stat.allocatedBytes = vmaStats.total.usedBytes;
-		stat.numBlocks = vmaStats.total.blockCount;
-		stat.unusedRanges = vmaStats.total.unusedRangeCount;
+		std::vector<VmaBudget> stats(ctx.memoryProperties.memoryHeapCount);
+		vmaGetHeapBudgets(ctx.allocator, stats.data());
 		
-		stat.allocatedBytesGPU = 0;
+		VmaTotalStatistics vmaStats;
+		vmaCalculateStatistics(ctx.allocator, &vmaStats);
+		GraphicsMemoryStat stat = {};
+		
 		for (uint32_t h = 0; h < ctx.memoryProperties.memoryHeapCount; h++)
 		{
 			if (ctx.memoryProperties.memoryHeaps[h].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
 			{
-				stat.allocatedBytesGPU += vmaStats.memoryHeap[h].usedBytes;
+				stat.allocatedBytesGPU += stats[h].usage;
 			}
+			stat.allocatedBytes += stats[h].usage;
+			stat.numBlocks += stats[h].statistics.blockCount;
 		}
 		
 		return stat;
