@@ -1,6 +1,6 @@
 #ifndef EG_NO_VULKAN
 #include "Common.hpp"
-#include "DSLCache.hpp"
+#include "CachedDescriptorSetLayout.hpp"
 #include "Pipeline.hpp"
 #include "Texture.hpp"
 #include "Buffer.hpp"
@@ -48,7 +48,7 @@ namespace eg::graphics_api::vk
 			if (res != nullptr)
 				res->UnRef();
 		}
-		if (!IsDSLCacheEmpty())
+		if (!CachedDescriptorSetLayout::IsCacheEmpty())
 		{
 			CheckRes(vkFreeDescriptorSets(ctx.device, pool, 1, &descriptorSet));
 		}
@@ -58,13 +58,13 @@ namespace eg::graphics_api::vk
 	DescriptorSetHandle CreateDescriptorSetP(PipelineHandle pipelineHandle, uint32_t set)
 	{
 		AbstractPipeline* pipeline = UnwrapPipeline(pipelineHandle);
-		auto [descriptorSet, pool] = AllocateDescriptorSet(pipeline->setsLayoutIndices[set]);
+		auto [descriptorSet, pool] = pipeline->setLayouts[set]->AllocateDescriptorSet();
 		
 		DescriptorSet* ds = descriptorSets.New();
 		ds->descriptorSet = descriptorSet;
 		ds->pool = pool;
 		ds->refCount = 1;
-		ds->resources.resize(GetDSLFromCache(pipeline->setsLayoutIndices[set]).maxBinding + 1, nullptr);
+		ds->resources.resize(pipeline->setLayouts[set]->MaxBinding() + 1, nullptr);
 		
 		return WrapDescriptorSet(ds);
 	}
@@ -72,25 +72,25 @@ namespace eg::graphics_api::vk
 	DescriptorSetHandle CreateDescriptorSetB(std::span<const DescriptorSetBinding> bindings)
 	{
 		std::vector<VkDescriptorSetLayoutBinding> vkBindings(bindings.size());
-		uint32_t maxBinding = 0;
 		for (size_t i = 0; i < bindings.size(); i++)
 		{
-			maxBinding = std::max(maxBinding, bindings[i].binding);
 			vkBindings[i].binding = bindings[i].binding;
 			vkBindings[i].descriptorType = TranslateBindingType(bindings[i].type);
 			vkBindings[i].descriptorCount = bindings[i].count;
-			vkBindings[i].stageFlags = TranslateShaderAccess(bindings[i].shaderAccess);
+			vkBindings[i].stageFlags = TranslateShaderStage(bindings[i].shaderAccess);
 			vkBindings[i].pImmutableSamplers = nullptr;
 		}
 		
-		size_t dslIndex = GetCachedDSLIndex(vkBindings, BindMode::DescriptorSet);
-		auto [descriptorSet, pool] = AllocateDescriptorSet(dslIndex);
+		CachedDescriptorSetLayout& dsl =
+			CachedDescriptorSetLayout::FindOrCreateNew(std::move(vkBindings), BindMode::DescriptorSet);
+		
+		auto [descriptorSet, pool] = dsl.AllocateDescriptorSet();
 		
 		DescriptorSet* ds = descriptorSets.New();
 		ds->descriptorSet = descriptorSet;
 		ds->pool = pool;
 		ds->refCount = 1;
-		ds->resources.resize(maxBinding + 1, nullptr);
+		ds->resources.resize(dsl.MaxBinding() + 1, nullptr);
 		
 		return WrapDescriptorSet(ds);
 	}

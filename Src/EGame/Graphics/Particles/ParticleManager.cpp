@@ -4,6 +4,7 @@
 #include "../../Assert.hpp"
 
 #include <bitset>
+#include <algorithm>
 #include <ctime>
 
 namespace eg

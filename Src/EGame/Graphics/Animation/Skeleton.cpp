@@ -3,6 +3,8 @@
 #include "../../Log.hpp"
 #include "../../Assert.hpp"
 
+#include <algorithm>
+
 namespace eg
 {
 	uint32_t Skeleton::AddBone(std::string name, const glm::mat4& inverseBindMatrix)

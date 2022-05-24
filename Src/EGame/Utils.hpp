@@ -5,6 +5,7 @@
 #include <vector>
 #include <string_view>
 #include <string>
+#include <algorithm>
 #include <glm/glm.hpp>
 
 #include "API.hpp"

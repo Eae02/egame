@@ -13,7 +13,7 @@ namespace eg::graphics_api::vk
 	VkFormat TranslateFormat(Format format);
 	VkCompareOp TranslateCompareOp(CompareOp op);
 	VkStencilOp TranslateStencilOp(StencilOp op);
-	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags);
+	VkPipelineStageFlags TranslateShaderPipelineStage(ShaderAccessFlags accessFlags);
 	VkShaderStageFlags TranslateShaderStage(ShaderAccessFlags accessFlags);
 	VkDescriptorType TranslateBindingType(BindingType bindingType);
 }

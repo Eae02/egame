@@ -4,8 +4,10 @@
 #include "IOUtils.hpp"
 
 #include <fstream>
-#include <zlib.h>
 #include <list>
+#include <algorithm>
+
+#include <zlib.h>
 
 namespace eg
 {

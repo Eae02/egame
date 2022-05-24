@@ -7,6 +7,8 @@
 
 namespace eg::graphics_api::vk
 {
+	class CachedDescriptorSetLayout;
+	
 	struct AbstractPipeline : public Resource
 	{
 		LinearAllocator linearAllocator;
@@ -14,7 +16,7 @@ namespace eg::graphics_api::vk
 		VkPipelineBindPoint bindPoint;
 		VkShaderStageFlags pushConstantStages;
 		VkPipelineLayout pipelineLayout;
-		size_t setsLayoutIndices[4];
+		CachedDescriptorSetLayout* setLayouts[MAX_DESCRIPTOR_SETS];
 		
 		void InitPipelineLayout(const std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS],
 			const BindMode setBindModes[MAX_DESCRIPTOR_SETS], uint32_t pushConstantBytes);

@@ -2,6 +2,7 @@
 #include "Assert.hpp"
 
 #include <map>
+#include <algorithm>
 #include <cstdlib>
 
 namespace eg

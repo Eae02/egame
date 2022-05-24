@@ -13,6 +13,7 @@ namespace eg::graphics_api::gl
 		GLuint bufferOrSampler;
 		GLsizeiptr offset;
 		GLsizeiptr range;
+		bool assigned;
 	};
 	
 	struct DescriptorSet
@@ -38,10 +39,9 @@ namespace eg::graphics_api::gl
 	{
 		const size_t extraMemory = (maxBinding + 1) * sizeof(Binding);
 		const size_t bindingsOffset = RoundToNextMultiple(sizeof(DescriptorSet), alignof(Binding));
-		char* memory = static_cast<char*>(std::malloc(bindingsOffset + extraMemory));
+		char* memory = static_cast<char*>(std::calloc(bindingsOffset + extraMemory, 1));
 		DescriptorSet* ds = new (memory) DescriptorSet;
 		
-		std::memset(memory + bindingsOffset, 0, extraMemory);
 		ds->maxBinding = maxBinding;
 		ds->bindings = reinterpret_cast<Binding*>(memory + sizeof(DescriptorSet));
 		
@@ -73,6 +73,7 @@ namespace eg::graphics_api::gl
 		set->CheckBinding(binding);
 		set->bindings[binding].textureView = UnwrapTextureView(viewHandle);
 		set->bindings[binding].bufferOrSampler = (GLuint)reinterpret_cast<uintptr_t>(sampler);
+		set->bindings[binding].assigned = true;
 	}
 	
 	void BindStorageImageDS(TextureViewHandle viewHandle, DescriptorSetHandle setHandle, uint32_t binding)
@@ -80,6 +81,7 @@ namespace eg::graphics_api::gl
 		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
 		set->CheckBinding(binding);
 		set->bindings[binding].textureView = UnwrapTextureView(viewHandle);
+		set->bindings[binding].assigned = true;
 	}
 	
 	static inline void BindBuffer(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
@@ -90,6 +92,7 @@ namespace eg::graphics_api::gl
 		set->bindings[binding].bufferOrSampler = UnwrapBuffer(buffer)->buffer;
 		set->bindings[binding].offset = static_cast<GLsizeiptr>(offset);
 		set->bindings[binding].range = static_cast<GLsizeiptr>(range);
+		set->bindings[binding].assigned = true;
 	}
 	
 	void BindUniformBufferDS(BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
@@ -106,12 +109,15 @@ namespace eg::graphics_api::gl
 	{
 		DescriptorSet* ds = UnwrapDescriptorSet(handle);
 		
-		for (const MappedBinding& binding : currentPipeline->bindings)
+		size_t curidx = currentPipeline->FindBindingsSetStartIndex(set);
+		while (curidx < currentPipeline->bindings.size() && currentPipeline->bindings[curidx].set == set)
 		{
-			if (binding.set != set)
-				continue;
+			MarkBindingAsSatisfied(curidx);
 			
+			const MappedBinding& binding = currentPipeline->bindings[curidx];
 			const Binding& dsBinding = ds->bindings[binding.binding];
+			if (!dsBinding.assigned)
+				EG_PANIC("Descriptor set binding not updated before binding descriptor set");
 			
 			switch (binding.type)
 			{
@@ -130,6 +136,8 @@ namespace eg::graphics_api::gl
 				dsBinding.textureView->BindAsStorageImage(binding.glBinding);
 				break;
 			}
+			
+			curidx++;
 		}
 	}
 }

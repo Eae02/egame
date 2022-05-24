@@ -1,5 +1,7 @@
 #include "Model.hpp"
 
+#include <algorithm>
+
 namespace eg
 {
 	void Model::Bind(CommandContext& cc, uint32_t vertexBinding) const

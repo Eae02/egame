@@ -27,29 +27,21 @@
 #define EG_MACRO_ITOS(X) _EG_MACRO_ITOS(X)
 #define _EG_MACRO_ITOS(X) #X
 
-#ifdef NDEBUG
 #include <sstream>
-#define EG_ASSERT(condition)
-#define EG_DEBUG_ASSERT(condition) if (!(condition)) {\
-	::eg::ReleasePanic("A runtime error occured\nAssertion at " __FILE__ ":" EG_MACRO_ITOS(__LINE__));\
+
+#define EG_ASSERT(condition) if (!(condition)) {\
+	::eg::detail::PanicImpl("A@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) " " #condition);\
 }
 #define EG_PANIC(msg) {\
 	std::ostringstream ps;\
-	ps << "A runtime error occured\nPanic at " __FILE__ ":" EG_MACRO_ITOS(__LINE__) "\n" << msg;\
-	::eg::ReleasePanic(ps.str());\
+	ps << "P@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) "\n" << msg;\
+	::eg::detail::PanicImpl(ps.str());\
 }
+
+#ifdef NDEBUG
+#define EG_DEBUG_ASSERT(condition) condition
 #else
-#define EG_PANIC(msg) { \
-	std::cerr << "PANIC@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) "\n" << msg << std::endl;\
-	EG_DEBUG_BREAK;\
-	std::abort();\
-}
 #define EG_DEBUG_ASSERT(condition) EG_ASSERT(condition)
-#define EG_ASSERT(condition) if (!(condition)) {\
-	std::cerr << "ASSERT@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) " " #condition << std::endl;\
-	EG_DEBUG_BREAK;\
-	std::abort();\
-}
 #endif
 
 #define EG_CONCAT_IMPL(x, y) x##y
@@ -59,5 +51,8 @@ namespace eg
 {
 	EG_API extern void (*releasePanicCallback)(const std::string& message);
 	
-	[[noreturn]] EG_API void ReleasePanic(const std::string& message);
+	namespace detail
+	{
+		[[noreturn]] EG_API void PanicImpl(const std::string& message);
+	}
 }

@@ -5,12 +5,14 @@
 #include "Buffer.hpp"
 #include "Translation.hpp"
 #include "RenderPasses.hpp"
+#include "CachedDescriptorSetLayout.hpp"
 #include "../RenderDoc.hpp"
 #include "../../Assert.hpp"
 #include "../../Core.hpp"
 
 #include <SDL_vulkan.h>
 #include <volk.h>
+#include <algorithm>
 #include <sstream>
 #include <cstring>
 
@@ -808,15 +810,13 @@ namespace eg::graphics_api::vk
 		return stat;
 	}
 	
-	void DestroyCachedDescriptorSets();
-	
 	void Shutdown()
 	{
 		vkDeviceWaitIdle(ctx.device);
 		
 		ProcessPendingInitBuffers(true);
 		
-		DestroyCachedDescriptorSets();
+		CachedDescriptorSetLayout::DestroyCached();
 		DestroySamplers();
 		DestroyRenderPasses();
 		DestroyDefaultFramebuffer();

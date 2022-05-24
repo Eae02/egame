@@ -621,7 +621,7 @@ namespace eg::graphics_api::gl
 	
 	void BindTexture(CommandContextHandle, TextureViewHandle textureView, SamplerHandle sampler, uint32_t set, uint32_t binding)
 	{
-		UnwrapTextureView(textureView)->Bind((GLuint)reinterpret_cast<uintptr_t>(sampler), ResolveBinding(set, binding));
+		UnwrapTextureView(textureView)->Bind((GLuint)reinterpret_cast<uintptr_t>(sampler), ResolveBindingForBind(set, binding));
 	}
 	
 	void Texture::LazyInitializeTextureFBO()
@@ -641,7 +641,7 @@ namespace eg::graphics_api::gl
 	
 	void BindStorageImage(CommandContextHandle, TextureViewHandle textureViewHandle, uint32_t set, uint32_t binding)
 	{
-		UnwrapTextureView(textureViewHandle)->BindAsStorageImage(ResolveBinding(set, binding));
+		UnwrapTextureView(textureViewHandle)->BindAsStorageImage(ResolveBindingForBind(set, binding));
 	}
 	
 	void CopyTextureData(CommandContextHandle, TextureHandle srcHandle, TextureHandle dstHandle,

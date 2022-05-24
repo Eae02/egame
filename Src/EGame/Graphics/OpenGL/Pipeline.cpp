@@ -4,15 +4,37 @@
 #include "../../String.hpp"
 
 #include <spirv_glsl.hpp>
+#include <algorithm>
 
 namespace eg::graphics_api::gl
 {
 	const AbstractPipeline* currentPipeline;
 	
-	uint32_t ResolveBinding(const AbstractPipeline& pipeline, uint32_t set, uint32_t binding)
+	std::vector<uint8_t> satisfiedBindings;
+	size_t remainingBindingsUnsatisfied = 0;
+	
+	void MarkBindingAsSatisfied(size_t resolvedBindingIndex)
 	{
-		auto it = std::lower_bound(pipeline.bindings.begin(), pipeline.bindings.end(), MappedBinding { set, binding });
-		return it->glBinding;
+		if (resolvedBindingIndex < satisfiedBindings.size() && !satisfiedBindings[resolvedBindingIndex])
+		{
+			satisfiedBindings[resolvedBindingIndex] = true;
+			remainingBindingsUnsatisfied--;
+		}
+	}
+	
+	void AssertAllBindingsSatisfied()
+	{
+		if (remainingBindingsUnsatisfied == 0)
+			return;
+		
+		for (size_t binding = 0; binding < satisfiedBindings.size(); binding++)
+		{
+			if (!satisfiedBindings[binding])
+			{
+				EG_PANIC("Binding not satisfied: " << currentPipeline->bindings[binding].set << "," <<
+					currentPipeline->bindings[binding].binding << "");
+			}
+		}
 	}
 	
 	void DestroyPipeline(PipelineHandle handle)
@@ -30,6 +52,10 @@ namespace eg::graphics_api::gl
 		if (pipeline == currentPipeline)
 			return;
 		currentPipeline = pipeline;
+		
+		remainingBindingsUnsatisfied = pipeline->bindings.size();
+		satisfiedBindings.resize(pipeline->bindings.size());
+		std::fill(satisfiedBindings.begin(), satisfiedBindings.end(), 0);
 		
 		glUseProgram(pipeline->program);
 		pipeline->Bind();
@@ -114,14 +140,33 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	bool AbstractPipeline::HasBinding(uint32_t set, uint32_t binding) const
+	std::optional<size_t> AbstractPipeline::FindBindingIndex(uint32_t set, uint32_t binding) const
 	{
-		for (const MappedBinding& b : bindings)
-		{
-			if (b.set == set && b.binding == binding)
-				return true;
-		}
-		return false;
+		auto it = std::lower_bound(bindings.begin(), bindings.end(), MappedBinding { set, binding });
+		if (it != bindings.end() && it->set == set && it->binding == binding)
+			return it - bindings.begin();
+		return { };
+	}
+	
+	std::optional<uint32_t> AbstractPipeline::ResolveBinding(uint32_t set, uint32_t binding) const
+	{
+		if (std::optional<size_t> bindingIndex = FindBindingIndex(set, binding))
+			return bindings[*bindingIndex].glBinding;
+		return {};
+	}
+	
+	size_t AbstractPipeline::FindBindingsSetStartIndex(uint32_t set) const
+	{
+		return std::lower_bound(bindings.begin(), bindings.end(), MappedBinding { set, 0 }) - bindings.begin();
+	}
+	
+	uint32_t ResolveBindingForBind(uint32_t set, uint32_t binding)
+	{
+		std::optional<size_t> bindingIndex = currentPipeline->FindBindingIndex(set, binding);
+		if (!bindingIndex.has_value())
+			EG_PANIC("Attempted to bind to invalid binding " << set << "," << binding);
+		MarkBindingAsSatisfied(*bindingIndex);
+		return currentPipeline->bindings[*bindingIndex].glBinding;
 	}
 	
 	static const std::pair<spirv_cross::SmallVector<spirv_cross::Resource> spirv_cross::ShaderResources::*, BindingType> bindingTypes[] =
@@ -135,6 +180,7 @@ namespace eg::graphics_api::gl
 	void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages)
 	{
 		//Detects resources used in shaders
+		std::unordered_map<uint64_t, BindingType> foundBindings;
 		for (auto [compiler, _] : shaderStages)
 		{
 			const spirv_cross::ShaderResources& resources = compiler->get_shader_resources();
@@ -144,9 +190,18 @@ namespace eg::graphics_api::gl
 				{
 					const uint32_t set = compiler->get_decoration(res.id, spv::DecorationDescriptorSet);
 					const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
-					if (!HasBinding(set, binding))
+					
+					const uint64_t key = (uint64_t)set | ((uint64_t)binding << 32ULL);
+					auto foundBindingIt = foundBindings.find(key);
+					if (foundBindingIt == foundBindings.end())
 					{
 						bindings.push_back({ set, binding, bindingType, 0 });
+						foundBindings.emplace(key, bindingType);
+					}
+					else if (foundBindingIt->second != bindingType)
+					{
+						EG_PANIC("Shader binding mismatch for " << set << "," << binding << "; used as both " <<
+							BindingTypeToString(bindingType) << " and " << BindingTypeToString(foundBindingIt->second));
 					}
 				}
 			}

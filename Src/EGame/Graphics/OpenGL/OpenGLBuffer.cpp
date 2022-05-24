@@ -237,14 +237,14 @@ namespace eg::graphics_api::gl
 		uint64_t offset, uint64_t range)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
-		glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBinding(set, binding), buffer->buffer, offset, range);
+		glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, range);
 	}
 	
 	void BindStorageBuffer(CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding,
 		uint64_t offset, uint64_t range)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
-		glBindBufferRange(GL_SHADER_STORAGE_BUFFER, ResolveBinding(set, binding), buffer->buffer, offset, range);
+		glBindBufferRange(GL_SHADER_STORAGE_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, range);
 	}
 	
 	inline void MaybeBarrierAfterSSBO(BufferUsage newUsage)

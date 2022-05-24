@@ -1,5 +1,7 @@
 #include "GLTFAnimation.hpp"
 
+#include <algorithm>
+
 using namespace nlohmann;
 
 namespace eg::asset_gen::gltf

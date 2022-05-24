@@ -8,6 +8,7 @@
 #include <glm/glm.hpp>
 #include <fstream>
 #include <memory>
+#include <algorithm>
 #include <cstring>
 #include <utf8.h>
 #include <stb_rect_pack.h>

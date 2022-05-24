@@ -3,7 +3,6 @@
 #include "RenderPasses.hpp"
 #include "ShaderModule.hpp"
 #include "Framebuffer.hpp"
-#include "DSLCache.hpp"
 #include "Translation.hpp"
 #include "Pipeline.hpp"
 #include "../../Assert.hpp"
@@ -11,6 +10,7 @@
 
 #include <spirv_cross.hpp>
 #include <iomanip>
+#include <algorithm>
 
 namespace eg::graphics_api::vk
 {

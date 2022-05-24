@@ -57,6 +57,7 @@ namespace eg::graphics_api::gl
 	
 	void DispatchCompute(CommandContextHandle, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)
 	{
+		AssertAllBindingsSatisfied();
 		glDispatchCompute(sizeX, sizeY, sizeZ);
 		ClearBarriers();
 	}

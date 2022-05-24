@@ -14,6 +14,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
+#include <algorithm>
 #include <regex>
 #include <span>
 #include <unordered_set>

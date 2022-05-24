@@ -14,6 +14,8 @@
 #include <fstream>
 #include <span>
 #include <variant>
+#include <algorithm>
+
 #include <nlohmann/json.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/gtc/matrix_transform.hpp>

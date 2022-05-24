@@ -1,6 +1,8 @@
 #include "MeshBatch.hpp"
 #include "../Assert.hpp"
 
+#include <algorithm>
+
 namespace eg
 {
 	void MeshBatch::_Add(const MeshBatch::Mesh& mesh, const IMaterial& material,

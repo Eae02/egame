@@ -5,6 +5,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <span>
+#include <algorithm>
 
 namespace eg
 {

@@ -1,6 +1,8 @@
 #include "BoneMatrixBuffer.hpp"
 #include "AnimationDriver.hpp"
 
+#include <variant>
+
 namespace eg
 {
 	static DescriptorSetBinding dsBinding(0, BindingType::StorageBuffer, ShaderAccessFlags::Vertex);
@@ -133,9 +135,9 @@ namespace eg
 				std::memcpy(dst, *matrices, range.size);
 			}
 #if __cpp_lib_shared_ptr_arrays == 201707L
-			else if (auto matrices = std::get_if<const std::shared_ptr<const glm::mat4[]>*>(&range.matrices))
+			else if (auto matricesSP = std::get_if<std::shared_ptr<const glm::mat4[]>>(&range.matrices))
 			{
-				std::memcpy(dst, (**matrices).get(), range.size);
+				std::memcpy(dst, matricesSP->get(), range.size);
 			}
 #endif
 			else if (const size_t* ownedMatricesOffset = std::get_if<size_t>(&range.matrices))

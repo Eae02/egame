@@ -735,6 +735,7 @@ namespace eg::graphics_api::gl
 	void Draw(CommandContextHandle, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
 	{
 		AssertRenderPassActive("Draw");
+		AssertAllBindingsSatisfied();
 		
 		CommitViewportAndScissor();
 		MaybeUpdateVAO(0, firstInstance);
@@ -759,6 +760,7 @@ namespace eg::graphics_api::gl
 		uint32_t firstInstance, uint32_t numInstances)
 	{
 		AssertRenderPassActive("DrawIndexed");
+		AssertAllBindingsSatisfied();
 		
 		CommitViewportAndScissor();
 		MaybeUpdateVAO(firstVertex, firstInstance);

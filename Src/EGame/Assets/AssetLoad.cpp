@@ -9,6 +9,8 @@
 #include "../Log.hpp"
 #include "../Platform/FileSystem.hpp"
 
+#include <algorithm>
+
 namespace eg
 {
 	static std::vector<AssetLoader> assetLoaders;

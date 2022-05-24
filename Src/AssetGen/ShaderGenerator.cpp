@@ -10,8 +10,10 @@
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <spirv-tools/optimizer.hpp>
+
 #include <fstream>
 #include <span>
+#include <algorithm>
 
 namespace eg::asset_gen
 {

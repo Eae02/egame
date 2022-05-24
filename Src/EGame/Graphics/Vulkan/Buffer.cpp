@@ -233,7 +233,7 @@ namespace eg::graphics_api::vk
 		case BufferUsage::StorageBufferRead:
 		case BufferUsage::StorageBufferWrite:
 		case BufferUsage::StorageBufferReadWrite:
-			return TranslateShaderAccess(shaderAccessFlags);
+			return TranslateShaderPipelineStage(shaderAccessFlags);
 		}
 		EG_UNREACHABLE
 	}

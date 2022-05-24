@@ -92,6 +92,18 @@ namespace eg
 		EG_UNREACHABLE
 	}
 	
+	std::string_view BindingTypeToString(BindingType bindingType)
+	{
+		switch (bindingType)
+		{
+			case BindingType::UniformBuffer: return "UniformBuffer";
+			case BindingType::StorageBuffer: return "StorageBuffer";
+			case BindingType::Texture: return "Texture";
+			case BindingType::StorageImage: return "StorageImage";
+		}
+		EG_UNREACHABLE
+	}
+	
 	TextureSubresource TextureSubresource::ResolveRem(uint32_t maxMipLevels, uint32_t maxArrayLayers) const
 	{
 		TextureSubresource result = *this;

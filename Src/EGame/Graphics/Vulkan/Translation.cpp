@@ -247,9 +247,9 @@ namespace eg::graphics_api::vk
 		EG_UNREACHABLE
 	}
 	
-	VkAccessFlags TranslateShaderAccess(ShaderAccessFlags accessFlags)
+	VkPipelineStageFlags TranslateShaderPipelineStage(ShaderAccessFlags accessFlags)
 	{
-		VkAccessFlags flags = 0;
+		VkPipelineStageFlags flags = 0;
 		if (HasFlag(accessFlags, ShaderAccessFlags::Vertex))
 			flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 		if (HasFlag(accessFlags, ShaderAccessFlags::Fragment))

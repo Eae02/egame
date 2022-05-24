@@ -375,6 +375,8 @@ namespace eg
 		StorageImage
 	};
 	
+	std::string_view BindingTypeToString(BindingType bindingType);
+	
 	struct DescriptorSetBinding
 	{
 		uint32_t binding;

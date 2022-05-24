@@ -258,7 +258,7 @@ namespace eg::graphics_api::vk
 		case TextureUsage::ILSWrite:
 		case TextureUsage::ILSReadWrite:
 		case TextureUsage::ShaderSample:
-			return TranslateShaderAccess(shaderAccessFlags);
+			return TranslateShaderPipelineStage(shaderAccessFlags);
 		}
 		EG_UNREACHABLE
 	}

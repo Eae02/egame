@@ -1,6 +1,8 @@
 #include "MeshBatchOrdered.hpp"
 #include "Model.hpp"
 
+#include <algorithm>
+
 namespace eg
 {
 	void MeshBatchOrdered::Begin()

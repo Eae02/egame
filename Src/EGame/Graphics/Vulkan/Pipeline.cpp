@@ -1,6 +1,6 @@
 #ifndef EG_NO_VULKAN
 #include "Pipeline.hpp"
-#include "DSLCache.hpp"
+#include "CachedDescriptorSetLayout.hpp"
 #include "ShaderModule.hpp"
 
 namespace eg::graphics_api::vk
@@ -37,22 +37,19 @@ namespace eg::graphics_api::vk
 		const BindMode* setBindModes, uint32_t pushConstantBytes)
 	{
 		//Gets descriptor set layouts for each descriptor set
-		uint32_t numDescriptorSets = 0;
-		VkDescriptorSetLayout setLayouts[MAX_DESCRIPTOR_SETS] = { };
-		for (uint32_t i = 0; i < MAX_DESCRIPTOR_SETS; i++)
+		uint32_t numDS = 0;
+		VkDescriptorSetLayout vkSetLayouts[MAX_DESCRIPTOR_SETS] = { };
+		std::fill_n(setLayouts, MAX_DESCRIPTOR_SETS, nullptr);
+		for (; numDS < MAX_DESCRIPTOR_SETS && !bindings[numDS].empty(); numDS++)
 		{
-			if (bindings[i].empty())
-				continue;
-			numDescriptorSets = i + 1;
-			const size_t cacheIdx = GetCachedDSLIndex(bindings[i], setBindModes[i]);
-			setsLayoutIndices[i] = cacheIdx;
-			setLayouts[i] = GetDSLFromCache(cacheIdx).layout;
+			setLayouts[numDS] = &CachedDescriptorSetLayout::FindOrCreateNew(bindings[numDS], setBindModes[numDS]);
+			vkSetLayouts[numDS] = setLayouts[numDS]->Layout();
 		}
 		
 		//Creates the pipeline layout
 		VkPipelineLayoutCreateInfo layoutCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		layoutCreateInfo.pSetLayouts = setLayouts;
-		layoutCreateInfo.setLayoutCount = numDescriptorSets;
+		layoutCreateInfo.pSetLayouts = vkSetLayouts;
+		layoutCreateInfo.setLayoutCount = numDS;
 		VkPushConstantRange pushConstantRange;
 		if (pushConstantBytes > 0)
 		{

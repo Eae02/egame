@@ -44,7 +44,9 @@ namespace eg::graphics_api::gl
 		std::vector<MappedBinding> bindings;
 		PipelineDescriptorSet sets[MAX_DESCRIPTOR_SETS];
 		
-		bool HasBinding(uint32_t set, uint32_t binding) const;
+		std::optional<uint32_t> ResolveBinding(uint32_t set, uint32_t binding) const;
+		std::optional<size_t> FindBindingIndex(uint32_t set, uint32_t binding) const;
+		size_t FindBindingsSetStartIndex(uint32_t set) const;
 		
 		void Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages);
 		
@@ -55,17 +57,15 @@ namespace eg::graphics_api::gl
 	
 	extern const AbstractPipeline* currentPipeline;
 	
+	void MarkBindingAsSatisfied(size_t resolvedBindingIndex);
+	void AssertAllBindingsSatisfied();
+	
 	void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::CompilerGLSL& compiler);
 	
 	void CompileShaderStage(GLuint shader, std::string_view glslCode);
 	void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeStages);
 	
-	uint32_t ResolveBinding(const AbstractPipeline& pipeline, uint32_t set, uint32_t binding);
-	
-	inline uint32_t ResolveBinding(uint32_t set, uint32_t binding)
-	{
-		return ResolveBinding(*currentPipeline, set, binding);
-	}
+	uint32_t ResolveBindingForBind(uint32_t set, uint32_t binding);
 	
 	inline AbstractPipeline* UnwrapPipeline(PipelineHandle handle)
 	{

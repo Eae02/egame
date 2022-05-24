@@ -3,6 +3,7 @@
 #include "../IOUtils.hpp"
 
 #include <fstream>
+#include <algorithm>
 
 namespace eg
 {

@@ -5,6 +5,7 @@
 #include "../Compression.hpp"
 
 #include <cstring>
+#include <algorithm>
 #include <istream>
 #include <ostream>
 

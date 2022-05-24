@@ -3,6 +3,7 @@
 #include <vector>
 #include <istream>
 #include <ostream>
+#include <algorithm>
 
 #include "../../IOUtils.hpp"
 #include "../../Assert.hpp"

@@ -5,6 +5,7 @@
 #include "Assert.hpp"
 
 #include <variant>
+#include <algorithm>
 #include <sstream>
 #include <unordered_map>
 
