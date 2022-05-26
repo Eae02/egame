@@ -43,7 +43,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(ZLIB REQUIRED)
 	find_package(Threads REQUIRED)
 	find_package(Freetype)
-	#find_package(OpenAL)
+	find_package(OpenAL)
 	
 	if (EG_INCLUDE_YAML_CPP)
 		find_package(yaml-cpp)
