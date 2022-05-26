@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.12)
 project(EGame)
 
-option(BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
-option(BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
-option(INCLUDE_YAML "Whether or not to link to the yaml-cpp library." ON)
+option(EG_BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
+option(EG_BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
+option(EG_BUILD_IMGUI "Whether or not to build imgui support library" ON)
+option(EG_INCLUDE_YAML_CPP "Whether or not to link to the yaml-cpp library." ON)
+option(EG_VULKAN "Whether or not to enable vulkan support." ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
@@ -41,16 +43,16 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(ZLIB REQUIRED)
 	find_package(Threads REQUIRED)
 	find_package(Freetype)
-	find_package(PkgConfig REQUIRED)
-	find_package(OpenAL REQUIRED)
+	#find_package(OpenAL)
 	
-	if (INCLUDE_YAML)
+	if (EG_INCLUDE_YAML_CPP)
 		find_package(yaml-cpp)
 		if (NOT ${yaml-cpp_FOUND})
 			message("Yaml-cpp was not disabled but was not found")
 		endif()
 	endif()
 	
+	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(SDL2 REQUIRED sdl2)
 	
 	target_link_libraries(EGame
@@ -63,26 +65,27 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	)
 	
 	target_include_directories(EGame PRIVATE
-		${FREETYPE_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
 		${SDL2_INCLUDE_DIRS}
-		${OPENAL_INCLUDE_DIR}
 	)
 	
+	if (NOT ${OPENAL_FOUND})
+		message(WARNING "OpenAL not found, audio support will be disabled")
+		target_compile_options(EGame PRIVATE -DEG_NO_OPENAL)
+	else()
+		target_include_directories(EGame PRIVATE ${OPENAL_INCLUDE_DIR})
+	endif()
+	
 	if (NOT ${FREETYPE_FOUND})
-		message("Freetype not found, freetype loading will be disabled")
+		message(WARNING "Freetype not found, freetype loading will be disabled")
 		target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE)
 	else()
-		target_include_directories(EGame PRIVATE
-			${FREETYPE_INCLUDE_DIRS}
-			${ZLIB_INCLUDE_DIRS}
-			${SDL2_INCLUDE_DIRS}
-		)
+		target_include_directories(EGame PRIVATE ${FREETYPE_INCLUDE_DIRS})
 	endif()
 	
 	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER} -msse4.1)
 	
-	if (BUILD_ASSETGEN)
+	if (EG_BUILD_ASSETGEN)
 		find_package(GLSLang REQUIRED)
 		find_package(nlohmann_json REQUIRED)
 		pkg_check_modules(OGG_VORBIS REQUIRED ogg vorbis vorbisfile)
@@ -109,7 +112,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		)
 	endif()
 	
-	if (BUILD_ASSETMAN)
+	if (EG_BUILD_ASSETMAN)
 		add_executable(EGameAssetMan ${ASSET_MAN_SOURCE_FILES})
 		
 		add_dependencies(EGameAssetMan EGame)
@@ -131,6 +134,38 @@ if (${yaml-cpp_FOUND})
 	target_compile_options(EGame PUBLIC -DEG_HAS_YAML_CPP)
 endif()
 
+if (${EG_BUILD_IMGUI})
+	add_library(EGameImGui STATIC
+		Deps/imgui/imgui.cpp
+		Deps/imgui/imgui_demo.cpp
+		Deps/imgui/imgui_draw.cpp
+		Deps/imgui/imgui_widgets.cpp
+		Deps/imgui/imgui_tables.cpp
+		Deps/imgui/misc/cpp/imgui_stdlib.cpp
+		Src/EGameImGui/EGameImGui.cpp
+	)
+	
+	target_compile_options(EGameImGui PUBLIC
+		-DIMGUI_USER_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/Src/EGameImGui/ImGuiConfig.hpp"
+		-DEG_HAS_IMGUI)
+	
+	target_include_directories(EGameImGui PUBLIC
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/EGameImGui/>
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/imgui/
+	)
+	
+	set_target_properties(EGameImGui PROPERTIES
+		CXX_STANDARD 20
+		ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
+	)
+	
+	add_dependencies(EGameImGui EGame)
+	target_link_libraries(EGameImGui EGame)
+	
+	add_dependencies(EGSandbox EGameImGui)
+	target_link_libraries(EGSandbox EGameImGui)
+endif()
+
 target_link_libraries(EGame
 	PRIVATE
 		spirv-cross-glsl
@@ -138,10 +173,7 @@ target_link_libraries(EGame
 		spirv-cross-core
 )
 
-target_include_directories(EGame
-	PUBLIC
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>
-)
+target_include_directories(EGame PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>)
 
 target_include_directories(EGame SYSTEM
 	PUBLIC
@@ -208,6 +240,8 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -DEG_NO_FREETYPE -s USE_ZLIB=1 -Wno-sign-conversion -Wno-shorten-64-to-32)
 	set_target_properties(EGame PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
 	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
+elseif(NOT ${EG_VULKAN})
+	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN)
 endif()
 
 export(TARGETS EGame FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)

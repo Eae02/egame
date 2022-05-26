@@ -2,9 +2,12 @@
 #include <EGame/Graphics/PBR/BRDFIntegrationMap.hpp>
 #include <glm/gtx/matrix_transform_2d.hpp>
 
-class Game : public eg::IGame
+#ifdef EG_HAS_IMGUI
+#include <EGameImGui.hpp>
+#endif
+
+struct Game : public eg::IGame
 {
-public:
 	Game()
 	{
 		if (!eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/"))
@@ -16,6 +19,9 @@ public:
 		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").DefaultVariant();
 		m_pipeline = eg::Pipeline::Create(pipelineCI);
 		m_pipeline.FramebufferFormatHint(eg::Format::DefaultColor, eg::Format::DefaultDepthStencil);
+#ifdef EG_HAS_IMGUI
+		eg::imgui::Initialize(eg::imgui::InitializeArgs());
+#endif
 	}
 	
 	void RunFrame(float dt) override
@@ -37,10 +43,14 @@ public:
 		
 		eg::DC.EndRenderPass();
 		
-		m_rotation += dt;
+#ifdef EG_HAS_IMGUI
+		ImGui::SliderFloat("Rotation Speed", &m_rotationSpeed, -2.0f, 2.0f);
+#endif
+		
+		m_rotation += dt * m_rotationSpeed;
 	}
 	
-private:
+	float m_rotationSpeed = 1.0f;
 	float m_rotation = 0.0f;
 	eg::Pipeline m_pipeline;
 };

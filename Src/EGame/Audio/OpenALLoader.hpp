@@ -1,5 +1,6 @@
 #pragma once
 
+#ifndef EG_NO_OPENAL
 #ifdef __EMSCRIPTEN__
 #include <AL/al.h>
 #include <AL/alc.h>
@@ -32,3 +33,16 @@ namespace eg::al
 	
 	bool LoadOpenAL();
 }
+#else
+namespace eg::al
+{
+	template <typename... Args> void GenBuffers(Args...) { }
+	template <typename... Args> void DeleteBuffers(Args...) { }
+	template <typename... Args> void GenSources(Args...) { }
+	template <typename... Args> void DeleteSources(Args...) { }
+	template <typename... Args> void SourcePlay(Args...) { }
+	template <typename... Args> void SourcePause(Args...) { }
+	
+	inline bool LoadOpenAL() { return false; }
+}
+#endif

@@ -1,3 +1,4 @@
+#ifndef EG_NO_OPENAL
 #include "OpenALLoader.hpp"
 #include "../Platform/DynamicLibrary.hpp"
 #include "../Log.hpp"
@@ -83,3 +84,4 @@ namespace eg::al
 		return true;
 	}
 }
+#endif

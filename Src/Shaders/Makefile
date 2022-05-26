@@ -3,7 +3,7 @@ FLAGS=-V -l
 
 SHADERS=Sprite.fs Sprite.vs Gizmo.fs Gizmo.vs Bloom.vs BloomBrightPass.fs BloomBlurX.fs BloomBlurY.fs \
 Fullscreen_TCFlip.vs Fullscreen_TCNoFlip.vs Fullscreen_TCNone.vs BRDFIntegration.cs SPFMapGenerator.cs \
-IrradianceMapGenerator.cs Inc/Deferred.glh Inc/EGame.glh
+IrradianceMapGenerator.cs ImGui.fs ImGui.vs Inc/Deferred.glh Inc/EGame.glh
 
 all: $(addprefix Build/, $(addsuffix .h, $(SHADERS)))
 

@@ -105,6 +105,8 @@ namespace eg
 		
 		static ShaderModule CreateFromFile(const std::string& path);
 		
+		void Destroy() { m_handle.reset(); }
+		
 		/**
 		 * Gets the GAL handle for this shader module.
 		 */

@@ -38,6 +38,9 @@ namespace eg
 	std::vector<FullscreenDisplayMode> detail::fullscreenDisplayModes;
 	int64_t detail::nativeDisplayModeIndex = -1;
 	
+	void(*detail::imguiBeginFrame)(float dt);
+	void(*detail::imguiEndFrame)();
+	
 	extern bool createAssetPackage;
 	extern bool disableAssetPackageCompression;
 	
@@ -151,7 +154,13 @@ namespace eg
 		
 		SpriteBatch::overlay.Reset();
 		
+		if (detail::imguiBeginFrame)
+			detail::imguiBeginFrame(dt);
+		
 		game.RunFrame(dt);
+		
+		if (detail::imguiEndFrame)
+			detail::imguiEndFrame();
 		
 		if (profilerPane)
 		{

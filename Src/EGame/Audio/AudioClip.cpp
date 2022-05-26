@@ -10,9 +10,11 @@ namespace eg
 	{
 		if (alInitialized)
 		{
+#ifndef EG_NO_OPENAL
 			al::GenBuffers(1, &m_id);
 			al::BufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(),
 			               (ALsizei)data.size_bytes(), (ALsizei)frequency);
+#endif
 		}
 	}
 	

@@ -20,3 +20,7 @@
 [submodule "Deps/utfcpp"]
 	path = Deps/utfcpp
 	url = https://github.com/ledger/utfcpp.git
+[submodule "Deps/imgui"]
+	path = Deps/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking

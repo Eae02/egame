@@ -79,6 +79,9 @@ namespace eg
 		extern EG_API std::vector<FullscreenDisplayMode> fullscreenDisplayModes;
 		extern EG_API int64_t nativeDisplayModeIndex;
 		
+		extern EG_API void(*imguiBeginFrame)(float dt);
+		extern EG_API void(*imguiEndFrame)();
+		
 		void ButtonDownEvent(Button button, bool isRepeat);
 		void ButtonUpEvent(Button button, bool isRepeat);
 	}
