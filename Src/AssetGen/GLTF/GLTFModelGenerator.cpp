@@ -1,7 +1,7 @@
 #include "../../EGame/Assets/ModelAsset.hpp"
 #include "../../EGame/Assets/AssetGenerator.hpp"
 #include "../../EGame/Graphics/StdVertex.hpp"
-#include "../../EGame/Graphics/TangentGen.hpp"
+#include "../../EGame/Graphics/NormalTangentGen.hpp"
 #include "../../EGame/Log.hpp"
 #include "../../EGame/IOUtils.hpp"
 #include "../../EGame/Compression.hpp"
@@ -353,6 +353,8 @@ namespace eg::asset_gen::gltf
 				}
 			}
 		}
+		
+		//TODO: Generate tangents
 		
 		mesh.boundingSphere = eg::Sphere::CreateEnclosing(std::span<const glm::vec3>(points.get(), numVertices));
 		mesh.boundingBox = eg::AABB::CreateEnclosing(std::span<const glm::vec3>(points.get(), numVertices));

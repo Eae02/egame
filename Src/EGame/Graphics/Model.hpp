@@ -248,7 +248,4 @@ namespace eg
 	private:
 		ModelBuilderUnformatted m_builder;
 	};
-	
-	EG_API void GenerateTangents(std::span<const uint32_t> indices, size_t numVertices, const glm::vec3* positions,
-		const glm::vec2* texCoords, const glm::vec3* normals, glm::vec3* tangentsOut);
 }

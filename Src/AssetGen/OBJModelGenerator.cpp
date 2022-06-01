@@ -1,7 +1,7 @@
 #include "../EGame/Assets/ModelAsset.hpp"
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Graphics/StdVertex.hpp"
-#include "../EGame/Graphics/TangentGen.hpp"
+#include "../EGame/Graphics/NormalTangentGen.hpp"
 #include "../EGame/Log.hpp"
 #include "../EGame/IOUtils.hpp"
 
@@ -274,16 +274,17 @@ namespace eg::asset_gen
 				}
 				
 				//Generates tangents for the vertices
-				GenerateTangents(vertices.size(), indices.size(),
+				std::unique_ptr<glm::vec3[]> tangents = GenerateTangents<uint32_t>(indices, vertices.size(),
 					[&] (size_t i) { return positions[verticesP[i].position]; },
 					[&] (size_t i) { return texCoords[verticesP[i].texCoord]; },
-					[&] (size_t i) { return normals[verticesP[i].normal]; },
-					[&] (size_t i) { return indices[i]; },
-					[&] (size_t i, const glm::vec3& tangent)
-					{
-						for (int j = 0; j < 3; j++)
-							vertices[i].tangent[j] = FloatToSNorm(tangent[j]);
-					});
+					[&] (size_t i) { return normals[verticesP[i].normal]; }
+				);
+				for (size_t v = 0; v < vertices.size(); v++)
+				{
+					for (int j = 0; j < 3; j++)
+						vertices[v].tangent[j] = FloatToSNorm(tangents[v][j]);
+				}
+				
 				writer.WriteMesh(vertices, indices, object.name, access,
 					 Sphere::CreateEnclosing(positions),
 					 AABB::CreateEnclosing(positions),
