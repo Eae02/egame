@@ -274,7 +274,7 @@ namespace eg::asset_gen
 				}
 				
 				//Generates tangents for the vertices
-				std::unique_ptr<glm::vec3[]> tangents = GenerateTangents<uint32_t>(indices, vertices.size(),
+				std::unique_ptr<glm::vec3[], FreeDel> tangents = GenerateTangents<uint32_t>(indices, vertices.size(),
 					[&] (size_t i) { return positions[verticesP[i].position]; },
 					[&] (size_t i) { return texCoords[verticesP[i].texCoord]; },
 					[&] (size_t i) { return normals[verticesP[i].normal]; }

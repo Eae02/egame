@@ -37,6 +37,8 @@ namespace eg
 		
 		void SetView(const glm::vec3& position, const glm::vec3& lookAt);
 		
+		float speed = 1.0f;
+		
 	private:
 		float m_yaw = 0.0f;
 		float m_pitch = 0.0f;

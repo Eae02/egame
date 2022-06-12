@@ -3,14 +3,16 @@
 #include <cstdlib>
 #include <memory>
 
+#include "../Utils.hpp"
+
 namespace eg
 {
 	template <typename IndexT, typename GetPosT, typename GetTexCoordT, typename GetNormalT>
-	std::unique_ptr<glm::vec3[]> GenerateTangents(
+	std::unique_ptr<glm::vec3[], FreeDel> GenerateTangents(
 		std::span<const IndexT> indices,
 		size_t numVertices, GetPosT getVertexPos, GetTexCoordT getVertexTexCoord, GetNormalT getVertexNormal)
 	{
-		std::unique_ptr<glm::vec3[]> tangents(static_cast<glm::vec3*>(std::calloc(sizeof(glm::vec3), numVertices * 2)));
+		std::unique_ptr<glm::vec3[], FreeDel> tangents(static_cast<glm::vec3*>(std::calloc(sizeof(glm::vec3), numVertices * 2)));
 		for (size_t i = 0; i < indices.size(); i += 3)
 		{
 			const glm::vec3 dp0 = getVertexPos(indices[i+1]) - getVertexPos(indices[i]);
@@ -52,9 +54,9 @@ namespace eg
 	}
 	
 	template <typename IndexT, typename GetPosT>
-	std::unique_ptr<glm::vec3[]> GenerateNormals(std::span<const IndexT> indices, size_t numVertices, GetPosT getVertexPos)
+	std::unique_ptr<glm::vec3[], FreeDel> GenerateNormals(std::span<const IndexT> indices, size_t numVertices, GetPosT getVertexPos)
 	{
-		std::unique_ptr<glm::vec3[]> normals(static_cast<glm::vec3*>(std::calloc(sizeof(glm::vec3), numVertices)));
+		std::unique_ptr<glm::vec3[], FreeDel> normals(static_cast<glm::vec3*>(std::calloc(sizeof(glm::vec3), numVertices)));
 		for (size_t i = 0; i < indices.size(); i += 3)
 		{
 			const glm::vec3 dp0 = getVertexPos(indices[i+1]) - getVertexPos(indices[i]);
@@ -71,11 +73,11 @@ namespace eg
 	}
 	
 	template <typename IndexT, typename GetPosT, typename GetTexCoordT>
-	std::array<std::unique_ptr<glm::vec3[]>, 2> GenerateNormalsAndTangents(
+	std::array<std::unique_ptr<glm::vec3[], FreeDel>, 2> GenerateNormalsAndTangents(
 		std::span<const IndexT> indices, size_t numVertices, GetPosT getVertexPos, GetTexCoordT getVertexTexCoord)
 	{
-		std::unique_ptr<glm::vec3[]> normals = GenerateNormals(indices, numVertices, getVertexPos);
-		std::unique_ptr<glm::vec3[]> tangents = GenerateTangents(indices, numVertices, getVertexPos, getVertexTexCoord, [&] (size_t v) { return normals[v]; });
+		std::unique_ptr<glm::vec3[], FreeDel> normals = GenerateNormals(indices, numVertices, getVertexPos);
+		std::unique_ptr<glm::vec3[], FreeDel> tangents = GenerateTangents(indices, numVertices, getVertexPos, getVertexTexCoord, [&] (size_t v) { return normals[v]; });
 		return { normals, tangents };
 	}
 }

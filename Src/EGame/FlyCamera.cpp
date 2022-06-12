@@ -46,7 +46,7 @@ namespace eg
 		
 		m_velocity -= m_velocity * std::min(dt * DRAG_PER_SEC, 1.0f);
 		
-		m_position += m_velocity * dt;
+		m_position += m_velocity * dt * speed;
 		
 		m_viewMatrix = invRotation * glm::translate(glm::mat4(1.0f), -m_position);
 		m_invViewMatrix = glm::translate(glm::mat4(1.0f), m_position) * rotation;
