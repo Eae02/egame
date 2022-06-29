@@ -275,7 +275,7 @@ namespace eg::graphics_api::vk
 			pipeline->vertexAttribs[numVertexAttribs].binding = attribIn.binding;
 			pipeline->vertexAttribs[numVertexAttribs].offset = attribIn.offset;
 			pipeline->vertexAttribs[numVertexAttribs].location = a;
-			pipeline->vertexAttribs[numVertexAttribs].format = GetAttribFormat(attribIn.type, attribIn.components);
+			pipeline->vertexAttribs[numVertexAttribs].format = TranslateFormat(attribIn.format);
 			numVertexAttribs++;
 		}
 		

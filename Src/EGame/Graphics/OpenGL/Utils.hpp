@@ -8,13 +8,28 @@
 
 namespace eg::graphics_api::gl
 {
-	GLenum TranslateFormat(Format format);
+	GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure = false);
 	GLenum TranslateDataType(DataType type);
 	GLenum TranslateStencilOp(StencilOp stencilOp);
 	GLenum TranslateCompareOp(CompareOp compareOp);
 	GLenum Translate(BlendFunc f);
 	GLenum Translate(BlendFactor f);
 	GLenum Translate(Topology t);
+	
+	enum class GLVertexAttribMode
+	{
+		Other,
+		Norm,
+		Int,
+	};
+	
+	struct GLVertexAttribFormat
+	{
+		GLint size;
+		GLenum type;
+		GLVertexAttribMode mode;
+	};
+	GLVertexAttribFormat TranslateFormatForVertexAttribute(Format format, bool returnZeroOnFailure = false);
 	
 	std::optional<UniformType> GetUniformType(GLenum glType);
 	
@@ -31,6 +46,17 @@ namespace eg::graphics_api::gl
 	
 #ifdef EG_GLES
 	constexpr bool useGLESPath = true;
+	
+	struct GLESFormatSupport
+	{
+		bool floatColorBuffer;
+		bool floatLinearFiltering;
+		bool floatBlend;
+		bool compressedS3TC;
+		bool compressedS3TCSRGB;
+	};
+	
+	extern GLESFormatSupport glesFormatSupport;
 #else
 	extern bool useGLESPath;
 #endif

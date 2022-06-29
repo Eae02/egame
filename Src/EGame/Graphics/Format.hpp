@@ -2,6 +2,7 @@
 
 #include "../API.hpp"
 #include "../Color.hpp"
+#include "../Utils.hpp"
 
 #include <cstdint>
 #include <variant>
@@ -15,41 +16,65 @@ namespace eg
 		Undefined,
 		DefaultColor,
 		DefaultDepthStencil,
+		R8_SNorm,
 		R8_UNorm,
 		R8_UInt,
 		R8_SInt,
+		R16_UNorm,
+		R16_SNorm,
 		R16_UInt,
 		R16_SInt,
 		R16_Float,
 		R32_UInt,
 		R32_SInt,
 		R32_Float,
+		
 		R8G8_UNorm,
+		R8G8_SNorm,
 		R8G8_UInt,
 		R8G8_SInt,
+		R16G16_UNorm,
+		R16G16_SNorm,
 		R16G16_UInt,
 		R16G16_SInt,
 		R16G16_Float,
 		R32G32_UInt,
 		R32G32_SInt,
 		R32G32_Float,
+		
+		R8G8B8_UNorm,
+		R8G8B8_SNorm,
+		R8G8B8_UInt,
+		R8G8B8_SInt,
 		R8G8B8_sRGB,
+		R16G16B16_UNorm,
+		R16G16B16_SNorm,
 		R16G16B16_UInt,
 		R16G16B16_SInt,
 		R16G16B16_Float,
 		R32G32B32_UInt,
 		R32G32B32_SInt,
 		R32G32B32_Float,
+		
 		R8G8B8A8_sRGB,
 		R8G8B8A8_UNorm,
+		R8G8B8A8_SNorm,
 		R8G8B8A8_UInt,
 		R8G8B8A8_SInt,
+		R16G16B16A16_UNorm,
+		R16G16B16A16_SNorm,
 		R16G16B16A16_UInt,
 		R16G16B16A16_SInt,
 		R16G16B16A16_Float,
 		R32G32B32A32_UInt,
 		R32G32B32A32_SInt,
 		R32G32B32A32_Float,
+		
+		A2R10G10B10_UInt,
+		A2R10G10B10_SInt,
+		A2R10G10B10_UNorm,
+		A2R10G10B10_SNorm,
+		
 		BC1_RGBA_UNorm,
 		BC1_RGBA_sRGB,
 		BC1_RGB_UNorm,
@@ -67,6 +92,7 @@ namespace eg
 	enum class FormatTypes
 	{
 		UNorm,
+		SNorm,
 		UInt,
 		SInt,
 		Float,
@@ -103,4 +129,32 @@ namespace eg
 		SInt16,
 		SInt32
 	};
+	
+	namespace detail
+	{
+		EG_API extern const Format formatFromDataTypeAndComponentCount[11][4];
+	}
+	
+	inline Format FormatFromDataTypeAndComponentCount(DataType dataType, uint32_t numComponents)
+	{
+		if (numComponents == 0 || numComponents > 4)
+			return Format::Undefined;
+		return detail::formatFromDataTypeAndComponentCount[(int)dataType][numComponents - 1];
+	}
+	
+	enum class FormatCapabilities
+	{
+		SampledImage             = 0x1,
+		SampledImageFilterLinear = 0x2,
+		StorageImage             = 0x4,
+		StorageImageAtomic       = 0x8,
+		ColorAttachment          = 0x10,
+		ColorAttachmentBlend     = 0x20,
+		DepthStencilAttachment   = 0x40,
+		VertexAttribute          = 0x80,
+	};
+	
+	EG_API extern const std::string_view FormatCapabilityNames[8];
+	
+	EG_BIT_FIELD(FormatCapabilities)
 }

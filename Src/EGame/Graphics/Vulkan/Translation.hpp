@@ -6,7 +6,6 @@
 
 namespace eg::graphics_api::vk
 {
-	VkFormat GetAttribFormat(DataType dataType, uint32_t components);
 	VkBlendOp TranslateBlendFunc(BlendFunc blendFunc);
 	VkBlendFactor TranslateBlendFactor(BlendFactor blendFactor);
 	VkCullModeFlags TranslateCullMode(CullMode mode);

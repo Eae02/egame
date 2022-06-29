@@ -95,6 +95,80 @@ namespace eg::graphics_api::gl
 		PlatformSpecificGetDeviceInfo(deviceInfo);
 	}
 	
+	FormatCapabilities GetFormatCapabilities(Format format)
+	{
+		FormatCapabilities capabilities = (FormatCapabilities)0;
+		
+		if (TranslateFormatForVertexAttribute(format, true).size != 0)
+			capabilities |= FormatCapabilities::VertexAttribute;
+		
+		if (GLenum textureFormat = TranslateFormatForTexture(format, true))
+		{
+#ifdef EG_GLES
+			switch (GetFormatType(format))
+			{
+			case FormatTypes::DepthStencil:
+				capabilities |= FormatCapabilities::SampledImage | FormatCapabilities::DepthStencilAttachment;
+				break;
+			case FormatTypes::Float:
+				capabilities |= FormatCapabilities::SampledImage;
+				if (glesFormatSupport.floatColorBuffer)
+					capabilities |= FormatCapabilities::ColorAttachment;
+				if (glesFormatSupport.floatLinearFiltering)
+					capabilities |= FormatCapabilities::SampledImageFilterLinear;
+				if (glesFormatSupport.floatBlend)
+					capabilities |= FormatCapabilities::ColorAttachmentBlend;
+				break;
+			default:
+				bool supported = true;
+				if (IsCompressedFormat(format))
+				{
+					supported = supported && glesFormatSupport.compressedS3TC;
+					if (IsSRGBFormat(format))
+						supported = supported && glesFormatSupport.compressedS3TCSRGB;
+				}
+				if (supported)
+				{
+					capabilities |= FormatCapabilities::SampledImage | FormatCapabilities::SampledImageFilterLinear |
+						FormatCapabilities::ColorAttachment | FormatCapabilities::ColorAttachmentBlend;
+				}
+				break;
+			}
+#else
+			auto GetFormatParameter = [&] (GLenum pname, GLenum target = GL_TEXTURE_2D)
+			{
+				GLint value;
+				glGetInternalformativ(target, textureFormat, pname, sizeof(value), &value);
+				return value;
+			};
+			
+			capabilities |= FormatCapabilities::SampledImage;
+			
+			if (GetFormatParameter(GL_FILTER))
+				capabilities |= FormatCapabilities::SampledImageFilterLinear;
+			
+			if (GetFormatParameter(GL_FRAMEBUFFER_RENDERABLE))
+			{
+				if (GetFormatParameter(GL_COLOR_RENDERABLE))
+					capabilities |= FormatCapabilities::ColorAttachment;
+				if (GetFormatParameter(GL_DEPTH_RENDERABLE))
+					capabilities |= FormatCapabilities::DepthStencilAttachment;
+				if (GetFormatParameter(GL_FRAMEBUFFER_BLEND))
+					capabilities |= FormatCapabilities::ColorAttachmentBlend;
+			}
+			
+			if (GetFormatParameter(GL_SHADER_IMAGE_LOAD) && GetFormatParameter(GL_SHADER_IMAGE_STORE))
+			{
+				capabilities |= FormatCapabilities::StorageImage;
+				if (GetFormatParameter(GL_SHADER_IMAGE_ATOMIC))
+					capabilities |= FormatCapabilities::StorageImageAtomic;
+			}
+#endif
+		}
+		
+		return capabilities;
+	}
+	
 	void BeginFrame()
 	{
 		GetDrawableSize(drawableWidth, drawableHeight);

@@ -1,6 +1,9 @@
+#ifdef XM_ABSCALLBACK
+
 XM_ABSCALLBACK(GetDrawableSize, void, (int& width, int& height))
 XM_ABSCALLBACK(GetDeviceNames, std::span<std::string>, ())  
 XM_ABSCALLBACK(GetDeviceInfo, void, (GraphicsDeviceInfo& deviceInfo))
+XM_ABSCALLBACK(GetFormatCapabilities, FormatCapabilities, (Format format))
 XM_ABSCALLBACK(EndLoading, void, ())
 XM_ABSCALLBACK(IsLoadingComplete, bool, ())
 XM_ABSCALLBACK(BeginFrame, void, ())
@@ -91,3 +94,5 @@ XM_ABSCALLBACK(EndQuery, void, (CommandContextHandle cctx, QueryPoolHandle query
 XM_ABSCALLBACK(DebugLabelBegin, void, (CommandContextHandle ctx, const char* label, const float* color))
 XM_ABSCALLBACK(DebugLabelEnd, void, (CommandContextHandle ctx))
 XM_ABSCALLBACK(DebugLabelInsert, void, (CommandContextHandle ctx, const char* label, const float* color))
+
+#endif

@@ -782,6 +782,35 @@ namespace eg::graphics_api::vk
 		std::copy_n(ctx.deviceLimits.maxComputeWorkGroupSize, 3, deviceInfo.maxComputeWorkGroupSize);
 	}
 	
+	static const std::pair<VkFormatFeatureFlags, FormatCapabilities> imageFormatCapabilities[] = 
+	{
+		{ VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,               FormatCapabilities::SampledImage },
+		{ VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT, FormatCapabilities::SampledImageFilterLinear },
+		{ VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT,               FormatCapabilities::StorageImage },
+		{ VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT,        FormatCapabilities::StorageImageAtomic },
+		{ VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT,            FormatCapabilities::ColorAttachment },
+		{ VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT,      FormatCapabilities::ColorAttachmentBlend },
+		{ VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,    FormatCapabilities::DepthStencilAttachment },
+	};
+	
+	FormatCapabilities GetFormatCapabilities(Format format)
+	{
+		VkFormatProperties formatProperties;
+		vkGetPhysicalDeviceFormatProperties(ctx.physDevice, TranslateFormat(format), &formatProperties);
+		
+		FormatCapabilities capabilities = (FormatCapabilities)0;
+		if (formatProperties.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT)
+			capabilities |= FormatCapabilities::VertexAttribute;
+		
+		for (auto [vkCapability, capability] : imageFormatCapabilities)
+		{
+			if (formatProperties.optimalTilingFeatures & vkCapability)
+				capabilities |= capability;
+		}
+		
+		return capabilities;
+	}
+	
 	void SetEnableVSync(bool enableVSync)
 	{
 		ctx.presentMode = SelectPresentMode(enableVSync);

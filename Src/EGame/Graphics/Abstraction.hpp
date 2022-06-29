@@ -240,13 +240,14 @@ namespace eg
 	struct VertexAttribute
 	{
 		uint32_t binding = UINT32_MAX; //If binding is UINT32_MAX, the attribute is disabled
-		DataType type = (DataType)0;
-		uint32_t components = 0;
+		Format   format = Format::Undefined;
 		uint32_t offset = 0;
 		
 		VertexAttribute() = default;
+		VertexAttribute(uint32_t _binding, Format _format, uint32_t _offset)
+			: binding(_binding), format(_format), offset(_offset) { }
 		VertexAttribute(uint32_t _binding, DataType _type, uint32_t _components, uint32_t _offset)
-			: binding(_binding), type(_type), components(_components), offset(_offset) { }
+			: binding(_binding), format(FormatFromDataTypeAndComponentCount(_type, _components)), offset(_offset) { }
 	};
 	
 	enum class BindMode : uint8_t

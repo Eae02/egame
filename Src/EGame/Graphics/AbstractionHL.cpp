@@ -5,6 +5,7 @@
 #include "../Assert.hpp"
 #include "../IOUtils.hpp"
 
+#include <sstream>
 #include <fstream>
 
 namespace eg
@@ -154,5 +155,23 @@ namespace eg
 	void DestroyUploadBuffers()
 	{
 		uploadBuffers.clear();
+	}
+	
+	void AssertFormatSupport(Format format, FormatCapabilities capabilities)
+	{
+		FormatCapabilities supportedCapabilities = gal::GetFormatCapabilities(format);
+		if ((capabilities & supportedCapabilities) != capabilities)
+		{
+			std::ostringstream messageStream;
+			messageStream << "Your graphics card (" << detail::graphicsDeviceInfo.deviceName << ") is not supported\n";
+			messageStream << "Required capabilities are not available for " << FormatToString(format) << ":";
+			for (uint32_t i = 0; i < std::size(FormatCapabilityNames); i++)
+			{
+				FormatCapabilities mask = (FormatCapabilities)(1U << i);
+				if (HasFlag(capabilities, mask) && !HasFlag(supportedCapabilities, mask))
+					messageStream << " " << FormatCapabilityNames[i];
+			}
+			detail::PanicImpl(messageStream.str());
+		}
 	}
 }

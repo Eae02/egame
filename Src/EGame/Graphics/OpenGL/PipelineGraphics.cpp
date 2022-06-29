@@ -50,6 +50,14 @@ namespace eg::graphics_api::gl
 		output.reference = input.reference;
 	}
 	
+	struct VertexAttribData
+	{
+		uint32_t attribIndex; //vertex attributes are sorted by binding, so need to store the original attribute index.
+		uint32_t binding;
+		uint32_t dataOffset;
+		GLVertexAttribFormat format;
+	};
+	
 	struct GraphicsPipeline : AbstractPipeline
 	{
 		uint32_t numShaderModules;
@@ -73,11 +81,10 @@ namespace eg::graphics_api::gl
 		BlendState blend[8];
 		float blendConstants[4];
 		ColorWriteMask colorWriteMasks[8];
-		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
-		VertexAttribute vertexAttribs[MAX_VERTEX_ATTRIBUTES];
 		
+		VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 		uint32_t numActiveVertexAttribs;
-		uint32_t activeVertexAttribsSortedByBinding[MAX_VERTEX_ATTRIBUTES];
+		VertexAttribData vertexAttribs[MAX_VERTEX_ATTRIBUTES];
 		
 		void Free() override;
 		
@@ -105,15 +112,6 @@ namespace eg::graphics_api::gl
 		" [TCS]",
 		" [TES]",
 		" [CS]"
-	};
-	
-	const static DataType intDataTypes[] = {
-		DataType::UInt8, DataType::UInt16, DataType::UInt32,
-		DataType::SInt8, DataType::SInt16, DataType::SInt32
-	};
-	
-	const static DataType normDataTypes[] = {
-		DataType::UInt8Norm, DataType::UInt16Norm, DataType::SInt8Norm, DataType::SInt16Norm
 	};
 	
 	PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
@@ -212,59 +210,54 @@ namespace eg::graphics_api::gl
 		glGenVertexArrays(1, &pipeline->vertexArray);
 		glBindVertexArray(pipeline->vertexArray);
 		
-		std::copy_n(createInfo.vertexAttributes, MAX_VERTEX_ATTRIBUTES, pipeline->vertexAttribs);
 		std::copy_n(createInfo.vertexBindings, MAX_VERTEX_BINDINGS, pipeline->vertexBindings);
 		
 		pipeline->numActiveVertexAttribs = 0;
 		for (uint32_t i = 0; i < MAX_VERTEX_ATTRIBUTES; i++)
 		{
-			if (pipeline->vertexAttribs[i].binding != UINT32_MAX)
+			uint32_t binding = createInfo.vertexAttributes[i].binding;
+			if (binding == UINT32_MAX)
+				continue;
+			
+			GLVertexAttribFormat format = TranslateFormatForVertexAttribute(createInfo.vertexAttributes[i].format);
+			
+			pipeline->vertexAttribs[pipeline->numActiveVertexAttribs++] = VertexAttribData
 			{
-				pipeline->activeVertexAttribsSortedByBinding[pipeline->numActiveVertexAttribs] = i;
-				pipeline->numActiveVertexAttribs++;
-				glEnableVertexAttribArray(i);
+				.attribIndex = i,
+				.binding = createInfo.vertexAttributes[i].binding,
+				.dataOffset = createInfo.vertexAttributes[i].offset,
+				.format = format
+			};
+			
+			glEnableVertexAttribArray(i);
+			
+			if (!useGLESPath)
+			{
+				glVertexAttribBinding(i, binding);
+				
+				if (format.mode == GLVertexAttribMode::Int)
+				{
+					glVertexAttribIFormat(i, format.size, format.type, createInfo.vertexAttributes[i].offset);
+				}
+				else
+				{
+					glVertexAttribFormat(i, format.size, format.type, format.mode == GLVertexAttribMode::Norm,
+					                     createInfo.vertexAttributes[i].offset);
+				}
 			}
 		}
 		
 		std::stable_sort(
-			pipeline->activeVertexAttribsSortedByBinding,
-			pipeline->activeVertexAttribsSortedByBinding + pipeline->numActiveVertexAttribs,
-			[&] (uint32_t a, uint32_t b) { return pipeline->vertexAttribs[a].binding < pipeline->vertexAttribs[b].binding; }
+			pipeline->vertexAttribs,
+			pipeline->vertexAttribs + pipeline->numActiveVertexAttribs,
+			[&] (const VertexAttribData& a, const VertexAttribData& b) { return a.binding < b.binding; }
 		);
 		
-		if (!useGLESPath)
+		for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
 		{
-			for (uint32_t i = 0; i < MAX_VERTEX_ATTRIBUTES; i++)
+			if (createInfo.vertexBindings[i].stride != UINT32_MAX)
 			{
-				uint32_t binding = createInfo.vertexAttributes[i].binding;
-				if (binding == UINT32_MAX)
-					continue;
-				
-				glEnableVertexAttribArray(i);
-				glVertexAttribBinding(i, binding);
-				
-				DataType type = createInfo.vertexAttributes[i].type;
-				GLenum glType = TranslateDataType(type);
-				
-				if (eg::Contains(intDataTypes, type))
-				{
-					glVertexAttribIFormat(i, createInfo.vertexAttributes[i].components,
-					                      glType, createInfo.vertexAttributes[i].offset);
-				}
-				else
-				{
-					auto normalized = static_cast<GLboolean>(eg::Contains(normDataTypes, type));
-					glVertexAttribFormat(i, createInfo.vertexAttributes[i].components,
-					                     glType, normalized, createInfo.vertexAttributes[i].offset);
-				}
-			}
-			
-			for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
-			{
-				if (createInfo.vertexBindings[i].stride != UINT32_MAX)
-				{
-					glVertexBindingDivisor(i, (GLuint)createInfo.vertexBindings[i].inputRate);
-				}
+				glVertexBindingDivisor(i, (GLuint)createInfo.vertexBindings[i].inputRate);
 			}
 		}
 		
@@ -663,43 +656,34 @@ namespace eg::graphics_api::gl
 		if (useGLESPath)
 		{
 			uint32_t binding = UINT32_MAX;
-			for (uint32_t i = 0; i < pipeline->numActiveVertexAttribs; i++)
+			std::for_each_n(pipeline->vertexAttribs, pipeline->numActiveVertexAttribs, [&] (const VertexAttribData& attrib)
 			{
-				uint32_t attrib = pipeline->activeVertexAttribsSortedByBinding[i];
-				
-				if (binding != pipeline->vertexAttribs[attrib].binding)
+				if (binding != attrib.binding)
 				{
-					binding = pipeline->vertexAttribs[attrib].binding;
+					binding = attrib.binding;
 					glBindBuffer(GL_ARRAY_BUFFER, vertexBuffers[binding].first);
 				}
 				
-				const DataType type = pipeline->vertexAttribs[attrib].type;
-				const GLenum glType = TranslateDataType(type);
 				const GLsizei stride = pipeline->vertexBindings[binding].stride;
 				
 				const uint32_t first =
 					pipeline->vertexBindings[binding].inputRate == InputRate::Vertex ? firstVertex : firstInstance;
 				
-				uintptr_t offset =
-					pipeline->vertexAttribs[attrib].offset +
-					vertexBuffers[binding].second +
-					first * stride;
-				
+				uintptr_t offset = attrib.dataOffset + vertexBuffers[binding].second + first * stride;
 				void* offsetPtr = reinterpret_cast<void*>(offset);
 				
-				if (eg::Contains(intDataTypes, type))
+				if (attrib.format.mode == GLVertexAttribMode::Int)
 				{
-					glVertexAttribIPointer(attrib, pipeline->vertexAttribs[attrib].components, glType, stride, offsetPtr);
+					glVertexAttribIPointer(attrib.attribIndex, attrib.format.size, attrib.format.type, stride, offsetPtr);
 				}
 				else
 				{
-					auto normalized = static_cast<GLboolean>(eg::Contains(normDataTypes, type));
-					glVertexAttribPointer(attrib, pipeline->vertexAttribs[attrib].components,
-					                      glType, normalized, stride, offsetPtr);
+					glVertexAttribPointer(attrib.attribIndex, attrib.format.size, attrib.format.type,
+					                      attrib.format.mode == GLVertexAttribMode::Norm, stride, offsetPtr);
 				}
 				
-				glVertexAttribDivisor(attrib, (GLuint)pipeline->vertexBindings[binding].inputRate);
-			}
+				glVertexAttribDivisor(attrib.attribIndex, (GLuint)pipeline->vertexBindings[binding].inputRate);
+			});
 		}
 		else
 		{

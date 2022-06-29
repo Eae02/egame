@@ -56,6 +56,12 @@ namespace eg::graphics_api::gl
 		
 		SplitString(reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS)), ' ', supportedExtensions);
 		
+		glesFormatSupport.floatColorBuffer     = IsExtensionSupported("GL_EXT_color_buffer_float");
+		glesFormatSupport.floatLinearFiltering = IsExtensionSupported("GL_OES_texture_float_linear");
+		glesFormatSupport.floatBlend           = IsExtensionSupported("GL_EXT_float_blend");
+		glesFormatSupport.compressedS3TC       = IsExtensionSupported("GL_WEBGL_compressed_texture_s3tc");
+		glesFormatSupport.compressedS3TCSRGB   = IsExtensionSupported("GL_WEBGL_compressed_texture_s3tc_srgb");
+		
 		enableDefaultFramebufferSRGBEmulation = initArguments.defaultFramebufferSRGB;
 		
 		return true;

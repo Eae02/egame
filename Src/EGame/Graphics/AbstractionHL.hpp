@@ -803,4 +803,6 @@ namespace eg
 	{
 		return detail::graphicsDeviceInfo;
 	}
+	
+	EG_API void AssertFormatSupport(Format format, FormatCapabilities capabilities);
 }

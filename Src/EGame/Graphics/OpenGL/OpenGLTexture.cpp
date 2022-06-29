@@ -182,7 +182,7 @@ namespace eg::graphics_api::gl
 		
 		glBindTexture(texture->type, texture->texture);
 		
-		GLenum format = TranslateFormat(createInfo.format);
+		GLenum format = TranslateFormatForTexture(createInfo.format);
 		if (createInfo.sampleCount == 1)
 		{
 			glTexStorage2D(texture->type, createInfo.mipLevels, format, createInfo.width, createInfo.height);
@@ -220,7 +220,7 @@ namespace eg::graphics_api::gl
 		
 		glBindTexture(texture->type, texture->texture);
 		
-		GLenum format = TranslateFormat(createInfo.format);
+		GLenum format = TranslateFormatForTexture(createInfo.format);
 		if (createInfo.sampleCount == 1)
 		{
 			glTexStorage3D(texture->type, createInfo.mipLevels, format,
@@ -259,7 +259,7 @@ namespace eg::graphics_api::gl
 		
 		glBindTexture(texture->type, texture->texture);
 		
-		GLenum format = TranslateFormat(createInfo.format);
+		GLenum format = TranslateFormatForTexture(createInfo.format);
 		glTexStorage2D(texture->type, createInfo.mipLevels, format, createInfo.width, createInfo.width);
 		
 		InitTexture(*texture, createInfo);
@@ -285,7 +285,7 @@ namespace eg::graphics_api::gl
 		
 		glBindTexture(texture->type, texture->texture);
 		
-		GLenum format = TranslateFormat(createInfo.format);
+		GLenum format = TranslateFormatForTexture(createInfo.format);
 		glTexStorage3D(texture->texture, createInfo.mipLevels, format,
 		                   createInfo.width, createInfo.width, texture->arrayLayers);
 		
@@ -312,7 +312,7 @@ namespace eg::graphics_api::gl
 		
 		glBindTexture(texture->type, texture->texture);
 		
-		GLenum format = TranslateFormat(createInfo.format);
+		GLenum format = TranslateFormatForTexture(createInfo.format);
 		glTexStorage3D(texture->type, createInfo.mipLevels, format, createInfo.width, createInfo.height, createInfo.depth);
 		
 		InitTexture(*texture, createInfo);
@@ -348,7 +348,7 @@ namespace eg::graphics_api::gl
 		if (it != texture->views.end())
 			return reinterpret_cast<TextureViewHandle>(&it->second);
 		
-		GLenum glFormat = TranslateFormat(viewKey.format);
+		GLenum glFormat = TranslateFormatForTexture(viewKey.format);
 		
 		GLuint viewHandle;
 		if (viewKey.subresource.firstMipLevel == 0 && viewKey.subresource.numMipLevels == texture->mipLevels &&
@@ -436,6 +436,8 @@ namespace eg::graphics_api::gl
 		{
 		case FormatTypes::UNorm:
 			return std::make_tuple(floatFormats[componentCount], uTypes[componentSize]);
+		case FormatTypes::SNorm:
+			return std::make_tuple(floatFormats[componentCount], sTypes[componentSize]);
 		case FormatTypes::UInt:
 			return std::make_tuple(integerFormats[componentCount], uTypes[componentSize]);
 		case FormatTypes::SInt:
@@ -703,6 +705,7 @@ namespace eg::graphics_api::gl
 			case FormatTypes::SInt:
 				glClearBufferiv(GL_COLOR, 0, static_cast<const GLint*>(color));
 				break;
+			case FormatTypes::SNorm:
 			case FormatTypes::UNorm:
 			case FormatTypes::Float:
 				glClearBufferfv(GL_COLOR, 0, static_cast<const float*>(color));

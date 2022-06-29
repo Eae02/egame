@@ -4,7 +4,7 @@
 
 namespace eg
 {
-	const AssetFormat Texture2DAssetFormat { "EG::Texture2D", 3 };
+	const AssetFormat Texture2DAssetFormat { "EG::Texture2D", 4 };
 	
 	TextureQuality TextureAssetQuality = TextureQuality::Medium;
 	
@@ -65,6 +65,8 @@ namespace eg
 		createInfo.format = (Format)header->format;
 		createInfo.arrayLayers = header->numLayers;
 		createInfo.mipLevels = header->numMipLevels - mipShift;
+		
+		AssertFormatSupport(createInfo.format, eg::FormatCapabilities::SampledImage);
 		
 		if (header->flags & TF_CubeMap)
 		{

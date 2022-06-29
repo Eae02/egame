@@ -4,7 +4,9 @@
 
 namespace eg::graphics_api::gl
 {
-#ifndef EG_GLES
+#ifdef EG_GLES
+	GLESFormatSupport glesFormatSupport;
+#else
 	bool useGLESPath;
 #endif
 	
@@ -12,7 +14,7 @@ namespace eg::graphics_api::gl
 	std::string vendorName;
 	GLVendor glVendor;
 	
-	GLenum TranslateFormat(Format format)
+	GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 	{
 		switch (format)
 		{
@@ -21,6 +23,7 @@ namespace eg::graphics_api::gl
 		case Format::R8_UNorm: return GL_R8;
 		case Format::R8_UInt: return GL_R8UI;
 		case Format::R8_SInt: return GL_R8I;
+		case Format::R16_UNorm: return GL_R16;
 		case Format::R16_UInt: return GL_R16UI;
 		case Format::R16_SInt: return GL_R16I;
 		case Format::R16_Float: return GL_R16F;
@@ -30,13 +33,19 @@ namespace eg::graphics_api::gl
 		case Format::R8G8_UNorm: return GL_RG8;
 		case Format::R8G8_UInt: return GL_RG8UI;
 		case Format::R8G8_SInt: return GL_RG8I;
+		case Format::R16G16_UNorm: return GL_RG16;
 		case Format::R16G16_UInt: return GL_RG16UI;
 		case Format::R16G16_SInt: return GL_RG16I;
 		case Format::R16G16_Float: return GL_RG16F;
 		case Format::R32G32_UInt: return GL_RG32UI;
 		case Format::R32G32_SInt: return GL_RG32I;
 		case Format::R32G32_Float: return GL_RG32F;
+		
+		case Format::R8G8B8_UNorm: return GL_RGB8;
+		case Format::R8G8B8_UInt: return GL_RGB8UI;
+		case Format::R8G8B8_SInt: return GL_RGB8I;
 		case Format::R8G8B8_sRGB: return GL_SRGB8;
+		case Format::R16G16B16_UNorm: return GL_RGB16;
 		case Format::R16G16B16_UInt: return GL_RGB16UI;
 		case Format::R16G16B16_SInt: return GL_RGB16I;
 		case Format::R16G16B16_Float: return GL_RGB16F;
@@ -47,12 +56,17 @@ namespace eg::graphics_api::gl
 		case Format::R8G8B8A8_UNorm: return GL_RGBA8;
 		case Format::R8G8B8A8_UInt: return GL_RGBA8UI;
 		case Format::R8G8B8A8_SInt: return GL_RGBA8I;
+		case Format::R16G16B16A16_UNorm: return GL_RGBA16;
 		case Format::R16G16B16A16_UInt: return GL_RGBA16UI;
 		case Format::R16G16B16A16_SInt: return GL_RGBA16I;
 		case Format::R16G16B16A16_Float: return GL_RGBA16F;
 		case Format::R32G32B32A32_UInt: return GL_RGBA32UI;
 		case Format::R32G32B32A32_SInt: return GL_RGBA32I;
 		case Format::R32G32B32A32_Float: return GL_RGBA32F;
+		
+		case Format::A2R10G10B10_UInt: return GL_RGB10_A2UI;
+		case Format::A2R10G10B10_UNorm: return GL_RGB10_A2;
+		
 		case Format::BC1_RGBA_UNorm: return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
 		case Format::BC1_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
 		case Format::BC1_RGB_UNorm: return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
@@ -65,7 +79,80 @@ namespace eg::graphics_api::gl
 		case Format::Depth32: return GL_DEPTH_COMPONENT32F;
 		case Format::Depth24Stencil8: return GL_DEPTH24_STENCIL8;
 		case Format::Depth32Stencil8: return GL_DEPTH32F_STENCIL8;
-		case Format::Undefined: break;
+		
+		default:
+			if (returnZeroOnFailure) return 0;
+			EG_PANIC("Invalid texture format: " << FormatToString(format) << ".");
+		}
+		EG_UNREACHABLE
+	}
+	
+	GLVertexAttribFormat TranslateFormatForVertexAttribute(Format format, bool returnZeroOnFailure)
+	{
+		switch (format)
+		{
+			case Format::R8_SNorm:  return { 1, GL_BYTE,           GLVertexAttribMode::Norm };
+			case Format::R8_UNorm:  return { 1, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Norm };
+			case Format::R8_UInt:   return { 1, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Int };
+			case Format::R8_SInt:   return { 1, GL_BYTE,           GLVertexAttribMode::Int };
+			case Format::R16_UNorm: return { 1, GL_UNSIGNED_SHORT, GLVertexAttribMode::Norm };
+			case Format::R16_SNorm: return { 1, GL_SHORT,          GLVertexAttribMode::Norm };
+			case Format::R16_UInt:  return { 1, GL_UNSIGNED_SHORT, GLVertexAttribMode::Int };
+			case Format::R16_SInt:  return { 1, GL_SHORT,          GLVertexAttribMode::Int };
+			case Format::R16_Float: return { 1, GL_FLOAT,          GLVertexAttribMode::Other };
+			case Format::R32_UInt:  return { 1, GL_UNSIGNED_INT,   GLVertexAttribMode::Int };
+			case Format::R32_SInt:  return { 1, GL_INT,            GLVertexAttribMode::Int };
+			case Format::R32_Float: return { 1, GL_FLOAT,          GLVertexAttribMode::Other };
+			
+			case Format::R8G8_UNorm:   return { 2, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Norm };
+			case Format::R8G8_SNorm:   return { 2, GL_BYTE,           GLVertexAttribMode::Norm };
+			case Format::R8G8_UInt:    return { 2, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Int };
+			case Format::R8G8_SInt:    return { 2, GL_BYTE,           GLVertexAttribMode::Int };
+			case Format::R16G16_UNorm: return { 2, GL_UNSIGNED_SHORT, GLVertexAttribMode::Norm };
+			case Format::R16G16_SNorm: return { 2, GL_SHORT,          GLVertexAttribMode::Norm };
+			case Format::R16G16_UInt:  return { 2, GL_UNSIGNED_SHORT, GLVertexAttribMode::Int };
+			case Format::R16G16_SInt:  return { 2, GL_SHORT,          GLVertexAttribMode::Int };
+			case Format::R16G16_Float: return { 2, GL_FLOAT,          GLVertexAttribMode::Other };
+			case Format::R32G32_UInt:  return { 2, GL_UNSIGNED_INT,   GLVertexAttribMode::Int };
+			case Format::R32G32_SInt:  return { 2, GL_INT,            GLVertexAttribMode::Int };
+			case Format::R32G32_Float: return { 2, GL_FLOAT,          GLVertexAttribMode::Other };
+			
+			case Format::R8G8B8_UNorm:    return { 3, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Norm };
+			case Format::R8G8B8_SNorm:    return { 3, GL_BYTE,           GLVertexAttribMode::Norm };
+			case Format::R8G8B8_UInt:     return { 3, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Int };
+			case Format::R8G8B8_SInt:     return { 3, GL_BYTE,           GLVertexAttribMode::Int };
+			case Format::R8G8B8_sRGB:     return { 3, GL_BYTE,           GLVertexAttribMode::Norm };
+			case Format::R16G16B16_UNorm: return { 3, GL_UNSIGNED_SHORT, GLVertexAttribMode::Norm };
+			case Format::R16G16B16_SNorm: return { 3, GL_SHORT,          GLVertexAttribMode::Norm };
+			case Format::R16G16B16_UInt:  return { 3, GL_UNSIGNED_SHORT, GLVertexAttribMode::Int };
+			case Format::R16G16B16_SInt:  return { 3, GL_SHORT,          GLVertexAttribMode::Int };
+			case Format::R16G16B16_Float: return { 3, GL_FLOAT,          GLVertexAttribMode::Other };
+			case Format::R32G32B32_UInt:  return { 3, GL_UNSIGNED_INT,   GLVertexAttribMode::Int };
+			case Format::R32G32B32_SInt:  return { 3, GL_INT,            GLVertexAttribMode::Int };
+			case Format::R32G32B32_Float: return { 3, GL_FLOAT,          GLVertexAttribMode::Other };
+			
+			case Format::R8G8B8A8_sRGB:      return { 4, GL_BYTE,           GLVertexAttribMode::Norm };
+			case Format::R8G8B8A8_UNorm:     return { 4, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Norm };
+			case Format::R8G8B8A8_SNorm:     return { 4, GL_BYTE,           GLVertexAttribMode::Norm };
+			case Format::R8G8B8A8_UInt:      return { 4, GL_UNSIGNED_BYTE,  GLVertexAttribMode::Int };
+			case Format::R8G8B8A8_SInt:      return { 4, GL_BYTE,           GLVertexAttribMode::Int };
+			case Format::R16G16B16A16_UNorm: return { 4, GL_UNSIGNED_SHORT, GLVertexAttribMode::Norm };
+			case Format::R16G16B16A16_SNorm: return { 4, GL_SHORT,          GLVertexAttribMode::Norm };
+			case Format::R16G16B16A16_UInt:  return { 4, GL_UNSIGNED_SHORT, GLVertexAttribMode::Int };
+			case Format::R16G16B16A16_SInt:  return { 4, GL_SHORT,          GLVertexAttribMode::Int };
+			case Format::R16G16B16A16_Float: return { 4, GL_FLOAT,          GLVertexAttribMode::Other };
+			case Format::R32G32B32A32_UInt:  return { 4, GL_UNSIGNED_INT,   GLVertexAttribMode::Int };
+			case Format::R32G32B32A32_SInt:  return { 4, GL_INT,            GLVertexAttribMode::Int };
+			case Format::R32G32B32A32_Float: return { 4, GL_FLOAT,          GLVertexAttribMode::Other };
+			
+			case Format::A2R10G10B10_UInt:  return { 4, GL_UNSIGNED_INT_2_10_10_10_REV, GLVertexAttribMode::Other };
+			case Format::A2R10G10B10_SInt:  return { 4, GL_INT_2_10_10_10_REV, GLVertexAttribMode::Other };
+			case Format::A2R10G10B10_UNorm: return { 4, GL_UNSIGNED_INT_2_10_10_10_REV, GLVertexAttribMode::Norm };
+			case Format::A2R10G10B10_SNorm: return { 4, GL_INT_2_10_10_10_REV, GLVertexAttribMode::Norm };
+			
+			default:
+				if (returnZeroOnFailure) return { 0 };
+				EG_PANIC("Invalid vertex attribute format: " << FormatToString(format) << ".");
 		}
 		EG_UNREACHABLE
 	}

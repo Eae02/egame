@@ -4,113 +4,6 @@
 
 namespace eg::graphics_api::vk
 {
-	VkFormat GetAttribFormat(DataType dataType, uint32_t components)
-	{
-		switch (dataType)
-		{
-		case DataType::Float32:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R32_SFLOAT;
-			case 2: return VK_FORMAT_R32G32_SFLOAT;
-			case 3: return VK_FORMAT_R32G32B32_SFLOAT;
-			case 4: return VK_FORMAT_R32G32B32A32_SFLOAT;
-			}
-			break;
-		case DataType::UInt8Norm:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R8_UNORM;
-			case 2: return VK_FORMAT_R8G8_UNORM;
-			case 3: return VK_FORMAT_R8G8B8_UNORM;
-			case 4: return VK_FORMAT_R8G8B8A8_UNORM;
-			}
-			break;
-		case DataType::UInt16Norm:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R16_UNORM;
-			case 2: return VK_FORMAT_R16G16_UNORM;
-			case 3: return VK_FORMAT_R16G16B16_UNORM;
-			case 4: return VK_FORMAT_R16G16B16A16_UNORM;
-			}
-			break;
-		case DataType::SInt8Norm:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R8_SNORM;
-			case 2: return VK_FORMAT_R8G8_SNORM;
-			case 3: return VK_FORMAT_R8G8B8_SNORM;
-			case 4: return VK_FORMAT_R8G8B8A8_SNORM;
-			}
-			break;
-		case DataType::SInt16Norm:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R16_SNORM;
-			case 2: return VK_FORMAT_R16G16_SNORM;
-			case 3: return VK_FORMAT_R16G16B16_SNORM;
-			case 4: return VK_FORMAT_R16G16B16A16_SNORM;
-			}
-			break;
-		case DataType::UInt8:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R8_UINT;
-			case 2: return VK_FORMAT_R8G8_UINT;
-			case 3: return VK_FORMAT_R8G8B8_UINT;
-			case 4: return VK_FORMAT_R8G8B8A8_UINT;
-			}
-			break;
-		case DataType::UInt16:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R16_UINT;
-			case 2: return VK_FORMAT_R16G16_UINT;
-			case 3: return VK_FORMAT_R16G16B16_UINT;
-			case 4: return VK_FORMAT_R16G16B16A16_UINT;
-			}
-			break;
-		case DataType::UInt32:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R32_UINT;
-			case 2: return VK_FORMAT_R32G32_UINT;
-			case 3: return VK_FORMAT_R32G32B32_UINT;
-			case 4: return VK_FORMAT_R32G32B32A32_UINT;
-			}
-			break;
-		case DataType::SInt8:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R8_SINT;
-			case 2: return VK_FORMAT_R8G8_SINT;
-			case 3: return VK_FORMAT_R8G8B8_SINT;
-			case 4: return VK_FORMAT_R8G8B8A8_SINT;
-			}
-			break;
-		case DataType::SInt16:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R16_SINT;
-			case 2: return VK_FORMAT_R16G16_SINT;
-			case 3: return VK_FORMAT_R16G16B16_SINT;
-			case 4: return VK_FORMAT_R16G16B16A16_SINT;
-			}
-			break;
-		case DataType::SInt32:
-			switch (components)
-			{
-			case 1: return VK_FORMAT_R32_SINT;
-			case 2: return VK_FORMAT_R32G32_SINT;
-			case 3: return VK_FORMAT_R32G32B32_SINT;
-			case 4: return VK_FORMAT_R32G32B32A32_SINT;
-			}
-			break;
-		}
-		EG_PANIC("Invalid vertex attribute format");
-	}
-	
 	VkBlendOp TranslateBlendFunc(BlendFunc blendFunc)
 	{
 		switch (blendFunc)
@@ -164,9 +57,12 @@ namespace eg::graphics_api::vk
 		case Format::Undefined: return VK_FORMAT_UNDEFINED;
 		case Format::DefaultColor: return ctx.surfaceFormat.format;
 		case Format::DefaultDepthStencil: return ctx.defaultDSFormat;
+		case Format::R8_SNorm: return VK_FORMAT_R8_SNORM;
 		case Format::R8_UNorm: return VK_FORMAT_R8_UNORM;
 		case Format::R8_UInt: return VK_FORMAT_R8_UINT;
 		case Format::R8_SInt: return VK_FORMAT_R8_SINT;
+		case Format::R16_UNorm: return VK_FORMAT_R16_UNORM;
+		case Format::R16_SNorm: return VK_FORMAT_R16_SNORM;
 		case Format::R16_UInt: return VK_FORMAT_R16_UINT;
 		case Format::R16_SInt: return VK_FORMAT_R16_SINT;
 		case Format::R16_Float: return VK_FORMAT_R16_SFLOAT;
@@ -174,15 +70,24 @@ namespace eg::graphics_api::vk
 		case Format::R32_SInt: return VK_FORMAT_R32_SINT;
 		case Format::R32_Float: return VK_FORMAT_R32_SFLOAT;
 		case Format::R8G8_UNorm: return VK_FORMAT_R8G8_UNORM;
+		case Format::R8G8_SNorm: return VK_FORMAT_R8G8_SNORM;
 		case Format::R8G8_UInt: return VK_FORMAT_R8G8_UINT;
 		case Format::R8G8_SInt: return VK_FORMAT_R8G8_SINT;
+		case Format::R16G16_UNorm: return VK_FORMAT_R16G16_UNORM;
+		case Format::R16G16_SNorm: return VK_FORMAT_R16G16_SNORM;
 		case Format::R16G16_UInt: return VK_FORMAT_R16G16_UINT;
 		case Format::R16G16_SInt: return VK_FORMAT_R16G16_SINT;
 		case Format::R16G16_Float: return VK_FORMAT_R16G16_SFLOAT;
 		case Format::R32G32_UInt: return VK_FORMAT_R32G32_UINT;
 		case Format::R32G32_SInt: return VK_FORMAT_R32G32_SINT;
 		case Format::R32G32_Float: return VK_FORMAT_R32G32_SFLOAT;
+		case Format::R8G8B8_UNorm: return VK_FORMAT_R8G8B8_UNORM;
+		case Format::R8G8B8_SNorm: return VK_FORMAT_R8G8B8_SNORM;
+		case Format::R8G8B8_UInt: return VK_FORMAT_R8G8B8_UINT;
+		case Format::R8G8B8_SInt: return VK_FORMAT_R8G8B8_SINT;
 		case Format::R8G8B8_sRGB: return VK_FORMAT_R8G8B8_SRGB;
+		case Format::R16G16B16_UNorm: return VK_FORMAT_R16G16B16_UNORM;
+		case Format::R16G16B16_SNorm: return VK_FORMAT_R16G16B16_SNORM;
 		case Format::R16G16B16_UInt: return VK_FORMAT_R16G16B16_UINT;
 		case Format::R16G16B16_SInt: return VK_FORMAT_R16G16B16_SINT;
 		case Format::R16G16B16_Float: return VK_FORMAT_R16G16B16_SFLOAT;
@@ -191,14 +96,21 @@ namespace eg::graphics_api::vk
 		case Format::R32G32B32_Float: return VK_FORMAT_R32G32B32_SFLOAT;
 		case Format::R8G8B8A8_sRGB: return VK_FORMAT_R8G8B8A8_SRGB;
 		case Format::R8G8B8A8_UNorm: return VK_FORMAT_R8G8B8A8_UNORM;
+		case Format::R8G8B8A8_SNorm: return VK_FORMAT_R8G8B8A8_SNORM;
 		case Format::R8G8B8A8_UInt: return VK_FORMAT_R8G8B8A8_UINT;
 		case Format::R8G8B8A8_SInt: return VK_FORMAT_R8G8B8A8_SINT;
+		case Format::R16G16B16A16_UNorm: return VK_FORMAT_R16G16B16A16_UNORM;
+		case Format::R16G16B16A16_SNorm: return VK_FORMAT_R16G16B16A16_SNORM;
 		case Format::R16G16B16A16_UInt: return VK_FORMAT_R16G16B16A16_UINT;
 		case Format::R16G16B16A16_SInt: return VK_FORMAT_R16G16B16A16_SINT;
 		case Format::R16G16B16A16_Float: return VK_FORMAT_R16G16B16A16_SFLOAT;
 		case Format::R32G32B32A32_UInt: return VK_FORMAT_R32G32B32A32_UINT;
 		case Format::R32G32B32A32_SInt: return VK_FORMAT_R32G32B32A32_SINT;
 		case Format::R32G32B32A32_Float: return VK_FORMAT_R32G32B32A32_SFLOAT;
+		case Format::A2R10G10B10_UInt: return VK_FORMAT_A2R10G10B10_UINT_PACK32;
+		case Format::A2R10G10B10_SInt: return VK_FORMAT_A2R10G10B10_SINT_PACK32;
+		case Format::A2R10G10B10_UNorm: return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+		case Format::A2R10G10B10_SNorm: return VK_FORMAT_A2R10G10B10_SNORM_PACK32;
 		case Format::BC1_RGBA_UNorm: return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
 		case Format::BC1_RGBA_sRGB: return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
 		case Format::BC1_RGB_UNorm: return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
