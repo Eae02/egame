@@ -47,6 +47,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		-Wwrite-strings
 		-Wno-unused-parameter
 		-Wno-missing-field-initializers
+		-Wno-cast-function-type
 		-Wno-error=unused-value
 		-Wno-error=unused-function
 		$<$<COMPILE_LANGUAGE:CXX>:-Wconversion-null>

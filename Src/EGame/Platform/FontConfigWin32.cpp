@@ -3,6 +3,9 @@
 #include "FontConfig.hpp"
 #include "../String.hpp"
 
+#include <sstream>
+#include <limits>
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -15,7 +18,7 @@ namespace eg
 	
 	std::string GetFontPathByName(const char* name)
 	{
-		static const LPCSTR fontRegistryPath = "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts";
+		static const LPCSTR fontRegistryPath = R"(Software\Microsoft\Windows NT\CurrentVersion\Fonts)";
 		
 		size_t nameLen = strlen(name);
 		
@@ -32,7 +35,7 @@ namespace eg
 		
 		LPSTR valueName = static_cast<LPSTR>(alloca(maxValueNameSize));
 		LPBYTE valueData = static_cast<LPBYTE>(alloca(maxValueDataSize));
-		DWORD valueNameSize, valueDataSize, valueType, shortestNameLen;
+		DWORD valueNameSize, valueDataSize, valueType, shortestNameLen = 0; //=0 to prevent compiler warning
 		
 		LONG result;
 		do
@@ -73,7 +76,7 @@ namespace eg
 		GetWindowsDirectory(windowsDirPath, MAX_PATH);
 		
 		std::stringstream pathStream;
-		pathStream << windowsDirPath << "\\Fonts\\" << fontFileName;
+		pathStream << windowsDirPath << R"(\Fonts\)" << fontFileName;
 		return pathStream.str();
 	}
 }

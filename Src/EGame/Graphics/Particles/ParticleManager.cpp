@@ -10,7 +10,7 @@
 namespace eg
 {
 	ParticleManager::ParticleManager()
-		: m_random(std::time(nullptr))
+		: m_random(static_cast<std::mt19937::result_type>(std::time(nullptr)))
 #ifndef __EMSCRIPTEN__
 		, m_thread(&ParticleManager::ThreadTarget, this)
 #endif
