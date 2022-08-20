@@ -3,6 +3,8 @@
 #include "../Assert.hpp"
 #include "../Utils.hpp"
 
+#include <bit>
+
 namespace eg
 {
 	int CollisionMesh::Intersect(const Ray& ray, float& distanceOut, const glm::mat4* transform) const
@@ -62,7 +64,7 @@ namespace eg
 				float y = (e * a) - (d * b);
 				float z = x + y - ac_bb;
 				
-				if ((reinterpret_cast<uint32_t&>(z)& ~(reinterpret_cast<uint32_t&>(x) | reinterpret_cast<uint32_t&>(y)) ) & 0x80000000)
+				if ((std::bit_cast<uint32_t>(z)& ~(std::bit_cast<uint32_t>(x) | std::bit_cast<uint32_t>(y)) ) & 0x80000000)
 				{
 					ans = i;
 					distanceOut = pdist;

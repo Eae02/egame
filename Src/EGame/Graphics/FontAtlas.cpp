@@ -442,7 +442,7 @@ namespace eg
 			[&] (const std::string& imageName, struct AtlasData& data)
 			{
 				data.data = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(imgData.data()), ToInt(imgData.size()),
-					reinterpret_cast<int*>(&data.width), reinterpret_cast<int*>(&data.height), nullptr, 1);
+					&data.width, &data.height, nullptr, 1);
 				
 				if (data.data == nullptr)
 				{

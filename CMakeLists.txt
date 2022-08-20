@@ -43,9 +43,11 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		-Wunused-result
 		-Wvarargs
 		-Wvla
+		-Wstrict-aliasing
 		-Wwrite-strings
 		-Wno-unused-parameter
 		-Wno-missing-field-initializers
+		-Wno-unused-value
 		$<$<COMPILE_LANGUAGE:CXX>:-Wconversion-null>
 		$<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
 	)

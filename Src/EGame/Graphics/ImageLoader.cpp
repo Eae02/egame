@@ -7,19 +7,19 @@ namespace eg
 {
 	static int STBIRead(void* user, char* data, int size)
 	{
-		auto* stream = reinterpret_cast<std::istream*>(user);
+		auto* stream = static_cast<std::istream*>(user);
 		stream->read(data, size);
 		return static_cast<int>(stream->gcount());
 	}
 	
 	static void STBISkip(void* user, int n)
 	{
-		reinterpret_cast<std::istream*>(user)->seekg(n, std::ios::cur);
+		static_cast<std::istream*>(user)->seekg(n, std::ios::cur);
 	}
 	
 	static int STBIEof(void* user)
 	{
-		return reinterpret_cast<std::istream*>(user)->eof();
+		return static_cast<std::istream*>(user)->eof();
 	}
 	
 	static const stbi_io_callbacks ioCallbacks = { STBIRead, STBISkip, STBIEof };
