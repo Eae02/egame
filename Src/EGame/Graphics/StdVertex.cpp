@@ -1,4 +1,5 @@
 #include "StdVertex.hpp"
+#include "../Utils.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -29,10 +30,10 @@ namespace eg
 			weightSum += weightsF[i];
 		}
 		
-		float mul = weightSum < 1E-6f ? 0.0f : 256.0f / weightSum;
+		float mul = weightSum < 1E-6f ? 0.0f : 1.0f / weightSum;
 		for (size_t i = 0; i < 4; i++)
 		{
-			weightsOut[i] = (uint8_t)std::clamp((int)std::round(weightsF[i] * mul), 0, 255);
+			weightsOut[i] = ToUNorm8(weightsF[i] * mul);
 		}
 	}
 }

@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <functional>
 
 namespace eg
 {
@@ -59,7 +60,7 @@ namespace eg
 		const char* gameName = nullptr;
 		GraphicsAPI graphicsAPI = GraphicsAPI::Preferred;
 		std::string preferredGPUName;
-		void (*initialize)() = nullptr;
+		std::function<void()> initialize;
 		RunFlags flags = RunFlags::None;
 		Format defaultDepthStencilFormat = Format::Depth16;
 		uint32_t framerateCap = 400;
@@ -84,6 +85,13 @@ namespace eg
 		
 		void ButtonDownEvent(Button button, bool isRepeat);
 		void ButtonUpEvent(Button button, bool isRepeat);
+		
+		int PlatformInit(const RunConfig& runConfig);
+		void PlatformStartFrame();
+		void PlatformRunGameLoop(std::unique_ptr<IGame> game);
+		
+		void RunFrame(IGame& game);
+		void CoreUninitialize();
 	}
 	
 	inline uint64_t FrameIdx()

@@ -47,12 +47,12 @@ namespace eg
 	enum class ShaderAccessFlags
 	{
 		None = 0,
-		Vertex = 1 << (int)ShaderStage::Vertex,
-		Fragment = 1 << (int)ShaderStage::Fragment,
-		Geometry = 1 << (int)ShaderStage::Geometry,
-		TessControl = 1 << (int)ShaderStage::TessControl,
-		TessEvaluation = 1 << (int)ShaderStage::TessEvaluation,
-		Compute = 1 << (int)ShaderStage::Compute,
+		Vertex         = 1 << static_cast<int>(ShaderStage::Vertex),
+		Fragment       = 1 << static_cast<int>(ShaderStage::Fragment),
+		Geometry       = 1 << static_cast<int>(ShaderStage::Geometry),
+		TessControl    = 1 << static_cast<int>(ShaderStage::TessControl),
+		TessEvaluation = 1 << static_cast<int>(ShaderStage::TessEvaluation),
+		Compute        = 1 << static_cast<int>(ShaderStage::Compute),
 	};
 	
 	EG_BIT_FIELD(ShaderAccessFlags)

@@ -13,4 +13,11 @@ namespace eg
 	};
 	
 	EG_API std::span<const GameController> GameControllers();
+	
+	namespace detail
+	{
+		void LoadGameControllers();
+		void AddGameController(void* controller);
+		extern void* activeController;
+	}
 }

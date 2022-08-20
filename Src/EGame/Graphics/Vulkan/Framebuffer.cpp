@@ -103,8 +103,8 @@ namespace eg::graphics_api::vk
 		}
 		
 		//Processes color attachments
-		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
-		rpDescription.numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
+		framebuffer->numColorAttachments = UnsignedNarrow<uint32_t>(createInfo.colorAttachments.size());
+		rpDescription.numColorAttachments = UnsignedNarrow<uint32_t>(createInfo.colorAttachments.size());
 		for (size_t i = 0; i < createInfo.colorAttachments.size(); i++)
 		{
 			framebuffer->colorAttachments[i] = ProcessAttachment(createInfo.colorAttachments[i],
@@ -114,7 +114,7 @@ namespace eg::graphics_api::vk
 		}
 		
 		//Processes color resolve attachments
-		rpDescription.numResolveColorAttachments = (uint32_t)createInfo.colorResolveAttachments.size();
+		rpDescription.numResolveColorAttachments = UnsignedNarrow<uint32_t>(createInfo.colorResolveAttachments.size());
 		std::fill_n(framebuffer->resolveColorAttachments, MAX_COLOR_ATTACHMENTS, nullptr);
 		for (size_t i = 0; i < createInfo.colorResolveAttachments.size(); i++)
 		{
@@ -172,8 +172,6 @@ namespace eg::graphics_api::vk
 		}
 		EG_UNREACHABLE
 	}
-	
-	void MaybeAcquireSwapchainImage();
 	
 	void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 	{
@@ -381,7 +379,7 @@ namespace eg::graphics_api::vk
 		ctxState.framebufferW = extent.width;
 		ctxState.framebufferH = extent.height;
 		
-		SetViewport(cc, 0.0f, 0.0f, (float)extent.width, (float)extent.height);
+		SetViewport(cc, 0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height));
 		SetScissor(cc, 0, 0, extent.width, extent.height);
 	}
 	
@@ -394,15 +392,15 @@ namespace eg::graphics_api::vk
 	{
 		hash = 0;
 		HashAppend(hash, sampleCount);
-		HashAppend(hash, (int)depthStencilFormat);
+		HashAppend(hash, static_cast<int>(depthStencilFormat));
 		for (VkFormat colorFormat : colorFormats)
-			HashAppend(hash, (int)colorFormat);
+			HashAppend(hash, static_cast<int>(colorFormat));
 	}
 	
 	FramebufferFormat FramebufferFormat::FromHint(const FramebufferFormatHint& hint)
 	{
 		FramebufferFormat res;
-		res.sampleCount = (VkSampleCountFlags)hint.sampleCount;
+		res.sampleCount = static_cast<VkSampleCountFlags>(hint.sampleCount);
 		res.depthStencilFormat = TranslateFormat(hint.depthStencilFormat);
 		for (uint32_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
 			res.colorFormats[i] = TranslateFormat(hint.colorFormats[i]);

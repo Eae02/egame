@@ -11,7 +11,7 @@
 
 namespace eg
 {
-	static const char EAPMagic[] = { (char)0xFF, 'E', 'A', 'P' };
+	static const char EAPMagic[] = { -1, 'E', 'A', 'P' };
 	
 	void WriteEAPFile(std::span<const EAPAsset> assets, std::ostream& stream)
 	{
@@ -21,7 +21,7 @@ namespace eg
 		}
 		
 		stream.write(EAPMagic, sizeof(EAPMagic));
-		BinWrite(stream, (uint32_t)assets.size());
+		BinWrite(stream, UnsignedNarrow<uint32_t>(assets.size()));
 		
 		//Extracts loader names and deduplicates them
 		std::vector<std::string_view> loaderNames;
@@ -31,17 +31,17 @@ namespace eg
 		loaderNames.erase(std::unique(loaderNames.begin(), loaderNames.end()), loaderNames.end());
 		
 		//Writes loader names
-		BinWrite(stream, (uint32_t)loaderNames.size());
+		BinWrite(stream, UnsignedNarrow<uint32_t>(loaderNames.size()));
 		for (std::string_view loader : loaderNames)
 			BinWriteString(stream, loader);
 		
 		for (const EAPAsset& asset : assets)
 		{
 			int64_t loaderIndex = std::lower_bound(loaderNames.begin(), loaderNames.end(), asset.loaderName) - loaderNames.begin();
-			EG_ASSERT(loaderIndex >= 0 && loaderIndex < (int64_t)loaderNames.size());
+			EG_ASSERT(loaderIndex >= 0 && loaderIndex < ToInt64(loaderNames.size()));
 			
 			BinWriteString(stream, asset.assetName);
-			BinWrite(stream, (uint32_t)loaderIndex);
+			BinWrite(stream, UnsignedNarrow<uint32_t>(ToUnsigned(loaderIndex)));
 			BinWrite(stream, asset.format.nameHash);
 			BinWrite(stream, asset.format.version);
 			
@@ -99,7 +99,7 @@ namespace eg
 			assets[i].compress = (dataBytes & 0x8000000000000000ULL) != 0;
 			dataBytes &= ~0x8000000000000000ULL;
 			
-			char* generatedAssetData = (char*)allocator.Allocate(dataBytes);
+			char* generatedAssetData = static_cast<char*>(allocator.Allocate(dataBytes));
 			assets[i].generatedAssetData = std::span<const char>(generatedAssetData, dataBytes);
 			
 			if (assets[i].compress)

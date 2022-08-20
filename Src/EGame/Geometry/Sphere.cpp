@@ -38,7 +38,7 @@ namespace eg
 		return Sphere(sphereCenter, std::sqrt(maxDistToSphereSq) + spheres[furthestSphereIndex].radius);
 	}
 	
-	glm::vec3 FurthestFrom(std::span<const glm::vec3> points, const glm::vec3& p)
+	static glm::vec3 FurthestFrom(std::span<const glm::vec3> points, const glm::vec3& p)
 	{
 		float maxDist = 0;
 		glm::vec3 ret = p;

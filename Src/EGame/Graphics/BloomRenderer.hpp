@@ -17,7 +17,7 @@ namespace eg
 		{
 		public:
 			RenderTarget(uint32_t inputWidth, uint32_t inputHeight, uint32_t levels = 4,
-			             Format format = Format::R16G16B16A16_Float, RenderTargetFlags flags = (RenderTargetFlags)0);
+			             Format format = Format::R16G16B16A16_Float, RenderTargetFlags flags = { });
 			
 			const Texture& OutputTexture() const
 			{

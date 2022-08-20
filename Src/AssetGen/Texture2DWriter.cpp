@@ -96,7 +96,7 @@ namespace eg::asset_gen
 		int numBlocks = ((width + 3) / 4) * ((height + 3) / 4);
 		
 		const size_t outputBytes = numBlocks * bytesPerBlock;
-		std::unique_ptr<uint8_t, FreeDel> outputDataUP((uint8_t*)std::malloc(outputBytes));
+		std::unique_ptr<uint8_t, FreeDel> outputDataUP(static_cast<uint8_t*>(std::malloc(outputBytes)));
 		uint8_t* outputBuffer = outputDataUP.get();
 		
 		switch (m_format)
@@ -218,7 +218,7 @@ namespace eg::asset_gen
 		{
 			uint32_t v = src[((y * width) + x) * numChannels + c];
 			if (!Linear && c < 3)
-				v = eg::SRGBToLinear(v / 255.0f) * 255.0f;
+				v = static_cast<uint32_t>(eg::SRGBToLinear(static_cast<float>(v) / 255.0f) * 255.0f);
 			return v;
 		};
 		
@@ -240,7 +240,7 @@ namespace eg::asset_gen
 					
 					*dest = static_cast<uint8_t>(sumIntensity / 4);
 					if (!Linear && c < 3)
-						*dest = eg::LinearToSRGB(*dest / 255.0f) * 255.0f;
+						*dest = static_cast<uint8_t>(eg::LinearToSRGB(static_cast<float>(*dest) / 255.0f) * 255.0f);
 					dest++;
 				}
 			}
@@ -269,7 +269,7 @@ namespace eg::asset_gen
 		
 		if (m_numMipLevels == 0)
 		{
-			m_numMipLevels = Texture::MaxMipLevels((uint32_t)std::max(m_width, m_height));
+			m_numMipLevels = ToInt(Texture::MaxMipLevels(std::max(m_width, m_height)));
 			
 			//Removes the lowest 2 mip levels in the case of compressed textures, since these will be smaller than 4x4
 			if (IsCompressedFormat(m_format))
@@ -321,7 +321,7 @@ namespace eg::asset_gen
 		if (m_numMipLevels > 1)
 		{
 			size_t firstMipBytes = (m_width * m_height * loadChannels);
-			mipDataUP.reset((uint8_t*)std::malloc(firstMipBytes * 2));
+			mipDataUP.reset(static_cast<uint8_t*>(std::malloc(firstMipBytes * 2)));
 			nextMipData = mipDataUP.get();
 			if (!isCompressed)
 			{
@@ -394,24 +394,25 @@ namespace eg::asset_gen
 			return false;
 		}
 		
-		BinWrite(stream, (uint32_t)m_numLayers);
-		BinWrite(stream, (uint32_t)realFormat);
+		BinWrite<uint32_t>(stream, ToUnsigned(m_numLayers));
+		BinWrite<uint32_t>(stream, static_cast<uint32_t>(realFormat));
 		
-		uint32_t flags = (uint32_t)m_linearFiltering |
-			(uint32_t)m_anisotropicFiltering << 1U |
-			(uint32_t)m_useGlobalDownscale << 2U |
-			(uint32_t)m_isArrayTexture << 3U |
-			(uint32_t)m_isCubeMap << 4U | 
-			(uint32_t)m_is3D << 5U;
-		BinWrite(stream, (uint32_t)flags);
+		uint32_t flags =
+			static_cast<uint32_t>(m_linearFiltering) |
+			static_cast<uint32_t>(m_anisotropicFiltering) << 1U |
+			static_cast<uint32_t>(m_useGlobalDownscale) << 2U |
+			static_cast<uint32_t>(m_isArrayTexture) << 3U |
+			static_cast<uint32_t>(m_isCubeMap) << 4U | 
+			static_cast<uint32_t>(m_is3D) << 5U;
+		BinWrite<uint32_t>(stream, flags);
 		
-		BinWrite(stream, (uint32_t)m_mipShiftLow);
-		BinWrite(stream, (uint32_t)m_mipShiftMedium);
-		BinWrite(stream, (uint32_t)m_mipShiftHigh);
+		BinWrite<uint32_t>(stream, m_mipShiftLow);
+		BinWrite<uint32_t>(stream, m_mipShiftMedium);
+		BinWrite<uint32_t>(stream, m_mipShiftHigh);
 		
-		BinWrite(stream, (uint32_t)m_numMipLevels);
-		BinWrite(stream, (uint32_t)m_width);
-		BinWrite(stream, (uint32_t)m_height);
+		BinWrite<uint32_t>(stream, m_numMipLevels);
+		BinWrite<uint32_t>(stream, m_width);
+		BinWrite<uint32_t>(stream, m_height);
 		
 		for (std::span<const uint8_t> data : m_data)
 		{

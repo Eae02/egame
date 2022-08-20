@@ -13,7 +13,7 @@ namespace eg
 		
 		const char* data = context.Data().data();
 		
-		const ShaderStage stage = (ShaderStage)reinterpret_cast<const uint32_t*>(data)[0];
+		const ShaderStage stage = static_cast<ShaderStage>(reinterpret_cast<const uint32_t*>(data)[0]);
 		const uint32_t numVariants = reinterpret_cast<const uint32_t*>(data)[1];
 		data += sizeof(uint32_t) * 2;
 		

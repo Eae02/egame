@@ -133,7 +133,7 @@ namespace eg
 			std::lock_guard<std::mutex> lock(ctx->linesMutex);
 			ctx->lines.insert(ctx->lines.end(), m_pendingLines.begin(), m_pendingLines.end());
 			if (ctx->scroll > 1)
-				ctx->scroll += (float)m_pendingLines.size();
+				ctx->scroll += static_cast<float>(m_pendingLines.size());
 		}
 		
 		m_pendingLines.clear();
@@ -245,13 +245,13 @@ namespace eg
 			
 			//Saves the current completion text so it can be restored later
 			std::string currentCompletion;
-			if ((int)ctx->completions.size() > ctx->currentCompletion)
+			if (ToInt64(ctx->completions.size()) > ctx->currentCompletion)
 				currentCompletion = ctx->completions[ctx->currentCompletion];
 			
 			//Updates command completion
 			ctx->completions.clear();
 			if (!ctx->textEdit.Text().empty() && !std::isspace(ctx->textEdit.Text().back()) &&
-			    ctx->textEdit.CursorPos() == (int)ctx->textEdit.Text().size())
+			    ctx->textEdit.CursorPos() == ToInt64(ctx->textEdit.Text().size()))
 			{
 				CompletionsList completionsList(ctx->commandParts.back(), ctx->completions);
 				if (ctx->commandParts.size() == 1)
@@ -279,21 +279,21 @@ namespace eg
 			
 			//Sets the current completion index so that it is the same completion as before
 			ctx->currentCompletion = 0;
-			for (int i = 0; i < (int)ctx->completions.size(); i++)
+			for (size_t i = 0; i < ctx->completions.size(); i++)
 			{
 				if (ctx->completions[i] == currentCompletion)
 				{
-					ctx->currentCompletion = i;
+					ctx->currentCompletion = ToInt(i);
 					break;
 				}
 			}
 			
 			if (!ctx->completions.empty())
 			{
-				ctx->completionRem = (int)currentCompletion.size() - (int)ctx->commandParts.back().size();
+				ctx->completionRem = ToInt(currentCompletion.size()) - ToInt(ctx->commandParts.back().size());
 				if (IsButtonDown(Button::DownArrow) && !WasButtonDown(Button::DownArrow))
 				{
-					ctx->currentCompletion = glm::min(ctx->currentCompletion + 1, (int)ctx->completions.size() - 1);
+					ctx->currentCompletion = glm::min(ctx->currentCompletion + 1, ToInt(ctx->completions.size()) - 1);
 				}
 				if (IsButtonDown(Button::UpArrow) && !WasButtonDown(Button::UpArrow))
 				{
@@ -321,7 +321,7 @@ namespace eg
 						messageStream << "Unknown command " << ctx->commandParts[0] << "";
 						Write(ErrorColor, messageStream.str());
 					}
-					else if ((int)ctx->commandParts.size() <= cmd->minArgs)
+					else if (ToInt(ctx->commandParts.size()) <= cmd->minArgs)
 					{
 						std::ostringstream messageStream;
 						messageStream << ctx->commandParts[0] << " requires at least " << cmd->minArgs << "arguments";
@@ -339,7 +339,7 @@ namespace eg
 			
 			if (ctx->maxScroll > 0)
 			{
-				ctx->scrollTarget += (float)(InputState::Current().scrollY - InputState::Previous().scrollY);
+				ctx->scrollTarget += static_cast<float>(InputState::Current().scrollY - InputState::Previous().scrollY);
 				if (ctx->scrollTarget > ctx->maxScroll)
 					ctx->scrollTarget = ctx->maxScroll;
 				if (ctx->scrollTarget < 0)
@@ -361,11 +361,11 @@ namespace eg
 		if (ctx == nullptr || ctx->showProgress < 0.000001f)
 			return;
 		
-		const float width = (float)screenWidth * 0.8f;
+		const float width = static_cast<float>(screenWidth) * 0.8f;
 		const float height = width * 0.2f;
 		const float padding = width * 0.01f;
-		const float baseX = ((float)screenWidth - width) / 2.0f;
-		const float baseY = (float)screenHeight - ctx->showProgress * height;
+		const float baseX = (static_cast<float>(screenWidth) - width) / 2.0f;
+		const float baseY = static_cast<float>(screenHeight) - ctx->showProgress * height;
 		const float opacity = ctx->showProgress * 0.75f;
 		
 		const float innerMinX = baseX + padding;
@@ -375,7 +375,7 @@ namespace eg
 		
 		spriteBatch.DrawRect(Rectangle(baseX, baseY, width, height), ColorLin(ColorSRGB(0.2f, 0.2f, 0.25f, opacity)));
 		
-		spriteBatch.PushScissorF(innerMinX, baseY, width - padding * 2, (float)font.Size() + padding * 2);
+		spriteBatch.PushScissorF(innerMinX, baseY, width - padding * 2, static_cast<float>(font.Size()) + padding * 2);
 		
 		ctx->textEdit.Draw(glm::vec2(innerMinX, baseY + padding), spriteBatch, ColorLin(1, 1, 1, opacity));
 		
@@ -389,10 +389,10 @@ namespace eg
 		
 		spriteBatch.PopScissor();
 		
-		const float lineY = baseY + padding * 2.0f + (float)font.Size();
+		const float lineY = baseY + padding * 2.0f + static_cast<float>(font.Size());
 		
 		float viewWindowHeight = height - (lineY - baseY) - padding * 2.0f;
-		ctx->maxScroll = (float)ctx->lines.size() - viewWindowHeight / ctx->textEdit.Font()->LineHeight();
+		ctx->maxScroll = static_cast<float>(ctx->lines.size()) - viewWindowHeight / ctx->textEdit.Font()->LineHeight();
 		
 		spriteBatch.DrawLine(glm::vec2(innerMinX, lineY), glm::vec2(innerMaxX, lineY), ColorLin(1, 1, 1, opacity), 0.5f);
 		
@@ -401,7 +401,7 @@ namespace eg
 		{
 			std::lock_guard<std::mutex> lock(ctx->linesMutex);
 			float y = lineY + padding - ctx->textEdit.Font()->LineHeight() * ctx->scroll;
-			for (int i = (int)ctx->lines.size() - 1; i >= 0; i--)
+			for (int i = ToInt(ctx->lines.size()) - 1; i >= 0; i--)
 			{
 				glm::vec2 textPos(innerMinX, std::round(y));
 				for (const LineSegment& segment : ctx->lines[i])
@@ -417,7 +417,7 @@ namespace eg
 		{
 			const int SCROLL_WIDTH = 2;
 			const float scrollHeight = viewWindowHeight * viewWindowHeight /
-				((float)ctx->lines.size() * ctx->textEdit.Font()->LineHeight());
+				(static_cast<float>(ctx->lines.size()) * ctx->textEdit.Font()->LineHeight());
 			const float scrollY = (viewWindowHeight - scrollHeight) * (ctx->scroll / ctx->maxScroll);
 			const Rectangle rectangle(innerMaxX - SCROLL_WIDTH, lineY + padding + scrollY, SCROLL_WIDTH, scrollHeight);
 			spriteBatch.DrawRect(rectangle, ColorLin(1, 1, 1, opacity * std::min(ctx->scrollOpacity, 1.0f)));
@@ -427,12 +427,12 @@ namespace eg
 		
 		if (!ctx->completions.empty())
 		{
-			int numLines = std::min((int)ctx->completions.size(), 4);
+			int numLines = ToInt(std::min<size_t>(ctx->completions.size(), 4));
 			float lineStep = font.LineHeight() * 1.5f;
 			float textOffsetY = font.LineHeight() * 0.4f;
 			
 			float complBoxW = 200;
-			float complBoxH = (float)numLines * lineStep;
+			float complBoxH = static_cast<float>(numLines) * lineStep;
 			float complBoxX = innerMinX + ctx->textEdit.TextWidth();
 			float complBoxY = baseY - complBoxH;
 			
@@ -444,7 +444,7 @@ namespace eg
 			for (int i = 0; i < numLines; i++)
 			{
 				int realIdx = i;
-				float y = baseY - (float)(i + 1) * lineStep;
+				float y = baseY - static_cast<float>(i + 1) * lineStep;
 				
 				if (realIdx == ctx->currentCompletion)
 				{
@@ -481,7 +481,7 @@ namespace eg
 		{
 			if (cmd.name == command)
 			{
-				if (arg >= (int)cmd.completionProviders.size())
+				if (arg >= ToInt(cmd.completionProviders.size()))
 					cmd.completionProviders.resize(arg + 1);
 				cmd.completionProviders[arg] = std::move(callback);
 				return;
@@ -562,7 +562,7 @@ namespace eg
 		return &std::get<std::string>(var->value);
 	}
 	
-	void TweakCommandsCompletionProvider(std::span<const std::string_view> prevWords, console::CompletionsList& list)
+	static void TweakCommandsCompletionProvider(std::span<const std::string_view> prevWords, console::CompletionsList& list)
 	{
 		if (!tweakVars)
 			return;

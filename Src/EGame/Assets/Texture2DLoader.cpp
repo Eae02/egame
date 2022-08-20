@@ -8,10 +8,12 @@ namespace eg
 	
 	TextureQuality TextureAssetQuality = TextureQuality::Medium;
 	
+	static_assert(sizeof(Format) == sizeof(uint32_t));
+	
 	struct __attribute__ ((__packed__)) Header
 	{
 		uint32_t numLayers;
-		uint32_t format;
+		Format format;
 		uint32_t flags;
 		uint32_t mipShifts[3];
 		uint32_t numMipLevels;
@@ -38,9 +40,9 @@ namespace eg
 		auto filter = (header->flags & TF_LinearFiltering) ? eg::TextureFilter::Linear : eg::TextureFilter::Nearest;
 		sampler.minFilter = sampler.magFilter = filter;
 		
-		uint32_t mipShift = std::min(header->mipShifts[(int)TextureAssetQuality], header->numMipLevels - 1);
+		uint32_t mipShift = std::min(header->mipShifts[static_cast<int>(TextureAssetQuality)], header->numMipLevels - 1);
 		
-		if (IsCompressedFormat((Format)header->format))
+		if (IsCompressedFormat(header->format))
 		{
 			uint32_t requestedMipShift = mipShift;
 			while (mipShift > 0 && ((header->width >> mipShift) % 4 || (header->height >> mipShift) % 4))
@@ -62,7 +64,7 @@ namespace eg
 		createInfo.defaultSamplerDescription = &sampler;
 		createInfo.width = header->width >> mipShift;
 		createInfo.height = header->height >> mipShift;
-		createInfo.format = (Format)header->format;
+		createInfo.format = header->format;
 		createInfo.arrayLayers = header->numLayers;
 		createInfo.mipLevels = header->numMipLevels - mipShift;
 		
@@ -162,6 +164,6 @@ namespace eg
 		if (depth)
 			outStream << "x" << depth;
 		
-		outStream << " " << FormatToString((Format)header->format) << std::endl;
+		outStream << " " << FormatToString(header->format) << std::endl;
 	}
 }

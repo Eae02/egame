@@ -102,7 +102,8 @@ namespace eg::graphics_api::gl
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, TranslateWrapMode(description.wrapV));
 		glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, TranslateWrapMode(description.wrapW));
 #ifndef __EMSCRIPTEN__
-		glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)ClampMaxAnistropy(description.maxAnistropy));
+		glSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+		                    static_cast<float>(ClampMaxAnistropy(description.maxAnistropy)));
 		glSamplerParameterf(sampler, GL_TEXTURE_LOD_BIAS, description.mipLodBias);
 		glSamplerParameterfv(sampler, GL_TEXTURE_BORDER_COLOR, borderColor.data());
 #endif
@@ -135,7 +136,8 @@ namespace eg::graphics_api::gl
 		glTexParameteri(textureType, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
 		
 #ifndef __EMSCRIPTEN__
-		glTexParameterf(textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)ClampMaxAnistropy(samplerDesc.maxAnistropy));
+		glTexParameterf(textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+			static_cast<float>(ClampMaxAnistropy(samplerDesc.maxAnistropy)));
 		glTexParameterfv(textureType, GL_TEXTURE_BORDER_COLOR, borderColor.data());
 		glTexParameterf(textureType, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
 #endif
@@ -394,7 +396,7 @@ namespace eg::graphics_api::gl
 	{
 		size_t h = subresource.Hash();
 		HashAppend(h, type);
-		HashAppend(h, (uint32_t)format);
+		HashAppend(h, static_cast<uint32_t>(format));
 		return h;
 	}
 	
@@ -458,14 +460,14 @@ namespace eg::graphics_api::gl
 		
 		const Buffer* buffer = UnwrapBuffer(bufferHandle);
 		
-		void* offsetPtr;
+		char* offsetPtr;
 		if (buffer->isFakeHostBuffer)
 		{
 			offsetPtr = buffer->persistentMapping + offset;
 		}
 		else
 		{
-			offsetPtr = (void*)(uintptr_t)offset;
+			offsetPtr = reinterpret_cast<char*>(static_cast<uintptr_t>(offset));
 			glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer);
 		}
 		
@@ -481,10 +483,10 @@ namespace eg::graphics_api::gl
 		
 		if (texture->type == GL_TEXTURE_CUBE_MAP)
 		{
-			for (int l = 0; l < (int)range.sizeZ; l++)
+			for (int l = 0; l < ToInt(range.sizeZ); l++)
 			{
 				GLenum glLayer = GL_TEXTURE_CUBE_MAP_POSITIVE_X + l + range.offsetZ;
-				void* layerOffsetPtr = (char*)offsetPtr + imageBytes * l;
+				char* layerOffsetPtr = offsetPtr + imageBytes * l;
 				if (isCompressed)
 				{
 					glCompressedTexSubImage2D(glLayer, range.mipLevel, range.offsetX, range.offsetY,
@@ -545,7 +547,7 @@ namespace eg::graphics_api::gl
 		else
 		{
 			glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer);
-			offsetPtr = (void*)(uintptr_t)offset;
+			offsetPtr = reinterpret_cast<void*>(static_cast<uintptr_t>(offset));
 		}
 		
 		Texture* texture = UnwrapTexture(handle);
@@ -597,8 +599,8 @@ namespace eg::graphics_api::gl
 		/*
 		if (useGLESPath)
 		{
-			float minLod = (float)key.subresource.firstMipLevel;
-			float maxLod = (float)(key.subresource.firstMipLevel + key.subresource.numMipLevels - 1);
+			float minLod = static_cast<float>(key.subresource.firstMipLevel);
+			float maxLod = static_cast<float>(key.subresource.firstMipLevel + key.subresource.numMipLevels - 1);
 			if (sampler != 0)
 			{
 				glSamplerParameterf(sampler, GL_TEXTURE_MIN_LOD, minLod);
@@ -623,7 +625,9 @@ namespace eg::graphics_api::gl
 	
 	void BindTexture(CommandContextHandle, TextureViewHandle textureView, SamplerHandle sampler, uint32_t set, uint32_t binding)
 	{
-		UnwrapTextureView(textureView)->Bind((GLuint)reinterpret_cast<uintptr_t>(sampler), ResolveBindingForBind(set, binding));
+		UnwrapTextureView(textureView)->Bind(
+			UnsignedNarrow<GLuint>(reinterpret_cast<uintptr_t>(sampler)),
+			ResolveBindingForBind(set, binding));
 	}
 	
 	void Texture::LazyInitializeTextureFBO()

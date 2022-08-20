@@ -1,9 +1,8 @@
 #pragma once
 
-#include "API.hpp"
-#include "InputState.hpp"
-#include "Geometry/Ray.hpp"
-#include "Graphics/AbstractionHL.hpp"
+#include "../API.hpp"
+#include "../Geometry/Ray.hpp"
+#include "../Graphics/AbstractionHL.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -15,7 +14,9 @@ namespace eg
 	public:
 		RotationGizmo() = default;
 		
-		void Update(glm::quat& rotation, const glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix, const Ray& viewRay);
+		void Update(
+			glm::quat& rotation, const glm::vec3& position, const glm::vec3& cameraPos,
+			const glm::mat4& viewProjMatrix, const Ray& viewRay);
 		
 		void Draw(const glm::mat4& viewProjMatrix) const;
 		

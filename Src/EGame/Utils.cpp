@@ -73,11 +73,11 @@ namespace eg
 		if (size < 1024)
 			stream << size << "B";
 		else if (size < 1024 * 1024)
-			stream << ((double)size / 1024.0) << "KiB";
+			stream << (static_cast<double>(size) / 1024.0) << "KiB";
 		else if (size < 1024 * 1024 * 1024)
-			stream << ((double)size / (1024.0 * 1024.0)) << "MiB";
+			stream << (static_cast<double>(size) / (1024.0 * 1024.0)) << "MiB";
 		else
-			stream << ((double)size / (1024.0 * 1024.0 * 1024.0)) << "GiB";
+			stream << (static_cast<double>(size) / (1024.0 * 1024.0 * 1024.0)) << "GiB";
 		return stream.str();
 	}
 	
@@ -99,7 +99,7 @@ namespace eg
 		float y = (e * a) - (d * b);
 		float z = x + y - ac_bb;
 		
-		return ((reinterpret_cast<uint32_t&>(z)& ~(reinterpret_cast<uint32_t&>(x) | reinterpret_cast<uint32_t&>(y))) & 0x80000000);
+		return ((std::bit_cast<uint32_t>(z)& ~(std::bit_cast<uint32_t>(x) | std::bit_cast<uint32_t>(y))) & 0x80000000);
 	}
 	
 	std::string CanonicalPath(std::string_view path)

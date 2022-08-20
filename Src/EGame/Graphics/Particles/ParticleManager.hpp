@@ -50,11 +50,7 @@ namespace eg
 		
 		void SetGravity(glm::vec3 gravity);
 		
-		void SetTextureSize(int width, int height)
-		{
-			m_textureWidth = width;
-			m_textureHeight = height;
-		}
+		void SetTextureSize(int width, int height);
 		
 		class ParticleEmitterInstance AddEmitter(const ParticleEmitterType& type);
 		
@@ -142,8 +138,7 @@ namespace eg
 		
 		m128 m_gravity;
 		
-		int m_textureWidth = 1;
-		int m_textureHeight = 1;
+		glm::vec2 m_texturePixelSize;
 		
 		std::mt19937 m_random;
 		

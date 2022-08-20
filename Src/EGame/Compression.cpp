@@ -61,7 +61,9 @@ namespace eg
 				if (status == Z_DATA_ERROR || status == Z_NEED_DICT)
 					return false;
 				
-				int64_t charsDecompressed = (int64_t)outBuffer.size() - (int64_t)inflateStream.avail_out;
+				int64_t charsDecompressed =
+					static_cast<int64_t>(outBuffer.size()) -
+					static_cast<int64_t>(inflateStream.avail_out);
 				if (outputcharsLeft < charsDecompressed)
 					return false;
 				
@@ -98,7 +100,7 @@ namespace eg
 		{
 			auto& outBuffer = compressedData.emplace_back();
 			
-			deflateStream.avail_out = (uint32_t)outBuffer.size();
+			deflateStream.avail_out = UnsignedNarrow<uInt>(outBuffer.size());
 			deflateStream.next_out = reinterpret_cast<Bytef*>(outBuffer.data());
 			
 			int status = deflate(&deflateStream, Z_FINISH);
@@ -164,9 +166,9 @@ namespace eg
 			EG_PANIC("Error initializing ZLIB");
 		}
 		
-		inflateStream.avail_in = (uInt)inputSize;
+		inflateStream.avail_in = UnsignedNarrow<uInt>(inputSize);
 		inflateStream.next_in = reinterpret_cast<const Bytef*>(input);
-		inflateStream.avail_out = (uInt)outputSize;
+		inflateStream.avail_out = UnsignedNarrow<uInt>(outputSize);
 		inflateStream.next_out = reinterpret_cast<Bytef*>(output);
 		
 		int status = inflate(&inflateStream, Z_NO_FLUSH);

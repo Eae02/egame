@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 
 #include "API.hpp"
+#include "Assert.hpp"
 
 #define EG_BIT_FIELD(T) \
 inline constexpr T operator|(T a, T b) noexcept \
@@ -63,12 +64,12 @@ namespace eg
 	template <typename T>
 	inline constexpr bool HasFlag(T bits, T flag)
 	{
-		return (int)(bits & flag) != 0;
+		return static_cast<std::underlying_type_t<T>>(bits & flag) != 0;
 	}
 	
 	inline int8_t FloatToSNorm(float x)
 	{
-		return (int8_t)(glm::clamp(x, -1.0f, 1.0f) * 127.0f);
+		return static_cast<int8_t>(glm::clamp(x, -1.0f, 1.0f) * 127.0f);
 	}
 	
 	EG_API int64_t NanoTime();
@@ -114,10 +115,56 @@ namespace eg
 	
 	inline int8_t ToSNorm(float x)
 	{
-		return (int8_t)glm::clamp((int)(x * 127), -127, 127);
+		return static_cast<int8_t>(glm::clamp(static_cast<int>(std::round(x * 127.0f)), -127, 127));
+	}
+	
+	inline uint8_t ToUNorm8(float x)
+	{
+		return static_cast<uint8_t>(glm::clamp(static_cast<int>(std::round(x * UINT8_MAX)), 0, UINT8_MAX));
+	}
+	
+	inline uint16_t ToUNorm16(float x)
+	{
+		return static_cast<uint16_t>(glm::clamp(static_cast<int>(std::round(x * UINT16_MAX)), 0, UINT16_MAX));
 	}
 	
 	EG_API bool TriangleContainsPoint(const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& v3, const glm::vec3& p);
 	
 	EG_API std::string CanonicalPath(std::string_view path);
+	
+	template <typename NewT, typename OldT>
+	inline NewT UnsignedNarrow(OldT v)
+	{
+		static_assert(sizeof(OldT) >= sizeof(NewT));
+		static_assert(std::numeric_limits<OldT>::is_integer && !std::numeric_limits<OldT>::is_signed);
+		static_assert(std::numeric_limits<NewT>::is_integer && !std::numeric_limits<NewT>::is_signed);
+		if (v >= std::numeric_limits<NewT>::max())
+			detail::PanicImpl("UnsignedNarrow Failure");
+		return static_cast<NewT>(v);
+	}
+	
+	template <typename T>
+	inline std::make_unsigned_t<T> ToUnsigned(T v)
+	{
+		if (v < 0)
+			detail::PanicImpl("ToUnsigned Failure");
+		return static_cast<std::make_unsigned_t<T>>(v);
+	}
+	
+	template <typename T>
+	inline int ToInt(T v)
+	{
+		static_assert(sizeof(T) >= sizeof(int));
+		static_assert(std::numeric_limits<T>::is_integer);
+		if (v > static_cast<T>(INT_MAX) || (std::numeric_limits<T>::is_signed && v < static_cast<T>(INT_MIN)))
+			detail::PanicImpl("ToInt Failure");
+		return static_cast<int>(v);
+	}
+	
+	inline int64_t ToInt64(uint64_t v)
+	{
+		if (v > static_cast<uint64_t>(INT64_MAX))
+			detail::PanicImpl("ToInt64 Failure");
+		return static_cast<int64_t>(v);
+	}
 }

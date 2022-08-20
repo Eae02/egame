@@ -1,9 +1,8 @@
 #pragma once
 
-#include "API.hpp"
-#include "InputState.hpp"
-#include "Geometry/Ray.hpp"
-#include "Graphics/AbstractionHL.hpp"
+#include "../API.hpp"
+#include "../Geometry/Ray.hpp"
+#include "../Graphics/AbstractionHL.hpp"
 
 namespace eg
 {

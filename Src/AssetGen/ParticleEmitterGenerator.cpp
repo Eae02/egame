@@ -124,7 +124,7 @@ namespace eg::asset_gen
 				return false;
 			}
 			
-			emitter.numTextureVariants = textureVariants.size();
+			emitter.numTextureVariants = UnsignedNarrow<uint16_t>(textureVariants.size());
 			
 			generateContext.outputStream.write(reinterpret_cast<const char*>(&emitter),
 				sizeof(SerializedParticleEmitter));
@@ -134,11 +134,11 @@ namespace eg::asset_gen
 			
 			for (const ParticleEmitterType::TextureVariant& textureVariant : textureVariants)
 			{
-				BinWrite(generateContext.outputStream, (int32_t)textureVariant.x);
-				BinWrite(generateContext.outputStream, (int32_t)textureVariant.y);
-				BinWrite(generateContext.outputStream, (int32_t)textureVariant.width);
-				BinWrite(generateContext.outputStream, (int32_t)textureVariant.height);
-				BinWrite(generateContext.outputStream, (int32_t)textureVariant.numFrames);
+				BinWrite<int32_t>(generateContext.outputStream, textureVariant.x);
+				BinWrite<int32_t>(generateContext.outputStream, textureVariant.y);
+				BinWrite<int32_t>(generateContext.outputStream, textureVariant.width);
+				BinWrite<int32_t>(generateContext.outputStream, textureVariant.height);
+				BinWrite<int32_t>(generateContext.outputStream, textureVariant.numFrames);
 			}
 			
 			return true;

@@ -3,6 +3,7 @@
 #include "../Platform/FileSystem.hpp"
 #include "../Platform/DynamicLibrary.hpp"
 #include "../IOUtils.hpp"
+#include "../Utils.hpp"
 #include "../String.hpp"
 
 #include <glm/glm.hpp>
@@ -144,8 +145,8 @@ namespace eg
 		ft::Set_Pixel_Sizes(face, 0, size);
 		
 		FontAtlas atlas;
-		atlas.m_size = (int)size;
-		atlas.m_lineHeight = (float)size;
+		atlas.m_size = ToInt(size);
+		atlas.m_lineHeight = static_cast<float>(size);
 		
 		if (ft::Load_Char(face, ' ', FT_LOAD_DEFAULT) != 0)
 		{
@@ -153,7 +154,7 @@ namespace eg
 			ft::Done_Face(face);
 			return {};
 		}
-		atlas.m_spaceAdvance = (float)face->glyph->advance.x / 64.0f;
+		atlas.m_spaceAdvance = static_cast<float>(face->glyph->advance.x) / 64.0f;
 		
 		std::vector<stbrp_rect> rectangles;
 		std::vector<std::unique_ptr<uint8_t[]>> bitmapCopies;
@@ -175,15 +176,15 @@ namespace eg
 			}
 			
 			stbrp_rect& rectangle = rectangles.emplace_back();
-			rectangle.id = (int)atlas.m_characters.size();
+			rectangle.id = ToInt(atlas.m_characters.size());
 			
 			Character& character = atlas.m_characters.emplace_back();
 			character.id = c;
-			character.width = (uint16_t)face->glyph->bitmap.width;
-			character.height = (uint16_t)face->glyph->bitmap.rows;
+			character.width = UnsignedNarrow<uint16_t>(face->glyph->bitmap.width);
+			character.height = UnsignedNarrow<uint16_t>(face->glyph->bitmap.rows);
 			character.xOffset = face->glyph->bitmap_left;
 			character.yOffset = face->glyph->bitmap_top;
-			character.xAdvance = (float)face->glyph->advance.x / 64.0f;
+			character.xAdvance = static_cast<float>(face->glyph->advance.x) / 64.0f;
 			
 			rectangle.w = character.width + PADDING;
 			rectangle.h = character.height + PADDING;
@@ -212,7 +213,7 @@ namespace eg
 		//Calculates the size of the atlas
 		auto GetInitialSize = [](int res)
 		{
-			return 1 << (int)std::ceil(std::log2(std::sqrt((double)res)));
+			return 1 << static_cast<int>(std::ceil(std::log2(std::sqrt(static_cast<double>(res)))));
 		};
 		if (atlasWidth == -1)
 			atlasWidth = GetInitialSize(totalWidth);
@@ -227,7 +228,7 @@ namespace eg
 			stbrp_context stbrpCtx;
 			stbrp_init_target(&stbrpCtx, atlasWidth, atlasHeight, nodes.get(), atlasWidth);
 			
-			if (stbrp_pack_rects(&stbrpCtx, rectangles.data(), (int)rectangles.size()))
+			if (stbrp_pack_rects(&stbrpCtx, rectangles.data(), ToInt(rectangles.size())))
 				break;
 			
 			if (atlasWidth <= atlasHeight)
@@ -244,8 +245,8 @@ namespace eg
 		for (const stbrp_rect& rectangle : rectangles)
 		{
 			Character& character = atlas.m_characters[rectangle.id];
-			character.textureX = (uint16_t)rectangle.x + PADDING / 2;
-			character.textureY = (uint16_t)rectangle.y + PADDING / 2;
+			character.textureX = UnsignedNarrow<uint16_t>(ToUnsigned(rectangle.x)) + PADDING / 2;
+			character.textureY = UnsignedNarrow<uint16_t>(ToUnsigned(rectangle.y)) + PADDING / 2;
 			
 			uint8_t* bitmapCopy = bitmapCopies[rectangle.id].get();
 			for (uint32_t r = 0; r < character.height; r++)
@@ -316,7 +317,7 @@ namespace eg
 			
 			if (IsCommand("common"))
 			{
-				atlas.m_lineHeight = (float)GetPartValueI("lineHeight");
+				atlas.m_lineHeight = static_cast<float>(GetPartValueI("lineHeight"));
 				atlas.m_size = GetPartValueI("base");
 				
 				if (atlas.m_lineHeight == INT_MIN || atlas.m_size == INT_MIN)
@@ -369,19 +370,19 @@ namespace eg
 				
 				if (id == ' ')
 				{
-					atlas.m_spaceAdvance = (float)xAdvance;
+					atlas.m_spaceAdvance = static_cast<float>(xAdvance);
 					continue;
 				}
 				
 				Character& character = atlas.m_characters.emplace_back();
-				character.id = (uint32_t)id;
-				character.textureX = (uint16_t)x;
-				character.textureY = (uint16_t)y;
-				character.width = (uint16_t)width;
-				character.height = (uint16_t)height;
+				character.id = ToUnsigned(id);
+				character.textureX = UnsignedNarrow<uint16_t>(ToUnsigned(x));
+				character.textureY = UnsignedNarrow<uint16_t>(ToUnsigned(y));
+				character.width = UnsignedNarrow<uint16_t>(ToUnsigned(width));
+				character.height = UnsignedNarrow<uint16_t>(ToUnsigned(height));
 				character.xOffset = xOffset;
-				character.yOffset = (int)atlas.m_lineHeight - yOffset;
-				character.xAdvance = (float)xAdvance;
+				character.yOffset = static_cast<int>(std::round(atlas.m_lineHeight)) - yOffset;
+				character.xAdvance = static_cast<float>(xAdvance);
 			}
 			else if (IsCommand("kerning"))
 			{
@@ -393,7 +394,7 @@ namespace eg
 					return {};
 				}
 				
-				atlas.m_kerningPairs.push_back({ (uint32_t)first, (uint32_t)second, GetPartValueI("amount") });
+				atlas.m_kerningPairs.push_back({ ToUnsigned(first), ToUnsigned(second), GetPartValueI("amount") });
 			}
 		}
 		
@@ -440,7 +441,7 @@ namespace eg
 			},
 			[&] (const std::string& imageName, struct AtlasData& data)
 			{
-				data.data = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(imgData.data()), (int)imgData.size(),
+				data.data = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(imgData.data()), ToInt(imgData.size()),
 					reinterpret_cast<int*>(&data.width), reinterpret_cast<int*>(&data.height), nullptr, 1);
 				
 				if (data.data == nullptr)
@@ -465,7 +466,7 @@ namespace eg
 		}
 		
 		return FromFNTInternal(
-			[&] (std::string& lineOut) { return (bool)std::getline(stream, lineOut); },
+			[&] (std::string& lineOut) { return !!std::getline(stream, lineOut); },
 			[&] (const std::string& imageName, struct AtlasData& data)
 			{
 				std::string fullImagePath = std::string(ParentPath(path)) + imageName;
@@ -533,7 +534,7 @@ namespace eg
 			
 			const int kerning = GetKerning(prev, c);
 			
-			x += fontChar.xAdvance + (float)kerning;
+			x += fontChar.xAdvance + static_cast<float>(kerning);
 			extentsY = std::max(extentsY, fontChar.height);
 		}
 		
@@ -569,7 +570,7 @@ namespace eg
 			
 			const int kerning = GetKerning(prev, c);
 			
-			x += GetCharacterOrDefault(c).xAdvance + (float)kerning;
+			x += GetCharacterOrDefault(c).xAdvance + static_cast<float>(kerning);
 			if (x > maxWidth && lastBreak != -1)
 			{
 				if (!result.empty())
@@ -604,10 +605,10 @@ namespace eg
 		BinWrite<uint32_t>(stream, m_size);
 		BinWrite<float>(stream, m_lineHeight);
 		BinWrite<float>(stream, m_spaceAdvance);
-		BinWrite(stream, (uint32_t)m_characters.size());
-		BinWrite(stream, (uint32_t)m_kerningPairs.size());
-		BinWrite(stream, (uint32_t)m_atlasData.width);
-		BinWrite(stream, (uint32_t)m_atlasData.height);
+		BinWrite(stream, UnsignedNarrow<uint32_t>(m_characters.size()));
+		BinWrite(stream, UnsignedNarrow<uint32_t>(m_kerningPairs.size()));
+		BinWrite(stream, ToUnsigned(m_atlasData.width));
+		BinWrite(stream, ToUnsigned(m_atlasData.height));
 		
 		stream.write(reinterpret_cast<const char*>(m_characters.data()), m_characters.size() * sizeof(Character));
 		stream.write(reinterpret_cast<const char*>(m_kerningPairs.data()), m_kerningPairs.size() * sizeof(KerningPair));
@@ -624,11 +625,11 @@ namespace eg
 		uint32_t numKerningPairs = BinRead<uint32_t>(stream);
 		atlas.m_atlasData.width  = BinRead<uint32_t>(stream);
 		atlas.m_atlasData.height = BinRead<uint32_t>(stream);
-		size_t dataBytes         = (size_t)atlas.m_atlasData.width * (size_t)atlas.m_atlasData.height;
+		size_t dataBytes         = static_cast<size_t>(atlas.m_atlasData.width) * static_cast<size_t>(atlas.m_atlasData.height);
 		
 		atlas.m_characters.resize(numChars);
 		atlas.m_kerningPairs.resize(numKerningPairs);
-		atlas.m_atlasData.data = (uint8_t*)std::malloc(dataBytes);
+		atlas.m_atlasData.data = static_cast<uint8_t*>(std::malloc(dataBytes));
 		
 		stream.read(reinterpret_cast<char*>(atlas.m_characters.data()), numChars * sizeof(Character));
 		stream.read(reinterpret_cast<char*>(atlas.m_kerningPairs.data()), numKerningPairs * sizeof(KerningPair));

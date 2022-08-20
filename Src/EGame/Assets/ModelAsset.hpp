@@ -57,9 +57,9 @@ namespace eg
 			if (vertices.empty() || indices.empty())
 				EG_PANIC("Attempted to write an empty mesh.");
 			
-			BinWrite<uint32_t>(*m_stream, vertices.size());
-			BinWrite<uint32_t>(*m_stream, indices.size());
-			BinWrite<uint8_t>(*m_stream, (uint8_t)access);
+			BinWrite(*m_stream, UnsignedNarrow<uint32_t>(vertices.size()));
+			BinWrite(*m_stream, UnsignedNarrow<uint32_t>(indices.size()));
+			BinWrite(*m_stream, static_cast<uint8_t>(access));
 			BinWriteString(*m_stream, materialName);
 			BinWriteString(*m_stream, name);
 			BinWrite<float>(*m_stream, boundingSphere.position.x);

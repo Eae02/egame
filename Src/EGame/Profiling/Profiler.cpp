@@ -46,7 +46,7 @@ namespace eg
 	
 	CPUTimer Profiler::StartCPUTimer(std::string name)
 	{
-		int index = (int)m_cpuTimers.size();
+		int index = ToInt(m_cpuTimers.size());
 		CPUTimerEntry& entry = m_cpuTimers.emplace_back();
 		entry.startTime = NanoTime();
 		entry.name = std::move(name);
@@ -74,11 +74,11 @@ namespace eg
 		TimerEntry& entry = m_gpuTimers.emplace_back();
 		entry.name = std::move(name);
 		entry.parentTimer = m_lastGPUTimer;
-		m_lastGPUTimer = (int)index;
+		m_lastGPUTimer = ToInt(index);
 		
 		DC.WriteTimestamp(m_queryPools[poolIndex], (index % TIMERS_PER_POOL) * 2);
 		
-		return GPUTimer(this, (int)index);
+		return GPUTimer(this, ToInt(index));
 	}
 	
 	template <typename T, typename GetTimeCB>
@@ -91,11 +91,11 @@ namespace eg
 		timer.totalChildren = 0;
 		timer.depth = depth;
 		timer.name = std::move(timersIn[rootTimer].name);
-		timer.timeNS = (float)getTime(rootTimer);
+		timer.timeNS = static_cast<float>(getTime(rootTimer));
 		
 		for (size_t i = 0; i < timersIn.size(); i++)
 		{
-			if (timersIn[i].parentTimer == (int)rootTimer)
+			if (timersIn[i].parentTimer == ToInt(rootTimer))
 			{
 				timersOut[outIndex].totalChildren += InitTimerTreeRec(timersOut, timersIn, i, depth + 1, getTime);
 				timersOut[outIndex].numChildren++;
@@ -120,7 +120,7 @@ namespace eg
 	std::optional<ProfilingResults> Profiler::GetResults()
 	{
 		//Fetches timestamps from queries
-		const uint32_t numTimestamps = (uint32_t)m_gpuTimers.size() * 2;
+		const uint32_t numTimestamps = UnsignedNarrow<uint32_t>(m_gpuTimers.size() * 2);
 		const uint32_t timestampBytes = numTimestamps * sizeof(uint64_t);
 		uint64_t* timestamps = reinterpret_cast<uint64_t*>(alloca(timestampBytes));
 		for (uint32_t i = 0; i * TIMERS_PER_POOL < m_gpuTimers.size(); i++)
@@ -149,8 +149,8 @@ namespace eg
 		
 		InitTimerTree(results.m_gpuTimers, m_gpuTimers, [&] (size_t i)
 		{
-			float elapsedNS = (float)(timestamps[i * 2 + 1] - timestamps[i * 2]) * GetGraphicsDeviceInfo().timerTicksPerNS;
-			return (int64_t)std::round(elapsedNS);
+			float elapsedNS = static_cast<float>(timestamps[i * 2 + 1] - timestamps[i * 2]) * GetGraphicsDeviceInfo().timerTicksPerNS;
+			return static_cast<int64_t>(std::round(elapsedNS));
 		});
 		
 		return results;

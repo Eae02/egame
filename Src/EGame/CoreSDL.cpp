@@ -1,6 +1,7 @@
 #ifndef __EMSCRIPTEN__
 #include "Core.hpp"
 #include "Graphics/AbstractionHL.hpp"
+#include "Graphics/Vulkan/VulkanMain.hpp"
 #include "InputState.hpp"
 #include "Event.hpp"
 #include "GameController.hpp"
@@ -16,26 +17,20 @@ namespace eg
 {
 	static const char* exeDirPathPtr;
 	
-	void AddGameController(SDL_GameController* controller);
-	
-	extern std::vector<GameController> controllers;
-	extern SDL_GameController* activeController;
-	
 	static bool firstMouseMotionEvent = true;
 	static bool firstControllerAxisEvent = true;
 	static SDL_Window* sdlWindow;
 	
-	namespace graphics_api::vk
-	{
-		bool EarlyInitializeMemoized();
-	}
-	
 	bool VulkanAppearsSupported()
 	{
+#ifdef EG_NO_VULKAN
+		return false;
+#else
 		return graphics_api::vk::EarlyInitializeMemoized();
+#endif
 	}
 	
-	int PlatformInit(const RunConfig& runConfig)
+	int detail::PlatformInit(const RunConfig& runConfig)
 	{
 		if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
 		{
@@ -66,11 +61,11 @@ namespace eg
 			SDL_DisplayMode mode;
 			SDL_GetDisplayMode(DISPLAY_INDEX, i, &mode);
 			if (mode.w == 0 || mode.h == 0 || mode.refresh_rate == 0 ||
-				(uint32_t)mode.w < runConfig.minWindowW || (uint32_t)mode.h < runConfig.minWindowH)
+				ToUnsigned(mode.w) < runConfig.minWindowW || ToUnsigned(mode.h) < runConfig.minWindowH)
 			{
 				continue;
 			}
-			FullscreenDisplayMode dm = { (uint32_t)mode.w, (uint32_t)mode.h, (uint32_t)mode.refresh_rate };
+			FullscreenDisplayMode dm = { ToUnsigned(mode.w), ToUnsigned(mode.h), ToUnsigned(mode.refresh_rate) };
 			if (!Contains(detail::fullscreenDisplayModes, dm))
 			{
 				if (currentDisplayMode.w == mode.w && currentDisplayMode.h == mode.h && currentDisplayMode.refresh_rate == mode.refresh_rate)
@@ -108,7 +103,7 @@ namespace eg
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
 			SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,
-				(int)HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB));
+				static_cast<int>(HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB)));
 			
 			windowFlags |= SDL_WINDOW_OPENGL;
 		}
@@ -117,8 +112,8 @@ namespace eg
 			windowFlags |= SDL_WINDOW_VULKAN;
 		}
 		
-		int windowW = std::max(currentDisplayMode.w * 3 / 5, (int)runConfig.minWindowW);
-		int windowH = std::max(windowW * 2 / 3, (int)runConfig.minWindowH);
+		int windowW = std::max(currentDisplayMode.w * 3 / 5, ToInt(runConfig.minWindowW));
+		int windowH = std::max(windowW * 2 / 3, ToInt(runConfig.minWindowH));
 		sdlWindow = SDL_CreateWindow(detail::gameName.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowW, windowH, windowFlags);
 		
 		if (runConfig.minWindowW != 0 && runConfig.minWindowH != 0)
@@ -191,10 +186,7 @@ namespace eg
 	extern bool hasSetTextInputRect;
 	extern bool textInputActive;
 	
-	void CoreUninitialize();
-	void RunFrame(IGame& game);
-	
-	void PlatformRunGameLoop(std::unique_ptr<IGame> game)
+	void detail::PlatformRunGameLoop(std::unique_ptr<IGame> game)
 	{
 		while (!gal::IsLoadingComplete())
 		{
@@ -205,7 +197,7 @@ namespace eg
 		{
 			hasCalledTextInputActive = false;
 			hasSetTextInputRect = false;
-			RunFrame(*game);
+			detail::RunFrame(*game);
 			if (!hasCalledTextInputActive && textInputActive)
 			{
 				textInputActive = false;
@@ -215,13 +207,13 @@ namespace eg
 		
 		game.reset();
 		
-		CoreUninitialize();
+		detail::CoreUninitialize();
 		
 		SDL_DestroyWindow(sdlWindow);
 		SDL_Quit();
 	}
 	
-	void PlatformStartFrame()
+	void detail::PlatformStartFrame()
 	{
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
@@ -238,7 +230,7 @@ namespace eg
 				    event.key.keysym.scancode == SDL_SCANCODE_F10)
 				{
 					bool rel = SDL_GetRelativeMouseMode();
-					SDL_SetRelativeMouseMode((SDL_bool)(!rel));
+					SDL_SetRelativeMouseMode(rel ? SDL_FALSE : SDL_TRUE);
 				}
 				break;
 			case SDL_KEYUP:
@@ -259,7 +251,7 @@ namespace eg
 			case SDL_CONTROLLERAXISMOTION:
 				if (SDL_GameControllerFromInstanceID(event.caxis.which) == activeController)
 				{
-					const ControllerAxis axis = (ControllerAxis)event.caxis.axis;
+					const ControllerAxis axis = static_cast<ControllerAxis>(event.caxis.axis);
 					const float valueF = event.caxis.value / SDL_JOYSTICK_AXIS_MAX;
 					if (firstControllerAxisEvent)
 					{

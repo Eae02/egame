@@ -40,6 +40,12 @@ namespace eg
 #endif
 	}
 	
+	void ParticleManager::SetTextureSize(int width, int height)
+	{
+		m_texturePixelSize.x = 1.0f / static_cast<float>(width);
+		m_texturePixelSize.y = 1.0f / static_cast<float>(height);
+	}
+	
 	void ParticleManager::SimulateOneStep()
 	{
 		float dt = m_currentTime - m_lastSimTime;
@@ -98,7 +104,7 @@ namespace eg
 			for (int i = 0; i < numDead; i++)
 			{
 				int idx = deadIndices[i];
-				if (idx >= (int)page->livingParticles)
+				if (static_cast<uint32_t>(idx) >= page->livingParticles)
 					continue;
 				
 				numAlive--;
@@ -164,7 +170,7 @@ namespace eg
 			particleCount += numAlive;
 		}
 		
-		for (int64_t i = (int64_t)m_pages.size() - 1; i >= 0; i--)
+		for (int64_t i = ToInt64(m_pages.size()) - 1; i >= 0; i--)
 		{
 			if (m_pages[i]->livingParticles == 0)
 			{
@@ -199,7 +205,7 @@ namespace eg
 				
 				uint32_t idx = page->livingParticles++;
 				
-				float transformIA = glm::clamp(((float)emissionsMade * emitter.emissionDelay - oldTSE) / dt, 0.0f, 1.0f);
+				float transformIA = glm::clamp((static_cast<float>(emissionsMade) * emitter.emissionDelay - oldTSE) / dt, 0.0f, 1.0f);
 				auto TransformV3 = [&] (const glm::vec3& v, float w)
 				{
 					glm::vec3 prev(emitter.prevTransform * glm::vec4(v, w));
@@ -238,9 +244,6 @@ namespace eg
 			emitter.prevTransform = emitter.transform;
 		}
 		
-		float texCoordScaleX = (float)UINT16_MAX / (float)m_textureWidth;
-		float texCoordScaleY = (float)UINT16_MAX / (float)m_textureHeight;
-		
 		//Writes visible particles to the particle instances list
 		m_particleInstances.clear();
 		m_particleDepths.clear();
@@ -272,19 +275,21 @@ namespace eg
 						instance.position[j] = page->position[i][j];
 #endif
 					instance.size = page->currentSize[i];
-					instance.opacity = (uint8_t)glm::clamp(page->currentOpacity[i], 0.0f, 255.0f);
+					instance.opacity = static_cast<uint8_t>(glm::clamp(page->currentOpacity[i], 0.0f, 255.0f));
 					instance.additiveBlend = HasFlag(page->emitterType->flags, ParticleFlags::BlendAdditive) ? 0xFF : 0;
-					instance.sinR = (uint8_t)((std::sin(page->rotation[i]) + 1.0f) * 127.0f);
-					instance.cosR = (uint8_t)((std::cos(page->rotation[i]) + 1.0f) * 127.0f);
+					instance.sinR = static_cast<uint8_t>(((std::sin(page->rotation[i]) + 1.0f) * 127.0f));
+					instance.cosR = static_cast<uint8_t>(((std::cos(page->rotation[i]) + 1.0f) * 127.0f));
 					
 					auto texVariant = page->emitterType->textureVariants[page->textureVariants[i]];
-					int frame = std::min((int)(page->lifeProgress[i] * (float)texVariant.numFrames), texVariant.numFrames - 1);
+					int frame = std::min(
+						static_cast<int>(page->lifeProgress[i] * static_cast<float>(texVariant.numFrames)),
+						texVariant.numFrames - 1);
 					int texX = texVariant.x + frame * texVariant.width;
 					
-					instance.texCoord[0] = (uint16_t)std::ceil((float)texX * texCoordScaleX);
-					instance.texCoord[1] = (uint16_t)std::ceil((float)texVariant.y * texCoordScaleY);
-					instance.texCoord[2] = (uint16_t)std::floor((float)(texX + texVariant.width) * texCoordScaleX);
-					instance.texCoord[3] = (uint16_t)std::floor((float)(texVariant.y + texVariant.height) * texCoordScaleY);
+					instance.texCoord[0] = ToUNorm16(static_cast<float>(texX) * m_texturePixelSize.x);
+					instance.texCoord[1] = ToUNorm16(static_cast<float>(texVariant.y) * m_texturePixelSize.y);
+					instance.texCoord[2] = ToUNorm16(static_cast<float>(texX + texVariant.width) * m_texturePixelSize.x);
+					instance.texCoord[3] = ToUNorm16(static_cast<float>(texVariant.y + texVariant.height) * m_texturePixelSize.y);
 				}
 			}
 		}

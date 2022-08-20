@@ -1,6 +1,7 @@
 #include "CollisionMesh.hpp"
 #include "Ray.hpp"
 #include "../Assert.hpp"
+#include "../Utils.hpp"
 
 namespace eg
 {
@@ -132,7 +133,7 @@ namespace eg
 				result.m_indices[nextIndex++] = mesh.m_indices[i] + nextVertex;
 			}
 			std::copy_n(mesh.m_vertices.data(), mesh.m_vertices.size(), result.m_vertices.data() + nextVertex);
-			nextVertex += (uint32_t)mesh.m_vertices.size();
+			nextVertex += UnsignedNarrow<uint32_t>(mesh.m_vertices.size());
 		}
 		
 		result.InitAABB();

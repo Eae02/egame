@@ -24,8 +24,8 @@ namespace eg
 {
 	LinearAllocator detail::assetAllocator;
 	
-	bool createAssetPackage;
-	bool disableAssetPackageCompression;
+	bool detail::createAssetPackage;
+	bool detail::disableAssetPackageCompression;
 	
 	struct AssetDirectory
 	{
@@ -111,7 +111,7 @@ namespace eg
 		it->generator = detail::assetAllocator.MakeStringCopy(generator);
 	}
 	
-	static const char cachedAssetMagic[] = { (char)0xFF, 'E', 'A', 'C' };
+	static const char cachedAssetMagic[] = { -1, 'E', 'A', 'C' };
 	
 	static void SaveAssetToCache(const GeneratedAsset& asset, uint64_t yamlParamsHash, const std::string& cachePath)
 	{
@@ -123,18 +123,18 @@ namespace eg
 		BinWrite(stream, yamlParamsHash);
 		BinWrite(stream, asset.format.nameHash);
 		BinWrite(stream, asset.format.version);
-		BinWrite(stream, (uint32_t)asset.flags);
-		BinWrite(stream, (uint64_t)time(nullptr));
+		BinWrite(stream, static_cast<uint32_t>(asset.flags));
+		BinWrite(stream, static_cast<uint64_t>(time(nullptr)));
 		
-		BinWrite(stream, (uint32_t)asset.fileDependencies.size());
+		BinWrite(stream, UnsignedNarrow<uint32_t>(asset.fileDependencies.size()));
 		for (const std::string& dep : asset.fileDependencies)
 			BinWriteString(stream, dep);
 		
-		BinWrite(stream, (uint32_t)asset.loadDependencies.size());
+		BinWrite(stream, UnsignedNarrow<uint32_t>(asset.loadDependencies.size()));
 		for (const std::string& dep : asset.loadDependencies)
 			BinWriteString(stream, dep);
 		
-		BinWrite(stream, (uint32_t)asset.data.size());
+		BinWrite(stream, UnsignedNarrow<uint32_t>(asset.data.size()));
 		stream.write(asset.data.data(), asset.data.size());
 	}
 	
@@ -161,7 +161,7 @@ namespace eg
 		if (asset.format.nameHash != expectedFormat.nameHash || asset.format.version != expectedFormat.version)
 			return { };
 		
-		asset.flags = (AssetFlags)BinRead<uint32_t>(stream);
+		asset.flags = static_cast<AssetFlags>(BinRead<uint32_t>(stream));
 		const auto generateTime = std::chrono::system_clock::from_time_t(BinRead<uint64_t>(stream));
 		
 		const uint32_t numFileDependencies = BinRead<uint32_t>(stream);
@@ -375,7 +375,7 @@ namespace eg
 				
 				std::ostringstream msg;
 				msg << "Generated asset '" << assetToLoad.name << "' in " <<
-					std::setprecision(2) << std::fixed << ((double)genDuration * 1E-6) << "ms";
+					std::setprecision(2) << std::fixed << (static_cast<double>(genDuration) * 1E-6) << "ms";
 				eg::Log(LogLevel::Info, "as", "{0}", msg.str());
 				
 				//Don't cache if the resource generated in less than 0.5ms
@@ -430,22 +430,22 @@ namespace eg
 		
 		for (AssetToLoad& asset : assetsToLoad)
 		{
-			ProcessAsset(asset, mountDir, assetsToLoadByName, createAssetPackage ? &assetsToposorted : nullptr);
+			ProcessAsset(asset, mountDir, assetsToLoadByName, detail::createAssetPackage ? &assetsToposorted : nullptr);
 		}
 		
-		if (createAssetPackage)
+		if (detail::createAssetPackage)
 		{
-			std::vector<EAPAsset> eapAssets(assetsToLoad.size());
-			std::transform(assetsToLoad.begin(), assetsToLoad.end(), eapAssets.begin(), [&] (const AssetToLoad& asset)
+			std::vector<EAPAsset> eapAssets(assetsToposorted.size());
+			std::transform(assetsToposorted.begin(), assetsToposorted.end(), eapAssets.begin(), [&] (const AssetToLoad* asset)
 			{
 				EAPAsset eapAsset;
-				eapAsset.assetName = asset.name;
-				eapAsset.loaderName = asset.loader->name;
-				eapAsset.format = *asset.loader->format;
-				eapAsset.generatedAssetData = { asset.generatedAsset.data.data(), asset.generatedAsset.data.size() };
+				eapAsset.assetName = asset->name;
+				eapAsset.loaderName = asset->loader->name;
+				eapAsset.format = *asset->loader->format;
+				eapAsset.generatedAssetData = { asset->generatedAsset.data.data(), asset->generatedAsset.data.size() };
 				eapAsset.compress =
-					!HasFlag(asset.generatedAsset.flags, AssetFlags::DisableEAPCompression) &&
-					!disableAssetPackageCompression;
+					!HasFlag(asset->generatedAsset.flags, AssetFlags::DisableEAPCompression) &&
+					!detail::disableAssetPackageCompression;
 				return eapAsset;
 			});
 			
@@ -525,11 +525,11 @@ namespace eg
 	}
 	
 #ifdef __EMSCRIPTEN__
-	void LoadAssetGenLibrary() { }
+	void detail::LoadAssetGenLibrary() { }
 #else
 	static DynamicLibrary assetGenLibrary;
 	
-	void LoadAssetGenLibrary()
+	void detail::LoadAssetGenLibrary()
 	{
 		std::string libraryName = DynamicLibrary::PlatformFormat("EGameAssetGen");
 		

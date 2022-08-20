@@ -39,7 +39,7 @@ namespace eg::graphics_api::vk
 		moduleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 		CheckRes(vkCreateShaderModule(ctx.device, &moduleCreateInfo, nullptr, &module->module));
 		
-		VkShaderStageFlags stageFlags = ShaderStageFlags[(int)stage];
+		VkShaderStageFlags stageFlags = ShaderStageFlags[static_cast<int>(stage)];
 		
 		spirv_cross::Compiler spvCrossCompiler(moduleCreateInfo.pCode, moduleCreateInfo.codeSize / 4);
 		
@@ -89,7 +89,8 @@ namespace eg::graphics_api::vk
 		{
 			for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
 			{
-				module->pushConstantBytes = std::max(module->pushConstantBytes, (uint32_t)(range.offset + range.range));
+				module->pushConstantBytes =
+					std::max(module->pushConstantBytes, UnsignedNarrow<uint32_t>(range.offset + range.range));
 			}
 		}
 		

@@ -7,7 +7,7 @@
 
 namespace eg::graphics_api::vk
 {
-	VkQueryType TranslateQueryType(QueryType type)
+	static inline VkQueryType TranslateQueryType(QueryType type)
 	{
 		switch (type)
 		{

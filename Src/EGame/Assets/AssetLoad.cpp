@@ -60,7 +60,7 @@ namespace eg
 	AssetLoadContext::AssetLoadContext(Asset* asset, std::string_view assetPath, std::span<const char> data)
 		: m_asset(asset), m_assetPath(assetPath), m_dirPath(ParentPath(assetPath, true)), m_data(data) { }
 	
-	void RegisterAssetLoaders()
+	void detail::RegisterAssetLoaders()
 	{
 		RegisterAssetLoader("Shader", &ShaderModuleAsset::AssetLoader, ShaderModuleAsset::AssetFormat);
 		RegisterAssetLoader("Texture2D", &Texture2DLoader, Texture2DAssetFormat);

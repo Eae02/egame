@@ -64,7 +64,7 @@ namespace eg
 		void Draw(const Texture& texture, const glm::vec2& position, const ColorLin& color, float scale = 1,
 			SpriteFlags flags = SpriteFlags::None, float rotation = 0, const glm::vec2& origin = { })
 		{
-			Draw(texture, position, color, Rectangle(0, 0, (float)texture.Width(), (float)texture.Height()), scale,
+			Draw(texture, position, color, Rectangle(0, 0, static_cast<float>(texture.Width()), static_cast<float>(texture.Height())), scale,
 				flags, rotation, origin);
 		}
 		

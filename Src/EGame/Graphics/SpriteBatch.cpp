@@ -25,10 +25,10 @@ namespace eg
 		pipelineCI.fragmentShader = fs.Handle();
 		pipelineCI.enableScissorTest = true;
 		pipelineCI.blendStates[0] = eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha);
-		pipelineCI.vertexBindings[0] = { sizeof(Vertex), InputRate::Vertex };
-		pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, position) };
-		pipelineCI.vertexAttributes[1] = { 0, DataType::Float32, 2, (uint32_t)offsetof(Vertex, texCoord) };
-		pipelineCI.vertexAttributes[2] = { 0, DataType::UInt8Norm, 4, (uint32_t)offsetof(Vertex, color) };
+		pipelineCI.vertexBindings[0] = VertexBinding(sizeof(Vertex), InputRate::Vertex);
+		pipelineCI.vertexAttributes[0] = VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, position));
+		pipelineCI.vertexAttributes[1] = VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, texCoord));
+		pipelineCI.vertexAttributes[2] = VertexAttribute(0, DataType::UInt8Norm, 4, offsetof(Vertex, color));
 		pipelineCI.label = "SpriteBatch";
 		spritePipeline = eg::Pipeline::Create(pipelineCI);
 		
@@ -104,7 +104,7 @@ namespace eg
 			batch.mipLevel = mipLevel;
 			batch.texture = texture;
 			batch.blend = m_blendStateStack.back();
-			batch.firstIndex = static_cast<uint32_t>(m_indices.size());
+			batch.firstIndex = UnsignedNarrow<uint32_t>(m_indices.size());
 			batch.numIndices = 0;
 			if ((batch.enableScissor = !m_scissorStack.empty()))
 			{
@@ -115,7 +115,7 @@ namespace eg
 	
 	void SpriteBatch::AddQuadIndices()
 	{
-		uint32_t i0 = static_cast<uint32_t>(m_vertices.size());
+		uint32_t i0 = UnsignedNarrow<uint32_t>(m_vertices.size());
 		
 		uint32_t indices[] = { 0, 1, 2, 1, 2, 3 };
 		for (uint32_t i : indices)
@@ -145,7 +145,7 @@ namespace eg
 		float uOffsets[] = { 0, texRectangle.w };
 		float vOffsets[] = { 0, texRectangle.h };
 		
-		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
+		if (HasFlag(spriteFlags, SpriteFlags::FlipX))
 		{
 			std::swap(uOffsets[0], uOffsets[1]);
 			origin.x = texRectangle.w - origin.x;
@@ -164,11 +164,11 @@ namespace eg
 		{
 			for (int y = 0; y < 2; y++)
 			{
-				const float u = (texRectangle.x + uOffsets[x]) / (float)texture.Width();
-				const float v = (texRectangle.y + vOffsets[y]) / (float)texture.Height();
+				const float u = (texRectangle.x + uOffsets[x]) / static_cast<float>(texture.Width());
+				const float v = (texRectangle.y + vOffsets[y]) / static_cast<float>(texture.Height());
 				
-				const float offX = texRectangle.w * (float)x - origin.x;
-				const float offY = -(texRectangle.h * (float)y - origin.y);
+				const float offX = texRectangle.w * static_cast<float>(x) - origin.x;
+				const float offY = -(texRectangle.h * static_cast<float>(y) - origin.y);
 				const float rOffX = offX * cosR - offY * sinR;
 				const float rOffY = offX * sinR + offY * cosR;
 				
@@ -187,7 +187,7 @@ namespace eg
 		float uOffsets[] = { 0, texRectangle.w };
 		float vOffsets[] = { texRectangle.h, 0 };
 		
-		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
+		if (HasFlag(spriteFlags, SpriteFlags::FlipX))
 			std::swap(uOffsets[0], uOffsets[1]);
 		if (ShouldFlipY(spriteFlags))
 			std::swap(vOffsets[0], vOffsets[1]);
@@ -196,10 +196,10 @@ namespace eg
 		{
 			for (int y = 0; y < 2; y++)
 			{
-				const float u = (texRectangle.x + uOffsets[x]) / (float)texture.Width();
-				const float v = (texRectangle.y + vOffsets[y]) / (float)texture.Height();
+				const float u = (texRectangle.x + uOffsets[x]) / static_cast<float>(texture.Width());
+				const float v = (texRectangle.y + vOffsets[y]) / static_cast<float>(texture.Height());
 				m_vertices.emplace_back(
-					glm::vec2(rectangle.x + rectangle.w * (float)x, rectangle.y + rectangle.h * (float)y),
+					glm::vec2(rectangle.x + rectangle.w * static_cast<float>(x), rectangle.y + rectangle.h * static_cast<float>(y)),
 					glm::vec2(u, v), color, opacityScale);
 			}
 		}
@@ -213,7 +213,7 @@ namespace eg
 		
 		float uOffsets[] = { 0, 1 };
 		float vOffsets[] = { 1, 0 };
-		if ((int)spriteFlags & (int)SpriteFlags::FlipX)
+		if (HasFlag(spriteFlags, SpriteFlags::FlipX))
 			std::swap(uOffsets[0], uOffsets[1]);
 		if (ShouldFlipY(spriteFlags))
 			std::swap(vOffsets[0], vOffsets[1]);
@@ -225,7 +225,7 @@ namespace eg
 				const float u = uOffsets[x];
 				const float v = vOffsets[y];
 				m_vertices.emplace_back(
-					glm::vec2(rectangle.x + rectangle.w * (float)x, rectangle.y + rectangle.h * (float)y),
+					glm::vec2(rectangle.x + rectangle.w * static_cast<float>(x), rectangle.y + rectangle.h * static_cast<float>(y)),
 					glm::vec2(u, v), color, opacityScale);
 			}
 		}
@@ -250,11 +250,11 @@ namespace eg
 		
 		for (int s = 0; s < 2; s++)
 		{
-			m_vertices.emplace_back(begin + dO * (width * (float)(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
+			m_vertices.emplace_back(begin + dO * (width * static_cast<float>(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
 		}
 		for (int s = 0; s < 2; s++)
 		{
-			m_vertices.emplace_back(end + dO * (width * (float)(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
+			m_vertices.emplace_back(end + dO * (width * static_cast<float>(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
 		}
 	}
 	
@@ -269,7 +269,7 @@ namespace eg
 			for (int y = 0; y < 2; y++)
 			{
 				m_vertices.emplace_back(
-					glm::vec2(rectangle.x + rectangle.w * (float)x, rectangle.y + rectangle.h * (float)y),
+					glm::vec2(rectangle.x + rectangle.w * static_cast<float>(x), rectangle.y + rectangle.h * static_cast<float>(y)),
 					glm::vec2(0, 0), color, opacityScale);
 			}
 		}
@@ -333,8 +333,8 @@ namespace eg
 			const int kerning = font.GetKerning(prev, c);
 			
 			Rectangle rectangle;
-			rectangle.x = position.x + (x + (float)fontChar.xOffset + (float)kerning) * scale;
-			rectangle.y = position.y - (float)(0 - fontChar.yOffset + (int)fontChar.height) * scale;
+			rectangle.x = position.x + (x + static_cast<float>(fontChar.xOffset) + static_cast<float>(kerning)) * scale;
+			rectangle.y = position.y - static_cast<float>(0 - fontChar.yOffset + static_cast<int>(fontChar.height)) * scale;
 			rectangle.w = fontChar.width * scale;
 			rectangle.h = fontChar.height * scale;
 			
@@ -355,7 +355,7 @@ namespace eg
 			
 			Draw(font.Tex(), rectangle, *currentColor, srcRectangle, SpriteFlags::RedToAlpha);
 			
-			x += fontChar.xAdvance + (float)kerning;
+			x += fontChar.xAdvance + static_cast<float>(kerning);
 			sizeOut->y = std::max(sizeOut->y, rectangle.h);
 		}
 		
@@ -382,7 +382,7 @@ namespace eg
 		//Reallocates the vertex buffer if it's too small
 		if (m_vertexBufferCapacity < m_vertices.size())
 		{
-			m_vertexBufferCapacity = RoundToNextMultiple((uint32_t)m_vertices.size(), 1024);
+			m_vertexBufferCapacity = RoundToNextMultiple(UnsignedNarrow<uint32_t>(m_vertices.size()), 1024);
 			m_vertexBuffer = Buffer(BufferFlags::CopyDst | BufferFlags::VertexBuffer,
 				m_vertexBufferCapacity * sizeof(Vertex), nullptr);
 		}
@@ -390,7 +390,7 @@ namespace eg
 		//Reallocates the index buffer if it's too small
 		if (m_indexBufferCapacity < m_indices.size())
 		{
-			m_indexBufferCapacity = RoundToNextMultiple((uint32_t)m_indices.size(), 1024);
+			m_indexBufferCapacity = RoundToNextMultiple(UnsignedNarrow<uint32_t>(m_indices.size()), 1024);
 			m_indexBuffer = Buffer(BufferFlags::CopyDst | BufferFlags::IndexBuffer,
 				m_indexBufferCapacity * sizeof(uint32_t), nullptr);
 		}
@@ -431,7 +431,7 @@ namespace eg
 		{
 			defaultMatrix =
 				glm::translate(glm::mat3(1), glm::vec2(-1)) *
-				glm::scale(glm::mat3(1), glm::vec2(2.0f / (float)screenWidth, 2.0f / (float)screenHeight));
+				glm::scale(glm::mat3(1), glm::vec2(2.0f / static_cast<float>(screenWidth), 2.0f / static_cast<float>(screenHeight)));
 			matrix = &defaultMatrix;
 		}
 		
@@ -488,7 +488,12 @@ namespace eg
 	
 	void SpriteBatch::PushScissorF(float x, float y, float width, float height)
 	{
-		PushScissor((int)std::round(x), (int)std::round(y), (int)std::ceil(width), (int)std::ceil(height));
+		PushScissor(
+			static_cast<int>(std::round(x)), 
+			static_cast<int>(std::round(y)), 
+			static_cast<int>(std::ceil(width)), 
+			static_cast<int>(std::ceil(height))
+		);
 	}
 	
 	void SpriteBatch::PushScissor(int x, int y, int width, int height)
@@ -510,9 +515,9 @@ namespace eg
 	SpriteBatch::Vertex::Vertex(const glm::vec2& _position, const glm::vec2& _texCoord, const ColorLin& _color, float opacityScale)
 		: position(_position), texCoord(_texCoord)
 	{
-		color[0] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.r * 255.0f), 0, 255));
-		color[1] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.g * 255.0f), 0, 255));
-		color[2] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.b * 255.0f), 0, 255));
-		color[3] = static_cast<uint8_t>(glm::clamp((int)std::round(_color.a * 255.0f * opacityScale), 0, 255));
+		color[0] = ToUNorm8(_color.r);
+		color[1] = ToUNorm8(_color.g);
+		color[2] = ToUNorm8(_color.b);
+		color[3] = ToUNorm8(_color.a * opacityScale);
 	}
 }

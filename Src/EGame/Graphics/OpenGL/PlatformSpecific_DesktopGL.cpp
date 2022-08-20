@@ -1,6 +1,7 @@
 #ifndef __EMSCRIPTEN__
 
 #include "OpenGL.hpp"
+#include "PlatformSpecific.hpp"
 #include "Utils.hpp"
 #include "Framebuffer.hpp"
 #include "../../Assert.hpp"
@@ -135,11 +136,11 @@ namespace eg::graphics_api::gl
 			glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i, &ans);
 			deviceInfo.maxComputeWorkGroupSize[i] = ans;
 		}
-		deviceInfo.maxComputeWorkGroupInvocations = GetIntegerLimit(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS);
-		deviceInfo.storageBufferOffsetAlignment = (uint32_t)GetIntegerLimit(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT);
+		deviceInfo.maxComputeWorkGroupInvocations = ToUnsigned(GetIntegerLimit(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS));
+		deviceInfo.storageBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT));
 		
-		deviceInfo.maxClipDistances         = (uint32_t)GetIntegerLimit(GL_MAX_CLIP_DISTANCES);
-		deviceInfo.maxTessellationPatchSize = (uint32_t)GetIntegerLimit(GL_MAX_PATCH_VERTICES);
+		deviceInfo.maxClipDistances         = ToUnsigned(GetIntegerLimit(GL_MAX_CLIP_DISTANCES));
+		deviceInfo.maxTessellationPatchSize = ToUnsigned(GetIntegerLimit(GL_MAX_PATCH_VERTICES));
 		deviceInfo.tessellation             = true;
 		deviceInfo.computeShader            = true;
 		deviceInfo.persistentMappedBuffers  = true;

@@ -10,12 +10,15 @@
 #include "InputState.hpp"
 #include "Event.hpp"
 #include "Console.hpp"
-#include "TranslationGizmo.hpp"
-#include "RotationGizmo.hpp"
+#include "Gizmo/TranslationGizmo.hpp"
+#include "Gizmo/RotationGizmo.hpp"
+#include "Gizmo/GizmoCommon.hpp"
 #include "GameController.hpp"
 #include "Graphics/FullscreenShader.hpp"
 #include "Profiling/Profiler.hpp"
 #include "Profiling/ProfilerPane.hpp"
+#include "Assets/DefaultAssetGenerator.hpp"
+#include "Assets/AssetLoad.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -40,18 +43,6 @@ namespace eg
 	
 	void(*detail::imguiBeginFrame)(float dt);
 	void(*detail::imguiEndFrame)();
-	
-	extern bool createAssetPackage;
-	extern bool disableAssetPackageCompression;
-	
-	void LoadAssetGenLibrary();
-	void RegisterAssetLoaders();
-	void RegisterDefaultAssetGenerator();
-	void LoadGameControllers();
-	
-	int PlatformInit(const RunConfig& runConfig);
-	void PlatformStartFrame();
-	void PlatformRunGameLoop(std::unique_ptr<IGame> game);
 	
 	static bool profilingEnabled;
 	static std::list<Profiler> profilers;
@@ -88,12 +79,12 @@ namespace eg
 		profilerPane = std::make_unique<ProfilerPane>();
 	}
 	
-	void RunFrame(IGame& game)
+	void detail::RunFrame(IGame& game)
 	{
 		auto frameBeginTime = high_resolution_clock::now();
 		
 		uint64_t deltaNS = duration_cast<nanoseconds>(frameBeginTime - lastFrameBeginTime).count();
-		dt = (float)deltaNS / 1E9f;
+		dt = static_cast<float>(deltaNS) / 1E9f;
 		
 		*detail::previousIS = *detail::currentIS;
 		detail::currentIS->cursorDeltaX = 0;
@@ -117,7 +108,7 @@ namespace eg
 		
 		auto frameCPUTimer = StartCPUTimer("Frame");
 		
-		PlatformStartFrame();
+		detail::PlatformStartFrame();
 		
 		{
 			auto cpuTimer = StartCPUTimer("GPU Sync");
@@ -210,11 +201,11 @@ namespace eg
 	{
 		if (runConfig.framerateCap != 0)
 		{
-			maxFrameTimeNS = 1000000000ULL / (uint64_t)runConfig.framerateCap;
+			maxFrameTimeNS = 1000000000ULL / static_cast<uint64_t>(runConfig.framerateCap);
 		}
 		
 		devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
-		createAssetPackage = HasFlag(runConfig.flags, RunFlags::CreateAssetPackage);
+		detail::createAssetPackage = HasFlag(runConfig.flags, RunFlags::CreateAssetPackage);
 		disableAssetPackageCompression = HasFlag(runConfig.flags, RunFlags::AssetPackageFast);
 		
 		if (const char* devEnv = getenv("EG_DEV"))
@@ -233,7 +224,7 @@ namespace eg
 		const char* createEapEnv = getenv("EG_CREATE_EAP");
 		if (createEapEnv != nullptr && std::strcmp(createEapEnv, "true") == 0 && devMode)
 		{
-			createAssetPackage = true;
+			detail::createAssetPackage = true;
 		}
 		
 		if (runConfig.gameName != nullptr)
@@ -250,7 +241,7 @@ namespace eg
 			console::Init();
 		}
 		
-		int platformInitStatus = PlatformInit(runConfig);
+		int platformInitStatus = detail::PlatformInit(runConfig);
 		if (platformInitStatus != 0)
 			return platformInitStatus;
 		
@@ -360,7 +351,7 @@ namespace eg
 				
 				str = std::string(triangleColLen + 1 - triangleStrings[i].size(), ' ') + "A:";
 				writer.Write(console::InfoColor, str);
-				writer.WriteLine(console::InfoColorSpecial, meshAccessNames[(int)model->GetMesh(i).access]);
+				writer.WriteLine(console::InfoColorSpecial, meshAccessNames[static_cast<int>(model->GetMesh(i).access)]);
 				
 				totVertices += model->GetMesh(i).numVertices;
 				totIndices += model->GetMesh(i).numIndices;
@@ -418,7 +409,7 @@ namespace eg
 				
 				std::ostringstream amountUsedStream;
 				amountUsedStream << std::setprecision(2) << std::fixed <<
-					((double)memStat.allocatedBytes / (1024.0 * 1024.0));
+					(static_cast<double>(memStat.allocatedBytes) / (1024.0 * 1024.0));
 				std::string amountUsedString = amountUsedStream.str();
 				
 				writer.Write(console::InfoColor, "Graphics memory info: ");
@@ -465,7 +456,7 @@ namespace eg
 		return 0;
 	}
 	
-	void CoreUninitialize()
+	void detail::CoreUninitialize()
 	{
 		for (auto* node = detail::onShutdown; node != nullptr; node = node->next)
 		{
@@ -482,6 +473,8 @@ namespace eg
 		SpriteBatch::DestroyStatic();
 		TranslationGizmo::Destroy();
 		RotationGizmo::Destroy();
+		if (detail::gizmoPipeline.handle)
+			detail::gizmoPipeline.Destroy();
 		detail::DestroyFullscreenShaders();
 		UnloadAssets();
 		DestroyUploadBuffers();

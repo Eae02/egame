@@ -60,7 +60,7 @@ namespace eg
 	
 	bool BloomRenderer::RenderTarget::MatchesWindowResolution() const
 	{
-		return (uint32_t)detail::resolutionX == m_inputWidth && (uint32_t)detail::resolutionY == m_inputHeight;
+		return ToUnsigned(detail::resolutionX) == m_inputWidth && ToUnsigned(detail::resolutionY) == m_inputHeight;
 	}
 	
 	void BloomRenderer::RenderTarget::BeginFirstLayerRenderPass(AttachmentLoadOp loadOp)
@@ -167,7 +167,7 @@ namespace eg
 		}
 		
 		//Vertical blurring from texture 1 to texture 2, followed by upscaling of texture 2
-		for (int l = (int)renderTarget.m_levels.size() - 1; l >= 0; l--)
+		for (int l = ToInt(renderTarget.m_levels.size()) - 1; l >= 0; l--)
 		{
 			RenderPassBeginInfo rpBeginInfo;
 			rpBeginInfo.framebuffer = renderTarget.m_levels[l].m_framebuffers[2].handle;
@@ -178,7 +178,7 @@ namespace eg
 			
 			DC.BindTexture(renderTarget.m_levels[l].m_textures[1], 0, 0, &m_inputSampler);
 			
-			if (l + 1 == (int)renderTarget.m_levels.size())
+			if (l + 1 == ToInt(renderTarget.m_levels.size()))
 				DC.BindTexture(m_blackPixelTexture, 0, 1, &m_inputSampler);
 			else
 				DC.BindTexture(renderTarget.m_levels[l + 1].m_textures[2], 0, 1, &m_inputSampler);

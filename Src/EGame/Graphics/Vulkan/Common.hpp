@@ -2,6 +2,7 @@
 
 #ifndef EG_NO_VULKAN
 
+#include "VulkanMain.hpp"
 #include "../Graphics.hpp"
 #include "../Abstraction.hpp"
 #include "../../Log.hpp"

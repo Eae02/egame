@@ -22,7 +22,7 @@ namespace eg
 				int histIndex = FindTimerHistory(cursor.CurrentName(), isGPU);
 				if (histIndex == -1)
 				{
-					histIndex = (int)m_timerHistories.size();
+					histIndex = ToInt(m_timerHistories.size());
 					m_timerHistories.emplace_back(cursor.CurrentName(), isGPU);
 				}
 				
@@ -45,10 +45,10 @@ namespace eg
 		if (!visible || !m_hasAnyResults)
 			return;
 		
-		float paneWidth = std::max((float)screenWidth * 0.25f, 400.0f);
-		float minX = (float)screenWidth - paneWidth;
-		float minY = (float)screenHeight * 0.05f;
-		float maxY = (float)screenHeight * 0.95f;
+		float paneWidth = std::max(static_cast<float>(screenWidth) * 0.25f, 400.0f);
+		float minX = static_cast<float>(screenWidth) - paneWidth;
+		float minY = static_cast<float>(screenHeight) * 0.05f;
+		float maxY = static_cast<float>(screenHeight) * 0.95f;
 		
 		eg::Rectangle paneRect(minX, minY, paneWidth, maxY - minY);
 		spriteBatch.DrawRect(paneRect, ColorLin(ColorSRGB(0.2f, 0.2f, 0.25f, 0.75f)));
@@ -76,19 +76,19 @@ namespace eg
 			std::optional<float> frameTime;
 			while (!cursor.AtEnd())
 			{
-				float labelX = minX + PADDING + INDENT * (float)cursor.CurrentDepth() + 5.0f;
+				float labelX = minX + PADDING + INDENT * static_cast<float>(cursor.CurrentDepth()) + 5.0f;
 				spriteBatch.DrawText(font, cursor.CurrentName(), glm::vec2(labelX, y), eg::ColorLin(1, 1, 1, 0.8f));
 				
 				char valueBuffer[40];
 				snprintf(valueBuffer, sizeof(valueBuffer), "%.2f ms", cursor.CurrentValue() * 1E-6f);
 				glm::vec2 valueExt = font.GetTextExtents(valueBuffer);
 				
-				spriteBatch.DrawText(font, valueBuffer, glm::vec2((float)screenWidth - valueExt.x - PADDING, y),
+				spriteBatch.DrawText(font, valueBuffer, glm::vec2(static_cast<float>(screenWidth) - valueExt.x - PADDING, y),
 					eg::ColorLin(1, 1, 1, 1.0f));
 				
 				if (frameTime.has_value())
 				{
-					float barRectMaxX = (float)screenWidth - std::max(valueExt.x + PADDING, 80.0f);
+					float barRectMaxX = static_cast<float>(screenWidth) - std::max(valueExt.x + PADDING, 80.0f);
 					eg::Rectangle barRectBack(barRectMaxX - timeBarWidth, y + 5, timeBarWidth, TIME_BAR_HEIGHT);
 					spriteBatch.DrawRect(barRectBack, BAR_COLOR.ScaleRGB(0.5f).ScaleAlpha(0.2f));
 					float barWidth = timeBarWidth * glm::clamp(cursor.CurrentValue() / *frameTime, 0.0f, 1.0f);
@@ -113,7 +113,7 @@ namespace eg
 		if (gal::GetMemoryStat)
 		{
 			GraphicsMemoryStat memoryStat = gal::GetMemoryStat();
-			gpuMemoryUsage = (float)memoryStat.allocatedBytesGPU / (1024.0f * 1024.0f);
+			gpuMemoryUsage = static_cast<float>(memoryStat.allocatedBytesGPU) / (1024.0f * 1024.0f);
 		}
 		
 		char topTextBuffer[1024];
@@ -147,7 +147,7 @@ namespace eg
 	int ProfilerPane::FindTimerHistory(std::string_view name, bool isGPU) const
 	{
 		const uint32_t nameHash = HashFNV1a32(name);
-		for (int i = 0; i < (int)m_timerHistories.size(); i++)
+		for (int i = 0; i < ToInt(m_timerHistories.size()); i++)
 		{
 			if (m_timerHistories[i].isGPU == isGPU && m_timerHistories[i].nameHash == nameHash)
 				return i;

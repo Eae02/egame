@@ -39,26 +39,26 @@ namespace eg::imgui
 		
 		// ** Initializes ImGui IO **
 		ImGuiIO& io = ImGui::GetIO();
-		io.KeyMap[ImGuiKey_Tab]        = (int)eg::Button::Tab;
-		io.KeyMap[ImGuiKey_LeftArrow]  = (int)eg::Button::LeftArrow;
-		io.KeyMap[ImGuiKey_RightArrow] = (int)eg::Button::RightArrow;
-		io.KeyMap[ImGuiKey_UpArrow]    = (int)eg::Button::UpArrow;
-		io.KeyMap[ImGuiKey_DownArrow]  = (int)eg::Button::DownArrow;
-		io.KeyMap[ImGuiKey_PageUp]     = (int)eg::Button::PageUp;
-		io.KeyMap[ImGuiKey_PageDown]   = (int)eg::Button::PageDown;
-		io.KeyMap[ImGuiKey_Home]       = (int)eg::Button::Home;
-		io.KeyMap[ImGuiKey_End]        = (int)eg::Button::End;
-		io.KeyMap[ImGuiKey_Delete]     = (int)eg::Button::Delete;
-		io.KeyMap[ImGuiKey_Backspace]  = (int)eg::Button::Backspace;
-		io.KeyMap[ImGuiKey_Enter]      = (int)eg::Button::Enter;
-		io.KeyMap[ImGuiKey_Escape]     = (int)eg::Button::Escape;
-		io.KeyMap[ImGuiKey_Space]      = (int)eg::Button::Space;
-		io.KeyMap[ImGuiKey_A]          = (int)eg::Button::A;
-		io.KeyMap[ImGuiKey_C]          = (int)eg::Button::C;
-		io.KeyMap[ImGuiKey_V]          = (int)eg::Button::V;
-		io.KeyMap[ImGuiKey_X]          = (int)eg::Button::X;
-		io.KeyMap[ImGuiKey_Y]          = (int)eg::Button::Y;
-		io.KeyMap[ImGuiKey_Z]          = (int)eg::Button::Z;
+		io.KeyMap[ImGuiKey_Tab]        = static_cast<int>(eg::Button::Tab);
+		io.KeyMap[ImGuiKey_LeftArrow]  = static_cast<int>(eg::Button::LeftArrow);
+		io.KeyMap[ImGuiKey_RightArrow] = static_cast<int>(eg::Button::RightArrow);
+		io.KeyMap[ImGuiKey_UpArrow]    = static_cast<int>(eg::Button::UpArrow);
+		io.KeyMap[ImGuiKey_DownArrow]  = static_cast<int>(eg::Button::DownArrow);
+		io.KeyMap[ImGuiKey_PageUp]     = static_cast<int>(eg::Button::PageUp);
+		io.KeyMap[ImGuiKey_PageDown]   = static_cast<int>(eg::Button::PageDown);
+		io.KeyMap[ImGuiKey_Home]       = static_cast<int>(eg::Button::Home);
+		io.KeyMap[ImGuiKey_End]        = static_cast<int>(eg::Button::End);
+		io.KeyMap[ImGuiKey_Delete]     = static_cast<int>(eg::Button::Delete);
+		io.KeyMap[ImGuiKey_Backspace]  = static_cast<int>(eg::Button::Backspace);
+		io.KeyMap[ImGuiKey_Enter]      = static_cast<int>(eg::Button::Enter);
+		io.KeyMap[ImGuiKey_Escape]     = static_cast<int>(eg::Button::Escape);
+		io.KeyMap[ImGuiKey_Space]      = static_cast<int>(eg::Button::Space);
+		io.KeyMap[ImGuiKey_A]          = static_cast<int>(eg::Button::A);
+		io.KeyMap[ImGuiKey_C]          = static_cast<int>(eg::Button::C);
+		io.KeyMap[ImGuiKey_V]          = static_cast<int>(eg::Button::V);
+		io.KeyMap[ImGuiKey_X]          = static_cast<int>(eg::Button::X);
+		io.KeyMap[ImGuiKey_Y]          = static_cast<int>(eg::Button::Y);
+		io.KeyMap[ImGuiKey_Z]          = static_cast<int>(eg::Button::Z);
 		
 		io.IniFilename = nullptr;
 		if (args.enableImGuiIni)
@@ -89,9 +89,9 @@ namespace eg::imgui
 		pipelineCI.enableScissorTest = true;
 		pipelineCI.blendStates[0] = eg::AlphaBlend;
 		pipelineCI.vertexBindings[0] = { sizeof(ImDrawVert), eg::InputRate::Vertex };
-		pipelineCI.vertexAttributes[0] = { 0, eg::DataType::Float32, 2, (uint32_t)offsetof(ImDrawVert, pos) };
-		pipelineCI.vertexAttributes[1] = { 0, eg::DataType::Float32, 2, (uint32_t)offsetof(ImDrawVert, uv) };
-		pipelineCI.vertexAttributes[2] = { 0, eg::DataType::UInt8Norm, 4, (uint32_t)offsetof(ImDrawVert, col) };
+		pipelineCI.vertexAttributes[0] = { 0, eg::DataType::Float32, 2, static_cast<uint32_t>(offsetof(ImDrawVert, pos)) };
+		pipelineCI.vertexAttributes[1] = { 0, eg::DataType::Float32, 2, static_cast<uint32_t>(offsetof(ImDrawVert, uv)) };
+		pipelineCI.vertexAttributes[2] = { 0, eg::DataType::UInt8Norm, 4, static_cast<uint32_t>(offsetof(ImDrawVert, col)) };
 		
 		pipeline = eg::Pipeline::Create(pipelineCI);
 		pipeline.FramebufferFormatHint(eg::Format::DefaultColor, eg::Format::DefaultDepthStencil);
@@ -149,7 +149,7 @@ namespace eg::imgui
 		fontTexCreateInfo.mipLevels = 1;
 		
 		fontTexture = eg::Texture::Create2D(fontTexCreateInfo);
-		eg::DC.SetTextureData(fontTexture, { 0, 0, 0, (uint32_t)fontTexWidth, (uint32_t)fontTexHeight, 1, 0 }, fontUploadBuffer, 0);
+		eg::DC.SetTextureData(fontTexture, { 0, 0, 0, ToUnsigned(fontTexWidth), ToUnsigned(fontTexHeight), 1, 0 }, fontUploadBuffer, 0);
 		io.Fonts->TexID = MakeImTextureID(fontTexture.GetView());
 		
 		fontTexture.UsageHint(eg::TextureUsage::ShaderSample, eg::ShaderAccessFlags::Fragment);
@@ -194,7 +194,7 @@ namespace eg::imgui
 		
 		buttonEventListener->ProcessAll([&] (const eg::ButtonEvent& event)
 		{
-			io.KeysDown[(int)(event.button)] = event.newState;
+			io.KeysDown[static_cast<int>(event.button)] = event.newState;
 			
 			switch (event.button)
 			{
@@ -323,10 +323,10 @@ namespace eg::imgui
 				}
 				else
 				{
-					int scissorX = (int)(std::max(drawCommand.ClipRect.x, 0.0f));
-					int scissorY = (int)(std::max(io.DisplaySize.y - drawCommand.ClipRect.w, 0.0f));
-					int scissorW = (int)(std::min(drawCommand.ClipRect.z, io.DisplaySize.x) - scissorX);
-					int scissorH = (int)(std::min(drawCommand.ClipRect.w, io.DisplaySize.y) - drawCommand.ClipRect.y + 1);
+					int scissorX = static_cast<int>(std::max(drawCommand.ClipRect.x, 0.0f));
+					int scissorY = static_cast<int>(std::max(io.DisplaySize.y - drawCommand.ClipRect.w, 0.0f));
+					int scissorW = static_cast<int>(std::min(drawCommand.ClipRect.z, io.DisplaySize.x) - scissorX);
+					int scissorH = static_cast<int>(std::min(drawCommand.ClipRect.w, io.DisplaySize.y) - drawCommand.ClipRect.y + 1);
 					if (scissorW > 0 && scissorH > 0)
 					{
 						eg::DC.SetScissor(scissorX, scissorY, scissorW, scissorH);

@@ -87,4 +87,9 @@ namespace eg
 	
 	EG_API void RegisterAssetLoader(std::string name, AssetLoaderCallback loader,
 		const AssetFormat& format = DefaultGeneratorFormat);
+	
+	namespace detail
+	{
+		void RegisterAssetLoaders();
+	}
 }

@@ -20,7 +20,7 @@ namespace eg
 		std::ostringstream prefixStream;
 		time_t time = std::time(nullptr);
 		prefixStream << std::put_time(std::localtime(&time), "%H:%M:%S")
-		             << " [" << category << " " << levelMessages[(int)level] << "] ";
+		             << " [" << category << " " << levelMessages[static_cast<int>(level)] << "] ";
 		std::string prefixString = prefixStream.str();
 		
 		std::ostringstream messageStream;
@@ -79,8 +79,8 @@ namespace eg
 		std::string messageStr = messageStream.str();
 		
 		console::Writer consoleWriter;
-		consoleWriter.Write(levelColors[(int)level].ScaleAlpha(0.75f), prefixString);
-		consoleWriter.Write(levelColors[(int)level], messageStr);
+		consoleWriter.Write(levelColors[static_cast<int>(level)].ScaleAlpha(0.75f), prefixString);
+		consoleWriter.Write(levelColors[static_cast<int>(level)], messageStr);
 		
 		if (level != LogLevel::Info || DevMode())
 		{
@@ -88,8 +88,8 @@ namespace eg
 			std::cout << prefixString << messageStr << std::endl;
 #else
 			std::lock_guard<std::mutex> lock(stdoutLogMutex);
-			std::cout << levelColorStrings[(int)level] << "\x1b[2m" << prefixString
-			          << "\x1b[0m" << levelColorStrings[(int)level] << messageStr << "\x1b[0m" << std::endl;
+			std::cout << levelColorStrings[static_cast<int>(level)] << "\x1b[2m" << prefixString
+			          << "\x1b[0m" << levelColorStrings[static_cast<int>(level)] << messageStr << "\x1b[0m" << std::endl;
 #endif
 		}
 	}

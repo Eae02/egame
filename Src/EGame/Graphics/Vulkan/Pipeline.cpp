@@ -74,7 +74,7 @@ namespace eg::graphics_api::vk
 		{
 			VkSpecializationInfo* specInfo = linAllocator.New<VkSpecializationInfo>();
 			specInfo->dataSize = stageInfo.specConstantsDataSize;
-			specInfo->mapEntryCount = (uint32_t)stageInfo.specConstants.size();
+			specInfo->mapEntryCount = UnsignedNarrow<uint32_t>(stageInfo.specConstants.size());
 			
 			void* specConstantsData = linAllocator.Allocate(stageInfo.specConstantsDataSize);
 			specInfo->pData = specConstantsData;

@@ -28,9 +28,9 @@ namespace eg
 			subresource.numArrayLayers = 6;
 			cc.BindStorageImage(output, 0, 1, subresource);
 			
-			const float roughness = (float)i / (float)(output.MipLevels() - 1);
+			const float roughness = static_cast<float>(i) / static_cast<float>(output.MipLevels() - 1);
 			const float roughnessSq = roughness * roughness;
-			float pc[3] = { roughnessSq * roughnessSq, irradianceScale, 1.0f / (float)outputRes };
+			float pc[3] = { roughnessSq * roughnessSq, irradianceScale, 1.0f / static_cast<float>(outputRes) };
 			cc.PushConstants(0, sizeof(pc), pc);
 			
 			constexpr uint32_t LOCAL_SIZE = 12;

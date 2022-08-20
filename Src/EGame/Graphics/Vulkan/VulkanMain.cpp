@@ -228,8 +228,8 @@ namespace eg::graphics_api::vk
 			if (HasStencil(ctx.defaultDSFormat))
 				dsImageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 			
-			SetObjectName((uint64_t)ctx.defaultDSImage, VK_OBJECT_TYPE_IMAGE, "Default DepthStencil");
-			SetObjectName((uint64_t)ctx.defaultDSImageView, VK_OBJECT_TYPE_IMAGE_VIEW, "Default DepthStencil View");
+			SetObjectName(std::bit_cast<uint64_t>(ctx.defaultDSImage), VK_OBJECT_TYPE_IMAGE, "Default DepthStencil");
+			SetObjectName(std::bit_cast<uint64_t>(ctx.defaultDSImageView), VK_OBJECT_TYPE_IMAGE_VIEW, "Default DepthStencil View");
 			
 			defaultFBRenderPassDesc.depthAttachment.format = ctx.defaultDSFormat;
 			defaultFBRenderPassDesc.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -243,7 +243,7 @@ namespace eg::graphics_api::vk
 		{
 			attachments[framebufferCreateInfo.attachmentCount - 1] = ctx.swapchainImageViews[i];
 			CheckRes(vkCreateFramebuffer(ctx.device, &framebufferCreateInfo, nullptr, &ctx.defaultFramebuffers[i]));
-			SetObjectName((uint64_t)ctx.defaultFramebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "Default Framebuffer");
+			SetObjectName(std::bit_cast<uint64_t>(ctx.defaultFramebuffers[i]), VK_OBJECT_TYPE_FRAMEBUFFER, "Default Framebuffer");
 		}
 		
 		ctx.acquireSemaphoreIndex = 0;
@@ -398,9 +398,9 @@ namespace eg::graphics_api::vk
 			/* pNext                   */ nullptr,
 			/* flags                   */ 0,
 			/* pApplicationInfo        */ &applicationInfo,
-			/* enabledLayerCount       */ (uint32_t)enabledValidationLayers.size(),
+			/* enabledLayerCount       */ UnsignedNarrow<uint32_t>(enabledValidationLayers.size()),
 			/* ppEnabledLayerNames     */ enabledValidationLayers.data(),
-			/* enabledExtensionCount   */ (uint32_t)instanceExtensionsToEnable.size(),
+			/* enabledExtensionCount   */ UnsignedNarrow<uint32_t>(instanceExtensionsToEnable.size()),
 			/* ppEnabledExtensionNames */ instanceExtensionsToEnable.data()
 		};
 		VkResult instanceCreateRes = vkCreateInstance(&instanceCreateInfo, nullptr, &ctx.instance);
@@ -582,7 +582,7 @@ namespace eg::graphics_api::vk
 			/* pNext            */ nullptr,
 			/* flags            */ 0,
 			/* queueFamilyIndex */ ctx.queueFamily,
-			/* queueCount       */ static_cast<uint32_t>(supportsMultipleGraphicsQueues ? 2 : 1),
+			/* queueCount       */ supportsMultipleGraphicsQueues ? 2U : 1U,
 			/* pQueuePriorities */ queuePriorities
 		};
 		
@@ -761,8 +761,8 @@ namespace eg::graphics_api::vk
 	
 	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	{
-		deviceInfo.uniformBufferOffsetAlignment   = (uint32_t)ctx.deviceLimits.minUniformBufferOffsetAlignment;
-		deviceInfo.storageBufferOffsetAlignment   = (uint32_t)ctx.deviceLimits.minStorageBufferOffsetAlignment;
+		deviceInfo.uniformBufferOffsetAlignment   = UnsignedNarrow<uint32_t>(ctx.deviceLimits.minUniformBufferOffsetAlignment);
+		deviceInfo.storageBufferOffsetAlignment   = UnsignedNarrow<uint32_t>(ctx.deviceLimits.minStorageBufferOffsetAlignment);
 		deviceInfo.depthRange                     = DepthRange::ZeroToOne;
 		deviceInfo.tessellation                   = ctx.deviceFeatures.tessellationShader;
 		deviceInfo.geometryShader                 = ctx.deviceFeatures.geometryShader;
@@ -798,7 +798,7 @@ namespace eg::graphics_api::vk
 		VkFormatProperties formatProperties;
 		vkGetPhysicalDeviceFormatProperties(ctx.physDevice, TranslateFormat(format), &formatProperties);
 		
-		FormatCapabilities capabilities = (FormatCapabilities)0;
+		FormatCapabilities capabilities = { };
 		if (formatProperties.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT)
 			capabilities |= FormatCapabilities::VertexAttribute;
 		

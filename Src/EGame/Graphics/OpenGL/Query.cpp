@@ -1,6 +1,6 @@
 #include "GL.hpp"
+#include "OpenGL.hpp"
 #include "OpenGLBuffer.hpp"
-#include "../Abstraction.hpp"
 #include "../../Assert.hpp"
 #include "../../Alloc/PoolAllocator.hpp"
 
@@ -66,9 +66,9 @@ namespace eg::graphics_api::gl
 #ifdef __EMSCRIPTEN__
 			GLuint value;
 			glGetQueryObjectuiv(query, GL_QUERY_RESULT, &value);
-			((uint64_t*)data)[i] = value;
+			static_cast<uint64_t*>(data)[i] = value;
 #else
-			glGetQueryObjectui64v(query, GL_QUERY_RESULT, (uint64_t*)data + i);
+			glGetQueryObjectui64v(query, GL_QUERY_RESULT, static_cast<uint64_t*>(data) + i);
 #endif
 		}
 		

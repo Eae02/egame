@@ -1,12 +1,12 @@
 #include "GameController.hpp"
 #include "Log.hpp"
 
+void* eg::detail::activeController;
+
 #ifdef __EMSCRIPTEN__
-namespace eg
-{
-	void LoadGameControllers() { }
-	std::span<const GameController> GameControllers() { return { }; }
-}
+void eg::detail::AddGameController(void* handle) { }
+void eg::detail::LoadGameControllers() { }
+std::span<const eg::GameController> eg::GameControllers() { return { }; }
 #else
 
 #include <SDL.h>
@@ -14,11 +14,11 @@ namespace eg
 
 namespace eg
 {
-	std::vector<GameController> controllers;
-	SDL_GameController* activeController = nullptr;
+	static std::vector<GameController> controllers;
 	
-	void AddGameController(SDL_GameController* controller)
+	void detail::AddGameController(void* handle)
 	{
+		SDL_GameController* controller = static_cast<SDL_GameController*>(handle);
 		controllers.push_back({ SDL_GameControllerName(controller), controller });
 		if (activeController == nullptr)
 		{
@@ -27,7 +27,7 @@ namespace eg
 		}
 	}
 	
-	void LoadGameControllers()
+	void detail::LoadGameControllers()
 	{
 		SDL_GameControllerEventState(SDL_ENABLE);
 		SDL_GameControllerUpdate();

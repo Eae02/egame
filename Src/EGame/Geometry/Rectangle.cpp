@@ -34,8 +34,8 @@ namespace eg
 		
 		for (unsigned int i = 0; i < 4; i++)
 		{
-			result[i].x = x + (float)(i % 2) * divW;
-			result[i].y = y + (float)(i / 2) * divH;
+			result[i].x = x + static_cast<float>(i % 2) * divW;
+			result[i].y = y + static_cast<float>(i / 2) * divH;
 			
 			result[i].w = divW;
 			result[i].h = divH;

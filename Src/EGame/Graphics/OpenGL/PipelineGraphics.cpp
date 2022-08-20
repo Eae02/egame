@@ -1,6 +1,7 @@
 #include "OpenGL.hpp"
 #include "Utils.hpp"
 #include "Pipeline.hpp"
+#include "PipelineGraphics.hpp"
 #include "OpenGLBuffer.hpp"
 #include "OpenGLTexture.hpp"
 #include "Framebuffer.hpp"
@@ -152,7 +153,7 @@ namespace eg::graphics_api::gl
 			
 			SetSpecializationConstants(stageInfo, *compiler);
 			
-			GLuint shader = glCreateShader(ShaderTypes[(int)expectedStage]);
+			GLuint shader = glCreateShader(ShaderTypes[static_cast<int>(expectedStage)]);
 			pipeline->shaderModules[pipeline->numShaderModules] = shader;
 			shaderStages[pipeline->numShaderModules] = { compiler, shader };
 			pipeline->numShaderModules++;
@@ -182,7 +183,7 @@ namespace eg::graphics_api::gl
 			
 			if (createInfo.label != nullptr)
 			{
-				std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[(int)expectedStage] });
+				std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[static_cast<int>(expectedStage)] });
 				glObjectLabel(GL_SHADER, shader, -1, shaderLabel.c_str());
 			}
 		};
@@ -253,11 +254,14 @@ namespace eg::graphics_api::gl
 			[&] (const VertexAttribData& a, const VertexAttribData& b) { return a.binding < b.binding; }
 		);
 		
-		for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
+		if (!useGLESPath)
 		{
-			if (createInfo.vertexBindings[i].stride != UINT32_MAX)
+			for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
 			{
-				glVertexBindingDivisor(i, (GLuint)createInfo.vertexBindings[i].inputRate);
+				if (createInfo.vertexBindings[i].stride != UINT32_MAX)
+				{
+					glVertexBindingDivisor(i, static_cast<GLuint>(createInfo.vertexBindings[i].inputRate));
+				}
 			}
 		}
 		
@@ -397,11 +401,11 @@ namespace eg::graphics_api::gl
 	{
 		auto* graphicsPipeline = static_cast<const GraphicsPipeline*>(currentPipeline);
 		
-		int type = (int)kind & STENCIL_VALUE_MASK_VALUE;
+		int type = static_cast<int>(kind) & STENCIL_VALUE_MASK_VALUE;
 		if (type == STENCIL_VALUE_WRITE_MASK)
 		{
 			GLenum face = 0;
-			switch ((int)kind & 0b1100)
+			switch (static_cast<int>(kind) & 0b1100)
 			{
 			case 0b1000: face = GL_BACK; break;
 			case 0b0100: face = GL_FRONT; break;
@@ -413,7 +417,7 @@ namespace eg::graphics_api::gl
 		}
 		else
 		{
-			if ((int)kind & STENCIL_VALUE_MASK_BACK)
+			if (static_cast<int>(kind) & STENCIL_VALUE_MASK_BACK)
 			{
 				uint32_t newReference = curState.stencilReferenceBack;
 				uint32_t newCompareMask = curState.stencilCompareMaskBack;
@@ -429,7 +433,7 @@ namespace eg::graphics_api::gl
 				curState.stencilCompareMaskBack = newCompareMask;
 			}
 			
-			if ((int)kind & STENCIL_VALUE_MASK_FRONT)
+			if (static_cast<int>(kind) & STENCIL_VALUE_MASK_FRONT)
 			{
 				uint32_t newReference = curState.stencilReferenceFront;
 				uint32_t newCompareMask = curState.stencilCompareMaskFront;
@@ -470,10 +474,10 @@ namespace eg::graphics_api::gl
 		if (viewportOutOfDate)
 		{
 			glViewport(
-				(GLint)std::round(currentViewport[0]),
-				(GLint)std::round(currentViewport[1]),
-				(GLint)std::round(currentViewport[2]),
-				(GLint)std::round(currentViewport[3]));
+				static_cast<GLint>(std::round(currentViewport[0])),
+				static_cast<GLint>(std::round(currentViewport[1])),
+				static_cast<GLint>(std::round(currentViewport[2])),
+				static_cast<GLint>(std::round(currentViewport[3])));
 			viewportOutOfDate = false;
 		}
 		
@@ -682,7 +686,7 @@ namespace eg::graphics_api::gl
 					                      attrib.format.mode == GLVertexAttribMode::Norm, stride, offsetPtr);
 				}
 				
-				glVertexAttribDivisor(attrib.attribIndex, (GLuint)pipeline->vertexBindings[binding].inputRate);
+				glVertexAttribDivisor(attrib.attribIndex, static_cast<GLuint>(pipeline->vertexBindings[binding].inputRate));
 			});
 		}
 		else
@@ -757,18 +761,19 @@ namespace eg::graphics_api::gl
 			indexType = GL_UNSIGNED_INT;
 			indexOffset += firstIndex * 2;
 		}
+		void* indexOffsetPtr = reinterpret_cast<void*>(indexOffset);
 		
 		GLenum topology = static_cast<const GraphicsPipeline*>(currentPipeline)->topology;
 		
 		if (useGLESPath)
 		{
-			glDrawElementsInstanced(topology, numIndices, indexType, (void*)indexOffset, numInstances);
+			glDrawElementsInstanced(topology, numIndices, indexType, indexOffsetPtr, numInstances);
 		}
 		else
 		{
 #ifndef EG_GLES
 			glDrawElementsInstancedBaseVertexBaseInstance(
-				topology, numIndices, indexType, (void*)indexOffset, numInstances, firstVertex, firstInstance);
+				topology, numIndices, indexType, indexOffsetPtr, numInstances, firstVertex, firstInstance);
 #endif
 		}
 		

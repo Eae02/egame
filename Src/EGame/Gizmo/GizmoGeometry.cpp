@@ -1,6 +1,6 @@
 #include <cstdint>
 
-namespace eg
+namespace eg::detail
 {
 	float ARROW_VERTICES[75] =
 	{

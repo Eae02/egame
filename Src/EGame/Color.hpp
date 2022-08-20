@@ -102,9 +102,9 @@ namespace eg
 		static ColorSRGB FromHex(uint32_t hex)
 		{
 			ColorSRGB color;
-			color.r = (float)((hex & 0xFF0000) >> (8 * 2)) / 255.0f;
-			color.g = (float)((hex & 0x00FF00) >> (8 * 1)) / 255.0f;
-			color.b = (float)((hex & 0x0000FF) >> (8 * 0)) / 255.0f;
+			color.r = static_cast<float>((hex & 0xFF0000) >> (8 * 2)) / 255.0f;
+			color.g = static_cast<float>((hex & 0x00FF00) >> (8 * 1)) / 255.0f;
+			color.b = static_cast<float>((hex & 0x0000FF) >> (8 * 0)) / 255.0f;
 			color.a = 1;
 			return color;
 		}
@@ -112,10 +112,10 @@ namespace eg
 		static ColorSRGB FromRGBAHex(uint32_t hex)
 		{
 			ColorSRGB color;
-			color.r = (float)((hex & 0xFF000000) >> (8 * 3)) / 255.0f;
-			color.g = (float)((hex & 0x00FF0000) >> (8 * 2)) / 255.0f;
-			color.b = (float)((hex & 0x0000FF00) >> (8 * 1)) / 255.0f;
-			color.a = (float)((hex & 0x000000FF) >> (8 * 0)) / 255.0f;
+			color.r = static_cast<float>((hex & 0xFF000000) >> (8 * 3)) / 255.0f;
+			color.g = static_cast<float>((hex & 0x00FF0000) >> (8 * 2)) / 255.0f;
+			color.b = static_cast<float>((hex & 0x0000FF00) >> (8 * 1)) / 255.0f;
+			color.a = static_cast<float>((hex & 0x000000FF) >> (8 * 0)) / 255.0f;
 			return color;
 		}
 	};

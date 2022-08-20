@@ -89,7 +89,7 @@ namespace eg::graphics_api::gl
 	void CompileShaderStage(GLuint shader, std::string_view glslCode)
 	{
 		const GLchar* glslCodeC = glslCode.data();
-		const GLint glslCodeLen = (GLint)glslCode.size();
+		const GLint glslCodeLen = ToInt(glslCode.size());
 		glShaderSource(shader, 1, &glslCodeC, &glslCodeLen);
 		
 		glCompileShader(shader);
@@ -191,7 +191,7 @@ namespace eg::graphics_api::gl
 					const uint32_t set = compiler->get_decoration(res.id, spv::DecorationDescriptorSet);
 					const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
 					
-					const uint64_t key = (uint64_t)set | ((uint64_t)binding << 32ULL);
+					const uint64_t key = static_cast<uint64_t>(set) | (static_cast<uint64_t>(binding) << 32ULL);
 					auto foundBindingIt = foundBindings.find(key);
 					if (foundBindingIt == foundBindings.end())
 					{
@@ -354,7 +354,7 @@ namespace eg::graphics_api::gl
 			for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
 			{
 				const SPIRType& type = compiler->get_type(pcBlock.base_type_id);
-				uint32_t numMembers = (uint32_t)type.member_types.size();
+				const uint32_t numMembers = UnsignedNarrow<uint32_t>(type.member_types.size());
 				
 				std::string blockName = compiler->get_name(pcBlock.id);
 				if (blockName.empty())

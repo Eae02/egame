@@ -43,8 +43,8 @@ namespace eg
 	
 	void ScreenRenderTexture::PrepareTexture()
 	{
-		uint32_t wantedWidth = (uint32_t)((float)eg::CurrentResolutionX() * resolutionScale);
-		uint32_t wantedHeight = (uint32_t)((float)eg::CurrentResolutionY() * resolutionScale);
+		uint32_t wantedWidth = static_cast<uint32_t>(static_cast<float>(eg::CurrentResolutionX()) * resolutionScale);
+		uint32_t wantedHeight = static_cast<uint32_t>(static_cast<float>(eg::CurrentResolutionY()) * resolutionScale);
 		
 		if (m_texture.handle == nullptr || wantedWidth != m_texture.Width() || wantedHeight != m_texture.Height())
 		{

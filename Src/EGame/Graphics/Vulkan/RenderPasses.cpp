@@ -79,7 +79,7 @@ namespace eg::graphics_api::vk
 			attachmentDesc.pNext = nullptr;
 			attachmentDesc.flags = 0;
 			attachmentDesc.format = attachment.format;
-			attachmentDesc.samples = (VkSampleCountFlagBits)attachment.samples;
+			attachmentDesc.samples = static_cast<VkSampleCountFlagBits>(attachment.samples);
 			attachmentDesc.loadOp = attachment.loadOp;
 			attachmentDesc.stencilLoadOp = attachment.stencilLoadOp;
 			attachmentDesc.storeOp = attachment.storeOp;

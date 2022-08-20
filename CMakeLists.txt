@@ -29,15 +29,34 @@ file(GLOB_RECURSE ASSET_MAN_SOURCE_FILES Src/AssetMan/*.cpp Src/AssetMan/*.hpp)
 
 #Adds compile options for warnings
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  add_compile_options(-Wall -Wextra -Wshadow -pedantic -Wno-unused-parameter -Wno-missing-field-initializers -Werror=switch)
+	set(WARNING_FLAGS
+		-Werror
+		-Wall
+		-Wextra
+		-Wshadow
+		-Wcast-qual
+		-Wconversion
+		-Wmissing-declarations
+		-Woverlength-strings
+		-Wpointer-arith
+		-Wunused-local-typedefs
+		-Wunused-result
+		-Wvarargs
+		-Wvla
+		-Wwrite-strings
+		-Wno-unused-parameter
+		-Wno-missing-field-initializers
+		$<$<COMPILE_LANGUAGE:CXX>:-Wconversion-null>
+		$<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
+	)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  add_compile_options(/wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
+  set(WARNING_FLAGS /wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
 endif()
 
 add_library(EGame SHARED ${EGAME_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
-target_compile_options(EGame PRIVATE -Wconversion)
+target_compile_options(EGame PRIVATE ${WARNING_FLAGS})
 
 if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(ZLIB REQUIRED)
@@ -99,6 +118,8 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 			nlohmann_json::nlohmann_json
 			${OGG_VORBIS_LIBRARIES}
 		)
+		
+		target_compile_options(EGameAssetGen PRIVATE ${WARNING_FLAGS} -Wno-error=missing-declarations)
 		
 		target_include_directories(EGameAssetGen SYSTEM PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR}/Inc

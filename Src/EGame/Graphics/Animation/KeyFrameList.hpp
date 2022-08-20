@@ -5,6 +5,7 @@
 #include <ostream>
 #include <algorithm>
 
+#include "../../Utils.hpp"
 #include "../../IOUtils.hpp"
 #include "../../Assert.hpp"
 
@@ -71,7 +72,7 @@ namespace eg
 		inline void Write(std::ostream& stream) const
 		{
 			BinWrite(stream, static_cast<uint8_t>(m_interpolation));
-			BinWrite(stream, static_cast<uint32_t>(m_keyFrames.size()));
+			BinWrite(stream, UnsignedNarrow<uint32_t>(m_keyFrames.size()));
 			
 			for (const T& k : m_keyFrames)
 				k.Write(stream);

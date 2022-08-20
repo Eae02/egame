@@ -23,7 +23,6 @@ namespace eg::graphics_api::gl
 		case Format::R8_UNorm: return GL_R8;
 		case Format::R8_UInt: return GL_R8UI;
 		case Format::R8_SInt: return GL_R8I;
-		case Format::R16_UNorm: return GL_R16;
 		case Format::R16_UInt: return GL_R16UI;
 		case Format::R16_SInt: return GL_R16I;
 		case Format::R16_Float: return GL_R16F;
@@ -33,7 +32,6 @@ namespace eg::graphics_api::gl
 		case Format::R8G8_UNorm: return GL_RG8;
 		case Format::R8G8_UInt: return GL_RG8UI;
 		case Format::R8G8_SInt: return GL_RG8I;
-		case Format::R16G16_UNorm: return GL_RG16;
 		case Format::R16G16_UInt: return GL_RG16UI;
 		case Format::R16G16_SInt: return GL_RG16I;
 		case Format::R16G16_Float: return GL_RG16F;
@@ -45,7 +43,6 @@ namespace eg::graphics_api::gl
 		case Format::R8G8B8_UInt: return GL_RGB8UI;
 		case Format::R8G8B8_SInt: return GL_RGB8I;
 		case Format::R8G8B8_sRGB: return GL_SRGB8;
-		case Format::R16G16B16_UNorm: return GL_RGB16;
 		case Format::R16G16B16_UInt: return GL_RGB16UI;
 		case Format::R16G16B16_SInt: return GL_RGB16I;
 		case Format::R16G16B16_Float: return GL_RGB16F;
@@ -56,7 +53,6 @@ namespace eg::graphics_api::gl
 		case Format::R8G8B8A8_UNorm: return GL_RGBA8;
 		case Format::R8G8B8A8_UInt: return GL_RGBA8UI;
 		case Format::R8G8B8A8_SInt: return GL_RGBA8I;
-		case Format::R16G16B16A16_UNorm: return GL_RGBA16;
 		case Format::R16G16B16A16_UInt: return GL_RGBA16UI;
 		case Format::R16G16B16A16_SInt: return GL_RGBA16I;
 		case Format::R16G16B16A16_Float: return GL_RGBA16F;
@@ -79,6 +75,13 @@ namespace eg::graphics_api::gl
 		case Format::Depth32: return GL_DEPTH_COMPONENT32F;
 		case Format::Depth24Stencil8: return GL_DEPTH24_STENCIL8;
 		case Format::Depth32Stencil8: return GL_DEPTH32F_STENCIL8;
+		
+#ifndef EG_GLES
+		case Format::R16_UNorm: return GL_R16;
+		case Format::R16G16_UNorm: return GL_RG16;
+		case Format::R16G16B16_UNorm: return GL_RGB16;
+		case Format::R16G16B16A16_UNorm: return GL_RGBA16;
+#endif
 		
 		default:
 			if (returnZeroOnFailure) return 0;

@@ -26,7 +26,7 @@ namespace eg
 		subresource.numArrayLayers = 6;
 		cc.BindStorageImage(output, 0, 1, subresource);
 		
-		float pc[2] = { irradianceScale, 1.0f / (float)output.Width() };
+		float pc[2] = { irradianceScale, 1.0f / static_cast<float>(output.Width()) };
 		cc.PushConstants(0, sizeof(pc), pc);
 		
 		constexpr uint32_t LOCAL_SIZE = 12;

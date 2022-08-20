@@ -73,7 +73,7 @@ namespace eg::asset_gen
 				int nameSuffix = 2;
 				while (true)
 				{
-					int numSameName = std::count_if(objects.begin(), objects.end(), [&] (const OBJObject& o)
+					size_t numSameName = std::count_if(objects.begin(), objects.end(), [&] (const OBJObject& o)
 					{
 						return o.name == object.name;
 					});
@@ -240,7 +240,7 @@ namespace eg::asset_gen
 						if (it == indexMap.end())
 						{
 							indexMap.emplace(faceVertexPtr, verticesP.size());
-							indices.push_back(verticesP.size());
+							indices.push_back(UnsignedNarrow<uint32_t>(verticesP.size()));
 							verticesP.push_back(faceVertexPtr);
 						}
 						else
@@ -270,7 +270,7 @@ namespace eg::asset_gen
 					{
 						vertices[i].normal[j] = FloatToSNorm(n[j]);
 					}
-					*reinterpret_cast<uint32_t*>(vertices[i].color) = 0;
+					std::fill_n(vertices[i].color, 4, 0);
 				}
 				
 				//Generates tangents for the vertices

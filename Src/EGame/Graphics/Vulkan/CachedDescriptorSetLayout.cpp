@@ -28,7 +28,7 @@ namespace eg::graphics_api::vk
 		
 		size_t Hash() const
 		{
-			size_t h = (size_t)bindMode | (bindings.size() << 1);
+			size_t h = static_cast<size_t>(bindMode) | (bindings.size() << 1);
 			for (const VkDescriptorSetLayoutBinding& binding : bindings)
 			{
 				HashAppend(h, binding.binding);
@@ -83,7 +83,7 @@ namespace eg::graphics_api::vk
 		}
 		
 		VkDescriptorSetLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-		createInfo.bindingCount = (uint32_t)dslKey.bindings.size();
+		createInfo.bindingCount = UnsignedNarrow<uint32_t>(dslKey.bindings.size());
 		createInfo.pBindings = dslKey.bindings.data();
 		
 		if (bindMode == BindMode::Dynamic)
@@ -130,7 +130,7 @@ namespace eg::graphics_api::vk
 		VkDescriptorPoolCreateInfo poolCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
 		poolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 		poolCreateInfo.maxSets = SETS_PER_POOL;
-		poolCreateInfo.poolSizeCount = (uint32_t)m_sizes.size();
+		poolCreateInfo.poolSizeCount = UnsignedNarrow<uint32_t>(m_sizes.size());
 		poolCreateInfo.pPoolSizes = m_sizes.data();
 		
 		VkDescriptorPool pool;

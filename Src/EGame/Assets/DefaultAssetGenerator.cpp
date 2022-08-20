@@ -1,3 +1,4 @@
+#include "DefaultAssetGenerator.hpp"
 #include "AssetGenerator.hpp"
 #include "../Log.hpp"
 
@@ -32,7 +33,7 @@ namespace eg
 		}
 	};
 	
-	void RegisterDefaultAssetGenerator()
+	void detail::RegisterDefaultAssetGenerator()
 	{
 		RegisterAssetGenerator<DefaultAssetGenerator>("Default", DefaultGeneratorFormat);
 	}

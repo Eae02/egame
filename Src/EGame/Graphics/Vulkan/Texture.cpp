@@ -48,7 +48,7 @@ namespace eg::graphics_api::vk
 		imageCreateInfo.extent = extent;
 		imageCreateInfo.format = texture.format;
 		imageCreateInfo.imageType = imageType;
-		imageCreateInfo.samples = (VkSampleCountFlagBits)texture.sampleCount;
+		imageCreateInfo.samples = static_cast<VkSampleCountFlagBits>(texture.sampleCount);
 		imageCreateInfo.mipLevels = createInfo.mipLevels;
 		imageCreateInfo.arrayLayers = arrayLayers;
 		
@@ -96,9 +96,9 @@ namespace eg::graphics_api::vk
 	size_t TextureViewKey::Hash() const
 	{
 		size_t h = subresource.Hash();
-		HashAppend(h, (uint32_t)aspectFlags);
-		HashAppend(h, (uint32_t)type);
-		HashAppend(h, (uint32_t)format);
+		HashAppend(h, static_cast<uint32_t>(aspectFlags));
+		HashAppend(h, static_cast<uint32_t>(type));
+		HashAppend(h, static_cast<uint32_t>(format));
 		return h;
 	}
 	

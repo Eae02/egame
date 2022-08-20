@@ -1,4 +1,5 @@
 #include "Skeleton.hpp"
+#include "../../Utils.hpp"
 #include "../../IOUtils.hpp"
 #include "../../Log.hpp"
 #include "../../Assert.hpp"
@@ -15,12 +16,12 @@ namespace eg
 		m_boneNamesSorted.insert(nameIt, name);
 		
 		Bone& bone = m_bones.emplace_back();
-		bone.dual = static_cast<uint8_t>(m_bones.size());
+		bone.dual = UnsignedNarrow<uint8_t>(m_bones.size());
 		bone.name = std::move(name);
 		bone.parent = UINT32_MAX;
 		bone.inverseBindMatrix = inverseBindMatrix;
 		
-		return static_cast<uint32_t>(m_bones.size() - 1);
+		return UnsignedNarrow<uint32_t>(m_bones.size() - 1);
 	}
 	
 	void Skeleton::InitDualBones()
@@ -88,7 +89,7 @@ namespace eg
 	{
 		if (parentBoneId.has_value())
 		{
-			EG_ASSERT(*parentBoneId < static_cast<uint32_t>(m_bones.size()));
+			EG_ASSERT(*parentBoneId < UnsignedNarrow<uint32_t>(m_bones.size()));
 			m_bones[boneId].parent = *parentBoneId;
 		}
 		else
@@ -108,12 +109,12 @@ namespace eg
 		auto it = std::lower_bound(m_boneNamesSorted.begin(), m_boneNamesSorted.end(), name);
 		if (it == m_boneNamesSorted.end() || *it != name)
 			return {};
-		return static_cast<uint32_t>(it - m_boneNamesSorted.begin());
+		return UnsignedNarrow<uint32_t>(static_cast<size_t>(it - m_boneNamesSorted.begin()));
 	}
 	
 	void Skeleton::Serialize(std::ostream& stream) const
 	{
-		BinWrite(stream, static_cast<uint32_t>(m_bones.size()));
+		BinWrite(stream, UnsignedNarrow<uint32_t>(m_bones.size()));
 		stream.write(reinterpret_cast<const char*>(&rootTransform), sizeof(glm::mat4));
 		
 		std::vector<uint8_t> hasParent((m_bones.size() + 7) / 8, 0);

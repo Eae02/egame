@@ -2,6 +2,7 @@
 #include "TRSTransform.hpp"
 #include "../../Assert.hpp"
 #include "../../IOUtils.hpp"
+#include "../../Utils.hpp"
 
 #include <istream>
 #include <ostream>
@@ -10,7 +11,7 @@ namespace eg
 {
 	void Animation::Serialize(std::ostream& stream) const
 	{
-		BinWrite(stream, static_cast<uint32_t>(m_targets.size()));
+		BinWrite(stream, UnsignedNarrow<uint32_t>(m_targets.size()));
 		BinWriteString(stream, name);
 		
 		for (const TargetKeyFrames& targetKF : m_targets)

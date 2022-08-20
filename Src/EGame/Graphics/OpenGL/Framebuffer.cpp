@@ -1,4 +1,5 @@
 #include "OpenGL.hpp"
+#include "Framebuffer.hpp"
 #include "Utils.hpp"
 #include "OpenGLTexture.hpp"
 #include "PipelineGraphics.hpp"
@@ -38,18 +39,6 @@ namespace eg::graphics_api::gl
 		{
 			EG_PANIC("Attempted to run " << opName <<
 			         " inside a render pass. This operation must be run outside a render pass.");
-		}
-	}
-	
-	void AssertIsInsideRenderPass(bool shouldBeInRenderpass, std::string_view opName)
-	{
-		if (shouldBeInRenderpass && !isInsideRenderPass)
-		{
-			
-		}
-		else if (!shouldBeInRenderpass && isInsideRenderPass)
-		{
-			
 		}
 	}
 	
@@ -95,7 +84,7 @@ namespace eg::graphics_api::gl
 		}
 	}
 	
-	void AttachTexture(GLenum target, Framebuffer& framebuffer, GLuint fbo, const FramebufferAttachment& attachment)
+	static void AttachTexture(GLenum target, Framebuffer& framebuffer, GLuint fbo, const FramebufferAttachment& attachment)
 	{
 		Texture* texture = UnwrapTexture(attachment.texture);
 		
@@ -146,7 +135,7 @@ namespace eg::graphics_api::gl
 			glObjectLabel(GL_FRAMEBUFFER, framebuffer->framebuffer, -1, createInfo.label);
 		}
 		
-		framebuffer->numColorAttachments = (uint32_t)createInfo.colorAttachments.size();
+		framebuffer->numColorAttachments = UnsignedNarrow<uint32_t>(createInfo.colorAttachments.size());
 		framebuffer->hasDepth = false;
 		framebuffer->hasStencil = false;
 		framebuffer->hasSRGB = false;
@@ -212,7 +201,7 @@ namespace eg::graphics_api::gl
 		
 		if (!createInfo.colorAttachments.empty())
 		{
-			glDrawBuffers((GLsizei)createInfo.colorAttachments.size(), drawBuffers);
+			glDrawBuffers(ToInt(createInfo.colorAttachments.size()), drawBuffers);
 		}
 		
 		AssertFramebufferComplete(GL_FRAMEBUFFER);
@@ -273,7 +262,7 @@ namespace eg::graphics_api::gl
 			fbHeight = drawableHeight;
 		}
 		
-		SetViewport(nullptr, 0, 0, (float)fbWidth, (float)fbHeight);
+		SetViewport(nullptr, 0, 0, static_cast<float>(fbWidth), static_cast<float>(fbHeight));
 		SetScissor(nullptr, 0, 0, fbWidth, fbHeight);
 	}
 	

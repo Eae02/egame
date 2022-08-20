@@ -12,7 +12,7 @@ namespace eg
 	
 	int Model::GetMeshIndex(std::string_view name) const
 	{
-		for (int i = 0; i < (int)m_meshes.size(); i++)
+		for (int i = 0; i < ToInt(m_meshes.size()); i++)
 		{
 			if (m_meshes[i].name == name)
 				return i;
@@ -35,7 +35,7 @@ namespace eg
 	
 	int Model::GetMaterialIndex(std::string_view name) const
 	{
-		for (int i = 0; i < (int)m_materialNames.size(); i++)
+		for (int i = 0; i < ToInt(m_materialNames.size()); i++)
 		{
 			if (m_materialNames[i] == name)
 				return i;
@@ -92,13 +92,13 @@ namespace eg
 	
 	int ModelBuilderUnformatted::AddMaterial(std::string_view name)
 	{
-		for (int i = 0; i < (int)m_materialNames.size(); i++)
+		for (int i = 0; i < ToInt(m_materialNames.size()); i++)
 		{
 			if (m_materialNames[i] == name)
 				return i;
 		}
 		
-		int index = (int)m_materialNames.size();
+		int index = ToInt(m_materialNames.size());
 		m_materialNames.emplace_back(name);
 		return index;
 	}

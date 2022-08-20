@@ -34,7 +34,7 @@ namespace eg
 			
 			const uint32_t numIndices = BinRead<uint32_t>(stream);
 			
-			MeshAccess access = (MeshAccess)BinRead<uint8_t>(stream);
+			MeshAccess access = static_cast<MeshAccess>(BinRead<uint8_t>(stream));
 			std::string materialName = BinReadString(stream);
 			std::string name = BinReadString(stream);
 			
@@ -106,7 +106,7 @@ namespace eg
 		
 		BinWrite<uint32_t>(stream, 0);
 		
-		BinWrite(stream, static_cast<uint32_t>(animations.size() + 1));
+		BinWrite(stream, UnsignedNarrow<uint32_t>(animations.size() + 1));
 		
 		skeleton.Serialize(stream);
 		

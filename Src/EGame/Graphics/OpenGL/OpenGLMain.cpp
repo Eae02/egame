@@ -64,7 +64,7 @@ namespace eg::graphics_api::gl
 		
 		float maxAnistropyF;
 		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnistropyF);
-		maxAnistropy = (int)maxAnistropyF;
+		maxAnistropy = static_cast<int>(maxAnistropyF);
 		
 		vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
 		if (strstr(vendorName.c_str(), "Intel"))
@@ -83,21 +83,21 @@ namespace eg::graphics_api::gl
 	
 	void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	{
-		deviceInfo.uniformBufferOffsetAlignment = (uint32_t)GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT);
+		deviceInfo.uniformBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT));
 		deviceInfo.geometryShader               = true;
 		deviceInfo.concurrentResourceCreation   = false;
 		deviceInfo.depthRange                   = depthRange;
 		deviceInfo.timerTicksPerNS              = 1.0f;
 		deviceInfo.deviceName                   = rendererName;
 		deviceInfo.deviceVendorName             = vendorName;
-		deviceInfo.maxMSAA                      = (uint32_t)GetIntegerLimit(GL_MAX_SAMPLES);
+		deviceInfo.maxMSAA                      = ToUnsigned(GetIntegerLimit(GL_MAX_SAMPLES));
 		
 		PlatformSpecificGetDeviceInfo(deviceInfo);
 	}
 	
 	FormatCapabilities GetFormatCapabilities(Format format)
 	{
-		FormatCapabilities capabilities = (FormatCapabilities)0;
+		FormatCapabilities capabilities = { };
 		
 		if (TranslateFormatForVertexAttribute(format, true).size != 0)
 			capabilities |= FormatCapabilities::VertexAttribute;

@@ -1,6 +1,7 @@
 #ifdef __linux__
 
 #include "Debug.hpp"
+#include "../Utils.hpp"
 
 #include <array>
 #include <execinfo.h>
@@ -14,7 +15,7 @@ namespace eg
 		if (traceSize == 0)
 			return { };
 		
-		char** traceSybmols = backtrace_symbols(trace.data(), (int)traceSize);
+		char** traceSybmols = backtrace_symbols(trace.data(), ToInt(traceSize));
 		if (traceSybmols == nullptr)
 			return { };
 		

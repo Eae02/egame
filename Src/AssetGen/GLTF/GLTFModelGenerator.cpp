@@ -218,7 +218,8 @@ namespace eg::asset_gen::gltf
 		}
 	}
 	
-	ImportedMesh ImportMesh(const GLTFData& gltfData, std::string name, const json& primitivesEl, const glm::mat4& transform)
+	static ImportedMesh ImportMesh(
+		const GLTFData& gltfData, std::string name, const json& primitivesEl, const glm::mat4& transform)
 	{
 		ImportedMesh mesh;
 		
@@ -323,7 +324,7 @@ namespace eg::asset_gen::gltf
 				const char* colorBufferPtr = colorBuffer + v * colorAccessor->byteStride;
 				for (int c = 0; c < 4; c++)
 				{
-					mesh.vertices[v].color[c] = ReadFNormalized(colorBufferPtr, colorAccessor->componentType, c) * 255;
+					mesh.vertices[v].color[c] = ToUNorm8(ReadFNormalized(colorBufferPtr, colorAccessor->componentType, c));
 				}
 			}
 			
@@ -369,7 +370,7 @@ namespace eg::asset_gen::gltf
 		Anim16
 	};
 	
-	std::span<const StdVertex> ConvertVertices(
+	static std::span<const StdVertex> ConvertVertices(
 		const std::vector<StdVertexAnim16>& vertices, std::vector<StdVertex>& outputVector)
 	{
 		if (outputVector.size() < vertices.size())
@@ -381,7 +382,7 @@ namespace eg::asset_gen::gltf
 		return { outputVector.data(), vertices.size() };
 	}
 	
-	std::span<const StdVertexAnim8> ConvertVertices(
+	static std::span<const StdVertexAnim8> ConvertVertices(
 		const std::vector<StdVertexAnim16>& vertices, std::vector<StdVertexAnim8>& outputVector)
 	{
 		if (outputVector.size() < vertices.size())
@@ -395,7 +396,7 @@ namespace eg::asset_gen::gltf
 		return { outputVector.data(), vertices.size() };
 	}
 	
-	std::span<const StdVertexAnim16> ConvertVertices(
+	static std::span<const StdVertexAnim16> ConvertVertices(
 		const std::vector<StdVertexAnim16>& vertices, std::vector<StdVertexAnim16>& outputVector)
 	{
 		return vertices;
@@ -671,7 +672,7 @@ namespace eg::asset_gen::gltf
 					ImportedMesh mesh = ImportMesh(data, std::move(name), primitiveEl, meshToImport.transform);
 					mesh.boundingSphere.radius *= sphereScale;
 					mesh.materialIndex = materialIndex;
-					mesh.sourceNodeIndex = meshToImport.nodeIndex;
+					mesh.sourceNodeIndex = ToInt(meshToImport.nodeIndex);
 					mesh.hasSkeleton = hasSkeleton;
 					mesh.flipWinding ^= globalFlipWinding;
 					
@@ -749,7 +750,7 @@ namespace eg::asset_gen::gltf
 				{
 					std::vector<int> targetIndices;
 					
-					for (size_t i = 0; i < skeleton.boneIdNodeIndex.size(); i++)
+					for (uint32_t i = 0; i < skeleton.boneIdNodeIndex.size(); i++)
 					{
 						if (skeleton.boneIdNodeIndex[i] == nodeIndex)
 						{
@@ -757,7 +758,7 @@ namespace eg::asset_gen::gltf
 						}
 					}
 					
-					for (size_t i = 0; i < meshes.size(); i++)
+					for (uint32_t i = 0; i < meshes.size(); i++)
 					{
 						if (meshes[i].sourceNodeIndex == nodeIndex)
 						{
@@ -800,7 +801,7 @@ namespace eg::asset_gen::gltf
 						if (meshes[src].materialIndex == meshes[dst].materialIndex)
 						{
 							for (uint32_t& idx : meshes[src].indices)
-								idx += meshes[dst].vertices.size();
+								idx += static_cast<uint32_t>(meshes[dst].vertices.size());
 							
 							meshes[dst].vertices.insert(meshes[dst].vertices.end(),
 								meshes[src].vertices.begin(), meshes[src].vertices.end());
@@ -839,13 +840,13 @@ namespace eg::asset_gen::gltf
 			switch (vertexType)
 			{
 			case VertexType::Anim16:
-				WriteMeshes((StdVertexAnim16*)nullptr);
+				WriteMeshes(static_cast<StdVertexAnim16*>(nullptr));
 				break;
 			case VertexType::Anim8:
-				WriteMeshes((StdVertexAnim8*)nullptr);
+				WriteMeshes(static_cast<StdVertexAnim8*>(nullptr));
 				break;
 			case VertexType::Std:
-				WriteMeshes((StdVertex*)nullptr);
+				WriteMeshes(static_cast<StdVertex*>(nullptr));
 				break;
 			}
 			

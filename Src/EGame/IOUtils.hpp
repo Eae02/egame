@@ -44,7 +44,7 @@ namespace eg
 	{
 		if (string.size() > UINT16_MAX)
 			EG_PANIC("String passed to BinWriteString was too long");
-		BinWrite<uint16_t>(stream, (uint16_t)string.size());
+		BinWrite(stream, static_cast<uint16_t>(string.size()));
 		stream.write(string.data(), string.size());
 	}
 	

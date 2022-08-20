@@ -20,7 +20,7 @@ namespace eg
 				texCoordMode = FullscreenShaderTexCoordMode::NotFlipped;
 		}
 		
-		if (!fullScreenShaders[(int)texCoordMode])
+		if (!fullScreenShaders[static_cast<int>(texCoordMode)])
 		{
 			std::span<const char> shaderCode;
 			switch (texCoordMode)
@@ -37,10 +37,10 @@ namespace eg
 			case FullscreenShaderTexCoordMode::FlippedIfOpenGL: EG_UNREACHABLE
 			}
 			
-			fullScreenShaders[(int)texCoordMode] = gal::CreateShaderModule(eg::ShaderStage::Vertex, shaderCode);
+			fullScreenShaders[static_cast<int>(texCoordMode)] = gal::CreateShaderModule(eg::ShaderStage::Vertex, shaderCode);
 		}
 		
-		return fullScreenShaders[(int)texCoordMode];
+		return fullScreenShaders[static_cast<int>(texCoordMode)];
 	}
 	
 	void detail::DestroyFullscreenShaders()

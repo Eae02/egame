@@ -4,7 +4,7 @@
 
 namespace eg
 {
-	void WriteTimers(std::ostream& stream, ProfilingResults::TimerCursor cursor)
+	static void WriteTimers(std::ostream& stream, ProfilingResults::TimerCursor cursor)
 	{
 		while (!cursor.AtEnd())
 		{

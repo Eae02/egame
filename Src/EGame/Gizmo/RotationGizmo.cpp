@@ -1,27 +1,28 @@
 #include "RotationGizmo.hpp"
-#include "Geometry/Plane.hpp"
-#include "Geometry/Ray.hpp"
+#include "GizmoCommon.hpp"
+#include "../Geometry/Plane.hpp"
+#include "../Geometry/Ray.hpp"
+#include "../InputState.hpp"
 
 #include <span>
 #include <optional>
 
 namespace eg
 {
-	extern float TORUS_VERTICES[360];
-	extern uint16_t TORUS_INDICES[720];
-	
 	static Buffer s_torusVB;
 	static Buffer s_torusIB;
 	
-	extern Pipeline gizmoPipeline;
+	static const float TORUS_SCALE = 0.6f;
 	
 	void RotationGizmo::Initialize()
 	{
-		s_torusVB = eg::Buffer(BufferFlags::VertexBuffer, sizeof(TORUS_VERTICES), TORUS_VERTICES);
-		s_torusIB = eg::Buffer(BufferFlags::IndexBuffer, sizeof(TORUS_INDICES), TORUS_INDICES);
+		s_torusVB = eg::Buffer(BufferFlags::VertexBuffer, sizeof(detail::TORUS_VERTICES), detail::TORUS_VERTICES);
+		s_torusIB = eg::Buffer(BufferFlags::IndexBuffer, sizeof(detail::TORUS_INDICES), detail::TORUS_INDICES);
 		
 		s_torusVB.UsageHint(BufferUsage::VertexBuffer);
 		s_torusIB.UsageHint(BufferUsage::IndexBuffer);
+		
+		detail::InitializeGizmoPipeline();
 	}
 	
 	void RotationGizmo::Destroy()
@@ -29,13 +30,6 @@ namespace eg
 		s_torusVB.Destroy();
 		s_torusIB.Destroy();
 	}
-	
-	std::optional<float> RayIntersectGizmoMesh(const glm::mat4& worldMatrix, const Ray& ray,
-		std::span<const float> vertices, std::span<const uint16_t> indices);
-	
-	void DrawGizmoAxis(int axis, int currentAxis, int hoveredAxis, uint32_t numIndices, const glm::mat4& transform);
-	
-	static const float TORUS_SCALE = 0.6f;
 	
 	static inline glm::mat4 GetAxisTransform(const glm::vec3& position, float scale, int axis)
 	{
@@ -124,8 +118,10 @@ namespace eg
 			if (onlyAxis != -1 && axis != onlyAxis)
 				continue;
 			
-			const glm::mat4 worldTransform = GetAxisTransform(position, m_renderScale, axis);
-			std::optional<float> intersect = RayIntersectGizmoMesh(worldTransform, viewRay, TORUS_VERTICES, TORUS_INDICES);
+			std::optional<float> intersect =
+				detail::RayIntersectGizmoMesh(GetAxisTransform(position, m_renderScale, axis),
+				                              viewRay, detail::TORUS_VERTICES, detail::TORUS_INDICES);
+			
 			if (intersect.has_value() && *intersect < minIntersectDist)
 			{
 				minIntersectDist = *intersect;
@@ -150,7 +146,7 @@ namespace eg
 	
 	void RotationGizmo::Draw(const glm::mat4& viewProjMatrix) const
 	{
-		DC.BindPipeline(gizmoPipeline);
+		DC.BindPipeline(detail::gizmoPipeline);
 		DC.BindVertexBuffer(0, s_torusVB, 0);
 		DC.BindIndexBuffer(IndexType::UInt16, s_torusIB, 0);
 		
@@ -159,8 +155,8 @@ namespace eg
 			if (m_onlyAxisToDraw != -1 && axis != m_onlyAxisToDraw)
 				continue;
 			
-			DrawGizmoAxis(axis, m_currentAxis, m_hoveredAxis, std::size(TORUS_INDICES),
-			              viewProjMatrix * GetAxisTransform(m_lastPosition, m_renderScale, axis));
+			detail::DrawGizmoAxis(axis, m_currentAxis, m_hoveredAxis, std::size(detail::TORUS_INDICES),
+			                      viewProjMatrix * GetAxisTransform(m_lastPosition, m_renderScale, axis));
 		}
 	}
 }

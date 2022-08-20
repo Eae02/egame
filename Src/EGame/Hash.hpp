@@ -12,7 +12,7 @@ namespace eg
 	inline void HashAppend(std::size_t& seed, const T& v)
 	{
 		std::hash<T> hasher;
-		seed ^= (size_t)hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+		seed ^= static_cast<size_t>(hasher(v)) + 0x9e3779b9 + (seed<<6) + (seed>>2);
 	}
 	
 	template <typename T>
@@ -49,7 +49,7 @@ namespace eg
 		
 		static constexpr uint32_t CalcHash(const char* const str, const size_t len, const uint32_t value) noexcept
 		{
-			return (len == 0 || *str == '\0') ? value : CalcHash(str + 1, len - 1, (value ^ (uint32_t)str[0]) * FNV_PRIME);
+			return (len == 0 || *str == '\0') ? value : CalcHash(str + 1, len - 1, (value ^ static_cast<uint32_t>(str[0])) * FNV_PRIME);
 		}
 	};
 }

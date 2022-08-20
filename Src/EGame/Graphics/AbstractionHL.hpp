@@ -219,7 +219,7 @@ namespace eg
 		 */
 		static uint32_t MaxMipLevels(uint32_t maxDim)
 		{
-			return (uint32_t)std::log2(maxDim) + 1;
+			return static_cast<uint32_t>(std::log2(maxDim) + 1);
 		}
 		
 		void UsageHint(TextureUsage usage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);

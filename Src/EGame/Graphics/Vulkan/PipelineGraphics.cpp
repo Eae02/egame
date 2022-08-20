@@ -243,7 +243,7 @@ namespace eg::graphics_api::vk
 			pipeline->blendStates[i].dstColorBlendFactor = TranslateBlendFactor(blendState.dstColorFactor);
 			pipeline->blendStates[i].srcAlphaBlendFactor = TranslateBlendFactor(blendState.srcAlphaFactor);
 			pipeline->blendStates[i].dstAlphaBlendFactor = TranslateBlendFactor(blendState.dstAlphaFactor);
-			pipeline->blendStates[i].colorWriteMask = (VkColorComponentFlags)blendState.colorWriteMask;
+			pipeline->blendStates[i].colorWriteMask = static_cast<VkColorComponentFlags>(blendState.colorWriteMask);
 		}
 		
 		//Translates vertex bindings
@@ -315,7 +315,8 @@ namespace eg::graphics_api::vk
 		/* pScissors     */ &g_dummyScissor
 	};
 	
-	VkPipeline MaybeCreatePipelineFramebufferVariant(const FramebufferFormat& format, GraphicsPipeline& pipeline, bool warn)
+	static VkPipeline MaybeCreatePipelineFramebufferVariant(
+		const FramebufferFormat& format, GraphicsPipeline& pipeline, bool warn)
 	{
 		auto it = std::lower_bound(pipeline.pipelines.begin(), pipeline.pipelines.end(), format.hash,
 			[&] (const FramebufferPipeline& a, size_t b)
@@ -350,7 +351,7 @@ namespace eg::graphics_api::vk
 			/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 			/* pNext                 */ nullptr,
 			/* flags                 */ 0,
-			/* rasterizationSamples  */ (VkSampleCountFlagBits)format.sampleCount,
+			/* rasterizationSamples  */ static_cast<VkSampleCountFlagBits>(format.sampleCount),
 			/* sampleShadingEnable   */ pipeline.enableSampleShading,
 			/* minSampleShading      */ pipeline.minSampleShading,
 			/* pSampleMask           */ nullptr,
@@ -423,7 +424,7 @@ namespace eg::graphics_api::vk
 		{
 			std::ostringstream msgStream;
 			msgStream << "Creating pipeline on demand stalled CPU for " <<
-				std::setprecision(2) << ((double)elapsed * 1E-6) << "ms.";
+				std::setprecision(2) << (static_cast<double>(elapsed) * 1E-6) << "ms.";
 			
 			if (!pipeline.label.empty())
 				msgStream << " Label of affected pipeline: '" << pipeline.label << "'.";
@@ -483,12 +484,12 @@ namespace eg::graphics_api::vk
 	{
 		CommandContextState& state = GetCtxState(cc);
 		if (state.scissor.offset.x != x || state.scissor.offset.y != y ||
-		    (int)state.scissor.extent.width != w || (int)state.scissor.extent.height != h)
+		    static_cast<int>(state.scissor.extent.width) != w || static_cast<int>(state.scissor.extent.height) != h)
 		{
 			state.scissor.offset.x = std::max<int>(x, 0);
 			state.scissor.offset.y = std::max<int>(state.framebufferH - (y + h), 0);
-			state.scissor.extent.width = glm::clamp(w, 0, (int)state.framebufferW - x);
-			state.scissor.extent.height = glm::clamp(h, 0, (int)state.framebufferH - state.scissor.offset.y);
+			state.scissor.extent.width = glm::clamp(w, 0, ToInt(state.framebufferW) - x);
+			state.scissor.extent.height = glm::clamp(h, 0, ToInt(state.framebufferH) - state.scissor.offset.y);
 			state.scissorOutOfDate = true;
 		}
 	}
@@ -496,12 +497,12 @@ namespace eg::graphics_api::vk
 	void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
 	{
 		VkStencilFaceFlags faceFlags = 0;
-		if ((int)kind & 0b0100)
+		if (static_cast<int>(kind) & 0b0100)
 			faceFlags |= VK_STENCIL_FACE_FRONT_BIT;
-		if ((int)kind & 0b1000)
+		if (static_cast<int>(kind) & 0b1000)
 			faceFlags |= VK_STENCIL_FACE_BACK_BIT;
 		
-		int type = (int)kind & 0b11;
+		int type = static_cast<int>(kind) & 0b11;
 		if (type == 0)
 			vkCmdSetStencilCompareMask(GetCB(cc), faceFlags, val);
 		else if (type == 1)

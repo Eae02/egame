@@ -13,8 +13,8 @@ namespace eg
 	
 	void FlyCamera::Update(float dt)
 	{
-		const float rotateX = (float)CursorDeltaX() * MOUSE_SENSITIVITY;
-		const float rotateY = (float)CursorDeltaY() * MOUSE_SENSITIVITY;
+		const float rotateX = static_cast<float>(CursorDeltaX()) * MOUSE_SENSITIVITY;
+		const float rotateY = static_cast<float>(CursorDeltaY()) * MOUSE_SENSITIVITY;
 		m_yaw += rotateX;
 		m_pitch = glm::clamp(m_pitch + rotateY, -HALF_PI, HALF_PI);
 		
@@ -39,9 +39,9 @@ namespace eg
 		const int forceLenSq = forceX * forceX + forceZ * forceZ;
 		if (forceLenSq > 0)
 		{
-			float forceScale = dt * ACCEL_AMOUNT / std::sqrt((float)forceLenSq);
-			m_velocity += m_forward * ((float)forceZ * forceScale);
-			m_velocity += glm::vec3(rotation[0]) * ((float)forceX * forceScale);
+			float forceScale = dt * ACCEL_AMOUNT / std::sqrt(static_cast<float>(forceLenSq));
+			m_velocity += m_forward * (static_cast<float>(forceZ) * forceScale);
+			m_velocity += glm::vec3(rotation[0]) * (static_cast<float>(forceX) * forceScale);
 		}
 		
 		m_velocity -= m_velocity * std::min(dt * DRAG_PER_SEC, 1.0f);

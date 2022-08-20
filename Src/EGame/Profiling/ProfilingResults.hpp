@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../API.hpp"
+#include "../Utils.hpp"
 
 #include <span>
 #include <string>
@@ -26,7 +27,7 @@ namespace eg
 		public:
 			bool AtEnd() const
 			{
-				return m_index >= (int)m_timers.size();
+				return m_index >= ToInt(m_timers.size());
 			}
 			
 			void Step()

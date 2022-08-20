@@ -338,16 +338,16 @@ namespace eg
 		for (size_t i = 0; i < std::size(buttonNames); i++)
 		{
 			if (StringEqualCaseInsensitive(buttonNames[i], str))
-				return (Button)i;
+				return static_cast<Button>(i);
 		}
 		return Button::Unknown;
 	}
 	
 	std::string_view ButtonToString(Button button)
 	{
-		if ((size_t)button >= std::size(buttonNames))
+		if (static_cast<size_t>(button) >= std::size(buttonNames))
 			return buttonNames[0];
-		return buttonNames[(int)button];
+		return buttonNames[static_cast<size_t>(button)];
 	}
 	
 	bool g_relMouseMode = false;
@@ -363,7 +363,7 @@ namespace eg
 		else
 			emscripten_exit_pointerlock();
 #else
-		SDL_SetRelativeMouseMode((SDL_bool)relMouseMode);
+		SDL_SetRelativeMouseMode(relMouseMode ? SDL_TRUE : SDL_FALSE);
 #endif
 	}
 	
@@ -387,10 +387,10 @@ namespace eg
 		if (!hasSetTextInputRect && textInputRect)
 		{
 			SDL_Rect rect;
-			rect.x = (int)textInputRect->x;
-			rect.y = (int)textInputRect->y;
-			rect.w = (int)std::ceil(textInputRect->w);
-			rect.h = (int)std::ceil(textInputRect->h);
+			rect.x = static_cast<int>(textInputRect->x);
+			rect.y = static_cast<int>(textInputRect->y);
+			rect.w = static_cast<int>(std::ceil(textInputRect->w));
+			rect.h = static_cast<int>(std::ceil(textInputRect->h));
 			SDL_SetTextInputRect(&rect);
 			hasSetTextInputRect = true;
 		}

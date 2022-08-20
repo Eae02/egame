@@ -130,7 +130,7 @@ namespace eg
 	EG_API Button ButtonFromString(std::string_view str);
 	EG_API std::string_view ButtonDisplayName(Button button);
 	
-	constexpr size_t NUM_BUTTONS = (size_t)Button::NUM_BUTTONS;
+	constexpr size_t NUM_BUTTONS = static_cast<size_t>(Button::NUM_BUTTONS);
 	
 	class InputState;
 	
@@ -153,7 +153,7 @@ namespace eg
 		
 		bool IsButtonDown(Button button) const
 		{
-			return (m_isButtonDown[(int)button / 8] & (1 << ((int)button % 8))) != 0;
+			return (m_isButtonDown[static_cast<size_t>(button) / 8] & (1 << (static_cast<size_t>(button) % 8))) != 0;
 		}
 		
 		bool IsCtrlDown() const
@@ -173,7 +173,7 @@ namespace eg
 		
 		void OnButtonDown(Button button)
 		{
-			m_isButtonDown[(int)button / 8] |= (char)(1 << ((int)button % 8));
+			m_isButtonDown[static_cast<size_t>(button) / 8] |= static_cast<char>(1 << (static_cast<size_t>(button) % 8));
 			m_pressed = button;
 		}
 		
@@ -181,12 +181,12 @@ namespace eg
 		{
 			if (button == m_pressed)
 				m_pressed = Button::Unknown;
-			m_isButtonDown[(int)button / 8] &= (char)~(1 << ((int)button % 8));
+			m_isButtonDown[static_cast<size_t>(button) / 8] &= static_cast<char>(~(1 << (static_cast<size_t>(button) % 8)));
 		}
 		
 		void OnAxisMoved(ControllerAxis axis, float newValue)
 		{
-			m_axisValues[(int)axis] = newValue;
+			m_axisValues[static_cast<int>(axis)] = newValue;
 		}
 		
 		glm::ivec2 CursorPos() const
@@ -206,7 +206,7 @@ namespace eg
 		
 		float AxisValue(ControllerAxis axis)
 		{
-			return m_axisValues[(int)axis];
+			return m_axisValues[static_cast<int>(axis)];
 		}
 		
 		glm::vec2 LeftAnalogValue() const

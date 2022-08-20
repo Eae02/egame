@@ -57,11 +57,11 @@ namespace eg
 	BoneMatrixBuffer::MatrixRangeReference BoneMatrixBuffer::AddNoCopy(std::span<const glm::mat4> matrices)
 	{
 		EG_ASSERT(matrices.size_bytes() <= UINT32_MAX);
-		MatrixRangeReference rangeRef = StepPosition((uint32_t)matrices.size());
+		MatrixRangeReference rangeRef = StepPosition(UnsignedNarrow<uint32_t>(matrices.size()));
 		
 		MatrixRange& matrixRange = m_matrixRanges.emplace_back();
 		matrixRange.matrices = matrices.data();
-		matrixRange.size = (uint32_t)matrices.size_bytes();
+		matrixRange.size = UnsignedNarrow<uint32_t>(matrices.size_bytes());
 		matrixRange.offset = rangeRef.byteOffset;
 		
 		return rangeRef;
@@ -70,11 +70,11 @@ namespace eg
 	BoneMatrixBuffer::MatrixRangeReference BoneMatrixBuffer::AddCopy(std::span<const glm::mat4> matrices)
 	{
 		EG_ASSERT(matrices.size_bytes() <= UINT32_MAX);
-		MatrixRangeReference rangeRef = StepPosition((uint32_t)matrices.size());
+		MatrixRangeReference rangeRef = StepPosition(UnsignedNarrow<uint32_t>(matrices.size()));
 		
 		MatrixRange& matrixRange = m_matrixRanges.emplace_back();
 		matrixRange.matrices = m_ownedMatrices.size();
-		matrixRange.size = (uint32_t)matrices.size_bytes();
+		matrixRange.size = UnsignedNarrow<uint32_t>(matrices.size_bytes());
 		matrixRange.offset = rangeRef.byteOffset;
 		
 		m_ownedMatrices.insert(m_ownedMatrices.end(), matrices.begin(), matrices.end());
@@ -94,7 +94,7 @@ namespace eg
 		if (offsetAlignment == 0)
 			ref.matrixOffset = m_position / sizeof(glm::mat4);
 		
-		m_position += numMatrices * (uint32_t)sizeof(glm::mat4);
+		m_position += numMatrices * static_cast<uint32_t>(sizeof(glm::mat4));
 		return ref;
 	}
 	
@@ -106,7 +106,7 @@ namespace eg
 		//Reallocates buffers if current ones are too small
 		if (m_position > m_size)
 		{
-			m_size = RoundToNextMultiple(m_position, 16 * 1024 * (uint32_t)sizeof(glm::mat4));
+			m_size = RoundToNextMultiple(m_position, static_cast<uint32_t>(16 * 1024 * sizeof(glm::mat4)));
 			
 			eg::BufferFlags bufferFlags = eg::BufferFlags::CopyDst;
 			if (m_usageMode == UsageMode::StorageBuffer)

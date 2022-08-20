@@ -48,7 +48,7 @@ namespace eg
 					{
 						if ((page->inUse[o] & (1 << b)) == 0)
 						{
-							page->inUse[o] |= (uint8_t)(1 << b);
+							page->inUse[o] |= static_cast<uint8_t>(1 << b);
 							return page->objects + (o * 8 + b);
 						}
 					}
@@ -82,7 +82,7 @@ namespace eg
 				if (t >= page->objects && t < page->objects + page->size)
 				{
 					const size_t idx = static_cast<size_t>(t - page->objects);
-					page->inUse[idx / 8] &= (uint8_t)~InUseMask(idx);
+					page->inUse[idx / 8] &= static_cast<uint8_t>(~InUseMask(idx));
 					return;
 				}
 			}
@@ -110,7 +110,7 @@ namespace eg
 	private:
 		inline static size_t InUseMask(size_t i)
 		{
-			return (size_t)1 << (size_t)(i % 8);
+			return static_cast<size_t>(1) << static_cast<size_t>(i % 8);
 		}
 		
 		struct Page

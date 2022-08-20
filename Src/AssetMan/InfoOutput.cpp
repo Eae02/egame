@@ -22,7 +22,8 @@ void WriteListOutput(std::span<const eg::EAPAsset> assets)
 		
 		if (asset.compress)
 		{
-			int compressionRatio = std::round(100 * (1 - (double)asset.compressedSize / (double)asset.generatedAssetData.size()));
+			int compressionRatio = std::round(100 *
+				(1 - static_cast<double>(asset.compressedSize) / static_cast<double>(asset.generatedAssetData.size())));
 			std::cout << " (comp: " << eg::ReadableBytesSize(asset.compressedSize)
 					  << " " << compressionRatio << "%)";
 		}

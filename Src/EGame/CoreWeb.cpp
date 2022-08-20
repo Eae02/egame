@@ -12,7 +12,7 @@
 
 namespace eg
 {
-	int PlatformInit(const RunConfig& runConfig)
+	int detail::PlatformInit(const RunConfig& runConfig)
 	{
 		GraphicsAPIInitArguments apiInitArguments = {};
 		apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
@@ -25,9 +25,6 @@ namespace eg
 	}
 	
 	extern bool shouldClose;
-	
-	void CoreUninitialize();
-	void RunFrame(IGame& game);
 	
 	static std::unique_ptr<IGame> game;
 	
@@ -131,7 +128,12 @@ namespace eg
 	
 	extern bool g_relMouseMode;
 	
-	void PlatformRunGameLoop(std::unique_ptr<IGame> _game)
+	static inline Button TranslateEmscriptenMouseButton(int button)
+	{
+		return static_cast<Button>(static_cast<int>(Button::MouseLeft) + button);
+	}
+	
+	void detail::PlatformRunGameLoop(std::unique_ptr<IGame> _game)
 	{
 		game = std::move(_game);
 		
@@ -159,7 +161,7 @@ namespace eg
 			[] (int eventType, const EmscriptenMouseEvent* mouseEvent, void* userData)
 		{
 			if (mouseEvent->button >= 0 && mouseEvent->button <= 2)
-				newButtonDownEvents.emplace_back((Button)((int)Button::MouseLeft + mouseEvent->button), false);
+				newButtonDownEvents.emplace_back(TranslateEmscriptenMouseButton(mouseEvent->button), false);
 			return EM_TRUE;
 		});
 		
@@ -167,7 +169,7 @@ namespace eg
 			[] (int eventType, const EmscriptenMouseEvent* mouseEvent, void* userData)
 		{
 			if (mouseEvent->button >= 0 && mouseEvent->button <= 2)
-				newButtonUpEvents.emplace_back((Button)((int)Button::MouseLeft + mouseEvent->button), false);
+				newButtonUpEvents.emplace_back(TranslateEmscriptenMouseButton(mouseEvent->button), false);
 			return EM_TRUE;
 		});
 		
@@ -210,17 +212,17 @@ namespace eg
 		{
 			if (!gal::IsLoadingComplete() || !SpriteFont::IsDevFontLoaded())
 				return;
-			RunFrame(*game);
+			detail::RunFrame(*game);
 		}, 0, 0);
 	}
 	
-	void PlatformStartFrame()
+	void detail::PlatformStartFrame()
 	{
 		detail::inputtedText = newInputtedText;
 		newInputtedText.clear();
 		
-		detail::currentIS->scrollX = (int)std::round(scrollX);
-		detail::currentIS->scrollY = (int)std::round(scrollY);
+		detail::currentIS->scrollX = static_cast<int>(std::round(scrollX));
+		detail::currentIS->scrollY = static_cast<int>(std::round(scrollY));
 		
 		detail::currentIS->cursorDeltaX = pendingCursorDelta.x;
 		detail::currentIS->cursorDeltaY = pendingCursorDelta.y;

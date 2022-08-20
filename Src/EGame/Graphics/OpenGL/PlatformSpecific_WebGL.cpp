@@ -1,8 +1,10 @@
 #ifdef __EMSCRIPTEN__
 
 #include "OpenGL.hpp"
+#include "PlatformSpecific.hpp"
 #include "Utils.hpp"
 #include "Framebuffer.hpp"
+#include "../../String.hpp"
 
 #include <EGL/egl.h>
 

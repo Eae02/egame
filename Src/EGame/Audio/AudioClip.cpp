@@ -1,4 +1,5 @@
 #include "AudioClip.hpp"
+#include "../Utils.hpp"
 #include "OpenALLoader.hpp"
 
 namespace eg
@@ -6,14 +7,14 @@ namespace eg
 	extern bool alInitialized;
 	
 	AudioClip::AudioClip(std::span<const int16_t> data, bool isStereo, uint64_t frequency)
-		: m_isNull(false), m_numSamples(data.size() / ((int)isStereo + 1)), m_frequency(frequency)
+		: m_isNull(false), m_numSamples(data.size() / (isStereo ? 2 : 1)), m_frequency(frequency)
 	{
 		if (alInitialized)
 		{
 #ifndef EG_NO_OPENAL
 			al::GenBuffers(1, &m_id);
 			al::BufferData(m_id, isStereo ? AL_FORMAT_STEREO16 : AL_FORMAT_MONO16, data.data(),
-			               (ALsizei)data.size_bytes(), (ALsizei)frequency);
+			               ToInt(data.size_bytes()), ToInt(frequency));
 #endif
 		}
 	}

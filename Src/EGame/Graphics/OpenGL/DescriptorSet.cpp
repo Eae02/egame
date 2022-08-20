@@ -30,12 +30,12 @@ namespace eg::graphics_api::gl
 		}
 	};
 	
-	inline DescriptorSet* UnwrapDescriptorSet(DescriptorSetHandle handle)
+	static inline DescriptorSet* UnwrapDescriptorSet(DescriptorSetHandle handle)
 	{
 		return reinterpret_cast<DescriptorSet*>(handle);
 	}
 	
-	DescriptorSetHandle CreateDescriptorSet(uint32_t maxBinding)
+	static inline DescriptorSetHandle CreateDescriptorSet(uint32_t maxBinding)
 	{
 		const size_t extraMemory = (maxBinding + 1) * sizeof(Binding);
 		const size_t bindingsOffset = RoundToNextMultiple(sizeof(DescriptorSet), alignof(Binding));
@@ -72,7 +72,7 @@ namespace eg::graphics_api::gl
 		DescriptorSet* set = UnwrapDescriptorSet(setHandle);
 		set->CheckBinding(binding);
 		set->bindings[binding].textureView = UnwrapTextureView(viewHandle);
-		set->bindings[binding].bufferOrSampler = (GLuint)reinterpret_cast<uintptr_t>(sampler);
+		set->bindings[binding].bufferOrSampler = UnsignedNarrow<GLuint>(reinterpret_cast<uintptr_t>(sampler));
 		set->bindings[binding].assigned = true;
 	}
 	

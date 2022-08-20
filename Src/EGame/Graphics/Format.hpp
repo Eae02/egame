@@ -112,7 +112,7 @@ namespace eg
 	template <typename T>
 	std::array<T, 4> GetClearValueAs(const std::variant<ColorLin, glm::ivec4, glm::uvec4>& clearValueVariant)
 	{
-		return std::visit([] (const auto& x) { return std::array<T, 4> { (T)x.r, (T)x.g, (T)x.b, (T)x.a }; }, clearValueVariant);
+		return std::visit([] (const auto& x) { return std::array<T, 4> { static_cast<T>(x.r), static_cast<T>(x.g), static_cast<T>(x.b), static_cast<T>(x.a) }; }, clearValueVariant);
 	}
 	
 	enum class DataType
@@ -139,7 +139,7 @@ namespace eg
 	{
 		if (numComponents == 0 || numComponents > 4)
 			return Format::Undefined;
-		return detail::formatFromDataTypeAndComponentCount[(int)dataType][numComponents - 1];
+		return detail::formatFromDataTypeAndComponentCount[static_cast<int>(dataType)][numComponents - 1];
 	}
 	
 	enum class FormatCapabilities

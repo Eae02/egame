@@ -8,7 +8,7 @@ namespace eg
 	void TextEdit::InsertText(std::string_view text)
 	{
 		m_data.insert(m_data.begin() + m_cursorPos, text.begin(), text.end());
-		m_cursorPos += (int)text.size();
+		m_cursorPos += ToInt(text.size());
 		m_cursorBlinkProgress = 0;
 	}
 	
@@ -31,14 +31,14 @@ namespace eg
 			{
 				auto it = m_data.begin() + m_cursorPos;
 				utf8::prior(it, m_data.begin());
-				m_cursorPos = (int)(it - m_data.begin());
+				m_cursorPos = ToInt(it - m_data.begin());
 			};
 			
 			auto StepForward = [&]
 			{
 				auto it = m_data.begin() + m_cursorPos;
 				utf8::next(it, m_data.end());
-				m_cursorPos = (int)(it - m_data.begin());
+				m_cursorPos = ToInt(it - m_data.begin());
 			};
 			
 			switch (event.button)
@@ -56,12 +56,12 @@ namespace eg
 				}
 				break;
 			case eg::Button::RightArrow:
-				if (m_cursorPos < (int)m_data.size())
+				if (m_cursorPos < ToInt(m_data.size()))
 				{
 					StepForward();
 					if (InputState::Current().IsCtrlDown())
 					{
-						while (m_cursorPos < (int)m_data.size() && m_data[m_cursorPos] != ' ')
+						while (m_cursorPos < ToInt(m_data.size()) && m_data[m_cursorPos] != ' ')
 							StepForward();
 					}
 					m_cursorBlinkProgress = 0;
@@ -77,7 +77,7 @@ namespace eg
 				}
 				break;
 			case Button::Delete:
-				if (m_cursorPos < (int)m_data.size())
+				if (m_cursorPos < ToInt(m_data.size()))
 				{
 					auto first = m_data.begin() + m_cursorPos;
 					auto last = first;
@@ -91,7 +91,7 @@ namespace eg
 				m_cursorBlinkProgress = 0;
 				break;
 			case Button::End:
-				m_cursorPos = (int)m_data.size();
+				m_cursorPos = ToInt(m_data.size());
 				m_cursorBlinkProgress = 0;
 				break;
 			default:
@@ -106,12 +106,12 @@ namespace eg
 	{
 		spriteBatch.DrawText(*m_font, Text(), position, color, m_fontScale, nullptr, TextFlags::DropShadow);
 		
-		const int cursorX = (int)(position.x + m_font->GetTextExtents(Text().substr(0, (size_t)m_cursorPos)).x * m_fontScale);
+		const float cursorX = position.x + m_font->GetTextExtents(Text().substr(0, m_cursorPos)).x * m_fontScale;
 		
 		if (m_wasEnabled)
 		{
-			float fontH = (float)m_font->Size() * m_fontScale;
-			TextInputActive(eg::Rectangle((float)cursorX, (float)CurrentResolutionY() - position.y, 100.0f, fontH));
+			float fontH = static_cast<float>(m_font->Size()) * m_fontScale;
+			TextInputActive(eg::Rectangle(cursorX, static_cast<float>(CurrentResolutionY()) - position.y, 100.0f, fontH));
 		}
 		
 		if (m_cursorBlinkProgress < 1)
@@ -119,7 +119,7 @@ namespace eg
 			const float CURSOR_EXTRA_H = 2;
 			
 			spriteBatch.DrawLine(glm::vec2(cursorX, position.y - CURSOR_EXTRA_H),
-				glm::vec2(cursorX, position.y + (float)m_font->Size() * m_fontScale + CURSOR_EXTRA_H), color);
+				glm::vec2(cursorX, position.y + static_cast<float>(m_font->Size()) * m_fontScale + CURSOR_EXTRA_H), color);
 		}
 	}
 }

@@ -71,7 +71,7 @@ namespace eg
 			return;
 		
 		m_numBoneMatrices = m_model->skeleton.NumBones();
-		m_numMeshMatrices = static_cast<uint32_t>(m_model->NumMeshes());
+		m_numMeshMatrices = UnsignedNarrow<uint32_t>(m_model->NumMeshes());
 		const uint32_t numTargets = m_numBoneMatrices + m_numMeshMatrices;
 		if (numTargets != m_numAllocatedTargetMatrices)
 		{

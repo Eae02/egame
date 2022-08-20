@@ -208,7 +208,7 @@ namespace eg::asset_gen
 				variants.erase(std::unique(variants.begin(), variants.end()), variants.end());
 			}
 			
-			const EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
+			const EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
 			
 			//Translates the shader stage and writes this to the output stream
 			ShaderStage egStage;
@@ -222,14 +222,14 @@ namespace eg::asset_gen
 			case EShLangTessEvaluation: egStage = ShaderStage::TessEvaluation; break;
 			default: EG_UNREACHABLE break;
 			}
-			BinWrite(generateContext.outputStream, (uint32_t)egStage);
+			BinWrite(generateContext.outputStream, static_cast<uint32_t>(egStage));
 			
 			//Sets up parameters for the shader
 			const char* shaderStrings[] = { source.data() };
 			const int shaderStringLengths[] = { static_cast<int>(source.size()) };
 			const char* shaderStringNames[] = { relSourcePath.c_str() };
 			
-			eg::BinWrite<uint32_t>(generateContext.outputStream, variants.size());
+			eg::BinWrite(generateContext.outputStream, UnsignedNarrow<uint32_t>(variants.size()));
 			
 			//Compiles each shader variant
 			for (std::string_view variant : variants)
@@ -267,10 +267,10 @@ namespace eg::asset_gen
 				std::vector<uint32_t> spirvCode;
 				glslang::GlslangToSpv(*program.getIntermediate(*lang), spirvCode);
 				
-				uint32_t codeSize = spirvCode.size() * sizeof(uint32_t);
+				uint32_t codeSize = UnsignedNarrow<uint32_t>(spirvCode.size() * sizeof(uint32_t));
 				BinWrite(generateContext.outputStream, eg::HashFNV1a32(variant));
 				BinWrite(generateContext.outputStream, codeSize);
-				generateContext.outputStream.write((char*)spirvCode.data(), codeSize);
+				generateContext.outputStream.write(reinterpret_cast<char*>(spirvCode.data()), codeSize);
 			}
 			
 			return true;

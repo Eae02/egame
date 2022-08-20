@@ -6,7 +6,7 @@ using namespace nlohmann;
 
 namespace eg::asset_gen::gltf
 {
-	void ReadKeyFrameTransform(glm::vec3& transformOut, const char* data, ComponentType componentType)
+	static inline void ReadKeyFrameTransform(glm::vec3& transformOut, const char* data, ComponentType componentType)
 	{
 		auto dataF = reinterpret_cast<const float*>(data);
 		transformOut.x = dataF[0];
@@ -14,7 +14,7 @@ namespace eg::asset_gen::gltf
 		transformOut.z = dataF[2];
 	}
 	
-	void ReadKeyFrameTransform(glm::quat& transformOut, const char* data, ComponentType componentType)
+	static inline void ReadKeyFrameTransform(glm::quat& transformOut, const char* data, ComponentType componentType)
 	{
 		transformOut.x = ReadFNormalized(data, componentType, 0);
 		transformOut.y = ReadFNormalized(data, componentType, 1);
@@ -197,7 +197,7 @@ namespace eg::asset_gen::gltf
 			}
 		}
 		
-		for (size_t i = 0; i < jointsEl.size(); i++)
+		for (uint32_t i = 0; i < jointsEl.size(); i++)
 		{
 			result.skeleton.SetBoneParent(i, boneParentIds[i]);
 		}

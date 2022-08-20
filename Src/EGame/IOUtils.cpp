@@ -1,4 +1,5 @@
 #include "IOUtils.hpp"
+#include "Utils.hpp"
 
 namespace eg
 {
@@ -20,7 +21,7 @@ namespace eg
 		std::ios_base::seekdir dir, std::ios_base::openmode which)
 	{
 		if(dir == std::ios_base::cur)
-			gbump((int)off);
+			gbump(ToInt(off));
 		else if(dir == std::ios_base::end)
 			setg(m_begin, m_end + off, m_end);
 		else if(dir == std::ios_base::beg)

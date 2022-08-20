@@ -16,6 +16,11 @@ namespace eg
 	namespace detail
 	{
 		extern EG_API LinearAllocator assetAllocator;
+		
+		extern bool createAssetPackage;
+		extern bool disableAssetPackageCompression;
+		
+		void LoadAssetGenLibrary();
 	}
 	
 	struct Asset

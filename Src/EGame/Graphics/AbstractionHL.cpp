@@ -47,8 +47,8 @@ namespace eg
 		ImageLoader loader(stream);
 		
 		TextureCreateInfo createInfo;
-		createInfo.width = (uint32_t)loader.Width();
-		createInfo.height = (uint32_t)loader.Height();
+		createInfo.width = ToUnsigned(loader.Width());
+		createInfo.height = ToUnsigned(loader.Height());
 		createInfo.mipLevels = mipLevels == 0 ? MaxMipLevels(std::max(createInfo.width, createInfo.height)) : mipLevels;
 		
 		switch (format)
@@ -167,7 +167,7 @@ namespace eg
 			messageStream << "Required capabilities are not available for " << FormatToString(format) << ":";
 			for (uint32_t i = 0; i < std::size(FormatCapabilityNames); i++)
 			{
-				FormatCapabilities mask = (FormatCapabilities)(1U << i);
+				FormatCapabilities mask = static_cast<FormatCapabilities>(1U << i);
 				if (HasFlag(capabilities, mask) && !HasFlag(supportedCapabilities, mask))
 					messageStream << " " << FormatCapabilityNames[i];
 			}
