@@ -50,6 +50,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		-Wno-cast-function-type
 		-Wno-error=unused-value
 		-Wno-error=unused-function
+		-Wno-error=restrict #weird gcc bug
 		$<$<COMPILE_LANGUAGE:CXX>:-Wconversion-null>
 		$<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
 	)
