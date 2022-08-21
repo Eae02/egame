@@ -427,7 +427,17 @@ namespace eg::graphics_api::vk
 				std::setprecision(2) << (static_cast<double>(elapsed) * 1E-6) << "ms.";
 			
 			if (!pipeline.label.empty())
-				msgStream << " Label of affected pipeline: '" << pipeline.label << "'.";
+				msgStream << " Label:'" << pipeline.label << "'.";
+			
+			msgStream << "\n  FB format: ";
+			for (size_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
+			{
+				if (format.colorFormats[i] != VK_FORMAT_UNDEFINED)
+					msgStream << FormatToString(format.colorFormats[i]) << " ";
+			}
+			if (format.depthStencilFormat != VK_FORMAT_UNDEFINED)
+				msgStream << FormatToString(format.depthStencilFormat) << " ";
+			msgStream << "x" << static_cast<int>(format.sampleCount);
 			
 			Log(LogLevel::Warning, "vk", "{0}", msgStream.str());
 		}

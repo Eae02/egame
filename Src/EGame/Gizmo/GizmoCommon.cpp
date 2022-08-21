@@ -9,7 +9,7 @@
 namespace eg::detail
 {
 	static constexpr float AXIS_LIGHTNESS = 0.25f;
-	static const glm::vec3 AXIS_COLORS[] = 
+	static const std::array<glm::vec3, 3> AXIS_COLORS = 
 	{
 		glm::vec3(1.0f, AXIS_LIGHTNESS, AXIS_LIGHTNESS),
 		glm::vec3(AXIS_LIGHTNESS, 1.0f, AXIS_LIGHTNESS),
@@ -71,7 +71,7 @@ namespace eg::detail
 	
 	void DrawGizmoAxis(int axis, int currentAxis, int hoveredAxis, uint32_t numIndices, const glm::mat4& transform)
 	{
-		glm::vec3 color = AXIS_COLORS[axis];
+		glm::vec3 color = AXIS_COLORS.at(axis);
 		if (currentAxis == axis)
 		{
 			color = CURRENT_AXIS_COLOR;

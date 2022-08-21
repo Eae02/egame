@@ -18,7 +18,7 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
-	static const VkShaderStageFlags ShaderStageFlags[] =
+	static const std::array<VkShaderStageFlags, 6> ShaderStageFlags =
 	{
 		VK_SHADER_STAGE_VERTEX_BIT,
 		VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -39,7 +39,7 @@ namespace eg::graphics_api::vk
 		moduleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 		CheckRes(vkCreateShaderModule(ctx.device, &moduleCreateInfo, nullptr, &module->module));
 		
-		VkShaderStageFlags stageFlags = ShaderStageFlags[static_cast<int>(stage)];
+		VkShaderStageFlags stageFlags = ShaderStageFlags.at(static_cast<int>(stage));
 		
 		spirv_cross::Compiler spvCrossCompiler(moduleCreateInfo.pCode, moduleCreateInfo.codeSize / 4);
 		

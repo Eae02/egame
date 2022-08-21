@@ -1,113 +1,25 @@
 #ifndef EG_NO_VULKAN
 
-#include <cstring>
 #include "Common.hpp"
 #include "../../Assert.hpp"
+
+#include <cstring>
+#include <vulkan/vk_enum_string_helper.h>
 
 namespace eg
 {
 	template <>
 	std::string LogToString(VkResult result)
 	{
-		switch (result)
-		{
-#define RESULT_TYPE(T) case T: return #T;
-		RESULT_TYPE(VK_SUCCESS)
-		RESULT_TYPE(VK_NOT_READY)
-		RESULT_TYPE(VK_TIMEOUT)
-		RESULT_TYPE(VK_EVENT_SET)
-		RESULT_TYPE(VK_EVENT_RESET)
-		RESULT_TYPE(VK_INCOMPLETE)
-		RESULT_TYPE(VK_ERROR_OUT_OF_HOST_MEMORY)
-		RESULT_TYPE(VK_ERROR_OUT_OF_DEVICE_MEMORY)
-		RESULT_TYPE(VK_ERROR_INITIALIZATION_FAILED)
-		RESULT_TYPE(VK_ERROR_DEVICE_LOST)
-		RESULT_TYPE(VK_ERROR_MEMORY_MAP_FAILED)
-		RESULT_TYPE(VK_ERROR_LAYER_NOT_PRESENT)
-		RESULT_TYPE(VK_ERROR_EXTENSION_NOT_PRESENT)
-		RESULT_TYPE(VK_ERROR_FEATURE_NOT_PRESENT)
-		RESULT_TYPE(VK_ERROR_INCOMPATIBLE_DRIVER)
-		RESULT_TYPE(VK_ERROR_TOO_MANY_OBJECTS)
-		RESULT_TYPE(VK_ERROR_FORMAT_NOT_SUPPORTED)
-		RESULT_TYPE(VK_ERROR_FRAGMENTED_POOL)
-		RESULT_TYPE(VK_ERROR_OUT_OF_POOL_MEMORY)
-		RESULT_TYPE(VK_ERROR_INVALID_EXTERNAL_HANDLE)
-		RESULT_TYPE(VK_ERROR_SURFACE_LOST_KHR)
-		RESULT_TYPE(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR)
-		RESULT_TYPE(VK_SUBOPTIMAL_KHR)
-		RESULT_TYPE(VK_ERROR_OUT_OF_DATE_KHR)
-		RESULT_TYPE(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR)
-		RESULT_TYPE(VK_ERROR_VALIDATION_FAILED_EXT)
-		RESULT_TYPE(VK_ERROR_INVALID_SHADER_NV)
-		RESULT_TYPE(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT)
-		RESULT_TYPE(VK_ERROR_FRAGMENTATION_EXT)
-		RESULT_TYPE(VK_ERROR_NOT_PERMITTED_EXT)
-		RESULT_TYPE(VK_ERROR_INVALID_DEVICE_ADDRESS_EXT)
-#undef RESULT_TYPE
-		default: return "Unknown";
-		}
+		return string_VkResult(result);
 	}
 }
 
 namespace eg::graphics_api::vk
 {
-	inline const char* GetObjectTypeName(VkObjectType type)
+	const char* FormatToString(VkFormat format)
 	{
-		switch (type)
-		{
-		case VK_OBJECT_TYPE_INSTANCE:
-			return "Instance";
-		case VK_OBJECT_TYPE_PHYSICAL_DEVICE:
-			return "PhysicalDevice";
-		case VK_OBJECT_TYPE_DEVICE:
-			return "Device";
-		case VK_OBJECT_TYPE_QUEUE:
-			return "Queue";
-		case VK_OBJECT_TYPE_SEMAPHORE:
-			return "Semaphore";
-		case VK_OBJECT_TYPE_COMMAND_BUFFER:
-			return "CommandBuffer";
-		case VK_OBJECT_TYPE_FENCE:
-			return "Fence";
-		case VK_OBJECT_TYPE_DEVICE_MEMORY:
-			return "DeviceMemory";
-		case VK_OBJECT_TYPE_BUFFER:
-			return "Buffer";
-		case VK_OBJECT_TYPE_IMAGE:
-			return "Image";
-		case VK_OBJECT_TYPE_EVENT:
-			return "Event";
-		case VK_OBJECT_TYPE_QUERY_POOL:
-			return "QueryPool";
-		case VK_OBJECT_TYPE_BUFFER_VIEW:
-			return "BufferView";
-		case VK_OBJECT_TYPE_IMAGE_VIEW:
-			return "ImageView";
-		case VK_OBJECT_TYPE_SHADER_MODULE:
-			return "ShaderModule";
-		case VK_OBJECT_TYPE_PIPELINE_CACHE:
-			return "PipelineCache";
-		case VK_OBJECT_TYPE_PIPELINE_LAYOUT:
-			return "PipelineLayout";
-		case VK_OBJECT_TYPE_RENDER_PASS:
-			return "RenderPass";
-		case VK_OBJECT_TYPE_PIPELINE:
-			return "Pipeline";
-		case VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT:
-			return "DescriptorSetLayout";
-		case VK_OBJECT_TYPE_SAMPLER:
-			return "Sampler";
-		case VK_OBJECT_TYPE_DESCRIPTOR_POOL:
-			return "DescriptorPool";
-		case VK_OBJECT_TYPE_DESCRIPTOR_SET:
-			return "DescriptorSet";
-		case VK_OBJECT_TYPE_FRAMEBUFFER:
-			return "Framebuffer";
-		case VK_OBJECT_TYPE_COMMAND_POOL:
-			return "CommandPool";
-		default:
-			return "Unknown";
-		}
+		return string_VkFormat(format);
 	}
 	
 	inline void PrintAffectedObjects(const VkDebugUtilsMessengerCallbackDataEXT& callbackData, std::ostream& stream)
@@ -125,7 +37,7 @@ namespace eg::graphics_api::vk
 			else
 				stream << "-";
 			
-			stream << " (" << GetObjectTypeName(callbackData.pObjects[i].objectType) << ")" << std::endl;
+			stream << " (" << string_VkObjectType(callbackData.pObjects[i].objectType) << ")" << std::endl;
 		}
 	}
 	

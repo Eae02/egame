@@ -5,7 +5,7 @@
 
 namespace eg
 {
-	const eg::AssetFormat ShaderModuleAsset::AssetFormat { "EG::Shader", 1 };
+	const eg::AssetFormat ShaderModuleAsset::AssetFormat { "EG::Shader", 2 };
 	
 	bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 	{

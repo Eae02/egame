@@ -372,8 +372,8 @@ namespace eg
 		EG_UNREACHABLE
 	}
 	
-	const Format detail::formatFromDataTypeAndComponentCount[11][4] = 
-	{
+	const std::array<std::array<Format, 4>, 11> detail::formatFromDataTypeAndComponentCount
+	{{
 		//Float32
 		{ Format::R32_Float, Format::R32G32_Float, Format::R32G32B32_Float, Format::R32G32B32A32_Float },
 		//UInt8Norm
@@ -396,9 +396,9 @@ namespace eg
 		{ Format::R16_SInt, Format::R16G16_SInt, Format::R16G16B16_SInt, Format::R16G16B16A16_SInt },
 		//SInt32
 		{ Format::R32_SInt, Format::R32G32_SInt, Format::R32G32B32_SInt, Format::R32G32B32A32_SInt },
-	};
+	}};
 	
-	const std::string_view FormatCapabilityNames[8] = 
+	const std::array<std::string_view, 8> FormatCapabilityNames = 
 	{
 		"SampledImage",
 		"SampledImageFilterLinear",

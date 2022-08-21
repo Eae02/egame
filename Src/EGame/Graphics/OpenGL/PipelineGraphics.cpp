@@ -95,7 +95,7 @@ namespace eg::graphics_api::gl
 	static ObjectPool<GraphicsPipeline> gfxPipelinePool;
 	
 	//Indices must match ShaderStage
-	static const GLenum ShaderTypes[] =
+	static const std::array<GLenum, 6> ShaderTypes =
 	{
 		GL_VERTEX_SHADER,
 		GL_FRAGMENT_SHADER,
@@ -105,7 +105,7 @@ namespace eg::graphics_api::gl
 		GL_COMPUTE_SHADER
 	};
 	
-	static const char* ShaderSuffixes[] = 
+	static std::array<const char*, 6> ShaderSuffixes = 
 	{
 		" [VS]",
 		" [FS]",
@@ -153,7 +153,7 @@ namespace eg::graphics_api::gl
 			
 			SetSpecializationConstants(stageInfo, *compiler);
 			
-			GLuint shader = glCreateShader(ShaderTypes[static_cast<int>(expectedStage)]);
+			GLuint shader = glCreateShader(ShaderTypes.at(static_cast<int>(expectedStage)));
 			pipeline->shaderModules[pipeline->numShaderModules] = shader;
 			shaderStages[pipeline->numShaderModules] = { compiler, shader };
 			pipeline->numShaderModules++;
@@ -183,7 +183,7 @@ namespace eg::graphics_api::gl
 			
 			if (createInfo.label != nullptr)
 			{
-				std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes[static_cast<int>(expectedStage)] });
+				std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes.at(static_cast<int>(expectedStage)) });
 				glObjectLabel(GL_SHADER, shader, -1, shaderLabel.c_str());
 			}
 		};

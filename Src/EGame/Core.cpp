@@ -332,7 +332,7 @@ namespace eg
 			}
 			
 			//Writes information about meshes
-			const char* meshAccessNames[] = { "gpu", "cpu", "gpu+cpu" };
+			std::array<const char*, 3> meshAccessNames = { "gpu", "cpu", "gpu+cpu" };
 			uint32_t totVertices = 0;
 			uint32_t totIndices = 0;
 			for (size_t i = 0; i < model->NumMeshes(); i++)
@@ -351,7 +351,7 @@ namespace eg
 				
 				str = std::string(triangleColLen + 1 - triangleStrings[i].size(), ' ') + "A:";
 				writer.Write(console::InfoColor, str);
-				writer.WriteLine(console::InfoColorSpecial, meshAccessNames[static_cast<int>(model->GetMesh(i).access)]);
+				writer.WriteLine(console::InfoColorSpecial, meshAccessNames.at(static_cast<int>(model->GetMesh(i).access)));
 				
 				totVertices += model->GetMesh(i).numVertices;
 				totIndices += model->GetMesh(i).numIndices;

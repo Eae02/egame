@@ -132,14 +132,14 @@ namespace eg
 	
 	namespace detail
 	{
-		EG_API extern const Format formatFromDataTypeAndComponentCount[11][4];
+		EG_API extern const std::array<std::array<Format, 4>, 11> formatFromDataTypeAndComponentCount;
 	}
 	
 	inline Format FormatFromDataTypeAndComponentCount(DataType dataType, uint32_t numComponents)
 	{
 		if (numComponents == 0 || numComponents > 4)
 			return Format::Undefined;
-		return detail::formatFromDataTypeAndComponentCount[static_cast<int>(dataType)][numComponents - 1];
+		return detail::formatFromDataTypeAndComponentCount.at(static_cast<int>(dataType)).at(numComponents - 1);
 	}
 	
 	enum class FormatCapabilities
@@ -154,7 +154,7 @@ namespace eg
 		VertexAttribute          = 0x80,
 	};
 	
-	EG_API extern const std::string_view FormatCapabilityNames[8];
+	EG_API extern const std::array<std::string_view, 8> FormatCapabilityNames;
 	
 	EG_BIT_FIELD(FormatCapabilities)
 }

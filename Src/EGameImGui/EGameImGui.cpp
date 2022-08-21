@@ -194,7 +194,9 @@ namespace eg::imgui
 		
 		buttonEventListener->ProcessAll([&] (const eg::ButtonEvent& event)
 		{
-			io.KeysDown[static_cast<int>(event.button)] = event.newState;
+			int buttonIdx = static_cast<int>(event.button);
+			if (buttonIdx >= 0 && buttonIdx < ImGuiKey_COUNT)
+				io.KeysDown[buttonIdx] = event.newState;
 			
 			switch (event.button)
 			{

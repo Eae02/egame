@@ -428,24 +428,23 @@ namespace eg::graphics_api::gl
 		int componentCount = GetFormatComponentCount(format);
 		int componentSize = GetFormatSize(format) / componentCount;
 		
-		const GLenum floatFormats[] = {0, GL_RED, GL_RG, GL_RGB, GL_RGBA};
-		const GLenum integerFormats[] = {0, GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_RGBA_INTEGER};
-		
-		const GLenum uTypes[] = {0, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, 0, GL_UNSIGNED_INT};
-		const GLenum sTypes[] = {0, GL_BYTE, GL_SHORT, 0, GL_INT};
+		static const std::array<GLenum, 5> floatFormats = {0, GL_RED, GL_RG, GL_RGB, GL_RGBA};
+		static const std::array<GLenum, 5> integerFormats = {0, GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER, GL_RGBA_INTEGER};
+		static const std::array<GLenum, 5> uTypes = {0, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, 0, GL_UNSIGNED_INT};
+		static const std::array<GLenum, 5> sTypes = {0, GL_BYTE, GL_SHORT, 0, GL_INT};
 		
 		switch (GetFormatType(format))
 		{
 		case FormatTypes::UNorm:
-			return std::make_tuple(floatFormats[componentCount], uTypes[componentSize]);
+			return std::make_tuple(floatFormats.at(componentCount), uTypes.at(componentSize));
 		case FormatTypes::SNorm:
-			return std::make_tuple(floatFormats[componentCount], sTypes[componentSize]);
+			return std::make_tuple(floatFormats.at(componentCount), sTypes.at(componentSize));
 		case FormatTypes::UInt:
-			return std::make_tuple(integerFormats[componentCount], uTypes[componentSize]);
+			return std::make_tuple(integerFormats.at(componentCount), uTypes.at(componentSize));
 		case FormatTypes::SInt:
-			return std::make_tuple(integerFormats[componentCount], sTypes[componentSize]);
+			return std::make_tuple(integerFormats.at(componentCount), sTypes.at(componentSize));
 		case FormatTypes::Float:
-			return std::make_tuple(floatFormats[componentCount], GL_FLOAT);
+			return std::make_tuple(floatFormats.at(componentCount), GL_FLOAT);
 		case FormatTypes::DepthStencil:
 			EG_PANIC("Attempted to set the texture data for a depth/stencil texture.")
 		}

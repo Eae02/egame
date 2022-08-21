@@ -169,7 +169,7 @@ namespace eg
 			{
 				FormatCapabilities mask = static_cast<FormatCapabilities>(1U << i);
 				if (HasFlag(capabilities, mask) && !HasFlag(supportedCapabilities, mask))
-					messageStream << " " << FormatCapabilityNames[i];
+					messageStream << " " << FormatCapabilityNames.at(i);
 			}
 			detail::PanicImpl(messageStream.str());
 		}

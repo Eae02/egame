@@ -41,7 +41,7 @@ namespace eg
 		Geometry = 2,
 		TessControl = 3,
 		TessEvaluation = 4,
-		Compute = 8
+		Compute = 5
 	};
 	
 	enum class ShaderAccessFlags
