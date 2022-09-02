@@ -4,12 +4,19 @@
 #include "PlatformSpecific.hpp"
 #include "Utils.hpp"
 #include "Framebuffer.hpp"
+#include "../../String.hpp"
 #include "../../Assert.hpp"
 
 #include <SDL.h>
 
 namespace eg::graphics_api::gl
 {
+#define GL_FUNC(name, proc) proc name;
+#define GL_FUNC_OPT(name, proc) proc name;
+#include "DesktopGLFunctions.inl"
+#undef GL_FUNC
+#undef GL_FUNC_OPT
+	
 	static SDL_Window* glWindow;
 	static SDL_GLContext glContext;
 	
@@ -69,11 +76,25 @@ namespace eg::graphics_api::gl
 		useGLESPath = initArguments.preferGLESPath;
 		srgbBackBuffer = initArguments.defaultFramebufferSRGB;
 		
-		if (gl3wInit() != GL3W_OK)
+		const char* missingFunction = nullptr;
+#define GL_FUNC(name, proc) \
+		if (!(::eg::graphics_api::gl::name = reinterpret_cast<proc>(SDL_GL_GetProcAddress(#name)))) \
+			missingFunction = #name;
+#define GL_FUNC_OPT(name, proc) ::eg::graphics_api::gl::name = reinterpret_cast<proc>(SDL_GL_GetProcAddress(#name));
+#include "DesktopGLFunctions.inl"
+#undef GL_FUNC
+#undef GL_FUNC_OPT
+		
+		if (missingFunction != nullptr)
 		{
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL",
-				"Unknown error occurred when initializing OpenGL (gl3wInit failed).", nullptr);
+			std::string message = Concat({"Missing OpenGL function ", missingFunction, "."});
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Error Initializing OpenGL", message.c_str(), nullptr);
 			return false;
+		}
+		
+		if (glObjectLabel == nullptr)
+		{
+			glObjectLabel = [] (GLenum, GLuint, GLsizei, const GLchar*) {};
 		}
 		
 		glWindow = initArguments.window;
@@ -93,7 +114,7 @@ namespace eg::graphics_api::gl
 			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
 		}
 		
-		if (DevMode())
+		if (DevMode() && glDebugMessageCallback && glDebugMessageControl)
 		{
 			glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 			glDebugMessageCallback(OpenGLMessageCallback, nullptr);

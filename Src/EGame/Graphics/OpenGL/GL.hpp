@@ -24,6 +24,18 @@
 #else
 #include <cstdint>
 #include <cstddef>
-#include <GL/gl3w.h>
+#include <GL/glcorearb.h>
 #include <GL/glext.h>
+#include <GL/gl.h>
+
+namespace eg::graphics_api::gl
+{
+	//Defined in PlatformSpecific_DesktopGL.cpp
+	#define GL_FUNC(name, proc) extern proc name;
+	#define GL_FUNC_OPT(name, proc) extern proc name;
+	#include "DesktopGLFunctions.inl"
+	#undef GL_FUNC
+	#undef GL_FUNC_OPT
+}
+
 #endif

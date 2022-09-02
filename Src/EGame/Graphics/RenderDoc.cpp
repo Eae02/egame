@@ -1,18 +1,8 @@
 #include "RenderDoc.hpp"
 #include "../Log.hpp"
 
-#ifdef __EMSCRIPTEN__
-namespace eg::renderdoc
-{
-	void Init() { }
-	bool IsPresent() { return false; }
-	void CaptureNextFrame() { }
-	void StartCapture() { }
-	void EndCapture() { }
-}
-#else
-
-#include <renderdoc.h>
+#if __has_include(<renderdoc_app.h>)
+#include <renderdoc_app.h>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -71,6 +61,17 @@ namespace eg::renderdoc
 		if (renderDocAPI)
 			renderDocAPI->EndFrameCapture(nullptr, nullptr);
 	}
+}
+
+#else
+
+namespace eg::renderdoc
+{
+	void Init() { }
+	bool IsPresent() { return false; }
+	void CaptureNextFrame() { }
+	void StartCapture() { }
+	void EndCapture() { }
 }
 
 #endif

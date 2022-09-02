@@ -58,7 +58,7 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
   set(WARNING_FLAGS /wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
 endif()
 
-add_library(EGame SHARED ${EGAME_SOURCE_FILES} Deps/gl3w.c Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
+add_library(EGame SHARED ${EGAME_SOURCE_FILES} Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
 add_executable(EGSandbox Src/Sandbox/Main.cpp)
 
 target_compile_options(EGame PRIVATE ${WARNING_FLAGS})
@@ -127,7 +127,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_compile_options(EGameAssetGen PRIVATE ${WARNING_FLAGS} -Wno-error=missing-declarations)
 		
 		target_include_directories(EGameAssetGen SYSTEM PRIVATE
-			${CMAKE_CURRENT_SOURCE_DIR}/Inc
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 			${OGG_VORBIS_INCLUDE_DIRS}
 		)
@@ -143,10 +142,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		
 		add_dependencies(EGameAssetMan EGame)
 		target_link_libraries(EGameAssetMan PRIVATE EGame)
-		
-		target_include_directories(EGameAssetMan SYSTEM PRIVATE
-			${CMAKE_CURRENT_SOURCE_DIR}/Inc
-		)
 		
 		set_target_properties(EGameAssetMan PROPERTIES
 			CXX_STANDARD 20
@@ -205,7 +200,6 @@ target_include_directories(EGame SYSTEM
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/glm
 	PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/Inc
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/volk
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/include
