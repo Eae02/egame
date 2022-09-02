@@ -23,6 +23,4 @@ namespace eg
 			return !operator==(other);
 		}
 	};
-	
-	EG_API extern const AssetFormat DefaultGeneratorFormat;
 }

@@ -1,6 +1,14 @@
 #pragma once
 
-namespace eg::detail
+#include "../API.hpp"
+#include "AssetFormat.hpp"
+
+namespace eg
 {
-	void RegisterDefaultAssetGenerator();
+	EG_API extern const AssetFormat DefaultGeneratorFormat;
+	
+	namespace detail
+	{
+		void RegisterDefaultAssetGenerator();
+	}
 }

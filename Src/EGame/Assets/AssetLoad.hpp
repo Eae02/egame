@@ -2,6 +2,7 @@
 
 #include "Asset.hpp"
 #include "AssetGenerator.hpp"
+#include "DefaultAssetGenerator.hpp"
 #include "../API.hpp"
 #include "../Utils.hpp"
 #include "../Assert.hpp"

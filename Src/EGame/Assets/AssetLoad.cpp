@@ -69,6 +69,12 @@ namespace eg
 		RegisterAssetLoader("SpriteFont", &SpriteFontLoader, SpriteFontAssetFormat);
 		RegisterAssetLoader("AudioClip", &AudioClipAssetLoader, AudioClipAssetFormat);
 		
+		RegisterAssetLoader("String", [] (const AssetLoadContext& loadContext)
+		{
+			loadContext.CreateResult<std::string>(loadContext.Data().data(), loadContext.Data().size());
+			return true;
+		});
+		
 		DefineModelVertexType<StdVertex>();
 		DefineModelVertexType<StdVertexAnim8>();
 		DefineModelVertexType<StdVertexAnim16>();
