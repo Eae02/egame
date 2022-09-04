@@ -42,6 +42,7 @@ namespace eg
 		
 		void PushScissor(int x, int y, int width, int height);
 		void PushScissorF(float x, float y, float width, float height);
+		void PushScissorRect(const Rectangle& rect) { PushScissorF(rect.x, rect.y, rect.w, rect.h); }
 		
 		void PopScissor()
 		{

@@ -337,6 +337,8 @@ namespace eg
 			return m_height;
 		}
 		
+		float WidthOverHeight() const { return static_cast<float>(m_width) / static_cast<float>(m_height); }
+		
 		uint32_t Depth() const
 		{
 			return m_depth;

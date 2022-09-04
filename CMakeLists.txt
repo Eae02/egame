@@ -88,7 +88,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		${CMAKE_DL_LIBS}
 	)
 	
-	target_include_directories(EGame PRIVATE
+	target_include_directories(EGame SYSTEM PRIVATE
 		${ZLIB_INCLUDE_DIRS}
 		${SDL2_INCLUDE_DIRS}
 	)
@@ -97,14 +97,14 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		message(WARNING "OpenAL not found, audio support will be disabled")
 		target_compile_options(EGame PRIVATE -DEG_NO_OPENAL)
 	else()
-		target_include_directories(EGame PRIVATE ${OPENAL_INCLUDE_DIR})
+		target_include_directories(EGame SYSTEM PRIVATE ${OPENAL_INCLUDE_DIR})
 	endif()
 	
 	if (NOT ${FREETYPE_FOUND})
 		message(WARNING "Freetype not found, freetype loading will be disabled")
 		target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE)
 	else()
-		target_include_directories(EGame PRIVATE ${FREETYPE_INCLUDE_DIRS})
+		target_include_directories(EGame SYSTEM PRIVATE ${FREETYPE_INCLUDE_DIRS})
 	endif()
 	
 	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER} -msse4.1)
@@ -170,7 +170,7 @@ if (${EG_BUILD_IMGUI})
 		-DIMGUI_USER_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/Src/EGameImGui/ImGuiConfig.hpp"
 		-DEG_HAS_IMGUI)
 	
-	target_include_directories(EGameImGui PUBLIC
+	target_include_directories(EGameImGui SYSTEM PUBLIC
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/EGameImGui/>
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/imgui/
 	)
