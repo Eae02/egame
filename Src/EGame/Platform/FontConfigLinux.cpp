@@ -67,6 +67,7 @@ namespace eg
 	
 	std::string GetFontPathByName(const char* name)
 	{
+		InitPlatformFontConfig();
 		if (g_fontConfigLibrary == nullptr)
 			return { };
 		
