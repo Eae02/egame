@@ -154,8 +154,6 @@ namespace eg::graphics_api::vk
 	VkImageAspectFlags GetFormatAspect(Format format);
 	VkFormat RelaxDepthStencilFormat(VkFormat format);
 	
-	const char* FormatToString(VkFormat format);
-	
 	inline VkSemaphore CreateSemaphore(VkDevice device)
 	{
 		static const VkSemaphoreCreateInfo createInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };

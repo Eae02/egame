@@ -41,6 +41,7 @@ namespace eg::graphics_api::vk
 		texture.currentStageFlags = 0;
 		texture.extent = extent;
 		texture.sampleCount = std::max(createInfo.sampleCount, 1U);
+		texture.originalFormat = createInfo.format;
 		texture.format = TranslateFormat(createInfo.format);
 		
 		//Creates the image

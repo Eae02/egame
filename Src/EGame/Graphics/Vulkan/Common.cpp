@@ -4,7 +4,13 @@
 #include "../../Assert.hpp"
 
 #include <cstring>
+
+#if __has_include(<vulkan/vk_enum_string_helper.h>)
 #include <vulkan/vk_enum_string_helper.h>
+#else
+#define string_VkResult std::to_string
+#define string_VkObjectType static_cast<int>
+#endif
 
 namespace eg
 {
@@ -17,11 +23,6 @@ namespace eg
 
 namespace eg::graphics_api::vk
 {
-	const char* FormatToString(VkFormat format)
-	{
-		return string_VkFormat(format);
-	}
-	
 	inline void PrintAffectedObjects(const VkDebugUtilsMessengerCallbackDataEXT& callbackData, std::ostream& stream)
 	{
 		if (callbackData.objectCount == 0)
@@ -41,8 +42,11 @@ namespace eg::graphics_api::vk
 		}
 	}
 	
-	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-		VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*)
+	VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+		VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+		VkDebugUtilsMessageTypeFlagsEXT messageType,
+		const VkDebugUtilsMessengerCallbackDataEXT* callbackData,
+		void*)
 	{
 		if (std::strstr(callbackData->pMessageIdName, "CoreValidation-DrawState-InvalidCommandBuffer-VkDescriptorSet"))
 			return VK_FALSE;

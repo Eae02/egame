@@ -187,8 +187,7 @@ namespace eg::graphics_api::vk
 		VkFormat resolveAttachmentFormats[MAX_COLOR_ATTACHMENTS] = { };
 		VkFormat depthStencilResolveAttachmentFormat = VK_FORMAT_UNDEFINED;
 		
-		currentFBFormat.depthStencilFormat = VK_FORMAT_UNDEFINED;
-		std::fill_n(currentFBFormat.colorFormats, MAX_COLOR_ATTACHMENTS, VK_FORMAT_UNDEFINED);
+		currentFBFormat = {};
 		
 		bool changeLoadToClear = false;
 		
@@ -201,6 +200,8 @@ namespace eg::graphics_api::vk
 			framebuffer = ctx.defaultFramebuffers[ctx.currentImage];
 			currentFBFormat.colorFormats[0] = ctx.surfaceFormat.format;
 			currentFBFormat.depthStencilFormat = ctx.defaultDSFormat;
+			currentFBFormat.originalColorFormats[0] = Format::DefaultColor;
+			currentFBFormat.originalDepthStencilFormat = Format::DefaultDepthStencil;
 			currentFBFormat.sampleCount = VK_SAMPLE_COUNT_1_BIT;
 			colorImageInitialLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 			colorImageFinalLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -223,6 +224,7 @@ namespace eg::graphics_api::vk
 			for (uint32_t i = 0; i < numColorAttachments; i++)
 			{
 				currentFBFormat.colorFormats[i] = framebufferS->colorAttachments[i]->format;
+				currentFBFormat.originalColorFormats[i] = framebufferS->colorAttachments[i]->originalFormat;
 				
 				colorImageFinalLayouts[i] =
 					ImageLayoutFromUsage(beginInfo.colorAttachments[i].finalUsage, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -276,6 +278,7 @@ namespace eg::graphics_api::vk
 			if (framebufferS->depthStencilAttachment != nullptr)
 			{
 				currentFBFormat.depthStencilFormat = framebufferS->depthStencilAttachment->format;
+				currentFBFormat.originalDepthStencilFormat = framebufferS->depthStencilAttachment->originalFormat;
 				if (beginInfo.sampledDepthStencil)
 				{
 					depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -399,11 +402,15 @@ namespace eg::graphics_api::vk
 	
 	FramebufferFormat FramebufferFormat::FromHint(const FramebufferFormatHint& hint)
 	{
-		FramebufferFormat res;
+		FramebufferFormat res = {};
 		res.sampleCount = static_cast<VkSampleCountFlags>(hint.sampleCount);
+		res.originalDepthStencilFormat = hint.depthStencilFormat;
 		res.depthStencilFormat = TranslateFormat(hint.depthStencilFormat);
 		for (uint32_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
+		{
+			res.originalColorFormats[i] = hint.colorFormats[i];
 			res.colorFormats[i] = TranslateFormat(hint.colorFormats[i]);
+		}
 		res.CalcHash();
 		return res;
 	}

@@ -42,6 +42,7 @@ namespace eg::graphics_api::vk
 		uint32_t numArrayLayers;
 		uint32_t sampleCount;
 		VkFormat format;
+		eg::Format originalFormat;
 		VkImageAspectFlags aspectFlags;
 		VkSampler defaultSampler;
 		bool autoBarrier;

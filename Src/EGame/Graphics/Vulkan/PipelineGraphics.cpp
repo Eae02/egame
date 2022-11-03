@@ -433,10 +433,10 @@ namespace eg::graphics_api::vk
 			for (size_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
 			{
 				if (format.colorFormats[i] != VK_FORMAT_UNDEFINED)
-					msgStream << FormatToString(format.colorFormats[i]) << " ";
+					msgStream << FormatToString(format.originalColorFormats[i]) << " ";
 			}
 			if (format.depthStencilFormat != VK_FORMAT_UNDEFINED)
-				msgStream << FormatToString(format.depthStencilFormat) << " ";
+				msgStream << FormatToString(format.originalDepthStencilFormat) << " ";
 			msgStream << "x" << static_cast<int>(format.sampleCount);
 			
 			Log(LogLevel::Warning, "vk", "{0}", msgStream.str());

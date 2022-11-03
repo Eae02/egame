@@ -12,6 +12,8 @@ namespace eg::graphics_api::vk
 		VkSampleCountFlags sampleCount;
 		VkFormat depthStencilFormat;
 		VkFormat colorFormats[MAX_COLOR_ATTACHMENTS];
+		eg::Format originalDepthStencilFormat;
+		eg::Format originalColorFormats[MAX_COLOR_ATTACHMENTS];
 		size_t hash;
 		
 		static FramebufferFormat FromHint(const FramebufferFormatHint& hint);
