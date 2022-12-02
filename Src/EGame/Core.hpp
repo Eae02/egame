@@ -115,7 +115,11 @@ namespace eg
 	
 	EG_API bool VulkanAppearsSupported();
 	
-	EG_API void EnableProfiling();
+	/**
+	 * Enables profiling if not already enabled.
+	 * @return false if profiling was already enabled prioir to this call.
+	 */
+	EG_API bool EnableProfiling();
 	
 	/**
 	 * Runs a game. This is the main entry point of the library and will block until the game is closed.

@@ -37,12 +37,18 @@ namespace eg
 	class EG_API AssetGenerateContext
 	{
 	public:
-		AssetGenerateContext(std::string_view currentDir, std::string_view assetName, const YAML::Node* node)
-			: m_currentDir(currentDir), m_assetName(assetName), m_node(node) { }
+		AssetGenerateContext(std::string_view currentDir, std::string_view assetName,
+		                     const YAML::Node& node, const YAML::Node& rootNode)
+			: m_currentDir(currentDir), m_assetName(assetName), m_node(&node), m_rootNode(&rootNode) { }
 		
 		const YAML::Node& YAMLNode() const
 		{
 			return *m_node;
+		}
+		
+		const YAML::Node& RootYAMLNode() const
+		{
+			return *m_rootNode;
 		}
 		
 		std::string ResolveRelPath(std::string_view relPath) const
@@ -79,6 +85,8 @@ namespace eg
 			return m_loadDependencies;
 		}
 		
+		void AddSecondaryStream();
+		
 		std::ostringstream outputStream;
 		AssetFlags outputFlags = AssetFlags::None;
 		
@@ -88,6 +96,7 @@ namespace eg
 		std::string_view m_currentDir;
 		std::string_view m_assetName;
 		const YAML::Node* m_node;
+		const YAML::Node* m_rootNode;
 	};
 	
 	class EG_API AssetGenerator
@@ -98,8 +107,9 @@ namespace eg
 		virtual bool Generate(AssetGenerateContext& generateContext) = 0;
 	};
 	
-	EG_API std::optional<GeneratedAsset> GenerateAsset(std::string_view currentDir, std::string_view generator,
-		std::string_view assetName, const YAML::Node& node);
+	EG_API std::optional<GeneratedAsset> GenerateAsset(
+		std::string_view currentDir, std::string_view generator, std::string_view assetName,
+		const YAML::Node& node, const YAML::Node& rootNode);
 	
 	EG_API void RegisterAssetGeneratorInstance(std::string name, const AssetFormat& format,
 		std::unique_ptr<AssetGenerator> generator);

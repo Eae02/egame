@@ -2,20 +2,28 @@
 
 #include "ProfilingResults.hpp"
 
+#include <memory>
+
 namespace eg
 {
 	class EG_API ProfilerPane
 	{
 	public:
-		ProfilerPane();
-		
 		void AddFrameResult(ProfilingResults results);
 		
 		void Draw(class SpriteBatch& spriteBatch, int screenWidth, int screenHeight);
 		
 		bool visible = false;
 		
+		static ProfilerPane* Instance() { return s_instance.get(); }
+		
 	private:
+		friend bool EnableProfiling(); // creates s_instance
+		
+		static std::unique_ptr<ProfilerPane> s_instance;
+		
+		ProfilerPane();
+		
 		bool m_hasAnyResults = false;
 		ProfilingResults m_lastResult;
 		

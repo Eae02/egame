@@ -3,6 +3,7 @@
 #include "AssetLoad.hpp"
 #include "EAPFile.hpp"
 #include "YAMLUtils.hpp"
+#include "WebAssetDownload.hpp"
 #include "../Console.hpp"
 #include "../Platform/DynamicLibrary.hpp"
 #include "../Platform/FileSystem.hpp"
@@ -367,7 +368,7 @@ namespace eg
 			if (!generated.has_value())
 			{
 				int64_t timeBegin = NanoTime();
-				generated = GenerateAsset(dirPath, generatorName, assetToLoad.name, assetNode);
+				generated = GenerateAsset(dirPath, generatorName, assetToLoad.name, assetNode, node);
 				int64_t genDuration = NanoTime() - timeBegin;
 				
 				if (!generated.has_value())
@@ -513,15 +514,28 @@ namespace eg
 			return true;
 		}
 		
-		std::ifstream stream(path + ".eap", std::ios::binary);
-		if (LoadAssetsFromEAPStream(stream, mountPath))
+		bool okEap = false;
+		std::string eapPath = path + ".eap";
+		if (std::istream* downloadedStream = detail::WebGetDownloadedAssetPackageStream(eapPath))
 		{
-			Log(LogLevel::Info, "as", "Loaded asset package '{0}.eap'.", path);
-			return true;
+			okEap = LoadAssetsFromEAPStream(*downloadedStream, mountPath);
+		}
+		else
+		{
+			std::ifstream stream(eapPath, std::ios::binary);
+			okEap = stream && LoadAssetsFromEAPStream(stream, mountPath);
 		}
 		
-		Log(LogLevel::Error, "as", "Failed to load assets from '{0}'. Both '{0}.eap' and '{0}/Assets.yaml' failed to load.", path);
-		return false;
+		if (okEap)
+		{
+			Log(LogLevel::Info, "as", "Loaded asset package '{0}'.", eapPath);
+		}
+		else
+		{
+			Log(LogLevel::Error, "as", "Failed to load assets from '{0}'. "
+			    "Both '{1}' and '{0}/Assets.yaml' failed to load.", path, eapPath);
+		}
+		return okEap;
 	}
 	
 #ifdef __EMSCRIPTEN__

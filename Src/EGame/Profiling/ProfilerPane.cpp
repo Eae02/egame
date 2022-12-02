@@ -6,6 +6,8 @@
 
 namespace eg
 {
+	std::unique_ptr<ProfilerPane> ProfilerPane::s_instance;
+	
 	ProfilerPane::ProfilerPane()
 	{
 		m_timerGraphs.push_back("");

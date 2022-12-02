@@ -247,7 +247,7 @@ add_dependencies(EGSandbox EGame)
 target_link_libraries(EGSandbox EGame)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
-	set(EMCC_FLAGS "-lopenal -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -s FORCE_FILESYSTEM=1 -s FETCH=1 -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0")
+	set(EMCC_FLAGS "-lopenal -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=cwrap -sFETCH -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0")
 	
 	if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 		set(EMCC_FLAGS "${EMCC_FLAGS} -gsource-map")
@@ -255,11 +255,13 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_compile_options(EGSandbox PRIVATE -gsource-map)
 	endif()
 	
+	target_link_libraries(EGame PUBLIC idbfs.js)
+	
 	set_target_properties(EGSandbox PROPERTIES OUTPUT_NAME game)
 	
 	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -DEG_NO_FREETYPE -s USE_ZLIB=1 -Wno-sign-conversion -Wno-shorten-64-to-32)
 	set_target_properties(EGame PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
-	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "-s EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS=['_WebMain'] ${EMCC_FLAGS}")
+	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
 elseif(NOT ${EG_VULKAN})
 	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN)
 endif()

@@ -6,11 +6,15 @@
 #include <EGameImGui.hpp>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 struct Game : public eg::IGame
 {
 	Game()
 	{
-		if (!eg::LoadAssets(eg::ExeRelPath("SandboxAssets"), "/"))
+		if (!eg::LoadAssets("SandboxAssets", "/"))
 		{
 			EG_PANIC("Error loading assets");
 		}
@@ -56,8 +60,12 @@ struct Game : public eg::IGame
 };
 
 #ifdef __EMSCRIPTEN__
-extern "C" void WebMain()
+extern "C" void EMSCRIPTEN_KEEPALIVE WebMain()
 {
+	eg::DownloadAssetPackageASync(eg::DownloadAssetPackageArgs {
+		.eapName = "SandboxAssets.eap",
+		.cacheID = "cid"
+	});
 	eg::RunConfig runConfig;
 	runConfig.gameName = "EGame Sandbox";
 	runConfig.flags = eg::RunFlags::DevMode | eg::RunFlags::DefaultFramebufferSRGB;
