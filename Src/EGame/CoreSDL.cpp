@@ -70,10 +70,14 @@ namespace eg
 			{
 				if (currentDisplayMode.w == mode.w && currentDisplayMode.h == mode.h && currentDisplayMode.refresh_rate == mode.refresh_rate)
 				{
-					detail::nativeDisplayModeIndex = i;
+					detail::nativeDisplayModeIndex = static_cast<int>(detail::fullscreenDisplayModes.size());
 				}
 				detail::fullscreenDisplayModes.push_back(dm);
 			}
+		}
+		if (detail::nativeDisplayModeIndex == -1 && !detail::fullscreenDisplayModes.empty())
+		{
+			detail::nativeDisplayModeIndex = 0;
 		}
 		
 		if (exeDirPathPtr == nullptr)
