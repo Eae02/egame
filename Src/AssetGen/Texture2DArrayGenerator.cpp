@@ -4,7 +4,6 @@
 #include "../EGame/Log.hpp"
 
 #include <fstream>
-#include <stb_image_resize.h>
 
 namespace eg::asset_gen
 {

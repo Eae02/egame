@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <span>
 #include <vector>
+#include <cstdint>
 
 namespace eg
 {

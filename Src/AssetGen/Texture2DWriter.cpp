@@ -6,7 +6,7 @@
 #include "../EGame/Graphics/ImageLoader.hpp"
 #include "../EGame/Graphics/AbstractionHL.hpp"
 
-#include <stb_image_resize.h>
+#include <stb_image_resize2.h>
 #include <stb_dxt.h>
 
 namespace eg::asset_gen
@@ -304,12 +304,12 @@ namespace eg::asset_gen
 			if (m_isSRGB)
 			{
 				stbir_resize_uint8_srgb(firstLayerData, loader.Width(), loader.Height(), 0, newData, m_width, m_height,
-				                        0, loadChannels, 3, loadChannels == 1 ? STBIR_ALPHA_CHANNEL_NONE : 0);
+				                        0, static_cast<stbir_pixel_layout>(loadChannels));
 			}
 			else
 			{
-				stbir_resize_uint8(firstLayerData, loader.Width(), loader.Height(), 0, newData, m_width, m_height, 0,
-				                   loadChannels);
+				stbir_resize_uint8_linear(firstLayerData, loader.Width(), loader.Height(), 0, newData, m_width, m_height, 0,
+				                   static_cast<stbir_pixel_layout>(loadChannels));
 			}
 			
 			firstLayerData = newData;

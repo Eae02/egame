@@ -26,6 +26,8 @@ namespace eg::imgui
 	static int indexBufferCapacity;
 	static Buffer indexBuffer;
 	
+	static ImGuiKey buttonRemapTable[NUM_BUTTONS];
+	
 	void StartFrame(float dt);
 	void EndFrame();
 	
@@ -39,26 +41,110 @@ namespace eg::imgui
 		
 		// ** Initializes ImGui IO **
 		ImGuiIO& io = ImGui::GetIO();
-		io.KeyMap[ImGuiKey_Tab]        = static_cast<int>(eg::Button::Tab);
-		io.KeyMap[ImGuiKey_LeftArrow]  = static_cast<int>(eg::Button::LeftArrow);
-		io.KeyMap[ImGuiKey_RightArrow] = static_cast<int>(eg::Button::RightArrow);
-		io.KeyMap[ImGuiKey_UpArrow]    = static_cast<int>(eg::Button::UpArrow);
-		io.KeyMap[ImGuiKey_DownArrow]  = static_cast<int>(eg::Button::DownArrow);
-		io.KeyMap[ImGuiKey_PageUp]     = static_cast<int>(eg::Button::PageUp);
-		io.KeyMap[ImGuiKey_PageDown]   = static_cast<int>(eg::Button::PageDown);
-		io.KeyMap[ImGuiKey_Home]       = static_cast<int>(eg::Button::Home);
-		io.KeyMap[ImGuiKey_End]        = static_cast<int>(eg::Button::End);
-		io.KeyMap[ImGuiKey_Delete]     = static_cast<int>(eg::Button::Delete);
-		io.KeyMap[ImGuiKey_Backspace]  = static_cast<int>(eg::Button::Backspace);
-		io.KeyMap[ImGuiKey_Enter]      = static_cast<int>(eg::Button::Enter);
-		io.KeyMap[ImGuiKey_Escape]     = static_cast<int>(eg::Button::Escape);
-		io.KeyMap[ImGuiKey_Space]      = static_cast<int>(eg::Button::Space);
-		io.KeyMap[ImGuiKey_A]          = static_cast<int>(eg::Button::A);
-		io.KeyMap[ImGuiKey_C]          = static_cast<int>(eg::Button::C);
-		io.KeyMap[ImGuiKey_V]          = static_cast<int>(eg::Button::V);
-		io.KeyMap[ImGuiKey_X]          = static_cast<int>(eg::Button::X);
-		io.KeyMap[ImGuiKey_Y]          = static_cast<int>(eg::Button::Y);
-		io.KeyMap[ImGuiKey_Z]          = static_cast<int>(eg::Button::Z);
+		
+#pragma region buttonRemapTable
+		buttonRemapTable[static_cast<int>(Button::Tab)] = ImGuiKey_Tab;
+		buttonRemapTable[static_cast<int>(Button::LeftArrow)] = ImGuiKey_LeftArrow;
+		buttonRemapTable[static_cast<int>(Button::RightArrow)] = ImGuiKey_RightArrow;
+		buttonRemapTable[static_cast<int>(Button::UpArrow)] = ImGuiKey_UpArrow;
+		buttonRemapTable[static_cast<int>(Button::DownArrow)] = ImGuiKey_DownArrow;
+		buttonRemapTable[static_cast<int>(Button::PageUp)] = ImGuiKey_PageUp;
+		buttonRemapTable[static_cast<int>(Button::PageDown)] = ImGuiKey_PageDown;
+		buttonRemapTable[static_cast<int>(Button::Home)] = ImGuiKey_Home;
+		buttonRemapTable[static_cast<int>(Button::End)] = ImGuiKey_End;
+		buttonRemapTable[static_cast<int>(Button::Delete)] = ImGuiKey_Delete;
+		buttonRemapTable[static_cast<int>(Button::Backspace)] = ImGuiKey_Backspace;
+		buttonRemapTable[static_cast<int>(Button::Space)] = ImGuiKey_Space;
+		buttonRemapTable[static_cast<int>(Button::Enter)] = ImGuiKey_Enter;
+		buttonRemapTable[static_cast<int>(Button::Escape)] = ImGuiKey_Escape;
+		// buttonRemapTable[static_cast<int>(Button::Apostrophe)] = ImGuiKey_Apostrophe;
+		// buttonRemapTable[static_cast<int>(Button::Comma)] = ImGuiKey_Comma;
+		// buttonRemapTable[static_cast<int>(Button::Minus)] = ImGuiKey_Minus;
+		// buttonRemapTable[static_cast<int>(Button::Period)] = ImGuiKey_Period;
+		// buttonRemapTable[static_cast<int>(Button::Slash)] = ImGuiKey_Slash;
+		// buttonRemapTable[static_cast<int>(Button::Semicolon)] = ImGuiKey_Semicolon;
+		// buttonRemapTable[static_cast<int>(Button::Equal)] = ImGuiKey_Equal;
+		// buttonRemapTable[static_cast<int>(Button::LeftBracket)] = ImGuiKey_LeftBracket;
+		// buttonRemapTable[static_cast<int>(Button::Backslash)] = ImGuiKey_Backslash;
+		// buttonRemapTable[static_cast<int>(Button::RightBracket)] = ImGuiKey_RightBracket;
+		buttonRemapTable[static_cast<int>(Button::Grave)] = ImGuiKey_GraveAccent;
+		// buttonRemapTable[static_cast<int>(Button::CapsLock)] = ImGuiKey_CapsLock;
+		// buttonRemapTable[static_cast<int>(Button::ScrollLock)] = ImGuiKey_ScrollLock;
+		// buttonRemapTable[static_cast<int>(Button::NumLock)] = ImGuiKey_NumLock;
+		// buttonRemapTable[static_cast<int>(Button::PrintScreen)] = ImGuiKey_PrintScreen;
+		// buttonRemapTable[static_cast<int>(Button::Pause)] = ImGuiKey_Pause;
+		// buttonRemapTable[static_cast<int>(Button::Keypad0)] = ImGuiKey_Keypad0;
+		// buttonRemapTable[static_cast<int>(Button::Keypad1)] = ImGuiKey_Keypad1;
+		// buttonRemapTable[static_cast<int>(Button::Keypad2)] = ImGuiKey_Keypad2;
+		// buttonRemapTable[static_cast<int>(Button::Keypad3)] = ImGuiKey_Keypad3;
+		// buttonRemapTable[static_cast<int>(Button::Keypad4)] = ImGuiKey_Keypad4;
+		// buttonRemapTable[static_cast<int>(Button::Keypad5)] = ImGuiKey_Keypad5;
+		// buttonRemapTable[static_cast<int>(Button::Keypad6)] = ImGuiKey_Keypad6;
+		// buttonRemapTable[static_cast<int>(Button::Keypad7)] = ImGuiKey_Keypad7;
+		// buttonRemapTable[static_cast<int>(Button::Keypad8)] = ImGuiKey_Keypad8;
+		// buttonRemapTable[static_cast<int>(Button::Keypad9)] = ImGuiKey_Keypad9;
+		// buttonRemapTable[static_cast<int>(Button::KeypadDecimal)] = ImGuiKey_KeypadDecimal;
+		// buttonRemapTable[static_cast<int>(Button::KeypadDivide)] = ImGuiKey_KeypadDivide;
+		// buttonRemapTable[static_cast<int>(Button::KeypadMultiply)] = ImGuiKey_KeypadMultiply;
+		// buttonRemapTable[static_cast<int>(Button::KeypadSubtract)] = ImGuiKey_KeypadSubtract;
+		// buttonRemapTable[static_cast<int>(Button::KeypadAdd)] = ImGuiKey_KeypadAdd;
+		// buttonRemapTable[static_cast<int>(Button::KeypadEnter)] = ImGuiKey_KeypadEnter;
+		// buttonRemapTable[static_cast<int>(Button::KeypadEqual)] = ImGuiKey_KeypadEqual;
+		buttonRemapTable[static_cast<int>(Button::LeftShift)] = ImGuiKey_LeftShift;
+		buttonRemapTable[static_cast<int>(Button::LeftControl)] = ImGuiKey_LeftCtrl;
+		buttonRemapTable[static_cast<int>(Button::LeftAlt)] = ImGuiKey_LeftAlt;
+		buttonRemapTable[static_cast<int>(Button::RightShift)] = ImGuiKey_RightShift;
+		buttonRemapTable[static_cast<int>(Button::RightControl)] = ImGuiKey_RightCtrl;
+		buttonRemapTable[static_cast<int>(Button::RightAlt)] = ImGuiKey_RightAlt;
+		buttonRemapTable[static_cast<int>(Button::D0)] = ImGuiKey_0;
+		buttonRemapTable[static_cast<int>(Button::D1)] = ImGuiKey_1;
+		buttonRemapTable[static_cast<int>(Button::D2)] = ImGuiKey_2;
+		buttonRemapTable[static_cast<int>(Button::D3)] = ImGuiKey_3;
+		buttonRemapTable[static_cast<int>(Button::D4)] = ImGuiKey_4;
+		buttonRemapTable[static_cast<int>(Button::D5)] = ImGuiKey_5;
+		buttonRemapTable[static_cast<int>(Button::D6)] = ImGuiKey_6;
+		buttonRemapTable[static_cast<int>(Button::D7)] = ImGuiKey_7;
+		buttonRemapTable[static_cast<int>(Button::D8)] = ImGuiKey_8;
+		buttonRemapTable[static_cast<int>(Button::D9)] = ImGuiKey_9;
+		buttonRemapTable[static_cast<int>(Button::A)] = ImGuiKey_A;
+		buttonRemapTable[static_cast<int>(Button::B)] = ImGuiKey_B;
+		buttonRemapTable[static_cast<int>(Button::C)] = ImGuiKey_C;
+		buttonRemapTable[static_cast<int>(Button::D)] = ImGuiKey_D;
+		buttonRemapTable[static_cast<int>(Button::E)] = ImGuiKey_E;
+		buttonRemapTable[static_cast<int>(Button::F)] = ImGuiKey_F;
+		buttonRemapTable[static_cast<int>(Button::G)] = ImGuiKey_G;
+		buttonRemapTable[static_cast<int>(Button::H)] = ImGuiKey_H;
+		buttonRemapTable[static_cast<int>(Button::I)] = ImGuiKey_I;
+		buttonRemapTable[static_cast<int>(Button::J)] = ImGuiKey_J;
+		buttonRemapTable[static_cast<int>(Button::K)] = ImGuiKey_K;
+		buttonRemapTable[static_cast<int>(Button::L)] = ImGuiKey_L;
+		buttonRemapTable[static_cast<int>(Button::M)] = ImGuiKey_M;
+		buttonRemapTable[static_cast<int>(Button::N)] = ImGuiKey_N;
+		buttonRemapTable[static_cast<int>(Button::O)] = ImGuiKey_O;
+		buttonRemapTable[static_cast<int>(Button::P)] = ImGuiKey_P;
+		buttonRemapTable[static_cast<int>(Button::Q)] = ImGuiKey_Q;
+		buttonRemapTable[static_cast<int>(Button::R)] = ImGuiKey_R;
+		buttonRemapTable[static_cast<int>(Button::S)] = ImGuiKey_S;
+		buttonRemapTable[static_cast<int>(Button::T)] = ImGuiKey_T;
+		buttonRemapTable[static_cast<int>(Button::U)] = ImGuiKey_U;
+		buttonRemapTable[static_cast<int>(Button::V)] = ImGuiKey_V;
+		buttonRemapTable[static_cast<int>(Button::W)] = ImGuiKey_W;
+		buttonRemapTable[static_cast<int>(Button::X)] = ImGuiKey_X;
+		buttonRemapTable[static_cast<int>(Button::Y)] = ImGuiKey_Y;
+		buttonRemapTable[static_cast<int>(Button::Z)] = ImGuiKey_Z;
+		buttonRemapTable[static_cast<int>(Button::F1)] = ImGuiKey_F1;
+		buttonRemapTable[static_cast<int>(Button::F2)] = ImGuiKey_F2;
+		buttonRemapTable[static_cast<int>(Button::F3)] = ImGuiKey_F3;
+		buttonRemapTable[static_cast<int>(Button::F4)] = ImGuiKey_F4;
+		buttonRemapTable[static_cast<int>(Button::F5)] = ImGuiKey_F5;
+		buttonRemapTable[static_cast<int>(Button::F6)] = ImGuiKey_F6;
+		buttonRemapTable[static_cast<int>(Button::F7)] = ImGuiKey_F7;
+		buttonRemapTable[static_cast<int>(Button::F8)] = ImGuiKey_F8;
+		buttonRemapTable[static_cast<int>(Button::F9)] = ImGuiKey_F9;
+		buttonRemapTable[static_cast<int>(Button::F10)] = ImGuiKey_F10;
+		buttonRemapTable[static_cast<int>(Button::F11)] = ImGuiKey_F11;
+		buttonRemapTable[static_cast<int>(Button::F12)] = ImGuiKey_F12;
+#pragma endregion
 		
 		io.IniFilename = nullptr;
 		if (args.enableImGuiIni)
@@ -194,9 +280,10 @@ namespace eg::imgui
 		
 		buttonEventListener->ProcessAll([&] (const eg::ButtonEvent& event)
 		{
-			int buttonIdx = static_cast<int>(event.button);
-			if (buttonIdx >= 0 && buttonIdx < ImGuiKey_COUNT)
-				io.KeysDown[buttonIdx] = event.newState;
+			if (ImGuiKey imguiKey = buttonRemapTable[static_cast<int>(event.button)])
+			{
+				io.AddKeyEvent(imguiKey, event.newState);
+			}
 			
 			switch (event.button)
 			{

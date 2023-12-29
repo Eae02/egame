@@ -6,6 +6,7 @@
 #include <iosfwd>
 #include <string_view>
 #include <vector>
+#include <cstdint>
 
 namespace eg
 {

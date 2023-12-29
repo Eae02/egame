@@ -5,12 +5,12 @@
 
 #include <cstring>
 
-#if __has_include(<vulkan/vk_enum_string_helper.h>)
-#include <vulkan/vk_enum_string_helper.h>
-#else
+//#if __has_include(<vulkan/vk_enum_string_helper.h>)
+//#include <vulkan/vk_enum_string_helper.h>
+//#else
 #define string_VkResult std::to_string
 #define string_VkObjectType static_cast<int>
-#endif
+//#endif
 
 namespace eg
 {
