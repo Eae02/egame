@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 #include <string_view>
 #include "../../EGame/Utils.hpp"
 #include "../../EGame/Assert.hpp"

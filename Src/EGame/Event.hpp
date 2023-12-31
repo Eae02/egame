@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <cstdint>
 #include <atomic>
 #include <typeindex>
 

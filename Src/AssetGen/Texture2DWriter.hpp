@@ -4,6 +4,7 @@
 #include "../EGame/Assets/Texture2DLoader.hpp"
 #include "../EGame/Utils.hpp"
 
+#include <cstdint>
 #include <span>
 #include <yaml-cpp/yaml.h>
 

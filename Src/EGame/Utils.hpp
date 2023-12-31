@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <cstdint>
 #include <string_view>
 #include <string>
 #include <algorithm>

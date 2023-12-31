@@ -4,6 +4,7 @@
 #include "Assert.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <vector>
 #include <cstdint>

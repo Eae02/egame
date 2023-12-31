@@ -5,19 +5,12 @@
 
 #include <cstring>
 
-//#if __has_include(<vulkan/vk_enum_string_helper.h>)
-//#include <vulkan/vk_enum_string_helper.h>
-//#else
-#define string_VkResult std::to_string
-#define string_VkObjectType static_cast<int>
-//#endif
-
 namespace eg
 {
 	template <>
 	std::string LogToString(VkResult result)
 	{
-		return string_VkResult(result);
+		return std::to_string(result);
 	}
 }
 
@@ -38,7 +31,7 @@ namespace eg::graphics_api::vk
 			else
 				stream << "-";
 			
-			stream << " (" << string_VkObjectType(callbackData.pObjects[i].objectType) << ")" << std::endl;
+			stream << " (" << static_cast<int>(callbackData.pObjects[i].objectType) << ")" << std::endl;
 		}
 	}
 	

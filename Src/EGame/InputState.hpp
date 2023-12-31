@@ -3,6 +3,7 @@
 #include <atomic>
 #include <bitset>
 #include <optional>
+#include <cstdint>
 
 #include "API.hpp"
 #include "Geometry/Rectangle.hpp"

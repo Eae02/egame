@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <cstdint>
 #include <functional>
 
 namespace eg

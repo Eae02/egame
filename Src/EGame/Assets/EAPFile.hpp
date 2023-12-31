@@ -9,6 +9,7 @@
 #include <iosfwd>
 #include <optional>
 #include <string_view>
+#include <cstdint>
 
 namespace eg
 {

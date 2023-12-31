@@ -6,6 +6,7 @@
 #include "../IOUtils.hpp"
 #include "../Assert.hpp"
 
+#include <cstdint>
 #include <span>
 
 namespace eg

@@ -5,6 +5,7 @@
 #include "../API.hpp"
 
 #include <glm/vec3.hpp>
+#include <cstdint>
 
 namespace eg
 {

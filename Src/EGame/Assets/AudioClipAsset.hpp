@@ -5,6 +5,8 @@
 #include "../API.hpp"
 #include "../IOUtils.hpp"
 
+#include <cstdint>
+
 namespace eg
 {
 	struct __attribute__ ((__packed__)) AudioClipAssetHeader
