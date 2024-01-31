@@ -24,3 +24,6 @@
 	path = Deps/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
+[submodule "Deps/yaml-cpp"]
+	path = Deps/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git

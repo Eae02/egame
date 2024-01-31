@@ -1,10 +1,9 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.25)
 project(EGame)
 
 option(EG_BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
 option(EG_BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
 option(EG_BUILD_IMGUI "Whether or not to build imgui support library" ON)
-option(EG_INCLUDE_YAML_CPP "Whether or not to link to the yaml-cpp library." ON)
 option(EG_VULKAN "Whether or not to enable vulkan support." ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
@@ -21,7 +20,13 @@ option(SPIRV_CROSS_ENABLE_CPP "" OFF)
 option(SPIRV_CROSS_ENABLE_REFLECT "" OFF)
 option(SPIRV_CROSS_ENABLE_C_API "" OFF)
 option(SPIRV_CROSS_FORCE_PIC "" ON)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross/)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross/ SYSTEM)
+
+option(YAML_BUILD_SHARED_LIBS "" OFF)
+option(YAML_CPP_BUILD_TESTS "" OFF)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/ SYSTEM)
+
+target_compile_options(yaml-cpp PRIVATE -fPIC)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
@@ -68,14 +73,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	find_package(Threads REQUIRED)
 	find_package(Freetype)
 	find_package(OpenAL)
-	
-	if (EG_INCLUDE_YAML_CPP)
-		find_package(yaml-cpp)
-		if (NOT ${yaml-cpp_FOUND})
-			message("Yaml-cpp was not disabled but was not found")
-		endif()
-	endif()
-	
+
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(SDL2 REQUIRED sdl2)
 	
@@ -124,7 +122,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 			${OGG_VORBIS_LIBRARIES}
 		)
 		
-		target_compile_options(EGameAssetGen PRIVATE ${WARNING_FLAGS} -Wno-error=missing-declarations)
+		target_compile_options(EGameAssetGen PRIVATE ${WARNING_FLAGS} -Wno-missing-declarations)
 		
 		target_include_directories(EGameAssetGen SYSTEM PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
@@ -150,10 +148,8 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	endif()
 endif()
 
-if (${yaml-cpp_FOUND})
-	target_link_libraries(EGame PUBLIC yaml-cpp)
-	target_compile_options(EGame PUBLIC -DEG_HAS_YAML_CPP)
-endif()
+target_link_libraries(EGame PUBLIC yaml-cpp::yaml-cpp)
+target_compile_options(EGame PUBLIC -DEG_HAS_YAML_CPP)
 
 if (${EG_BUILD_IMGUI})
 	add_library(EGameImGui STATIC
@@ -266,4 +262,4 @@ elseif(NOT ${EG_VULKAN})
 	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN)
 endif()
 
-export(TARGETS EGame FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)
+export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)

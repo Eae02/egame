@@ -63,12 +63,11 @@ namespace eg
 	
 	std::string AssetGenerateContext::RelSourcePath() const
 	{
-#ifdef EG_HAS_YAML_CPP
 		if (const YAML::Node& sourceNode = YAMLNode()["source"])
 		{
 			return sourceNode.as<std::string>();
 		}
-#endif
+
 		return std::string(m_assetName);
 	}
 }

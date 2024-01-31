@@ -5,7 +5,6 @@ namespace eg
 {
 	size_t HashYAMLNode(const YAML::Node& node)
 	{
-#ifdef EG_HAS_YAML_CPP
 		if (!node.IsDefined())
 			return 0;
 		size_t hash = std::hash<std::string>()(node.Tag());
@@ -22,8 +21,5 @@ namespace eg
 			HashAppend(hash, node.as<std::string>());
 		}
 		return hash;
-#else
-		return 0;
-#endif
 	}
 }

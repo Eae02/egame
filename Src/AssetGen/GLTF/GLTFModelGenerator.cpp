@@ -222,6 +222,7 @@ namespace eg::asset_gen::gltf
 		const GLTFData& gltfData, std::string name, const json& primitivesEl, const glm::mat4& transform)
 	{
 		ImportedMesh mesh;
+		mesh.name = std::move(name);
 		
 		if (glm::determinant(transform) < 0)
 			mesh.flipWinding = !mesh.flipWinding;
@@ -286,7 +287,7 @@ namespace eg::asset_gen::gltf
 		const char* positionBuffer = gltfData.GetAccessorData(*positionAccessor);
 		const char* normalBuffer   = gltfData.GetAccessorData(*normalAccessor);
 		const char* texCoordBuffer = texCoordAccessor ? gltfData.GetAccessorData(*texCoordAccessor) : nullptr;
-		const char* colorBuffer = colorAccessor ? gltfData.GetAccessorData(*colorAccessor) : nullptr;
+		const char* colorBuffer    = colorAccessor ? gltfData.GetAccessorData(*colorAccessor) : nullptr;
 		const char* weightsBuffer  = weightsAccessor ? gltfData.GetAccessorData(*weightsAccessor) : nullptr;
 		const char* jointsBuffer   = jointsAccessor ? gltfData.GetAccessorData(*jointsAccessor) : nullptr;
 		
@@ -294,7 +295,8 @@ namespace eg::asset_gen::gltf
 		std::memset(mesh.vertices.data(), 0, sizeof(StdVertexAnim16) * numVertices);
 		
 		//Reads vertices
-		auto points = std::make_unique<glm::vec3[]>(numVertices);
+		std::unique_ptr<glm::vec3[]> positions = std::make_unique<glm::vec3[]>(numVertices);
+		std::unique_ptr<glm::vec3[]> normals = std::make_unique<glm::vec3[]>(numVertices);
 		for (size_t v = 0; v < numVertices; v++)
 		{
 			glm::vec3 pos = *reinterpret_cast<const glm::vec3*>(positionBuffer + v * positionAccessor->byteStride);
@@ -302,7 +304,8 @@ namespace eg::asset_gen::gltf
 			
 			pos = glm::vec3(transform * glm::vec4(pos, 1.0f));
 			normal = glm::normalize(glm::vec3(transform * glm::vec4(normal, 0.0f)));
-			points[v] = pos;
+			positions[v] = pos;
+			normals[v] = normal;
 			
 			for (int i = 0; i < 3; i++)
 			{
@@ -355,10 +358,25 @@ namespace eg::asset_gen::gltf
 			}
 		}
 		
-		//TODO: Generate tangents
+		// Generates tangents
+		if (texCoordAccessor)
+		{
+			std::unique_ptr<glm::vec3[], FreeDel> tangents = GenerateTangents<uint32_t>(mesh.indices, numVertices,
+				[&] (size_t i) { return positions[i]; },
+				[&] (size_t i) { return glm::vec2(mesh.vertices[i].texCoord[0], mesh.vertices[i].texCoord[1]); },
+				[&] (size_t i) { return normals[i]; }
+			);
+			for (size_t v = 0; v < numVertices; v++)
+			{
+				for (int i = 0; i < 3; i++)
+				{
+					mesh.vertices[v].tangent[i] = FloatToSNorm(tangents[v][i]);
+				}
+			}
+		}
 		
-		mesh.boundingSphere = eg::Sphere::CreateEnclosing(std::span<const glm::vec3>(points.get(), numVertices));
-		mesh.boundingBox = eg::AABB::CreateEnclosing(std::span<const glm::vec3>(points.get(), numVertices));
+		mesh.boundingSphere = eg::Sphere::CreateEnclosing(std::span<const glm::vec3>(positions.get(), numVertices));
+		mesh.boundingBox = eg::AABB::CreateEnclosing(std::span<const glm::vec3>(positions.get(), numVertices));
 		
 		return mesh;
 	}

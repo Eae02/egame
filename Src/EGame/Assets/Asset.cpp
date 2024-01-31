@@ -301,7 +301,7 @@ namespace eg
 	
 	static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 	{
-#if defined(__EMSCRIPTEN__) || !defined(EG_HAS_YAML_CPP)
+#if defined(__EMSCRIPTEN__)
 		return false;
 #else
 		std::string yamlPath = path + "/Assets.yaml";
