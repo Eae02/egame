@@ -2,96 +2,35 @@
 #include "../EGame/Assets/ShaderModule.hpp"
 #include "../EGame/IOUtils.hpp"
 #include "../EGame/Log.hpp"
+#include "../EGame/Platform/DynamicLibrary.hpp"
 #include "../EGame/Platform/FileSystem.hpp"
 #include "../Shaders/Build/Inc/Deferred.glh.h"
 #include "../Shaders/Build/Inc/EGame.glh.h"
 #include "ShaderResource.hpp"
 
-#include <glslang/Public/ShaderLang.h>
-#include <glslang/SPIRV/GlslangToSpv.h>
-#include <spirv-tools/optimizer.hpp>
-
 #include <algorithm>
 #include <fstream>
 #include <span>
 
+#include <glslang_c_interface.h>
+
 namespace eg::asset_gen
 {
-class Includer : public glslang::TShader::Includer
-{
-public:
-	explicit Includer(AssetGenerateContext& generateContext) : m_generateContext(&generateContext) {}
-
-	struct CustomIncludeResult : IncludeResult
-	{
-		CustomIncludeResult(const std::string& name, std::span<const char> _data)
-			: IncludeResult(name, _data.data(), _data.size(), nullptr), data(_data)
-		{
-		}
-
-		std::span<const char> data;
-		std::vector<char> dataOwned;
-	};
-
-	inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path, const std::string& name)
-	{
-		std::ifstream stream(path, std::ios::binary);
-		if (!stream)
-			return nullptr;
-		std::vector<char> data = ReadStreamContents(stream);
-		CustomIncludeResult* result = new CustomIncludeResult(name, data);
-		result->dataOwned = std::move(data);
-		return result;
-	}
-
-	IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t size) override
-	{
-		auto CheckSystemHeader = [&](const char* name,
-		                             std::span<const unsigned char> headerData) -> CustomIncludeResult*
-		{
-			if (std::strcmp(name, headerName))
-				return nullptr;
-			const char* headerDataChar = reinterpret_cast<const char*>(headerData.data());
-			return new CustomIncludeResult(headerName, { headerDataChar, headerDataChar + headerData.size() });
-		};
-
-		if (auto result = CheckSystemHeader("EGame.glh", Inc_EGame_glh))
-			return result;
-		if (auto result = CheckSystemHeader("Deferred.glh", Inc_Deferred_glh))
-			return result;
-		return nullptr;
-	}
-
-	IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t size) override
-	{
-		std::string path = Concat({ ParentPath(includerName), headerName });
-		if (IncludeResult* iRes = TryCreateIncludeResult(m_generateContext->ResolveRelPath(path), path))
-		{
-			m_generateContext->FileDependency(std::move(path));
-			return iRes;
-		}
-		return nullptr;
-	}
-
-	void releaseInclude(IncludeResult* result) override { delete static_cast<CustomIncludeResult*>(result); }
-
-private:
-	AssetGenerateContext* m_generateContext;
-};
-
-static std::optional<EShLanguage> DeduceShaderLanguage(std::string_view sourcePath, const YAML::Node& yamlNode)
+static std::optional<glslang_stage_t> DeduceShaderStage(std::string_view sourcePath, const YAML::Node& yamlNode)
 {
 	if (const YAML::Node& stageNode = yamlNode["stage"])
 	{
-		const std::pair<std::string_view, EShLanguage> stageNames[] = { { "vertex", EShLangVertex },
-			                                                            { "fragment", EShLangFragment },
-			                                                            { "geometry", EShLangGeometry },
-			                                                            { "compute", EShLangCompute },
-			                                                            { "tess-control", EShLangTessControl },
-			                                                            { "tess-eval", EShLangTessEvaluation } };
+		const std::pair<std::string_view, glslang_stage_t> stageNames[] = {
+			{ "vertex", GLSLANG_STAGE_VERTEX },
+			{ "fragment", GLSLANG_STAGE_FRAGMENT },
+			{ "geometry", GLSLANG_STAGE_GEOMETRY },
+			{ "compute", GLSLANG_STAGE_COMPUTE },
+			{ "tess-control", GLSLANG_STAGE_TESSCONTROL },
+			{ "tess-eval", GLSLANG_STAGE_TESSEVALUATION },
+		};
 
 		std::string stageNameStr = stageNode.as<std::string>();
-		for (const std::pair<std::string_view, EShLanguage>& stageName : stageNames)
+		for (const std::pair<std::string_view, glslang_stage_t>& stageName : stageNames)
 		{
 			if (StringEqualCaseInsensitive(stageNameStr, stageName.first))
 			{
@@ -114,19 +53,19 @@ static std::optional<EShLanguage> DeduceShaderLanguage(std::string_view sourcePa
 	}
 	else
 	{
-		const std::pair<std::string_view, EShLanguage> stageExtensions[] = {
-			{ ".vs.glsl", EShLangVertex },        { ".vert", EShLangVertex },
-			{ ".vert.glsl", EShLangVertex },      { ".fs.glsl", EShLangFragment },
-			{ ".frag", EShLangFragment },         { ".frag.glsl", EShLangFragment },
-			{ ".gs.glsl", EShLangGeometry },      { ".geom", EShLangGeometry },
-			{ ".geom.glsl", EShLangGeometry },    { ".cs.glsl", EShLangCompute },
-			{ ".comp", EShLangCompute },          { ".comp.glsl", EShLangCompute },
-			{ ".tcs.glsl", EShLangTessControl },  { ".tesc", EShLangTessControl },
-			{ ".tesc.glsl", EShLangTessControl }, { ".tes.glsl", EShLangTessEvaluation },
-			{ ".tese", EShLangTessEvaluation },   { ".tese.glsl", EShLangTessEvaluation }
+		const std::pair<std::string_view, glslang_stage_t> stageExtensions[] = {
+			{ ".vs.glsl", GLSLANG_STAGE_VERTEX },        { ".vert", GLSLANG_STAGE_VERTEX },
+			{ ".vert.glsl", GLSLANG_STAGE_VERTEX },      { ".fs.glsl", GLSLANG_STAGE_FRAGMENT },
+			{ ".frag", GLSLANG_STAGE_FRAGMENT },         { ".frag.glsl", GLSLANG_STAGE_FRAGMENT },
+			{ ".gs.glsl", GLSLANG_STAGE_GEOMETRY },      { ".geom", GLSLANG_STAGE_GEOMETRY },
+			{ ".geom.glsl", GLSLANG_STAGE_GEOMETRY },    { ".cs.glsl", GLSLANG_STAGE_COMPUTE },
+			{ ".comp", GLSLANG_STAGE_COMPUTE },          { ".comp.glsl", GLSLANG_STAGE_COMPUTE },
+			{ ".tcs.glsl", GLSLANG_STAGE_TESSCONTROL },  { ".tesc", GLSLANG_STAGE_TESSCONTROL },
+			{ ".tesc.glsl", GLSLANG_STAGE_TESSCONTROL }, { ".tes.glsl", GLSLANG_STAGE_TESSEVALUATION },
+			{ ".tese", GLSLANG_STAGE_TESSEVALUATION },   { ".tese.glsl", GLSLANG_STAGE_TESSEVALUATION },
 		};
 
-		for (const std::pair<std::string_view, EShLanguage>& stageExtension : stageExtensions)
+		for (const std::pair<std::string_view, glslang_stage_t>& stageExtension : stageExtensions)
 		{
 			if (sourcePath.ends_with(stageExtension.first))
 			{
@@ -139,13 +78,175 @@ static std::optional<EShLanguage> DeduceShaderLanguage(std::string_view sourcePa
 	return {};
 }
 
+namespace glslang
+{
+bool hasTriedToLoadGlslang = false;
+bool successfullyLoadedGlslang = false;
+eg::DynamicLibrary glslangLibrary;
+eg::DynamicLibrary spirvLibrary;
+
+decltype(&::glslang_initialize_process) initialize_process;
+decltype(&::glslang_finalize_process) finalize_process;
+decltype(&::glslang_shader_create) shader_create;
+decltype(&::glslang_shader_delete) shader_delete;
+decltype(&::glslang_shader_preprocess) shader_preprocess;
+decltype(&::glslang_shader_parse) shader_parse;
+decltype(&::glslang_shader_get_preprocessed_code) shader_get_preprocessed_code;
+decltype(&::glslang_shader_get_info_log) shader_get_info_log;
+decltype(&::glslang_shader_get_info_debug_log) shader_get_info_debug_log;
+decltype(&::glslang_program_create) program_create;
+decltype(&::glslang_program_delete) program_delete;
+decltype(&::glslang_program_add_shader) program_add_shader;
+decltype(&::glslang_program_link) program_link;
+decltype(&::glslang_program_get_info_log) program_get_info_log;
+decltype(&::glslang_program_get_info_debug_log) program_get_info_debug_log;
+
+decltype(&::glslang_program_SPIRV_generate) program_SPIRV_generate;
+decltype(&::glslang_program_SPIRV_generate_with_options) program_SPIRV_generate_with_options;
+decltype(&::glslang_program_SPIRV_get_size) program_SPIRV_get_size;
+decltype(&::glslang_program_SPIRV_get) program_SPIRV_get;
+decltype(&::glslang_program_SPIRV_get_ptr) program_SPIRV_get_ptr;
+decltype(&::glslang_program_SPIRV_get_messages) program_SPIRV_get_messages;
+
+void LoadGlslangLibrary()
+{
+	hasTriedToLoadGlslang = true;
+
+	std::string glslangLibraryName = eg::DynamicLibrary::PlatformFormat("glslang");
+	if (!glslangLibrary.Open(glslangLibraryName.c_str()))
+	{
+		eg::Log(
+			eg::LogLevel::Error, "as", "Failed to load glslang library for shader compilation: {0}",
+			glslangLibrary.FailureReason());
+		return;
+	}
+
+	std::string spirvLibraryName = eg::DynamicLibrary::PlatformFormat("SPIRV");
+	if (!spirvLibrary.Open(spirvLibraryName.c_str()))
+	{
+		eg::Log(
+			eg::LogLevel::Error, "as", "Failed to load spirv library for shader compilation: {0}",
+			spirvLibrary.FailureReason());
+		return;
+	}
+
+	successfullyLoadedGlslang = true;
+
+	constexpr const char* entryPointNotFoundMessage =
+		"Failed to initialize shader compiler: Entry point not found: glslang_{0}";
+
+#define LOAD_GLSLANG_SYMBOL(library, name)                                                                             \
+	if (!(name = reinterpret_cast<decltype(name)>(library.GetSymbol("glslang_" #name))))                               \
+		eg::Log(eg::LogLevel::Error, "as", entryPointNotFoundMessage, #name);
+
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, initialize_process)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, finalize_process)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, shader_create)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, shader_delete)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, shader_preprocess)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, shader_parse)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, shader_get_preprocessed_code)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, shader_get_info_log)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, shader_get_info_debug_log)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, program_create)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, program_delete)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, program_add_shader)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, program_link)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, program_get_info_log)
+	LOAD_GLSLANG_SYMBOL(glslangLibrary, program_get_info_debug_log)
+	LOAD_GLSLANG_SYMBOL(spirvLibrary, program_SPIRV_generate)
+	LOAD_GLSLANG_SYMBOL(spirvLibrary, program_SPIRV_generate_with_options)
+	LOAD_GLSLANG_SYMBOL(spirvLibrary, program_SPIRV_get_size)
+	LOAD_GLSLANG_SYMBOL(spirvLibrary, program_SPIRV_get)
+	LOAD_GLSLANG_SYMBOL(spirvLibrary, program_SPIRV_get_ptr)
+	LOAD_GLSLANG_SYMBOL(spirvLibrary, program_SPIRV_get_messages)
+
+	if (!initialize_process())
+	{
+		eg::Log(eg::LogLevel::Error, "as", "Failed to initialize glslang library for shader compilation");
+		successfullyLoadedGlslang = false;
+	}
+}
+} // namespace glslang
+
+struct CustomIncludeResult : glsl_include_result_t
+{
+	CustomIncludeResult()
+	{
+		header_name = nullptr;
+		header_data = nullptr;
+		header_length = 0;
+	}
+
+	CustomIncludeResult(std::string _name, std::vector<char> _data) : name(std::move(_name)), data(std::move(_data))
+	{
+		header_name = name.c_str();
+		header_data = data.data();
+		header_length = data.size();
+	}
+
+	std::string name;
+	std::vector<char> data;
+};
+
+inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path, const std::string& name)
+{
+	std::ifstream stream(path, std::ios::binary);
+	if (!stream)
+		return nullptr;
+	std::vector<char> data = ReadStreamContents(stream);
+	return new CustomIncludeResult(name, std::move(data));
+}
+
+glsl_include_result_t* includeCallbackSystem(
+	void* ctx, const char* headerName, const char* includerName, size_t includeDepth)
+{
+	auto CheckSystemHeader = [&](const char* name, std::span<const unsigned char> headerData) -> CustomIncludeResult*
+	{
+		if (std::strcmp(name, headerName))
+			return nullptr;
+		const char* headerDataChar = reinterpret_cast<const char*>(headerData.data());
+		return new CustomIncludeResult(headerName, { headerDataChar, headerDataChar + headerData.size() });
+	};
+
+	if (auto result = CheckSystemHeader("EGame.glh", Inc_EGame_glh))
+		return result;
+	if (auto result = CheckSystemHeader("Deferred.glh", Inc_Deferred_glh))
+		return result;
+	return new CustomIncludeResult;
+}
+
+glsl_include_result_t* includeCallbackLocal(
+	void* ctx, const char* headerName, const char* includerName, size_t includeDepth)
+{
+	AssetGenerateContext* generateContext = static_cast<AssetGenerateContext*>(ctx);
+	std::string path = Concat({ ParentPath(includerName), headerName });
+	if (auto iRes = TryCreateIncludeResult(generateContext->ResolveRelPath(path), path))
+	{
+		generateContext->FileDependency(std::move(path));
+		return iRes;
+	}
+	return new CustomIncludeResult;
+}
+
+int includeCallbackFree(void* ctx, glsl_include_result_t* result)
+{
+	delete static_cast<CustomIncludeResult*>(result);
+	return 0;
+}
+
 class ShaderGenerator : public AssetGenerator
 {
 public:
-	ShaderGenerator() { glslang::InitializeProcess(); }
+	ShaderGenerator() {}
 
 	bool Generate(AssetGenerateContext& generateContext) override
 	{
+		if (!glslang::hasTriedToLoadGlslang)
+			glslang::LoadGlslangLibrary();
+		if (!glslang::successfullyLoadedGlslang)
+			return false;
+
 		std::string relSourcePath = generateContext.RelSourcePath();
 		std::string sourcePath = generateContext.FileDependency(relSourcePath);
 		std::ifstream sourceStream(sourcePath, std::ios::binary);
@@ -158,7 +259,19 @@ public:
 		std::vector<char> source = ReadStreamContents(sourceStream);
 		sourceStream.close();
 
-		std::optional<EShLanguage> lang = DeduceShaderLanguage(sourcePath, generateContext.YAMLNode());
+		std::string_view sourceVersionDirective;
+		std::string_view sourceAfterVersionDirective(source.data(), source.size());
+		if (sourceAfterVersionDirective.starts_with("#version"))
+		{
+			size_t firstNewLine = sourceAfterVersionDirective.find('\n');
+			if (firstNewLine != std::string_view::npos)
+			{
+				sourceVersionDirective = sourceAfterVersionDirective.substr(0, firstNewLine);
+				sourceAfterVersionDirective = sourceAfterVersionDirective.substr(firstNewLine + 1);
+			}
+		}
+
+		std::optional<glslang_stage_t> lang = DeduceShaderStage(sourcePath, generateContext.YAMLNode());
 		if (!lang.has_value())
 			return false;
 
@@ -188,28 +301,26 @@ public:
 			variants.erase(std::unique(variants.begin(), variants.end()), variants.end());
 		}
 
-		const EShMessages messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
-
 		// Translates the shader stage and writes this to the output stream
 		ShaderStage egStage;
 		switch (*lang)
 		{
-		case EShLangVertex:
+		case GLSLANG_STAGE_VERTEX:
 			egStage = ShaderStage::Vertex;
 			break;
-		case EShLangFragment:
+		case GLSLANG_STAGE_FRAGMENT:
 			egStage = ShaderStage::Fragment;
 			break;
-		case EShLangGeometry:
+		case GLSLANG_STAGE_GEOMETRY:
 			egStage = ShaderStage::Geometry;
 			break;
-		case EShLangCompute:
+		case GLSLANG_STAGE_COMPUTE:
 			egStage = ShaderStage::Compute;
 			break;
-		case EShLangTessControl:
+		case GLSLANG_STAGE_TESSCONTROL:
 			egStage = ShaderStage::TessControl;
 			break;
-		case EShLangTessEvaluation:
+		case GLSLANG_STAGE_TESSEVALUATION:
 			egStage = ShaderStage::TessEvaluation;
 			break;
 		default:
@@ -217,54 +328,91 @@ public:
 		}
 		BinWrite(generateContext.outputStream, static_cast<uint32_t>(egStage));
 
-		// Sets up parameters for the shader
-		const char* shaderStrings[] = { source.data() };
-		const int shaderStringLengths[] = { static_cast<int>(source.size()) };
-		const char* shaderStringNames[] = { relSourcePath.c_str() };
-
 		eg::BinWrite(generateContext.outputStream, UnsignedNarrow<uint32_t>(variants.size()));
+
+		glsl_include_callbacks_s includeCallbacks = {
+			.include_system = includeCallbackSystem,
+			.include_local = includeCallbackLocal,
+			.free_include_result = includeCallbackFree,
+		};
 
 		// Compiles each shader variant
 		for (std::string_view variant : variants)
 		{
-			std::ostringstream preambleStream;
-			preambleStream << "#extension GL_GOOGLE_include_directive:enable\n"
-							  "#extension GL_GOOGLE_cpp_style_line_directive:enable\n"
-							  "#define "
-						   << variant << "\n";
-			std::string preamble = preambleStream.str();
+			std::ostringstream fullSourceStream;
+			fullSourceStream << sourceVersionDirective
+							 << "\n#extension GL_GOOGLE_include_directive:enable\n"
+								"#extension GL_GOOGLE_cpp_style_line_directive:enable\n"
+								"#define "
+							 << variant << "\n#line 2\n"
+							 << sourceAfterVersionDirective;
+			std::string fullSourceCode = fullSourceStream.str();
 
-			glslang::TShader shader(*lang);
-			shader.setPreamble(preamble.c_str());
-			shader.setStringsWithLengthsAndNames(shaderStrings, shaderStringLengths, shaderStringNames, 1);
-			shader.setEnvClient(glslang::EShClient::EShClientOpenGL, glslang::EShTargetVulkan_1_0);
-			shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+			glslang_input_s shaderInput = {
+				.language = GLSLANG_SOURCE_GLSL,
+				.stage = *lang,
+				.client = GLSLANG_CLIENT_VULKAN,
+				.client_version = GLSLANG_TARGET_VULKAN_1_0,
+				.target_language = GLSLANG_TARGET_SPV,
+				.target_language_version = GLSLANG_TARGET_SPV_1_0,
+				.code = fullSourceCode.c_str(),
+				.default_version = 100,
+				.default_profile = GLSLANG_NO_PROFILE,
+				.force_default_version_and_profile = false,
+				.forward_compatible = false,
+				.messages = GLSLANG_MSG_DEFAULT_BIT,
+				.resource = &DefaultTBuiltInResource,
+				.callbacks = includeCallbacks,
+				.callbacks_ctx = &generateContext,
+			};
 
-			Includer includer(generateContext);
-			if (!shader.parse(&DefaultTBuiltInResource, 450, ECoreProfile, true, false, messages, includer))
+			glslang_shader_t* shader = glslang::shader_create(&shaderInput);
+
+			std::unique_ptr<glslang_shader_t, decltype(glslang::shader_delete)> shaderUniquePtr(
+				shader, glslang::shader_delete);
+
+			if (!glslang::shader_preprocess(shader, &shaderInput))
 			{
-				Log(LogLevel::Error, "as", "Shader ({0}:{1}) failed to compile: {2}", sourcePath, variant,
-				    shader.getInfoLog());
+				Log(LogLevel::Error, "as", "Shader ({0}:{1}) failed to compile (preprocessing): {2}", sourcePath,
+				    variant, glslang::shader_get_info_log(shader));
 				return false;
 			}
 
-			glslang::TProgram program;
-			program.addShader(&shader);
-			if (!program.link(messages))
+			if (!glslang::shader_parse(shader, &shaderInput))
 			{
-				Log(LogLevel::Error, "as", "Shader ({0}:{1}) failed to compile: {2}", sourcePath, variant,
-				    program.getInfoLog());
+				Log(LogLevel::Error, "as", "Shader ({0}:{1}) failed to compile (parse): {2}", sourcePath, variant,
+				    glslang::shader_get_info_log(shader));
 				return false;
 			}
 
-			// Generates SPIRV
-			std::vector<uint32_t> spirvCode;
-			glslang::GlslangToSpv(*program.getIntermediate(*lang), spirvCode);
+			glslang_program_t* program = glslang::program_create();
 
-			uint32_t codeSize = UnsignedNarrow<uint32_t>(spirvCode.size() * sizeof(uint32_t));
+			std::unique_ptr<glslang_program_t, decltype(glslang::program_delete)> programUniquePtr(
+				program, glslang::program_delete);
+
+			glslang::program_add_shader(program, shader);
+
+			if (!glslang::program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
+			{
+				Log(LogLevel::Error, "as", "Shader ({0}:{1}) failed to compile (link): {2}", sourcePath, variant,
+				    glslang::program_get_info_log(program));
+				return false;
+			}
+
+			glslang::program_SPIRV_generate(program, *lang);
+
+			const char* spirv_messages = glslang::program_SPIRV_get_messages(program);
+			if (spirv_messages)
+			{
+				Log(LogLevel::Warning, "as", "Shader ({0}:{1}) produced spir-v messages:\n{2}", sourcePath, variant,
+				    spirv_messages);
+			}
+
+			uint32_t codeSize = UnsignedNarrow<uint32_t>(glslang::program_SPIRV_get_size(program) * sizeof(uint32_t));
 			BinWrite(generateContext.outputStream, eg::HashFNV1a32(variant));
 			BinWrite(generateContext.outputStream, codeSize);
-			generateContext.outputStream.write(reinterpret_cast<char*>(spirvCode.data()), codeSize);
+			generateContext.outputStream.write(
+				reinterpret_cast<char*>(glslang::program_SPIRV_get_ptr(program)), codeSize);
 		}
 
 		return true;

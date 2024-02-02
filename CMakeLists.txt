@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 project(EGame)
 
-option(EG_BUILD_ASSETGEN "Whether or not to build asset generator library. The asset generator requires glslang." ON)
+option(EG_BUILD_ASSETGEN "Whether or not to build asset generator library" ON)
 option(EG_BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
 option(EG_BUILD_IMGUI "Whether or not to build imgui support library" ON)
 option(EG_VULKAN "Whether or not to enable vulkan support." ON)
@@ -108,7 +108,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER} -msse4.1)
 	
 	if (EG_BUILD_ASSETGEN)
-		find_package(GLSLang REQUIRED)
 		find_package(nlohmann_json REQUIRED)
 		pkg_check_modules(OGG_VORBIS REQUIRED ogg vorbis vorbisfile)
 		
@@ -117,7 +116,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		add_dependencies(EGameAssetGen EGame)
 		target_link_libraries(EGameAssetGen PRIVATE
 			EGame
-			GLSLang::GLSLang
 			nlohmann_json::nlohmann_json
 			${OGG_VORBIS_LIBRARIES}
 		)
@@ -126,6 +124,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		
 		target_include_directories(EGameAssetGen SYSTEM PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+			${CMAKE_CURRENT_SOURCE_DIR}/Deps/glslang_c_interface
 			${OGG_VORBIS_INCLUDE_DIRS}
 		)
 		

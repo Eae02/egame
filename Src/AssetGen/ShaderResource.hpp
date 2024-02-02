@@ -1,6 +1,6 @@
-#include <glslang/Public/ShaderLang.h>
+#include <glslang_c_interface.h>
 
 namespace eg::asset_gen
 {
-extern const TBuiltInResource DefaultTBuiltInResource;
+extern const glslang_resource_t DefaultTBuiltInResource;
 }
