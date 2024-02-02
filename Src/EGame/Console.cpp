@@ -367,6 +367,7 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 	const float fontScale = DisplayScaleFactor();
 	ctx->textEdit.SetFontScale(fontScale);
 	const float scaledFontSize = static_cast<float>(font.Size()) * fontScale;
+	const float scaledLineHeight = static_cast<float>(font.LineHeight()) * fontScale;
 
 	const float width = static_cast<float>(screenWidth) * 0.8f;
 	const float height = width * 0.2f;
@@ -398,7 +399,7 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 	const float lineY = baseY + padding * 2.0f + scaledFontSize;
 
 	float viewWindowHeight = height - (lineY - baseY) - padding * 2.0f;
-	ctx->maxScroll = static_cast<float>(ctx->lines.size()) - viewWindowHeight / ctx->textEdit.Font()->LineHeight();
+	ctx->maxScroll = static_cast<float>(ctx->lines.size()) - viewWindowHeight / scaledLineHeight;
 
 	spriteBatch.DrawLine(
 		glm::vec2(innerMinX, lineY), glm::vec2(innerMaxX, lineY), ColorLin(1, 1, 1, opacity), 0.5f * fontScale);
@@ -407,7 +408,7 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 
 	{
 		std::lock_guard<std::mutex> lock(ctx->linesMutex);
-		float y = lineY + padding - ctx->textEdit.Font()->LineHeight() * ctx->scroll * fontScale;
+		float y = lineY + padding - scaledLineHeight * ctx->scroll;
 		for (int i = ToInt(ctx->lines.size()) - 1; i >= 0; i--)
 		{
 			glm::vec2 textPos(innerMinX, std::round(y));
@@ -418,7 +419,7 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 					TextFlags::DropShadow | TextFlags::NoPixelAlign);
 				textPos.x += ctx->textEdit.Font()->GetTextExtents(segment.text).x * fontScale;
 			}
-			y += ctx->textEdit.Font()->LineHeight() * fontScale;
+			y += scaledLineHeight;
 		}
 	}
 
@@ -426,7 +427,7 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 	{
 		const float scrollBarWidth = 2 * fontScale;
 		const float scrollBarHeight = viewWindowHeight * viewWindowHeight /
-		                              (static_cast<float>(ctx->lines.size()) * ctx->textEdit.Font()->LineHeight());
+		                              (static_cast<float>(ctx->lines.size()) * scaledLineHeight);
 		const float scrollY = (viewWindowHeight - scrollBarHeight) * (ctx->scroll / ctx->maxScroll);
 		const Rectangle rectangle(
 			innerMaxX - scrollBarWidth, lineY + padding + scrollY, scrollBarWidth, scrollBarHeight);
@@ -438,8 +439,8 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 	if (!ctx->completions.empty())
 	{
 		int numLines = ToInt(std::min<size_t>(ctx->completions.size(), 4));
-		float lineStep = font.LineHeight() * fontScale * 1.5f;
-		float textOffsetY = font.LineHeight() * fontScale * 0.4f;
+		float lineStep = scaledLineHeight * 1.5f;
+		float textOffsetY = scaledLineHeight * 0.4f;
 
 		float complBoxW = 200 * fontScale;
 		float complBoxH = static_cast<float>(numLines) * lineStep;
