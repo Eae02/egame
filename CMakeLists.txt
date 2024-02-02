@@ -28,7 +28,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/ SYSTEM)
 
 target_compile_options(yaml-cpp PRIVATE -fPIC)
 
-file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp)
+file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp Src/EGame/*.mm)
 file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
 file(GLOB_RECURSE ASSET_MAN_SOURCE_FILES Src/AssetMan/*.cpp Src/AssetMan/*.hpp)
 
@@ -91,6 +91,13 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		${SDL2_INCLUDE_DIRS}
 	)
 	
+	target_link_options(EGame PRIVATE ${SDL2_LDFLAGS})
+	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER})
+	
+	if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+		target_link_libraries(EGame PRIVATE "-framework Cocoa" "-framework OpenAL")
+	endif()
+	
 	if (NOT ${OPENAL_FOUND})
 		message(WARNING "OpenAL not found, audio support will be disabled")
 		target_compile_options(EGame PRIVATE -DEG_NO_OPENAL)
@@ -104,8 +111,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	else()
 		target_include_directories(EGame SYSTEM PRIVATE ${FREETYPE_INCLUDE_DIRS})
 	endif()
-	
-	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER} -msse4.1)
 	
 	if (EG_BUILD_ASSETGEN)
 		find_package(nlohmann_json REQUIRED)
@@ -127,6 +132,9 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/glslang_c_interface
 			${OGG_VORBIS_INCLUDE_DIRS}
 		)
+		
+		target_link_options(EGameAssetGen PRIVATE ${OGG_VORBIS_LDFLAGS})
+		target_compile_options(EGameAssetGen PRIVATE ${OGG_VORBIS_CFLAGS_OTHER})
 		
 		set_target_properties(EGameAssetGen PROPERTIES
 			CXX_STANDARD 20
