@@ -5,10 +5,10 @@
 
 namespace eg
 {
-	EG_API extern const AssetFormat DefaultGeneratorFormat;
-	
-	namespace detail
-	{
-		void RegisterDefaultAssetGenerator();
-	}
+EG_API extern const AssetFormat DefaultGeneratorFormat;
+
+namespace detail
+{
+void RegisterDefaultAssetGenerator();
 }
+} // namespace eg

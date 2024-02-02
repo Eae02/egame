@@ -2,5 +2,5 @@
 
 namespace eg::detail
 {
-	void RegisterConsoleCommands();
+void RegisterConsoleCommands();
 }

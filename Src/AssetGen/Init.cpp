@@ -2,15 +2,15 @@
 
 namespace eg::asset_gen
 {
-	void RegisterShaderGenerator();
-	void RegisterTexture2DGenerator();
-	void RegisterTexture2DArrayGenerator();
-	void RegisterOBJModelGenerator();
-	void RegisterGLTFModelGenerator();
-	void RegisterParticleEmitterGenerator();
-	void RegisterFontGenerator();
-	void RegisterOGGVorbisGenerator();
-}
+void RegisterShaderGenerator();
+void RegisterTexture2DGenerator();
+void RegisterTexture2DArrayGenerator();
+void RegisterOBJModelGenerator();
+void RegisterGLTFModelGenerator();
+void RegisterParticleEmitterGenerator();
+void RegisterFontGenerator();
+void RegisterOGGVorbisGenerator();
+} // namespace eg::asset_gen
 
 EG_C_EXPORT void Init()
 {

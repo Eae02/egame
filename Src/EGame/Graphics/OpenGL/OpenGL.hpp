@@ -4,9 +4,9 @@
 
 namespace eg::graphics_api::gl
 {
-	bool Initialize(const GraphicsAPIInitArguments& initArguments);
-	
+bool Initialize(const GraphicsAPIInitArguments& initArguments);
+
 #define XM_ABSCALLBACK(name, ret, params) ret name params;
 #include "../AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
-}
+} // namespace eg::graphics_api::gl

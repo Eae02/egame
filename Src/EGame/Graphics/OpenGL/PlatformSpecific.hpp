@@ -4,12 +4,13 @@
 
 namespace eg::graphics_api::gl
 {
-	bool InitializeGLPlatformSpecific(const GraphicsAPIInitArguments& initArguments, std::vector<const char*>& requiredExtensions);
-	
-	bool IsExtensionSupported(const char* name);
-	
-	void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo);
-	
-	void PlatformSpecificBeginFrame();
-	void PlatformSpecificEndFrame();
-}
+bool InitializeGLPlatformSpecific(
+	const GraphicsAPIInitArguments& initArguments, std::vector<const char*>& requiredExtensions);
+
+bool IsExtensionSupported(const char* name);
+
+void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo);
+
+void PlatformSpecificBeginFrame();
+void PlatformSpecificEndFrame();
+} // namespace eg::graphics_api::gl

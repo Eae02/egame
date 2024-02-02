@@ -8,14 +8,16 @@
 
 namespace eg::asset_gen::gltf
 {
-	Animation ImportAnimation(const GLTFData& data, const nlohmann::json& animationEl, size_t numTargets,
-	                          const std::function<std::vector<int>(int)>& getTargetIndicesFromNodeIndex);
-	
-	struct ImportedSkeleton
-	{
-		Skeleton skeleton;
-		std::vector<int> boneIdNodeIndex;
-	};
-	
-	ImportedSkeleton ImportSkeleton(const GLTFData& gltfData, const nlohmann::json& nodesArray, const nlohmann::json& skinEl);
-}
+Animation ImportAnimation(
+	const GLTFData& data, const nlohmann::json& animationEl, size_t numTargets,
+	const std::function<std::vector<int>(int)>& getTargetIndicesFromNodeIndex);
+
+struct ImportedSkeleton
+{
+	Skeleton skeleton;
+	std::vector<int> boneIdNodeIndex;
+};
+
+ImportedSkeleton ImportSkeleton(
+	const GLTFData& gltfData, const nlohmann::json& nodesArray, const nlohmann::json& skinEl);
+} // namespace eg::asset_gen::gltf

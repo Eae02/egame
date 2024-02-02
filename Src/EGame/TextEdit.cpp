@@ -1,46 +1,47 @@
 #include "TextEdit.hpp"
 
-#include <utf8.h>
 #include <SDL.h>
+#include <utf8.h>
 
 namespace eg
 {
-	void TextEdit::InsertText(std::string_view text)
+void TextEdit::InsertText(std::string_view text)
+{
+	m_data.insert(m_data.begin() + m_cursorPos, text.begin(), text.end());
+	m_cursorPos += ToInt(text.size());
+	m_cursorBlinkProgress = 0;
+}
+
+void TextEdit::Update(float dt, bool enabled)
+{
+	constexpr float BLINK_TIME = 0.3f;
+	m_cursorBlinkProgress = std::fmod(m_cursorBlinkProgress + dt / BLINK_TIME, 2.0f);
+
+	if (enabled && !InputtedText().empty())
 	{
-		m_data.insert(m_data.begin() + m_cursorPos, text.begin(), text.end());
-		m_cursorPos += ToInt(text.size());
-		m_cursorBlinkProgress = 0;
+		InsertText(InputtedText());
 	}
-	
-	void TextEdit::Update(float dt, bool enabled)
-	{
-		constexpr float BLINK_TIME = 0.3f;
-		m_cursorBlinkProgress = std::fmod(m_cursorBlinkProgress + dt / BLINK_TIME, 2.0f);
-		
-		if (enabled && !InputtedText().empty())
-		{
-			InsertText(InputtedText());
-		}
-		
-		m_buttonEventListener.ProcessAll([&] (const ButtonEvent& event)
+
+	m_buttonEventListener.ProcessAll(
+		[&](const ButtonEvent& event)
 		{
 			if (!enabled || !event.newState)
 				return;
-			
+
 			auto StepBack = [&]
 			{
 				auto it = m_data.begin() + m_cursorPos;
 				utf8::prior(it, m_data.begin());
 				m_cursorPos = ToInt(it - m_data.begin());
 			};
-			
+
 			auto StepForward = [&]
 			{
 				auto it = m_data.begin() + m_cursorPos;
 				utf8::next(it, m_data.end());
 				m_cursorPos = ToInt(it - m_data.begin());
 			};
-			
+
 			switch (event.button)
 			{
 			case eg::Button::LeftArrow:
@@ -98,28 +99,29 @@ namespace eg
 				break;
 			}
 		});
-		
-		m_wasEnabled = enabled;
-	}
-	
-	void TextEdit::Draw(const glm::vec2& position, SpriteBatch& spriteBatch, const ColorLin& color) const
+
+	m_wasEnabled = enabled;
+}
+
+void TextEdit::Draw(const glm::vec2& position, SpriteBatch& spriteBatch, const ColorLin& color) const
+{
+	spriteBatch.DrawText(*m_font, Text(), position, color, m_fontScale, nullptr, TextFlags::DropShadow);
+
+	const float cursorX = position.x + m_font->GetTextExtents(Text().substr(0, m_cursorPos)).x * m_fontScale;
+
+	if (m_wasEnabled)
 	{
-		spriteBatch.DrawText(*m_font, Text(), position, color, m_fontScale, nullptr, TextFlags::DropShadow);
-		
-		const float cursorX = position.x + m_font->GetTextExtents(Text().substr(0, m_cursorPos)).x * m_fontScale;
-		
-		if (m_wasEnabled)
-		{
-			float fontH = static_cast<float>(m_font->Size()) * m_fontScale;
-			TextInputActive(eg::Rectangle(cursorX, static_cast<float>(CurrentResolutionY()) - position.y, 100.0f, fontH));
-		}
-		
-		if (m_cursorBlinkProgress < 1)
-		{
-			const float CURSOR_EXTRA_H = 2;
-			
-			spriteBatch.DrawLine(glm::vec2(cursorX, position.y - CURSOR_EXTRA_H),
-				glm::vec2(cursorX, position.y + static_cast<float>(m_font->Size()) * m_fontScale + CURSOR_EXTRA_H), color);
-		}
+		float fontH = static_cast<float>(m_font->Size()) * m_fontScale;
+		TextInputActive(eg::Rectangle(cursorX, static_cast<float>(CurrentResolutionY()) - position.y, 100.0f, fontH));
+	}
+
+	if (m_cursorBlinkProgress < 1)
+	{
+		const float CURSOR_EXTRA_H = 2;
+
+		spriteBatch.DrawLine(
+			glm::vec2(cursorX, position.y - CURSOR_EXTRA_H),
+			glm::vec2(cursorX, position.y + static_cast<float>(m_font->Size()) * m_fontScale + CURSOR_EXTRA_H), color);
 	}
 }
+} // namespace eg

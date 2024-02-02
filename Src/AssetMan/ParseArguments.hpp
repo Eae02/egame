@@ -7,11 +7,11 @@ struct ParsedArguments
 {
 	std::string_view inputFileName;
 	std::string_view outputFileName;
-	
+
 	bool writeInfo = false;
 	bool writeList = false;
 	bool dryRun = false;
-	
+
 	std::vector<std::string_view> removeByName;
 };
 

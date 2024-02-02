@@ -2,8 +2,8 @@
 
 #include "API.hpp"
 
-#include <string>
 #include <iostream>
+#include <string>
 
 #if defined(NDEBUG)
 #define EG_DEBUG_BREAK
@@ -29,14 +29,17 @@
 
 #include <sstream>
 
-#define EG_ASSERT(condition) if (!(condition)) {\
-	::eg::detail::PanicImpl("A@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) " " #condition);\
-}
-#define EG_PANIC(msg) {\
-	std::ostringstream ps;\
-	ps << "P@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) "\n" << msg;\
-	::eg::detail::PanicImpl(ps.str());\
-}
+#define EG_ASSERT(condition)                                                                                           \
+	if (!(condition))                                                                                                  \
+	{                                                                                                                  \
+		::eg::detail::PanicImpl("A@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) " " #condition);                             \
+	}
+#define EG_PANIC(msg)                                                                                                  \
+	{                                                                                                                  \
+		std::ostringstream ps;                                                                                         \
+		ps << "P@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) "\n" << msg;                                                   \
+		::eg::detail::PanicImpl(ps.str());                                                                             \
+	}
 
 #ifdef NDEBUG
 #define EG_DEBUG_ASSERT(condition) condition
@@ -49,10 +52,10 @@
 
 namespace eg
 {
-	EG_API extern void (*releasePanicCallback)(const std::string& message);
-	
-	namespace detail
-	{
-		[[noreturn]] EG_API void PanicImpl(const std::string& message);
-	}
+EG_API extern void (*releasePanicCallback)(const std::string& message);
+
+namespace detail
+{
+[[noreturn]] EG_API void PanicImpl(const std::string& message);
 }
+} // namespace eg

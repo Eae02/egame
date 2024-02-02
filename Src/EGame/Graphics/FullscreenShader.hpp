@@ -5,18 +5,19 @@
 
 namespace eg
 {
-	namespace detail
-	{
-		void DestroyFullscreenShaders();
-	}
-	
-	enum class FullscreenShaderTexCoordMode
-	{
-		NoOutput,
-		NotFlipped,
-		Flipped,
-		FlippedIfOpenGL
-	};
-	
-	EG_API ShaderModuleHandle GetFullscreenShader(FullscreenShaderTexCoordMode texCoordMode = FullscreenShaderTexCoordMode::FlippedIfOpenGL);
+namespace detail
+{
+void DestroyFullscreenShaders();
 }
+
+enum class FullscreenShaderTexCoordMode
+{
+	NoOutput,
+	NotFlipped,
+	Flipped,
+	FlippedIfOpenGL
+};
+
+EG_API ShaderModuleHandle
+GetFullscreenShader(FullscreenShaderTexCoordMode texCoordMode = FullscreenShaderTexCoordMode::FlippedIfOpenGL);
+} // namespace eg

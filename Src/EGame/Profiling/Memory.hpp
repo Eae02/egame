@@ -4,5 +4,5 @@
 
 namespace eg
 {
-	uint32_t GetMemoryUsageRSS();
+uint32_t GetMemoryUsageRSS();
 }

@@ -2,5 +2,5 @@
 
 namespace eg::asset_gen
 {
-	extern const TBuiltInResource DefaultTBuiltInResource;
+extern const TBuiltInResource DefaultTBuiltInResource;
 }

@@ -6,5 +6,5 @@
 
 namespace eg
 {
-	size_t HashYAMLNode(const YAML::Node& node);
+size_t HashYAMLNode(const YAML::Node& node);
 }

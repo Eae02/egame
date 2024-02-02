@@ -7,23 +7,23 @@
 
 namespace eg
 {
-	void (*releasePanicCallback)(const std::string& message);
-	
-	void detail::PanicImpl(const std::string& message)
-	{
-		std::cerr << message << std::endl;
-		
+void (*releasePanicCallback)(const std::string& message);
+
+void detail::PanicImpl(const std::string& message)
+{
+	std::cerr << message << std::endl;
+
 #ifdef NDEBUG
 #ifndef __EMSCRIPTEN__
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Runtime Error", message.c_str(), nullptr);
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Runtime Error", message.c_str(), nullptr);
 #endif
-		if (releasePanicCallback)
-			releasePanicCallback(message);
+	if (releasePanicCallback)
+		releasePanicCallback(message);
 #else
-		PrintStackTraceToStdOut({});
-		EG_DEBUG_BREAK;
+	PrintStackTraceToStdOut({});
+	EG_DEBUG_BREAK;
 #endif
-		
-		std::abort();
-	}
+
+	std::abort();
 }
+} // namespace eg
