@@ -76,7 +76,7 @@ namespace eg::graphics_api::gl
 		case Format::Depth24Stencil8: return GL_DEPTH24_STENCIL8;
 		case Format::Depth32Stencil8: return GL_DEPTH32F_STENCIL8;
 		
-#ifndef EG_GLES
+#ifndef __EMSCRIPTEN__
 		case Format::R16_UNorm: return GL_R16;
 		case Format::R16G16_UNorm: return GL_RG16;
 		case Format::R16G16B16_UNorm: return GL_RGB16;

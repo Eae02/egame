@@ -3,6 +3,7 @@
 #include "Graphics/SpriteFont.hpp"
 #include "String.hpp"
 #include "Assert.hpp"
+#include "Core.hpp"
 
 #include <variant>
 #include <algorithm>
@@ -310,8 +311,6 @@ namespace eg
 			
 			if (IsButtonDown(Button::Enter) && !WasButtonDown(Button::Enter))
 			{
-				ctx->textEdit.Clear();
-				
 				if (!ctx->commandParts.empty())
 				{
 					Command* cmd = FindCommandByName(ctx->commandParts[0]);
@@ -335,6 +334,8 @@ namespace eg
 						cmd->callback(args, writer);
 					}
 				}
+				
+				ctx->textEdit.Clear();
 			}
 			
 			if (ctx->maxScroll > 0)
@@ -361,6 +362,12 @@ namespace eg
 		if (ctx == nullptr || ctx->showProgress < 0.000001f)
 			return;
 		
+		const SpriteFont& font = SpriteFont::DevFont();
+		
+		const float fontScale = DisplayScaleFactor() * 10.0 / static_cast<float>(font.Size());
+		ctx->textEdit.SetFontScale(fontScale);
+		const float scaledFontSize = static_cast<float>(font.Size()) * fontScale;
+		
 		const float width = static_cast<float>(screenWidth) * 0.8f;
 		const float height = width * 0.2f;
 		const float padding = width * 0.01f;
@@ -371,11 +378,9 @@ namespace eg
 		const float innerMinX = baseX + padding;
 		const float innerMaxX = baseX + width - padding;
 		
-		const SpriteFont& font = SpriteFont::DevFont();
-		
 		spriteBatch.DrawRect(Rectangle(baseX, baseY, width, height), ColorLin(ColorSRGB(0.2f, 0.2f, 0.25f, opacity)));
 		
-		spriteBatch.PushScissorF(innerMinX, baseY, width - padding * 2, static_cast<float>(font.Size()) + padding * 2);
+		spriteBatch.PushScissorF(innerMinX, baseY, width - padding * 2, scaledFontSize + padding * 2);
 		
 		ctx->textEdit.Draw(glm::vec2(innerMinX, baseY + padding), spriteBatch, ColorLin(1, 1, 1, opacity));
 		
@@ -384,42 +389,42 @@ namespace eg
 			std::string_view currentCompletion(ctx->completions[ctx->currentCompletion]);
 			std::string_view completionRem = currentCompletion.substr(ctx->commandParts.back().size());
 			spriteBatch.DrawText(*ctx->textEdit.Font(), completionRem, glm::vec2(innerMinX + ctx->textEdit.TextWidth(), baseY + padding),
-			    ColorLin(1, 1, 1, opacity * 0.5f));
+			    ColorLin(1, 1, 1, opacity * 0.5f), fontScale);
 		}
 		
 		spriteBatch.PopScissor();
 		
-		const float lineY = baseY + padding * 2.0f + static_cast<float>(font.Size());
+		const float lineY = baseY + padding * 2.0f + scaledFontSize;
 		
 		float viewWindowHeight = height - (lineY - baseY) - padding * 2.0f;
 		ctx->maxScroll = static_cast<float>(ctx->lines.size()) - viewWindowHeight / ctx->textEdit.Font()->LineHeight();
 		
-		spriteBatch.DrawLine(glm::vec2(innerMinX, lineY), glm::vec2(innerMaxX, lineY), ColorLin(1, 1, 1, opacity), 0.5f);
+		spriteBatch.DrawLine(glm::vec2(innerMinX, lineY), glm::vec2(innerMaxX, lineY), ColorLin(1, 1, 1, opacity), 0.5f * fontScale);
 		
-		spriteBatch.PushScissorF(innerMinX, lineY + 1, width - padding * 2, height - (lineY - baseY));
+		spriteBatch.PushScissorF(innerMinX, lineY + fontScale, width - padding * 2, height - (lineY - baseY));
 		
 		{
 			std::lock_guard<std::mutex> lock(ctx->linesMutex);
-			float y = lineY + padding - ctx->textEdit.Font()->LineHeight() * ctx->scroll;
+			float y = lineY + padding - ctx->textEdit.Font()->LineHeight() * ctx->scroll * fontScale;
 			for (int i = ToInt(ctx->lines.size()) - 1; i >= 0; i--)
 			{
 				glm::vec2 textPos(innerMinX, std::round(y));
 				for (const LineSegment& segment : ctx->lines[i])
 				{
-					spriteBatch.DrawText(*ctx->textEdit.Font(), segment.text, textPos, segment.color, 1, nullptr, TextFlags::DropShadow);
-					textPos.x += ctx->textEdit.Font()->GetTextExtents(segment.text).x;
+					spriteBatch.DrawText(*ctx->textEdit.Font(), segment.text, textPos, segment.color, fontScale, nullptr, TextFlags::DropShadow);
+					textPos.x += ctx->textEdit.Font()->GetTextExtents(segment.text).x * fontScale;
 				}
-				y += ctx->textEdit.Font()->LineHeight();
+				y += ctx->textEdit.Font()->LineHeight() * fontScale;
 			}
 		}
 		
 		if (ctx->maxScroll > 0)
 		{
-			const int SCROLL_WIDTH = 2;
-			const float scrollHeight = viewWindowHeight * viewWindowHeight /
+			const int scrollBarWidth = 2 * fontScale;
+			const float scrollBarHeight = viewWindowHeight * viewWindowHeight /
 				(static_cast<float>(ctx->lines.size()) * ctx->textEdit.Font()->LineHeight());
-			const float scrollY = (viewWindowHeight - scrollHeight) * (ctx->scroll / ctx->maxScroll);
-			const Rectangle rectangle(innerMaxX - SCROLL_WIDTH, lineY + padding + scrollY, SCROLL_WIDTH, scrollHeight);
+			const float scrollY = (viewWindowHeight - scrollBarHeight) * (ctx->scroll / ctx->maxScroll);
+			const Rectangle rectangle(innerMaxX - scrollBarWidth, lineY + padding + scrollY, scrollBarWidth, scrollBarHeight);
 			spriteBatch.DrawRect(rectangle, ColorLin(1, 1, 1, opacity * std::min(ctx->scrollOpacity, 1.0f)));
 		}
 		
@@ -428,10 +433,10 @@ namespace eg
 		if (!ctx->completions.empty())
 		{
 			int numLines = ToInt(std::min<size_t>(ctx->completions.size(), 4));
-			float lineStep = font.LineHeight() * 1.5f;
-			float textOffsetY = font.LineHeight() * 0.4f;
+			float lineStep = font.LineHeight() * fontScale * 1.5f;
+			float textOffsetY = font.LineHeight() * fontScale * 0.4f;
 			
-			float complBoxW = 200;
+			float complBoxW = 200 * fontScale;
 			float complBoxH = static_cast<float>(numLines) * lineStep;
 			float complBoxX = innerMinX + ctx->textEdit.TextWidth();
 			float complBoxY = baseY - complBoxH;
@@ -453,7 +458,8 @@ namespace eg
 					spriteBatch.DrawRect(Rectangle(complBoxX, y, complBoxW, lineStep), backColor);
 				}
 				
-				spriteBatch.DrawText(*ctx->textEdit.Font(), ctx->completions[realIdx], glm::vec2(textX, y + textOffsetY), ColorLin(1, 1, 1, opacity));
+				spriteBatch.DrawText(*ctx->textEdit.Font(), ctx->completions[realIdx], glm::vec2(textX, y + textOffsetY),
+					ColorLin(1, 1, 1, opacity), fontScale);
 			}
 			
 			spriteBatch.PopScissor();

@@ -285,7 +285,7 @@ namespace eg::graphics_api::gl
 			hasStencil = defaultFramebufferHasStencil;
 			forceClear = !hasWrittenToBackBuffer;
 			
-#ifndef EG_GLES
+#ifndef __EMSCRIPTEN__
 			SetEnabled<GL_FRAMEBUFFER_SRGB>(srgbBackBuffer);
 			SetEnabled<GL_MULTISAMPLE>(false);
 #endif
@@ -297,7 +297,7 @@ namespace eg::graphics_api::gl
 			hasStencil = currentFramebuffer->hasStencil;
 			forceClear = false;
 			
-#ifndef EG_GLES
+#ifndef __EMSCRIPTEN__
 			SetEnabled<GL_FRAMEBUFFER_SRGB>(true);
 			SetEnabled<GL_MULTISAMPLE>(currentFramebuffer->multisampled);
 #endif

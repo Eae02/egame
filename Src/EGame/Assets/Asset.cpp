@@ -152,7 +152,7 @@ namespace eg
 			return { };
 		
 		uint64_t yamlHash = BinRead<uint64_t>(stream);
-		if (yamlHash != expectedYamlHash)
+		if (yamlHash != expectedYamlHash && yamlHash != 0)
 			return { };
 		
 		GeneratedAsset asset;

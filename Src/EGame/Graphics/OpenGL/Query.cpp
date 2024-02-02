@@ -78,7 +78,7 @@ namespace eg::graphics_api::gl
 	bool GetQueryResults(QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries,
 	                     uint64_t dataSize, void* data)
 	{
-#ifdef EG_GLES
+#ifdef __EMSCRIPTEN__
 		return true;
 #else
 		if (dataSize < sizeof(uint64_t) * numQueries)
@@ -108,7 +108,7 @@ namespace eg::graphics_api::gl
 	
 	void WriteTimestamp(CommandContextHandle, QueryPoolHandle queryPoolHandle, uint32_t query)
 	{
-#ifdef EG_GLES
+#ifdef __EMSCRIPTEN__
 		static bool hasWarned = false;
 		if (!hasWarned)
 		{

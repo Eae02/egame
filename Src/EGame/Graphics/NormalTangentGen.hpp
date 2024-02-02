@@ -78,6 +78,6 @@ namespace eg
 	{
 		std::unique_ptr<glm::vec3[], FreeDel> normals = GenerateNormals(indices, numVertices, getVertexPos);
 		std::unique_ptr<glm::vec3[], FreeDel> tangents = GenerateTangents(indices, numVertices, getVertexPos, getVertexTexCoord, [&] (size_t v) { return normals[v]; });
-		return { normals, tangents };
+		return { std::move(normals), std::move(tangents) };
 	}
 }

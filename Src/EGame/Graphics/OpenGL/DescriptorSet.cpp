@@ -126,8 +126,10 @@ namespace eg::graphics_api::gl
 				                  dsBinding.offset, dsBinding.range);
 				break;
 			case BindingType::StorageBuffer:
+#ifndef EG_GLES
 				glBindBufferRange(GL_SHADER_STORAGE_BUFFER, binding.glBinding, dsBinding.bufferOrSampler,
 				                  dsBinding.offset, dsBinding.range);
+#endif
 				break;
 			case BindingType::Texture:
 				dsBinding.textureView->Bind(dsBinding.bufferOrSampler, binding.glBinding);

@@ -273,6 +273,7 @@ namespace eg::imgui
 		
 		io.DisplaySize.x = eg::CurrentResolutionX();
 		io.DisplaySize.y = eg::CurrentResolutionY();
+		io.FontGlobalScale = eg::DisplayScaleFactor();
 		io.DeltaTime = dt;
 		io.MousePos = ImVec2(eg::CursorPos().x, eg::CursorPos().y);
 		io.MouseWheel = eg::InputState::Current().scrollY - eg::InputState::Previous().scrollY;

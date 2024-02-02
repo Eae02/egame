@@ -1,4 +1,4 @@
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) || defined(__APPLE__)
 
 #include "FontConfig.hpp"
 

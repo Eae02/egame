@@ -1,9 +1,14 @@
 #pragma once
 
 #ifndef EG_NO_OPENAL
-#ifdef __EMSCRIPTEN__
+
+#if defined(__EMSCRIPTEN__)
 #include <AL/al.h>
 #include <AL/alc.h>
+#elif defined(__APPLE__)
+#define OPENAL_DEPRECATED
+#include <OpenAL/al.h>
+#include <OpenAL/alc.h>
 #else
 #include <al.h>
 #include <alc.h>

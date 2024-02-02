@@ -24,7 +24,7 @@ namespace eg::al
 	decltype(&alSourcePause)         SourcePause;
 	decltype(&alListenerf)           Listenerf;
 	
-#ifdef __EMSCRIPTEN__
+#if defined(__EMSCRIPTEN__) || defined(__APPLE__)
 	static bool StartLoadOpenAL() { return true; }
 	
 	#define LOAD_AL_FUNC(prefix, name) eg::al::name = &::prefix ## name;

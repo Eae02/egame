@@ -194,7 +194,7 @@ namespace eg::graphics_api::gl
 	
 	void DebugLabelBegin(CommandContextHandle, const char* label, const float* color)
 	{
-#ifndef __EMSCRIPTEN__
+#ifndef EG_GLES
 		if (glPushDebugGroup != nullptr)
 			glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, label);
 #endif
@@ -202,7 +202,7 @@ namespace eg::graphics_api::gl
 	
 	void DebugLabelEnd(CommandContextHandle)
 	{
-#ifndef __EMSCRIPTEN__
+#ifndef EG_GLES
 		if (glPopDebugGroup != nullptr)
 			glPopDebugGroup();
 #endif
@@ -210,7 +210,7 @@ namespace eg::graphics_api::gl
 	
 	void DebugLabelInsert(CommandContextHandle, const char* label, const float* color)
 	{
-#ifndef __EMSCRIPTEN__
+#ifndef EG_GLES
 		if (glDebugMessageInsert != nullptr)
 			glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, label);
 #endif

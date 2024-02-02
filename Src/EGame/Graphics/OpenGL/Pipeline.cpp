@@ -272,6 +272,10 @@ namespace eg::graphics_api::gl
 			
 			spirv_cross::CompilerGLSL::Options options = compiler->get_common_options();
 			
+#ifdef __APPLE__
+			options.version = 330;
+			options.enable_420pack_extension = false;
+#else
 			if (useGLESPath && !usesGL4Resources)
 			{
 				options.version = 300;
@@ -282,6 +286,7 @@ namespace eg::graphics_api::gl
 			{
 				options.version = 430;
 			}
+#endif
 			
 			compiler->set_common_options(options);
 			std::string glslCode = compiler->compile();

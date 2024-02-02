@@ -1,4 +1,4 @@
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 
 #include "DynamicLibrary.hpp"
 #include "../String.hpp"
@@ -30,7 +30,14 @@ namespace eg
 	
 	std::string DynamicLibrary::PlatformFormat(std::string_view name)
 	{
-		return Concat({ "lib", name, ".so" });
+#ifdef __linux__
+		constexpr const char* SUFFIX = ".so";
+#endif
+#ifdef __APPLE__
+		constexpr const char* SUFFIX = ".dylib";
+#endif
+
+		return Concat({ "lib", name, SUFFIX });
 	}
 	
 	const char* DynamicLibrary::FailureReason()

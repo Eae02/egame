@@ -38,13 +38,6 @@ namespace eg
 			return 1;
 		}
 		
-		if (!SDL_HasSSE41())
-		{
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "CPU Not Supported",
-				"This game requires SSE 4.1, which your CPU does not support.", nullptr);
-			return 1;
-		}
-		
 		if (DevMode())
 		{
 			SDL_SetHint("SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR", "0");
@@ -86,7 +79,7 @@ namespace eg
 			detail::exeDirPath = exeDirPathPtr;
 		}
 		
-		uint32_t windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN;
+		uint32_t windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI;
 		
 		Format defaultDSFormat = runConfig.defaultDepthStencilFormat;
 		if (GetFormatType(defaultDSFormat) != FormatTypes::DepthStencil &&
@@ -102,8 +95,14 @@ namespace eg
 			if (DevMode())
 				contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
 			
-			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+#ifdef __APPLE__
+			constexpr std::pair<uint32_t, uint32_t> OPEN_GL_VERSION = { 3, 3 };
+#else
+			constexpr std::pair<uint32_t, uint32_t> OPEN_GL_VERSION = { 4, 3 };
+#endif
+			
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, OPEN_GL_VERSION.first);
+			SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, OPEN_GL_VERSION.second);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 			SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
 			SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE,
@@ -201,6 +200,12 @@ namespace eg
 		{
 			hasCalledTextInputActive = false;
 			hasSetTextInputRect = false;
+			
+			int windowWidth, windowHeight, displayWidth, displayHeight;
+			SDL_GetWindowSize(sdlWindow, &windowWidth, &windowHeight);
+			gal::GetDrawableSize(displayWidth, displayHeight);
+			detail::displayScaleFactor = static_cast<float>(displayWidth) / static_cast<float>(windowWidth);
+			
 			detail::RunFrame(*game);
 			if (!hasCalledTextInputActive && textInputActive)
 			{
@@ -277,14 +282,14 @@ namespace eg
 			case SDL_MOUSEMOTION:
 				if (firstMouseMotionEvent)
 				{
-					detail::previousIS->cursorX = event.motion.x;
-					detail::previousIS->cursorY = event.motion.y;
+					detail::previousIS->cursorX = static_cast<float>(event.motion.x) * detail::displayScaleFactor;
+					detail::previousIS->cursorY = static_cast<float>(event.motion.y) * detail::displayScaleFactor;
 					firstMouseMotionEvent = false;
 				}
-				detail::currentIS->cursorX = event.motion.x;
-				detail::currentIS->cursorY = event.motion.y;
-				detail::currentIS->cursorDeltaX += event.motion.xrel;
-				detail::currentIS->cursorDeltaY += event.motion.yrel;
+				detail::currentIS->cursorX = static_cast<float>(event.motion.x) * detail::displayScaleFactor;
+				detail::currentIS->cursorY = static_cast<float>(event.motion.y) * detail::displayScaleFactor;
+				detail::currentIS->cursorDeltaX += static_cast<float>(event.motion.xrel) * detail::displayScaleFactor;
+				detail::currentIS->cursorDeltaY += static_cast<float>(event.motion.yrel) * detail::displayScaleFactor;
 				break;
 			case SDL_MOUSEWHEEL:
 				detail::currentIS->scrollX += event.wheel.x;

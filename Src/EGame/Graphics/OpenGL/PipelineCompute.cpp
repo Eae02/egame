@@ -3,7 +3,7 @@
 
 namespace eg::graphics_api::gl
 {
-#ifdef __EMSCRIPTEN__
+#ifdef EG_GLES
 	PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo)
 	{
 		Log(LogLevel::Error, "gl", "Compute shaders are not supported in WebGL");

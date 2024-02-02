@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef __EMSCRIPTEN__
+#if defined(__x86_64__)
 #define EG_HAS_SIMD
 #include <emmintrin.h>
 #include <smmintrin.h>

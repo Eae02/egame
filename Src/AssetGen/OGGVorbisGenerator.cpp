@@ -76,13 +76,11 @@ namespace eg::asset_gen
 				}
 			} while (bytes != 0);
 			
-			AudioClipAssetHeader header;
-			header.channelCount = outputChannels;
-			header.frequency = info->rate;
-			header.samples = samples.size();
-			
 			generateContext.outputFlags |= eg::AssetFlags::DisableEAPCompression;
-			generateContext.outputStream.write(reinterpret_cast<const char*>(&header), sizeof(header));
+			eg::BinWrite<uint32_t>(generateContext.outputStream, outputChannels);
+			eg::BinWrite<uint64_t>(generateContext.outputStream, info->rate);
+			eg::BinWrite<uint64_t>(generateContext.outputStream, samples.size());
+			
 			generateContext.outputStream.write(reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t));
 			
 			ov_clear(&oggFile);

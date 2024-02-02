@@ -190,17 +190,17 @@ namespace eg
 			m_axisValues[static_cast<int>(axis)] = newValue;
 		}
 		
-		glm::ivec2 CursorPos() const
+		glm::vec2 CursorPos() const
 		{
 			return { cursorX, cursorY };
 		}
 		
-		glm::ivec2 CursorPosDelta() const
+		glm::vec2 CursorPosDelta() const
 		{
 			return { cursorDeltaX, cursorDeltaY };
 		}
 		
-		glm::ivec2 ScrollPos() const
+		glm::vec2 ScrollPos() const
 		{
 			return { scrollX, scrollY };
 		}
@@ -230,12 +230,12 @@ namespace eg
 			return *detail::previousIS;
 		}
 		
-		int32_t scrollX = 0;
-		int32_t scrollY = 0;
-		int32_t cursorX = 0;
-		int32_t cursorY = 0;
-		int32_t cursorDeltaX = 0;
-		int32_t cursorDeltaY = 0;
+		float scrollX = 0;
+		float scrollY = 0;
+		float cursorX = 0;
+		float cursorY = 0;
+		float cursorDeltaX = 0;
+		float cursorDeltaY = 0;
 		
 	private:
 		Button m_pressed = Button::Unknown;
@@ -270,47 +270,47 @@ namespace eg
 		return detail::previousIS->IsButtonDown(button);
 	}
 	
-	inline glm::ivec2 CursorPos()
+	inline glm::vec2 CursorPos()
 	{
 		return detail::currentIS->CursorPos();
 	}
 	
-	inline int32_t CursorX()
+	inline float CursorX()
 	{
 		return detail::currentIS->cursorX;
 	}
 	
-	inline int32_t CursorY()
+	inline float CursorY()
 	{
 		return detail::currentIS->cursorY;
 	}
 	
-	inline int32_t CursorDeltaX()
+	inline float CursorDeltaX()
 	{
 		return detail::currentIS->cursorDeltaX;
 	}
 	
-	inline int32_t CursorDeltaY()
+	inline float CursorDeltaY()
 	{
 		return detail::currentIS->cursorDeltaY;
 	}
 	
-	inline glm::ivec2 CursorPosDelta()
+	inline glm::vec2 CursorPosDelta()
 	{
 		return detail::currentIS->CursorPosDelta();
 	}
 	
-	inline glm::ivec2 PrevCursorPos()
+	inline glm::vec2 PrevCursorPos()
 	{
 		return detail::previousIS->CursorPos();
 	}
 	
-	inline int32_t PrevCursorX()
+	inline float PrevCursorX()
 	{
 		return detail::previousIS->cursorX;
 	}
 	
-	inline int32_t PrevCursorY()
+	inline float PrevCursorY()
 	{
 		return detail::previousIS->cursorY;
 	}

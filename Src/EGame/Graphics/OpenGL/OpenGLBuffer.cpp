@@ -243,12 +243,17 @@ namespace eg::graphics_api::gl
 	void BindStorageBuffer(CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding,
 		uint64_t offset, uint64_t range)
 	{
+#ifdef EG_GLES
+		EG_PANIC("BindStorageBuffer unsupported");
+#else
 		Buffer* buffer = UnwrapBuffer(handle);
 		glBindBufferRange(GL_SHADER_STORAGE_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, range);
+#endif
 	}
 	
 	inline void MaybeBarrierAfterSSBO(BufferUsage newUsage)
 	{
+#ifndef EG_GLES
 		switch (newUsage)
 		{
 		case BufferUsage::Undefined:break;
@@ -272,6 +277,7 @@ namespace eg::graphics_api::gl
 			break;
 		case BufferUsage::HostRead: break;
 		}
+#endif
 	}
 	
 	void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags)

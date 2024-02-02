@@ -33,6 +33,7 @@ namespace eg
 	
 	bool Texture2DLoader(const AssetLoadContext& loadContext)
 	{
+		EG_ASSERT(reinterpret_cast<uintptr_t>(loadContext.Data().data()) % alignof(Header) == 0);
 		const Header* header = reinterpret_cast<const Header*>(loadContext.Data().data());
 		
 		SamplerDescription sampler;
@@ -137,6 +138,7 @@ namespace eg
 	
 	void Texture2DLoaderPrintInfo(std::span<const char> data, std::ostream& outStream)
 	{
+		EG_ASSERT(reinterpret_cast<uintptr_t>(data.data()) % alignof(Header) == 0);
 		const Header* header = reinterpret_cast<const Header*>(data.data());
 		
 		uint32_t depth = 0;

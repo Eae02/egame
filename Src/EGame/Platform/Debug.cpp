@@ -3,7 +3,7 @@
 #include <atomic>
 #include <iostream>
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__)
 #include <cxxabi.h>
 #endif
 
@@ -32,11 +32,11 @@ namespace eg
 		std::cout << std::flush;
 	}
 	
-#ifndef __linux__
+#if !defined(__linux__) && !defined(__APPLE__)
 	std::vector<std::string> GetStackTrace() { return { }; }
 #endif
 	
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__clang__)
 	std::string DemangeTypeName(const char* name)
 	{
 		int status = 0;

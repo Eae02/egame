@@ -62,6 +62,51 @@ namespace eg::graphics_api::gl
 			std::abort();
 		}
 	}
+
+	namespace TextureStorageFallback
+	{
+		void glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height)
+		{
+			GLenum firstTarget = target;
+			GLenum lastTarget = target;
+			if (target == GL_TEXTURE_CUBE_MAP)
+			{
+				firstTarget = GL_TEXTURE_CUBE_MAP_POSITIVE_X;
+				lastTarget = GL_TEXTURE_CUBE_MAP_NEGATIVE_Z;
+			}
+			
+			for (GLenum t = firstTarget; t <= lastTarget; t++)
+			{
+				for (int level = 0; level < levels; level++)
+				{
+					glTexImage2D(t, level, internalformat, width >> level, height >> level, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+					EG_ASSERT(glGetError() == GL_NO_ERROR);
+				}
+			}
+		}
+
+		inline void glTexStorage2DMultisample(
+			GLenum target, GLsizei samples, GLenum internalformat,
+			GLsizei width, GLsizei height, GLboolean fixedsamplelocations)
+		{
+			glTexImage2DMultisample(target, samples, internalformat, width, height, fixedsamplelocations);
+		}
+
+		inline void glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth)
+		{
+			for (int level = 0; level < levels; level++)
+			{
+				glTexImage3D(target, level, internalformat, width >> level, height >> level, depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+			}
+		}
+
+		inline void glTexStorage3DMultisample(
+			GLenum target, GLsizei samples, GLenum internalformat,
+			GLsizei width, GLsizei height, GLsizei depth, GLboolean fixedsamplelocations)
+		{
+			glTexImage3DMultisample(target, samples, internalformat, width, height, depth, fixedsamplelocations);
+		}
+	}
 	
 	bool InitializeGLPlatformSpecific(const GraphicsAPIInitArguments& initArguments, std::vector<const char*>& requiredExtensions)
 	{
@@ -73,8 +118,11 @@ namespace eg::graphics_api::gl
 			return false;
 		}
 		
-		useGLESPath = initArguments.preferGLESPath;
 		srgbBackBuffer = initArguments.defaultFramebufferSRGB;
+		
+#ifndef EG_GLES
+		useGLESPath = initArguments.preferGLESPath;
+#endif
 		
 		const char* missingFunction = nullptr;
 #define GL_FUNC(name, proc) \
@@ -92,23 +140,37 @@ namespace eg::graphics_api::gl
 			return false;
 		}
 		
+#ifndef EG_GLES
 		if (glObjectLabel == nullptr)
 		{
 			glObjectLabel = [] (GLenum, GLuint, GLsizei, const GLchar*) {};
 		}
+#endif
 		
 		glWindow = initArguments.window;
 		
-		requiredExtensions.push_back("GL_ARB_buffer_storage");
-		requiredExtensions.push_back("GL_ARB_clear_texture");
 		requiredExtensions.push_back("GL_EXT_texture_filter_anisotropic");
+		if (!useGLESPath)
+		{
+			requiredExtensions.push_back("GL_ARB_buffer_storage");
+			requiredExtensions.push_back("GL_ARB_clear_texture");
+		}
 		if (initArguments.forceDepthZeroToOne)
 		{
 			requiredExtensions.push_back("GL_ARB_clip_control");
 		}
 		
+		if (!IsExtensionSupported("GL_ARB_texture_storage"))
+		{
+			glTexStorage2D = TextureStorageFallback::glTexStorage2D;
+			glTexStorage2DMultisample = TextureStorageFallback::glTexStorage2DMultisample;
+			glTexStorage3D = TextureStorageFallback::glTexStorage3D;
+			glTexStorage3DMultisample = TextureStorageFallback::glTexStorage3DMultisample;
+		}
+		
 		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 		
+#ifndef EG_GLES
 		if (initArguments.forceDepthZeroToOne)
 		{
 			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
@@ -120,6 +182,7 @@ namespace eg::graphics_api::gl
 			glDebugMessageCallback(OpenGLMessageCallback, nullptr);
 			glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 		}
+#endif
 		
 		return true;
 	}
@@ -149,6 +212,11 @@ namespace eg::graphics_api::gl
 	
 	void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	{
+#ifdef EG_GLES
+		deviceInfo.tessellation = false;
+		deviceInfo.computeShader = false;
+		deviceInfo.partialTextureViews = false;
+#else
 		for (int i = 0; i < 3; i++)
 		{
 			int ans;
@@ -159,14 +227,15 @@ namespace eg::graphics_api::gl
 		}
 		deviceInfo.maxComputeWorkGroupInvocations = ToUnsigned(GetIntegerLimit(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS));
 		deviceInfo.storageBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT));
+		deviceInfo.tessellation = true;
+		deviceInfo.computeShader = true;
+		deviceInfo.partialTextureViews = SDL_GL_ExtensionSupported("GL_ARB_texture_view");
+#endif
 		
 		deviceInfo.maxClipDistances         = ToUnsigned(GetIntegerLimit(GL_MAX_CLIP_DISTANCES));
 		deviceInfo.maxTessellationPatchSize = ToUnsigned(GetIntegerLimit(GL_MAX_PATCH_VERTICES));
-		deviceInfo.tessellation             = true;
-		deviceInfo.computeShader            = true;
 		deviceInfo.persistentMappedBuffers  = true;
 		deviceInfo.textureCubeMapArray      = true;
-		deviceInfo.partialTextureViews      = SDL_GL_ExtensionSupported("GL_ARB_texture_view");
 		deviceInfo.blockTextureCompression  =
 			SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
 			SDL_GL_ExtensionSupported("GL_ARB_texture_compression_rgtc");

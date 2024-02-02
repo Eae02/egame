@@ -41,6 +41,7 @@ namespace eg
 	uint64_t detail::frameIndex;
 	std::vector<FullscreenDisplayMode> detail::fullscreenDisplayModes;
 	int64_t detail::nativeDisplayModeIndex = -1;
+	float detail::displayScaleFactor = 1.0f;
 	
 	void(*detail::imguiBeginFrame)(float dt);
 	void(*detail::imguiEndFrame)();

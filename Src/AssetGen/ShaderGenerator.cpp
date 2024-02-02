@@ -161,11 +161,6 @@ namespace eg::asset_gen
 			glslang::InitializeProcess();
 		}
 		
-		~ShaderGenerator() override
-		{
-			glslang::FinalizeProcess();
-		}
-		
 		bool Generate(AssetGenerateContext& generateContext) override
 		{
 			std::string relSourcePath = generateContext.RelSourcePath();

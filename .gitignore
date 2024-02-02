@@ -3,6 +3,7 @@
 .vs
 .vscode
 .idea
+.DS_Store
 Install
 CMake/*/EGameTargets.cmake
 Src/Shaders/**/*.h

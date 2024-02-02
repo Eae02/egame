@@ -80,6 +80,7 @@ namespace eg
 		extern EG_API uint64_t frameIndex;
 		extern EG_API std::vector<FullscreenDisplayMode> fullscreenDisplayModes;
 		extern EG_API int64_t nativeDisplayModeIndex;
+		extern EG_API float displayScaleFactor;
 		
 		extern EG_API void(*imguiBeginFrame)(float dt);
 		extern EG_API void(*imguiEndFrame)();
@@ -93,6 +94,11 @@ namespace eg
 		
 		void RunFrame(IGame& game);
 		void CoreUninitialize();
+	}
+	
+	inline float DisplayScaleFactor()
+	{
+		return detail::displayScaleFactor;
 	}
 	
 	inline uint64_t FrameIdx()

@@ -13,11 +13,10 @@ namespace eg
 	{
 		std::cerr << message << std::endl;
 		
+#ifdef NDEBUG
 #ifndef __EMSCRIPTEN__
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Runtime Error", message.c_str(), nullptr);
 #endif
-		
-#ifdef NDEBUG
 		if (releasePanicCallback)
 			releasePanicCallback(message);
 #else

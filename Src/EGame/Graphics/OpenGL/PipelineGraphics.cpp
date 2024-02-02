@@ -232,6 +232,7 @@ namespace eg::graphics_api::gl
 			
 			glEnableVertexAttribArray(i);
 			
+#ifndef EG_GLES
 			if (!useGLESPath)
 			{
 				glVertexAttribBinding(i, binding);
@@ -246,6 +247,7 @@ namespace eg::graphics_api::gl
 					                     createInfo.vertexAttributes[i].offset);
 				}
 			}
+#endif
 		}
 		
 		std::stable_sort(
@@ -254,6 +256,7 @@ namespace eg::graphics_api::gl
 			[&] (const VertexAttribData& a, const VertexAttribData& b) { return a.binding < b.binding; }
 		);
 		
+#ifndef EG_GLES
 		if (!useGLESPath)
 		{
 			for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
@@ -264,18 +267,18 @@ namespace eg::graphics_api::gl
 				}
 			}
 		}
+#endif
 		
-		if (useGLESPath)
+#ifdef __EMSCRIPTEN__
+		for (uint32_t i = 1; i < MAX_COLOR_ATTACHMENTS; i++)
 		{
-			for (uint32_t i = 1; i < MAX_COLOR_ATTACHMENTS; i++)
+			if (createInfo.blendStates[i].enabled)
 			{
-				if (createInfo.blendStates[i].enabled)
-				{
-					Log(LogLevel::Error, "gl", "Multi-target blend is not supported in GLES");
-					break;
-				}
+				Log(LogLevel::Error, "gl", "Multi-target blend is not supported in WebGL");
+				break;
 			}
 		}
+#endif
 		
 		pipeline->enableScissorTest = createInfo.enableScissorTest;
 		pipeline->enableDepthTest = createInfo.enableDepthTest;
@@ -501,7 +504,7 @@ namespace eg::graphics_api::gl
 		if (enableDepthTest && curState.depthFunc != depthFunc)
 			glDepthFunc(curState.depthFunc = depthFunc);
 		
-#ifndef EG_GLES
+#ifndef __EMSCRIPTEN__
 		if (curState.wireframe != wireframe)
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
@@ -585,54 +588,50 @@ namespace eg::graphics_api::gl
 			std::copy_n(blendConstants, 4, curState.blendConstants);
 		}
 		
-		if (useGLESPath)
+		
+#ifdef __EMSCRIPTEN__
+		if (curState.colorWriteMasks[0] != colorWriteMasks[0])
 		{
-			if (curState.colorWriteMasks[0] != colorWriteMasks[0])
-			{
-				glColorMask(HasFlag(colorWriteMasks[0], ColorWriteMask::R),
-				            HasFlag(colorWriteMasks[0], ColorWriteMask::G),
-				            HasFlag(colorWriteMasks[0], ColorWriteMask::B),
-				            HasFlag(colorWriteMasks[0], ColorWriteMask::A));
-				curState.colorWriteMasks[0] = colorWriteMasks[0];
-			}
-			SetEnabled<GL_BLEND>(blend[0].enabled);
-			if (blend[0].enabled)
-			{
-				glBlendEquationSeparate(blend[0].colorFunc, blend[0].alphaFunc);
-				glBlendFuncSeparate(blend[0].srcColorFactor, blend[0].dstColorFactor,
-				                    blend[0].srcAlphaFactor, blend[0].dstAlphaFactor);
-			}
+			glColorMask(HasFlag(colorWriteMasks[0], ColorWriteMask::R),
+						HasFlag(colorWriteMasks[0], ColorWriteMask::G),
+						HasFlag(colorWriteMasks[0], ColorWriteMask::B),
+						HasFlag(colorWriteMasks[0], ColorWriteMask::A));
+			curState.colorWriteMasks[0] = colorWriteMasks[0];
 		}
-		else
+		SetEnabled<GL_BLEND>(blend[0].enabled);
+		if (blend[0].enabled)
 		{
-#ifndef EG_GLES
-			for (GLuint i = 0; i < 8; i++)
+			glBlendEquationSeparate(blend[0].colorFunc, blend[0].alphaFunc);
+			glBlendFuncSeparate(blend[0].srcColorFactor, blend[0].dstColorFactor,
+								blend[0].srcAlphaFactor, blend[0].dstAlphaFactor);
+		}
+#else
+		for (GLuint i = 0; i < 8; i++)
+		{
+			if (curState.colorWriteMasks[i] != colorWriteMasks[i])
 			{
-				if (curState.colorWriteMasks[i] != colorWriteMasks[i])
-				{
-					glColorMaski(i, HasFlag(colorWriteMasks[i], ColorWriteMask::R),
-					             HasFlag(colorWriteMasks[i], ColorWriteMask::G),
-					             HasFlag(colorWriteMasks[i], ColorWriteMask::B),
-					             HasFlag(colorWriteMasks[i], ColorWriteMask::A));
-					curState.colorWriteMasks[i] = colorWriteMasks[i];
-				}
-				if (curState.blendEnabled[i] != blend[i].enabled)
-				{
-					if (blend[i].enabled)
-						glEnablei(GL_BLEND, i);
-					else
-						glDisablei(GL_BLEND, i);
-					curState.blendEnabled[i] = blend[i].enabled;
-				}
+				glColorMaski(i, HasFlag(colorWriteMasks[i], ColorWriteMask::R),
+								HasFlag(colorWriteMasks[i], ColorWriteMask::G),
+								HasFlag(colorWriteMasks[i], ColorWriteMask::B),
+								HasFlag(colorWriteMasks[i], ColorWriteMask::A));
+				curState.colorWriteMasks[i] = colorWriteMasks[i];
+			}
+			if (curState.blendEnabled[i] != blend[i].enabled)
+			{
 				if (blend[i].enabled)
-				{
-					glBlendEquationSeparatei(i, blend[i].colorFunc, blend[i].alphaFunc);
-					glBlendFuncSeparatei(i, blend[i].srcColorFactor, blend[i].dstColorFactor,
-					                     blend[i].srcAlphaFactor, blend[i].dstAlphaFactor);
-				}
+					glEnablei(GL_BLEND, i);
+				else
+					glDisablei(GL_BLEND, i);
+				curState.blendEnabled[i] = blend[i].enabled;
 			}
-#endif
+			if (blend[i].enabled)
+			{
+				glBlendEquationSeparatei(i, blend[i].colorFunc, blend[i].alphaFunc);
+				glBlendFuncSeparatei(i, blend[i].srcColorFactor, blend[i].dstColorFactor,
+										blend[i].srcAlphaFactor, blend[i].dstAlphaFactor);
+			}
 		}
+#endif
 		
 		updateVAOBindings = true;
 	}
@@ -691,6 +690,7 @@ namespace eg::graphics_api::gl
 		}
 		else
 		{
+#ifndef EG_GLES
 			for (uint32_t binding = 0; binding < MAX_VERTEX_BINDINGS; binding++)
 			{
 				if (pipeline->vertexBindings[binding].stride != UINT32_MAX)
@@ -699,6 +699,7 @@ namespace eg::graphics_api::gl
 					                   pipeline->vertexBindings[binding].stride);
 				}
 			}
+#endif
 		}
 		
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);

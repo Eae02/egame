@@ -10,10 +10,6 @@
 #include "../../Assert.hpp"
 #include "../../Hash.hpp"
 
-#ifndef __EMSCRIPTEN__
-#include <GL/glext.h>
-#endif
-
 namespace eg::graphics_api::gl
 {
 	int maxAnistropy;
@@ -615,8 +611,8 @@ namespace eg::graphics_api::gl
 	
 	void TextureView::BindAsStorageImage(uint32_t glBinding) const
 	{
-#ifdef __EMSCRIPTEN__
-		Log(LogLevel::Error, "gl", "Storage images are not supported in WebGL");
+#ifdef EG_GLES
+		Log(LogLevel::Error, "gl", "Storage images are not supported");
 #else
 		glBindImageTexture(glBinding, handle, 0, GL_TRUE, 0, GL_READ_WRITE, glFormat);
 #endif
@@ -754,6 +750,7 @@ namespace eg::graphics_api::gl
 	
 	inline void MaybeBarrierAfterILS(TextureUsage newUsage)
 	{
+#ifndef EG_GLES
 		switch (newUsage)
 		{
 		case TextureUsage::Undefined:break;
@@ -773,6 +770,7 @@ namespace eg::graphics_api::gl
 			MaybeInsertBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 			break;
 		}
+#endif
 	}
 	
 	void TextureBarrier(CommandContextHandle, TextureHandle, const eg::TextureBarrier& barrier)
