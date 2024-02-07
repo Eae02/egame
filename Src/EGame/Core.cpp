@@ -171,7 +171,13 @@ void detail::RunFrame(IGame& game)
 	eg::RenderPassBeginInfo rpBeginInfo;
 	rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Load;
 	rpBeginInfo.depthLoadOp = AttachmentLoadOp::Load;
-	SpriteBatch::overlay.UploadAndRender(detail::resolutionX, detail::resolutionY, rpBeginInfo);
+	SpriteBatch::overlay.UploadAndRender(
+		SpriteBatch::RenderArgs{
+			.screenWidth = CurrentResolutionX(),
+			.screenHeight = CurrentResolutionY(),
+			.framebufferFormat = ColorAndDepthFormat(Format::DefaultColor, Format::DefaultDepthStencil),
+		},
+		rpBeginInfo);
 
 	gpuTimer.Stop();
 
@@ -320,8 +326,7 @@ void detail::CoreUninitialize()
 	SpriteBatch::DestroyStatic();
 	TranslationGizmo::Destroy();
 	RotationGizmo::Destroy();
-	if (detail::gizmoPipeline.handle)
-		detail::gizmoPipeline.Destroy();
+	detail::DestroyGizmoPipelines();
 	detail::DestroyFullscreenShaders();
 	UnloadAssets();
 	DestroyUploadBuffers();

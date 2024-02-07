@@ -178,6 +178,7 @@ void Initialize(const InitializeArgs& args)
 	pipelineCI.label = "imgui";
 	pipelineCI.enableScissorTest = true;
 	pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
+	pipelineCI.depthAttachmentFormat = eg::Format::DefaultDepthStencil;
 	pipelineCI.blendStates[0] = eg::AlphaBlend;
 	pipelineCI.vertexBindings[0] = { sizeof(ImDrawVert), eg::InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, eg::DataType::Float32, 2, static_cast<uint32_t>(offsetof(ImDrawVert, pos)) };

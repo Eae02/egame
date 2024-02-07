@@ -12,7 +12,6 @@
 #elif defined(__APPLE__)
 #include "GL_Apple.hpp"
 #else
-#include <GL/gl.h>
 #include <GL/glcorearb.h>
 #include <GL/glext.h>
 #endif

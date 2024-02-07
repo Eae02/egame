@@ -58,6 +58,7 @@ FormatTypes GetFormatType(Format format)
 	case Format::R16G16B16_Float:
 	case Format::R32G32B32_Float:
 	case Format::R16G16B16A16_Float:
+	case Format::B10G11R11_UFloat:
 	case Format::R32G32B32A32_Float: return FormatTypes::Float;
 	case Format::R8_SInt:
 	case Format::R16_SInt:
@@ -132,6 +133,7 @@ int GetFormatComponentCount(Format format)
 	case Format::R32G32B32_UInt:
 	case Format::R32G32B32_SInt:
 	case Format::R32G32B32_Float:
+	case Format::B10G11R11_UFloat:
 	case Format::BC1_RGB_UNorm:
 	case Format::BC1_RGB_sRGB: return 3;
 	case Format::R8G8B8A8_sRGB:
@@ -225,6 +227,7 @@ int GetFormatSize(Format format)
 	case Format::A2R10G10B10_SInt: return 4;
 	case Format::A2R10G10B10_UNorm: return 4;
 	case Format::A2R10G10B10_SNorm: return 4;
+	case Format::B10G11R11_UFloat: return 4;
 
 	case Format::BC4_UNorm:
 	case Format::BC5_UNorm:
@@ -332,6 +335,7 @@ std::string_view FormatToString(Format format)
 	case Format::A2R10G10B10_SInt: return "A2R10G10B10_SInt";
 	case Format::A2R10G10B10_UNorm: return "A2R10G10B10_UNorm";
 	case Format::A2R10G10B10_SNorm: return "A2R10G10B10_SNorm";
+	case Format::B10G11R11_UFloat: return "B10G11R11_UFloat";
 	case Format::BC1_RGBA_UNorm: return "BC1_RGBA_UNorm";
 	case Format::BC1_RGBA_sRGB: return "BC1_RGBA_sRGB";
 	case Format::BC1_RGB_UNorm: return "BC1_RGB_UNorm";
@@ -373,8 +377,8 @@ const std::array<std::array<Format, 4>, 11> detail::formatFromDataTypeAndCompone
 	{ Format::R32_SInt, Format::R32G32_SInt, Format::R32G32B32_SInt, Format::R32G32B32A32_SInt },
 } };
 
-const std::array<std::string_view, 8> FormatCapabilityNames = { "SampledImage",           "SampledImageFilterLinear",
-	                                                            "StorageImage",           "StorageImageAtomic",
-	                                                            "ColorAttachment",        "ColorAttachmentBlend",
-	                                                            "DepthStencilAttachment", "VertexAttribute" };
+const std::array<std::string_view, 8> FormatCapabilityNames = {
+	"SampledImage",    "SampledImageFilterLinear", "StorageImage",           "StorageImageAtomic",
+	"ColorAttachment", "ColorAttachmentBlend",     "DepthStencilAttachment", "VertexAttribute",
+};
 } // namespace eg

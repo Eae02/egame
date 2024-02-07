@@ -17,24 +17,33 @@ static const std::array<glm::vec3, 3> AXIS_COLORS = {
 
 static const glm::vec3 CURRENT_AXIS_COLOR(1.0f, 1.0f, 0.5f);
 
-Pipeline gizmoPipeline;
+FramebufferLazyPipeline gizmoPipeline;
 
-void InitializeGizmoPipeline()
+ShaderModule gizmoVertexShader;
+ShaderModule gizmoFragmentShader;
+
+void DestroyGizmoPipelines()
 {
-	return; // TODO: Implement format for the pipeline
+	gizmoVertexShader.Destroy();
+	gizmoFragmentShader.Destroy();
+	gizmoPipeline.DestroyPipelines();
+}
 
-	if (gizmoPipeline.handle)
-		return;
+void InitGizmoPipeline()
+{
+	gizmoVertexShader =
+		ShaderModule(ShaderStage::Vertex, { reinterpret_cast<const char*>(Gizmo_vs_glsl), sizeof(Gizmo_vs_glsl) });
 
-	ShaderModule vs(ShaderStage::Vertex, { reinterpret_cast<const char*>(Gizmo_vs_glsl), sizeof(Gizmo_vs_glsl) });
-	ShaderModule fs(ShaderStage::Fragment, { reinterpret_cast<const char*>(Gizmo_fs_glsl), sizeof(Gizmo_fs_glsl) });
+	gizmoFragmentShader =
+		ShaderModule(ShaderStage::Fragment, { reinterpret_cast<const char*>(Gizmo_fs_glsl), sizeof(Gizmo_fs_glsl) });
 
 	GraphicsPipelineCreateInfo pipelineCI;
-	pipelineCI.vertexShader = vs.Handle();
-	pipelineCI.fragmentShader = fs.Handle();
+	pipelineCI.vertexShader = gizmoVertexShader.Handle();
+	pipelineCI.fragmentShader = gizmoFragmentShader.Handle();
 	pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };
-	gizmoPipeline = Pipeline::Create(pipelineCI);
+
+	gizmoPipeline = FramebufferLazyPipeline(pipelineCI);
 }
 
 std::optional<float> RayIntersectGizmoMesh(

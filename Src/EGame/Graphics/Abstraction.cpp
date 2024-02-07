@@ -2,9 +2,12 @@
 #include "../Assert.hpp"
 #include "../Hash.hpp"
 #include "../Log.hpp"
-#include "Metal/MetalMain.hpp"
 #include "OpenGL/OpenGL.hpp"
 #include "Vulkan/VulkanMain.hpp"
+
+#ifdef __APPLE__
+#include "Metal/MetalMain.hpp"
+#endif
 
 bool eg::SamplerDescription::operator==(const eg::SamplerDescription& rhs) const
 {

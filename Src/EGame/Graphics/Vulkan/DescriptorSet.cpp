@@ -138,7 +138,7 @@ void BindStorageImageDS(TextureViewHandle textureViewHandle, DescriptorSetHandle
 
 	VkDescriptorImageInfo imageInfo = {
 		.imageView = view->view,
-		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
 	};
 
 	VkWriteDescriptorSet writeDS = {

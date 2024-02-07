@@ -1,8 +1,9 @@
 #include "SpriteBatch.hpp"
 #include "../../Shaders/Build/Sprite.fs.h"
 #include "../../Shaders/Build/Sprite.vs.h"
+#include "../Color.hpp"
 #include "../String.hpp"
-#include "EGame/Color.hpp"
+#include "FramebufferLazyPipeline.hpp"
 #include "Graphics.hpp"
 #include "SpriteFont.hpp"
 
@@ -13,28 +14,29 @@ namespace eg
 {
 SpriteBatch SpriteBatch::overlay;
 
-static Pipeline spritePipeline;
+static FramebufferLazyPipeline spritePipeline;
 static Texture whitePixelTexture;
 static Sampler spriteBatchSampler;
 
+static ShaderModule spriteBatchVS;
+static ShaderModule spriteBatchFS;
+
 void SpriteBatch::InitStatic()
 {
-	ShaderModule vs(ShaderStage::Vertex, Sprite_vs_glsl);
-	ShaderModule fs(ShaderStage::Fragment, Sprite_fs_glsl);
+	spriteBatchVS = ShaderModule(ShaderStage::Vertex, Sprite_vs_glsl);
+	spriteBatchFS = ShaderModule(ShaderStage::Fragment, Sprite_fs_glsl);
 
 	GraphicsPipelineCreateInfo pipelineCI;
-	pipelineCI.vertexShader = vs.Handle();
-	pipelineCI.fragmentShader = fs.Handle();
+	pipelineCI.vertexShader = spriteBatchVS.Handle();
+	pipelineCI.fragmentShader = spriteBatchFS.Handle();
 	pipelineCI.enableScissorTest = true;
-	pipelineCI.colorAttachmentFormats[0] =
-		eg::Format::DefaultColor; // TODO: Make the sprite batch able to render to other formats too
 	pipelineCI.blendStates[0] = eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha);
 	pipelineCI.vertexBindings[0] = VertexBinding(sizeof(Vertex), InputRate::Vertex);
 	pipelineCI.vertexAttributes[0] = VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, position));
 	pipelineCI.vertexAttributes[1] = VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, texCoord));
 	pipelineCI.vertexAttributes[2] = VertexAttribute(0, DataType::UInt8Norm, 4, offsetof(Vertex, color));
 	pipelineCI.label = "SpriteBatch";
-	spritePipeline = eg::Pipeline::Create(pipelineCI);
+	spritePipeline = FramebufferLazyPipeline(pipelineCI);
 
 	TextureCreateInfo whiteTexCreateInfo;
 	whiteTexCreateInfo.width = 1;
@@ -69,8 +71,10 @@ void SpriteBatch::InitStatic()
 
 void SpriteBatch::DestroyStatic()
 {
+	spriteBatchVS.Destroy();
+	spriteBatchFS.Destroy();
 	whitePixelTexture.Destroy();
-	spritePipeline.Destroy();
+	spritePipeline.DestroyPipelines();
 }
 
 void SpriteBatch::PushBlendState(SpriteBlend blendState)
@@ -445,7 +449,7 @@ void SpriteBatch::Upload()
 	m_canRender = true;
 }
 
-void SpriteBatch::Render(int screenWidth, int screenHeight, const glm::mat3* matrix) const
+void SpriteBatch::Render(const RenderArgs& renderArgs) const
 {
 	if (m_batches.empty())
 		return;
@@ -455,23 +459,27 @@ void SpriteBatch::Render(int screenWidth, int screenHeight, const glm::mat3* mat
 		EG_PANIC("SpriteBatch::Render called in an invalid state. Did you forget to call SpriteBatch::Upload?");
 	}
 
-	DC.BindPipeline(spritePipeline);
+	spritePipeline.BindPipeline(renderArgs.framebufferFormat);
 
-	glm::mat3 defaultMatrix;
-	if (matrix == nullptr)
+	int screenWidth = renderArgs.screenWidth <= 0 ? CurrentResolutionX() : renderArgs.screenWidth;
+	int screenHeight = renderArgs.screenHeight <= 0 ? CurrentResolutionY() : renderArgs.screenHeight;
+
+	glm::mat3 matrix;
+	if (renderArgs.matrix.has_value())
 	{
-		defaultMatrix = glm::translate(glm::mat3(1), glm::vec2(-1)) *
-		                glm::scale(
-							glm::mat3(1),
-							glm::vec2(2.0f / static_cast<float>(screenWidth), 2.0f / static_cast<float>(screenHeight)));
-		matrix = &defaultMatrix;
+		matrix = *renderArgs.matrix;
+	}
+	else
+	{
+		glm::vec2 scale(2.0f / static_cast<float>(screenWidth), 2.0f / static_cast<float>(screenHeight));
+		matrix = glm::translate(glm::mat3(1), glm::vec2(-1)) * glm::scale(glm::mat3(1), scale);
 	}
 
 	float pcData[4 * 3];
 	for (int r = 0; r < 3; r++)
 	{
 		for (int c = 0; c < 3; c++)
-			pcData[r * 4 + c] = (*matrix)[r][c];
+			pcData[r * 4 + c] = matrix[r][c];
 	}
 	DC.PushConstants(0, sizeof(pcData), pcData);
 
@@ -507,14 +515,13 @@ void SpriteBatch::Render(int screenWidth, int screenHeight, const glm::mat3* mat
 	}
 }
 
-void SpriteBatch::UploadAndRender(
-	int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3* matrix)
+void SpriteBatch::UploadAndRender(const RenderArgs& renderArgs, const RenderPassBeginInfo& rpBeginInfo)
 {
 	if (!m_batches.empty())
 	{
 		Upload();
 		DC.BeginRenderPass(rpBeginInfo);
-		Render(screenWidth, screenHeight, matrix);
+		Render(renderArgs);
 		DC.EndRenderPass();
 	}
 }

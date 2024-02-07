@@ -51,7 +51,7 @@ void SpriteFont::LoadDevFont()
 	if (s_devFont != nullptr)
 		return;
 
-	uint32_t devFontSize = std::round(14.0 * DisplayScaleFactor());
+	uint32_t devFontSize = static_cast<uint32_t>(std::round(14.0f * DisplayScaleFactor()));
 
 	for (const std::string& devFontName : devFontNames)
 	{

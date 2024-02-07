@@ -6,12 +6,14 @@
 
 namespace eg
 {
-static const SamplerDescription bloomTextureSamplerDesc = { .wrapU = WrapMode::ClampToEdge,
-	                                                        .wrapV = WrapMode::ClampToEdge,
-	                                                        .wrapW = WrapMode::ClampToEdge,
-	                                                        .minFilter = TextureFilter::Linear,
-	                                                        .magFilter = TextureFilter::Linear,
-	                                                        .mipFilter = TextureFilter::Linear };
+static const SamplerDescription bloomTextureSamplerDesc = {
+	.wrapU = WrapMode::ClampToEdge,
+	.wrapV = WrapMode::ClampToEdge,
+	.wrapW = WrapMode::ClampToEdge,
+	.minFilter = TextureFilter::Linear,
+	.magFilter = TextureFilter::Linear,
+	.mipFilter = TextureFilter::Linear,
+};
 
 BloomRenderer::RenderTarget::RenderTarget(
 	uint32_t inputWidth, uint32_t inputHeight, uint32_t levels, eg::Format format,

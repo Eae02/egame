@@ -25,7 +25,7 @@ void TranslationGizmo::Initialize()
 	s_arrowVB.UsageHint(BufferUsage::VertexBuffer);
 	s_arrowIB.UsageHint(BufferUsage::IndexBuffer);
 
-	detail::InitializeGizmoPipeline();
+	detail::InitGizmoPipeline();
 }
 
 void TranslationGizmo::Destroy()
@@ -134,9 +134,9 @@ void TranslationGizmo::Update(
 	m_lastPosition = position;
 }
 
-void TranslationGizmo::Draw(const glm::mat4& viewProjMatrix) const
+void TranslationGizmo::Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFormat& framebufferFormat) const
 {
-	DC.BindPipeline(detail::gizmoPipeline);
+	detail::gizmoPipeline.BindPipeline(framebufferFormat);
 	DC.BindVertexBuffer(0, s_arrowVB, 0);
 	DC.BindIndexBuffer(IndexType::UInt16, s_arrowIB, 0);
 

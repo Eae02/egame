@@ -303,7 +303,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	if (!createInfo.cullMode.has_value())
 	{
-		dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_CULL_MODE;
+		dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_CULL_MODE_EXT;
 		pipeline->enableDynamicCullMode = true;
 	}
 

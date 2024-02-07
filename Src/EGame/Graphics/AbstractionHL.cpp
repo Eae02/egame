@@ -111,8 +111,7 @@ static std::vector<UploadBufferEntry> uploadBuffers;
 
 UploadBuffer GetTemporaryUploadBuffer(uint64_t size, uint64_t alignment)
 {
-	if (CurrentGraphicsAPI() == GraphicsAPI::Metal && alignment < 16)
-		alignment = 16;
+	alignment = std::max<uint64_t>(alignment, 16);
 
 	UploadBufferEntry* selected = nullptr;
 	for (UploadBufferEntry& buffer : uploadBuffers)

@@ -75,6 +75,8 @@ enum class Format
 	A2R10G10B10_UNorm,
 	A2R10G10B10_SNorm,
 
+	B10G11R11_UFloat,
+
 	BC1_RGBA_UNorm,
 	BC1_RGBA_sRGB,
 	BC1_RGB_UNorm,
@@ -139,6 +141,19 @@ namespace detail
 {
 EG_API extern const std::array<std::array<Format, 4>, 11> formatFromDataTypeAndComponentCount;
 }
+
+struct ColorAndDepthFormat
+{
+	Format color;
+	Format depth;
+
+	explicit constexpr ColorAndDepthFormat(Format _color = Format::Undefined, Format _depth = Format::Undefined)
+		: color(_color), depth(_depth)
+	{
+	}
+
+	bool operator==(const ColorAndDepthFormat&) const = default;
+};
 
 inline Format FormatFromDataTypeAndComponentCount(DataType dataType, uint32_t numComponents)
 {

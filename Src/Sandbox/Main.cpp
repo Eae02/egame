@@ -26,6 +26,7 @@ struct Game : public eg::IGame
 		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").DefaultVariant();
 		pipelineCI.numColorAttachments = 1;
 		pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
+		pipelineCI.depthAttachmentFormat = eg::Format::DefaultDepthStencil;
 		m_pipeline = eg::Pipeline::Create(pipelineCI);
 #ifdef EG_HAS_IMGUI
 		if (useIMGUI)

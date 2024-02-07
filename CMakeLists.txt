@@ -33,6 +33,7 @@ file(GLOB_RECURSE ASSET_MAN_SOURCE_FILES Src/AssetMan/*.cpp)
 
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/Metal/*")
+	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX ".*\\.mm")
 endif()
 
 #Adds compile options for warnings

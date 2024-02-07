@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) && 0
 #define EG_HAS_SIMD
 #include <emmintrin.h>
 #include <smmintrin.h>

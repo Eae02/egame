@@ -62,7 +62,7 @@ void ParticleManager::SimulateOneStep()
 	for (ParticlePage* page : m_pages)
 	{
 		int numAlive = page->livingParticles;
-		int numAliveDiv4 = (page->livingParticles + 3) / 4;
+		[[maybe_unused]] int numAliveDiv4 = (page->livingParticles + 3) / 4;
 
 		int numDead = 0;
 		int deadIndices[PARTICLES_PER_PAGE];
@@ -450,12 +450,11 @@ void ParticleManager::Step(float dt, const Frustum& frustum, const glm::vec3& ca
 		m_deviceBuffer.UsageHint(BufferUsage::VertexBuffer);
 	}
 
-	alignas(16) float setBuf[4];
-
 	for (int i = 0; i < 6; i++)
 	{
 		const Plane& p = frustum.GetPlane(i);
 #ifdef EG_HAS_SIMD
+		alignas(16) float setBuf[4];
 		setBuf[0] = p.GetNormal().x;
 		setBuf[1] = p.GetNormal().y;
 		setBuf[2] = p.GetNormal().z;

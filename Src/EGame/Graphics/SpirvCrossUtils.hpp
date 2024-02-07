@@ -5,17 +5,18 @@
 
 #include <cstdint>
 #include <span>
+#include <memory>
 
 namespace eg
 {
-void SetSpecializationConstants(const struct ShaderStageInfo& stageInfo, spirv_cross::Compiler& compiler);
+EG_API void SetSpecializationConstants(const struct ShaderStageInfo& stageInfo, spirv_cross::Compiler& compiler);
 
-uint32_t GetPushConstantBytes(
+EG_API uint32_t GetPushConstantBytes(
 	const spirv_cross::Compiler& compiler, const spirv_cross::ShaderResources* shaderResources);
 
 std::unique_ptr<spirv_cross::ParsedIR, SpirvCrossParsedIRDeleter> ParseSpirV(std::span<const uint32_t> spirv);
 
-struct DescriptorSetBindings
+struct EG_API DescriptorSetBindings
 {
 	enum class AppendResult
 	{

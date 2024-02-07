@@ -9,7 +9,7 @@ class ParsedIR;
 
 namespace eg
 {
-struct SpirvCrossParsedIRDeleter
+struct EG_API SpirvCrossParsedIRDeleter
 {
 	void operator()(spirv_cross::ParsedIR* parsedIR) const;
 };

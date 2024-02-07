@@ -3,6 +3,7 @@
 
 #include <spirv_cross.hpp>
 #include <spirv_parser.hpp>
+#include <cstring>
 
 namespace eg
 {

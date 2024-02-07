@@ -97,22 +97,18 @@ public:
 
 	void DrawLine(const glm::vec2& begin, const glm::vec2& end, const ColorLin& color, float width = 1);
 
+	struct RenderArgs
+	{
+		int screenWidth = 0;
+		int screenHeight = 0;
+		ColorAndDepthFormat framebufferFormat;
+		std::optional<glm::mat3> matrix;
+	};
+
 	void Reset();
 	void Upload();
-	void Render(int screenWidth, int screenHeight, const glm::mat3* matrix = nullptr) const;
-	void UploadAndRender(
-		int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3* matrix = nullptr);
-
-	[[deprecated]] void Begin() { Reset(); }
-	[[deprecated]] void End(int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo)
-	{
-		UploadAndRender(screenWidth, screenHeight, rpBeginInfo);
-	}
-	[[deprecated]] void End(
-		int screenWidth, int screenHeight, const RenderPassBeginInfo& rpBeginInfo, const glm::mat3& matrix)
-	{
-		UploadAndRender(screenWidth, screenHeight, rpBeginInfo, &matrix);
-	}
+	void Render(const RenderArgs& renderArgs) const;
+	void UploadAndRender(const RenderArgs& renderArgs, const RenderPassBeginInfo& rpBeginInfo);
 
 	bool Empty() const { return m_batches.empty(); }
 

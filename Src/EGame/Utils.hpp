@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <span>
 
 #include "API.hpp"
 #include "Assert.hpp"
@@ -121,6 +122,28 @@ inline bool SortedContains(const CollectionTp& collection, const ItemTp& item, C
 {
 	auto it = std::lower_bound(collection.begin(), collection.end(), item, compare);
 	return it != collection.end() && *it == item;
+}
+
+template <typename K, typename V>
+inline V* LinearLookupMut(std::span<std::pair<K, V>> map, const K& key)
+{
+	for (const auto& entry : map)
+	{
+		if (entry.first == key)
+			return &entry.second;
+	}
+	return nullptr;
+}
+
+template <typename K, typename V>
+inline const V* LinearLookup(std::span<const std::pair<K, V>> map, const K& key)
+{
+	for (const auto& entry : map)
+	{
+		if (entry.first == key)
+			return &entry.second;
+	}
+	return nullptr;
 }
 
 inline int8_t ToSNorm(float x)

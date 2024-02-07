@@ -634,17 +634,19 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	const bool hasBindMemory2 = OptionalExtensionAvailable(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME);
 
 	VkDeviceCreateInfo deviceCreateInfo = {
-		/* sType                   */ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		/* pNext                   */ nullptr,
-		/* flags                   */ 0,
-		/* queueCreateInfoCount    */ 1,
-		/* pQueueCreateInfos       */ &queueCreateInfo,
-		/* enabledLayerCount       */ 0,
-		/* ppEnabledLayerNames     */ nullptr,
-		/* enabledExtensionCount   */ numEnabledDeviceExtensions,
-		/* ppEnabledExtensionNames */ enabledDeviceExtensions,
-		/* pEnabledFeatures        */ &enabledDeviceFeatures,
+		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+		.queueCreateInfoCount = 1,
+		.pQueueCreateInfos = &queueCreateInfo,
+		.enabledExtensionCount = numEnabledDeviceExtensions,
+		.ppEnabledExtensionNames = enabledDeviceExtensions,
+		.pEnabledFeatures = &enabledDeviceFeatures,
 	};
+
+	VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extendedDynamicStateEnabledFeatures = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+		.extendedDynamicState = VK_TRUE,
+	};
+	deviceCreateInfo.pNext = &extendedDynamicStateEnabledFeatures;
 
 	VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dynamicState3EnabledFeatures = {
 		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
@@ -664,7 +666,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		};
 		vkGetPhysicalDeviceFeatures2KHR(ctx.physDevice, &physDeviceFeatures2);
 
-		deviceCreateInfo.pNext = &dynamicState3EnabledFeatures;
+		extendedDynamicStateEnabledFeatures.pNext = &dynamicState3EnabledFeatures;
 
 		if (dynamicState3Features.extendedDynamicState3PolygonMode)
 		{
@@ -985,6 +987,8 @@ void BeginFrame()
 	ctx.immediateCCState.pipeline = nullptr;
 	ctx.immediateCCState.scissorOutOfDate = true;
 	ctx.immediateCCState.viewportOutOfDate = true;
+	ctx.immediateCCState.cullModeOutOfDate = true;
+	ctx.immediateCCState.polygonModeOutOfDate = true;
 }
 
 void EndFrame()
@@ -1041,25 +1045,29 @@ void EndFrame()
 
 	const VkPipelineStageFlags waitStages = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
 
-	const VkSubmitInfo submitInfo = { /* sType                */ VK_STRUCTURE_TYPE_SUBMIT_INFO,
-		                              /* pNext                */ nullptr,
-		                              /* waitSemaphoreCount   */ 1,
-		                              /* pWaitSemaphores      */ &acquireSemaphore,
-		                              /* pWaitDstStageMask    */ &waitStages,
-		                              /* commandBufferCount   */ 1,
-		                              /* pCommandBuffers      */ &immediateCB,
-		                              /* signalSemaphoreCount */ 1,
-		                              /* pSignalSemaphores    */ &ctx.frameQueueSemaphores[CFrameIdx()] };
+	const VkSubmitInfo submitInfo = {
+		/* sType                */ VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		/* pNext                */ nullptr,
+		/* waitSemaphoreCount   */ 1,
+		/* pWaitSemaphores      */ &acquireSemaphore,
+		/* pWaitDstStageMask    */ &waitStages,
+		/* commandBufferCount   */ 1,
+		/* pCommandBuffers      */ &immediateCB,
+		/* signalSemaphoreCount */ 1,
+		/* pSignalSemaphores    */ &ctx.frameQueueSemaphores[CFrameIdx()],
+	};
 
 	VkResult presentResult;
-	const VkPresentInfoKHR presentInfo = { /* sType              */ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-		                                   /* pNext              */ nullptr,
-		                                   /* waitSemaphoreCount */ 1,
-		                                   /* pWaitSemaphores    */ &ctx.frameQueueSemaphores[CFrameIdx()],
-		                                   /* swapchainCount     */ 1,
-		                                   /* pSwapchains        */ &ctx.swapchain,
-		                                   /* pImageIndices      */ &ctx.currentImage,
-		                                   /* pResults           */ &presentResult };
+	const VkPresentInfoKHR presentInfo = {
+		/* sType              */ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		/* pNext              */ nullptr,
+		/* waitSemaphoreCount */ 1,
+		/* pWaitSemaphores    */ &ctx.frameQueueSemaphores[CFrameIdx()],
+		/* swapchainCount     */ 1,
+		/* pSwapchains        */ &ctx.swapchain,
+		/* pImageIndices      */ &ctx.currentImage,
+		/* pResults           */ &presentResult,
+	};
 
 	CheckRes(vkQueueSubmit(ctx.mainQueue, 1, &submitInfo, ctx.frameQueueFences[CFrameIdx()]));
 

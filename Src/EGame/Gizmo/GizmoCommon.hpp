@@ -5,6 +5,7 @@
 #include <span>
 
 #include "../Graphics/AbstractionHL.hpp"
+#include "../Graphics/FramebufferLazyPipeline.hpp"
 
 namespace eg
 {
@@ -19,9 +20,11 @@ extern uint16_t ARROW_INDICES[138];
 extern float TORUS_VERTICES[360];
 extern uint16_t TORUS_INDICES[720];
 
-extern Pipeline gizmoPipeline;
+extern FramebufferLazyPipeline gizmoPipeline;
 
-void InitializeGizmoPipeline();
+void DestroyGizmoPipelines();
+
+void InitGizmoPipeline();
 
 std::optional<float> RayIntersectGizmoMesh(
 	const glm::mat4& worldMatrix, const Ray& ray, std::span<const float> vertices, std::span<const uint16_t> indices);

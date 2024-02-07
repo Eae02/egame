@@ -63,6 +63,8 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 	case Format::A2R10G10B10_UInt: return GL_RGB10_A2UI;
 	case Format::A2R10G10B10_UNorm: return GL_RGB10_A2;
 
+	case Format::B10G11R11_UFloat: return GL_R11F_G11F_B10F;
+
 	case Format::BC1_RGBA_UNorm: return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
 	case Format::BC1_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
 	case Format::BC1_RGB_UNorm: return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;

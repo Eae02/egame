@@ -16,7 +16,7 @@ public:
 	{
 	public:
 		RenderTarget(
-			uint32_t inputWidth, uint32_t inputHeight, uint32_t levels = 4, Format format = Format::R16G16B16A16_Float,
+			uint32_t inputWidth, uint32_t inputHeight, uint32_t levels = 4, eg::Format format = Format::R16G16B16A16_Float,
 			RenderTargetFlags flags = {});
 
 		const Texture& OutputTexture() const { return m_levels[0].m_textures[2]; }
@@ -49,7 +49,7 @@ public:
 		std::vector<Level> m_levels;
 	};
 
-	explicit BloomRenderer(Format format);
+	explicit BloomRenderer(eg::Format format);
 
 	void Render(const glm::vec3& threshold, eg::TextureRef inputTexture, RenderTarget& renderTarget) const;
 

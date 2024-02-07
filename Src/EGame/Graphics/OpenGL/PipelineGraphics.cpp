@@ -101,7 +101,7 @@ struct GraphicsPipeline : AbstractPipeline
 	void Bind() override;
 };
 
-bool ShouldOutputFramebufferFormats()
+static inline bool ShouldOutputFramebufferFormats()
 {
 	static std::optional<bool> shouldOutputFramebufferFormats;
 	if (!shouldOutputFramebufferFormats.has_value())
@@ -307,7 +307,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	if (createInfo.depthAttachmentFormat != eg::Format::Undefined)
 		pipeline->depthStencilAttachmentFormat = createInfo.depthAttachmentFormat;
 
-	for (int i = 0; i < pipeline->numColorAttachments; i++)
+	for (uint32_t i = 0; i < pipeline->numColorAttachments; i++)
 	{
 		pipeline->colorAttachmentFormats[i] = createInfo.colorAttachmentFormats[i];
 
@@ -338,7 +338,6 @@ void GraphicsPipeline::Free()
 static struct
 {
 	GLenum frontFace = GL_CCW;
-	GLenum cullFace = GL_BACK;
 	GLenum depthFunc = GL_LESS;
 	GLint patchSize = 0;
 	uint32_t numClipDistances = 0;
@@ -565,8 +564,6 @@ void GraphicsPipeline::Bind()
 
 	if (curState.frontFace != frontFace)
 		glFrontFace(curState.frontFace = frontFace);
-	if (curState.cullFace != cullFace)
-		glCullFace(curState.cullFace = cullFace);
 	if (enableDepthTest && curState.depthFunc != depthFunc)
 		glDepthFunc(curState.depthFunc = depthFunc);
 

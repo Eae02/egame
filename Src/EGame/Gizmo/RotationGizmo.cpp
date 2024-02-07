@@ -21,8 +21,6 @@ void RotationGizmo::Initialize()
 
 	s_torusVB.UsageHint(BufferUsage::VertexBuffer);
 	s_torusIB.UsageHint(BufferUsage::IndexBuffer);
-
-	detail::InitializeGizmoPipeline();
 }
 
 void RotationGizmo::Destroy()
@@ -144,9 +142,9 @@ void RotationGizmo::Update(
 	m_lastPosition = position;
 }
 
-void RotationGizmo::Draw(const glm::mat4& viewProjMatrix) const
+void RotationGizmo::Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFormat& framebufferFormat) const
 {
-	DC.BindPipeline(detail::gizmoPipeline);
+	detail::gizmoPipeline.BindPipeline(framebufferFormat);
 	DC.BindVertexBuffer(0, s_torusVB, 0);
 	DC.BindIndexBuffer(IndexType::UInt16, s_torusIB, 0);
 

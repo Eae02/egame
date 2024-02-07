@@ -13,7 +13,7 @@ public:
 
 	void Update(glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix, const Ray& viewRay);
 
-	void Draw(const glm::mat4& viewProjMatrix) const;
+	void Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFormat& framebufferFormat) const;
 
 	bool HasInputFocus() const { return m_currentAxis != -1; }
 
