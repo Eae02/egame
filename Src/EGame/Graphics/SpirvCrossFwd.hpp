@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../API.hpp"
+
 namespace spirv_cross
 {
 class Compiler;
