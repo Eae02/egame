@@ -34,16 +34,10 @@ static void OpenGLMessageCallback(
 	switch (type)
 	{
 	case GL_DEBUG_SEVERITY_HIGH:
-	case GL_DEBUG_TYPE_ERROR:
-		logLevel = LogLevel::Error;
-		break;
+	case GL_DEBUG_TYPE_ERROR: logLevel = LogLevel::Error; break;
 	case GL_DEBUG_SEVERITY_LOW:
-	case GL_DEBUG_SEVERITY_MEDIUM:
-		logLevel = LogLevel::Warning;
-		break;
-	default:
-		logLevel = LogLevel::Info;
-		break;
+	case GL_DEBUG_SEVERITY_MEDIUM: logLevel = LogLevel::Warning; break;
+	default: logLevel = LogLevel::Info; break;
 	}
 
 	std::string_view messageView(message, static_cast<size_t>(length));
@@ -175,6 +169,7 @@ bool InitializeGLPlatformSpecific(
 	}
 
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	glEnable(GL_MULTISAMPLE);
 
 #ifndef EG_GLES
 	if (initArguments.forceDepthZeroToOne)
@@ -242,8 +237,7 @@ void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	deviceInfo.maxTessellationPatchSize = ToUnsigned(GetIntegerLimit(GL_MAX_PATCH_VERTICES));
 	deviceInfo.persistentMappedBuffers = true;
 	deviceInfo.textureCubeMapArray = true;
-	deviceInfo.blockTextureCompression = SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc") &&
-	                                     SDL_GL_ExtensionSupported("GL_ARB_texture_compression_rgtc");
+	deviceInfo.blockTextureCompression = SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc");
 }
 
 static GLsync loadFence;

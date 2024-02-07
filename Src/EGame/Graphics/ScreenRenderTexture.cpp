@@ -48,17 +48,11 @@ void ScreenRenderTexture::PrepareTexture()
 
 	if (m_texture.handle == nullptr || wantedWidth != m_texture.Width() || wantedHeight != m_texture.Height())
 	{
-		SamplerDescription samplerDescription;
-		samplerDescription.wrapU = WrapMode::ClampToEdge;
-		samplerDescription.wrapV = WrapMode::ClampToEdge;
-		samplerDescription.wrapW = WrapMode::ClampToEdge;
-
 		eg::TextureCreateInfo textureCI;
 		textureCI.flags = textureFlags;
 		textureCI.mipLevels = mipLevels;
 		textureCI.sampleCount = sampleCount;
 		textureCI.format = format;
-		textureCI.defaultSamplerDescription = &samplerDescription;
 
 		m_texture = eg::Texture::Create2D(textureCI);
 		m_generation++;

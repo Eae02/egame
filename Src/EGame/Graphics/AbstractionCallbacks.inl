@@ -56,14 +56,12 @@ XM_ABSCALLBACK(CreateFramebuffer, FramebufferHandle, (const FramebufferCreateInf
 XM_ABSCALLBACK(DestroyFramebuffer, void, (FramebufferHandle framebuffer))
 
 XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))
-XM_ABSCALLBACK(DestroySampler, void, (SamplerHandle handle))
 
-XM_ABSCALLBACK(CreateShaderModule, ShaderModuleHandle, (ShaderStage stage, std::span<const char> code))
+XM_ABSCALLBACK(CreateShaderModule, ShaderModuleHandle, (ShaderStage stage, const spirv_cross::ParsedIR& parsedIR))
 XM_ABSCALLBACK(DestroyShaderModule, void, (ShaderModuleHandle handle))
 XM_ABSCALLBACK(CreateGraphicsPipeline, PipelineHandle, (const GraphicsPipelineCreateInfo& createInfo))
 XM_ABSCALLBACK(CreateComputePipeline, PipelineHandle, (const ComputePipelineCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyPipeline, void, (PipelineHandle handle))
-XM_ABSCALLBACK(PipelineFramebufferFormatHint, void, (PipelineHandle handle, const FramebufferFormatHint& hint))
 XM_ABSCALLBACK(BindPipeline, void, (CommandContextHandle ctx, PipelineHandle handle))
 XM_ABSCALLBACK(PushConstants, void, (CommandContextHandle ctx, uint32_t offset, uint32_t range, const void* data))
 
@@ -72,6 +70,8 @@ XM_ABSCALLBACK(DispatchCompute, void, (CommandContextHandle ctx, uint32_t sizeX,
 XM_ABSCALLBACK(SetViewport, void, (CommandContextHandle ctx, float x, float y, float w, float h))
 XM_ABSCALLBACK(SetScissor, void, (CommandContextHandle, int x, int y, int w, int h))
 XM_ABSCALLBACK(SetStencilValue, void, (CommandContextHandle, StencilValue kind, uint32_t val))
+XM_ABSCALLBACK(SetWireframe, void, (CommandContextHandle, bool wireframe))
+XM_ABSCALLBACK(SetCullMode, void, (CommandContextHandle, CullMode cullMode))
 XM_ABSCALLBACK(BeginRenderPass, void, (CommandContextHandle ctx, const RenderPassBeginInfo& beginInfo))
 XM_ABSCALLBACK(EndRenderPass, void, (CommandContextHandle ctx))
 

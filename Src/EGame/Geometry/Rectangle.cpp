@@ -1,5 +1,7 @@
 #include "Rectangle.hpp"
 
+#include <algorithm>
+
 namespace eg
 {
 bool Rectangle::Contains(float px, float py) const

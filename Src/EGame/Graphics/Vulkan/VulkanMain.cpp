@@ -251,33 +251,35 @@ static void CreateSwapchain()
 }
 
 static const char* REQUIRED_DEVICE_EXTENSIONS[] = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME,    VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-	VK_KHR_MAINTENANCE2_EXTENSION_NAME, VK_KHR_MULTIVIEW_EXTENSION_NAME,       VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+	VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+	VK_KHR_MAINTENANCE2_EXTENSION_NAME,
+	VK_KHR_MULTIVIEW_EXTENSION_NAME,
+	VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+	VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
 };
 
-static const char* OPTIONAL_DEVICE_EXTENSIONS[] = { VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-	                                                VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
-	                                                VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
-	                                                VK_KHR_BIND_MEMORY_2_EXTENSION_NAME };
+static const char* OPTIONAL_DEVICE_EXTENSIONS[] = {
+	VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+	VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+	VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
+	VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME,
+	VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+	VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+};
 
 static inline std::string_view GetVendorName(uint32_t id)
 {
 	switch (id)
 	{
-	case 0x1002:
-		return "AMD";
-	case 0x1010:
-		return "ImgTec";
-	case 0x10DE:
-		return "Nvidia";
-	case 0x13B5:
-		return "ARM";
-	case 0x5143:
-		return "Qualcomm";
-	case 0x8086:
-		return "Intel";
-	default:
-		return "Unknown";
+	case 0x1002: return "AMD";
+	case 0x1010: return "ImgTec";
+	case 0x10DE: return "Nvidia";
+	case 0x13B5: return "ARM";
+	case 0x5143: return "Qualcomm";
+	case 0x8086: return "Intel";
+	default: return "Unknown";
 	}
 }
 
@@ -577,12 +579,14 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 	// Creates the logical device
 	const float queuePriorities[] = { 1, 1 };
-	VkDeviceQueueCreateInfo queueCreateInfo = { /* sType            */ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-		                                        /* pNext            */ nullptr,
-		                                        /* flags            */ 0,
-		                                        /* queueFamilyIndex */ ctx.queueFamily,
-		                                        /* queueCount       */ supportsMultipleGraphicsQueues ? 2U : 1U,
-		                                        /* pQueuePriorities */ queuePriorities };
+	VkDeviceQueueCreateInfo queueCreateInfo = {
+		/* sType            */ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+		/* pNext            */ nullptr,
+		/* flags            */ 0,
+		/* queueFamilyIndex */ ctx.queueFamily,
+		/* queueCount       */ supportsMultipleGraphicsQueues ? 2U : 1U,
+		/* pQueuePriorities */ queuePriorities,
+	};
 
 	VkPhysicalDeviceFeatures enabledDeviceFeatures = {};
 	if (DevMode() && ctx.deviceFeatures.robustBufferAccess)
@@ -629,16 +633,45 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	                                    !renderdoc::IsPresent();
 	const bool hasBindMemory2 = OptionalExtensionAvailable(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME);
 
-	VkDeviceCreateInfo deviceCreateInfo = { /* sType                   */ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		                                    /* pNext                   */ nullptr,
-		                                    /* flags                   */ 0,
-		                                    /* queueCreateInfoCount    */ 1,
-		                                    /* pQueueCreateInfos       */ &queueCreateInfo,
-		                                    /* enabledLayerCount       */ 0,
-		                                    /* ppEnabledLayerNames     */ nullptr,
-		                                    /* enabledExtensionCount   */ numEnabledDeviceExtensions,
-		                                    /* ppEnabledExtensionNames */ enabledDeviceExtensions,
-		                                    /* pEnabledFeatures        */ &enabledDeviceFeatures };
+	VkDeviceCreateInfo deviceCreateInfo = {
+		/* sType                   */ VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+		/* pNext                   */ nullptr,
+		/* flags                   */ 0,
+		/* queueCreateInfoCount    */ 1,
+		/* pQueueCreateInfos       */ &queueCreateInfo,
+		/* enabledLayerCount       */ 0,
+		/* ppEnabledLayerNames     */ nullptr,
+		/* enabledExtensionCount   */ numEnabledDeviceExtensions,
+		/* ppEnabledExtensionNames */ enabledDeviceExtensions,
+		/* pEnabledFeatures        */ &enabledDeviceFeatures,
+	};
+
+	VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dynamicState3EnabledFeatures = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
+	};
+
+	// Checks for support for extended dynamic state 3
+	if (OptionalExtensionAvailable(VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME) &&
+	    OptionalExtensionAvailable(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME))
+	{
+		VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dynamicState3Features = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
+		};
+
+		VkPhysicalDeviceFeatures2KHR physDeviceFeatures2 = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
+			.pNext = &dynamicState3Features,
+		};
+		vkGetPhysicalDeviceFeatures2KHR(ctx.physDevice, &physDeviceFeatures2);
+
+		deviceCreateInfo.pNext = &dynamicState3EnabledFeatures;
+
+		if (dynamicState3Features.extendedDynamicState3PolygonMode)
+		{
+			dynamicState3EnabledFeatures.extendedDynamicState3PolygonMode = true;
+			ctx.hasDynamicStatePolygonMode = true;
+		}
+	}
 
 	VkResult createDeviceRes = vkCreateDevice(ctx.physDevice, &deviceCreateInfo, nullptr, &ctx.device);
 	if (createDeviceRes != VK_SUCCESS)

@@ -2,24 +2,21 @@
 #include "../../Assets/DevFont.fnt.h"
 #include "../../Assets/DevFont.png.h"
 #include "../Assert.hpp"
+#include "../Core.hpp"
 #include "../Log.hpp"
 #include "../Platform/FontConfig.hpp"
 
-#include <fstream>
 #include <utf8.h>
 
 namespace eg
 {
 SpriteFont::SpriteFont(FontAtlas atlas) : FontAtlas(std::move(atlas))
 {
-	SamplerDescription samplerDescription;
-
 	TextureCreateInfo texCreateInfo;
 	texCreateInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample;
 	texCreateInfo.width = AtlasWidth();
 	texCreateInfo.height = AtlasHeight();
 	texCreateInfo.mipLevels = 1;
-	texCreateInfo.defaultSamplerDescription = &samplerDescription;
 	texCreateInfo.format = Format::R8_UNorm;
 	m_texture = Texture::Create2D(texCreateInfo);
 
@@ -42,10 +39,35 @@ SpriteFont::SpriteFont(FontAtlas atlas) : FontAtlas(std::move(atlas))
 
 static std::unique_ptr<SpriteFont> s_devFont;
 
+static std::string devFontNames[] = {
+	"Source Code Pro",
+	"Consolas",
+	"DejaVu Mono",
+	"SF Mono",
+};
+
 void SpriteFont::LoadDevFont()
 {
 	if (s_devFont != nullptr)
 		return;
+
+	uint32_t devFontSize = std::round(14.0 * DisplayScaleFactor());
+
+	for (const std::string& devFontName : devFontNames)
+	{
+		std::string path = GetFontPathByName(devFontName);
+		if (!path.empty())
+		{
+			if (std::optional<FontAtlas> atlas = FontAtlas::Render(path, devFontSize, { &GlyphRange::ASCII, 1 }))
+			{
+				eg::Log(
+					eg::LogLevel::Info, "fnt", "Rendered dev font from '{0}' ({1}) at size {2}", devFontName, path,
+					devFontSize);
+				s_devFont = std::make_unique<SpriteFont>(std::move(*atlas));
+				return;
+			}
+		}
+	}
 
 	if (std::optional<FontAtlas> atlas = FontAtlas::FromFNTMemory(
 			std::span<const char>(reinterpret_cast<const char*>(DevFont_fnt), DevFont_fnt_len),

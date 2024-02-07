@@ -54,11 +54,13 @@ struct Framebuffer
 {
 	GLuint framebuffer;
 	uint32_t numColorAttachments;
+	uint32_t sampleCount;
 	Format colorAttachmentFormats[MAX_COLOR_ATTACHMENTS];
+	std::optional<Format> depthStencilAttachmentFormat;
+
 	bool hasSRGB;
 	bool hasDepth;
 	bool hasStencil;
-	bool multisampled;
 	uint32_t width;
 	uint32_t height;
 	std::vector<ResolveFBO> resolveFBOs;
@@ -77,15 +79,13 @@ void AssertFramebufferComplete(GLenum target)
 	switch (glCheckFramebufferStatus(target))
 	{
 #define FRAMEBUFFER_STATUS_CASE(id)                                                                                    \
-	case id:                                                                                                           \
-		EG_PANIC("Incomplete framebuffer: " #id);
+	case id: EG_PANIC("Incomplete framebuffer: " #id);
 		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT)
 		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT)
 		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_UNSUPPORTED)
 		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE)
 		FRAMEBUFFER_STATUS_CASE(GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS)
-	default:
-		break;
+	default: break;
 	}
 }
 
@@ -147,7 +147,7 @@ FramebufferHandle CreateFramebuffer(const FramebufferCreateInfo& createInfo)
 	framebuffer->hasDepth = false;
 	framebuffer->hasStencil = false;
 	framebuffer->hasSRGB = false;
-	framebuffer->multisampled = true;
+	framebuffer->sampleCount = 0;
 
 	bool hasSetSize = false;
 	auto SetSize = [&](uint32_t w, uint32_t h)
@@ -169,8 +169,11 @@ FramebufferHandle CreateFramebuffer(const FramebufferCreateInfo& createInfo)
 	{
 		Texture* texture = UnwrapTexture(attachment.texture);
 
-		if (texture->sampleCount > 1)
-			framebuffer->multisampled = true;
+		if (framebuffer->sampleCount == 0)
+			framebuffer->sampleCount = texture->sampleCount;
+		else if (framebuffer->sampleCount != texture->sampleCount)
+			EG_PANIC("Framebuffer attachment sample count mismatch");
+
 		if (formatOut != nullptr)
 			*formatOut = texture->format;
 
@@ -191,17 +194,19 @@ FramebufferHandle CreateFramebuffer(const FramebufferCreateInfo& createInfo)
 
 	if (createInfo.depthStencilAttachment.texture != nullptr)
 	{
-		switch (UnwrapTexture(createInfo.depthStencilAttachment.texture)->format)
+		Format format = UnwrapTexture(createInfo.depthStencilAttachment.texture)->format;
+		framebuffer->depthStencilAttachmentFormat = format;
+
+		if (format == Format::Depth32 || format == Format::Depth16)
 		{
-		case Format::Depth32:
-		case Format::Depth16:
 			Attach(GL_DEPTH_ATTACHMENT, createInfo.depthStencilAttachment, nullptr);
-			break;
-		case Format::Depth24Stencil8:
-		case Format::Depth32Stencil8:
+		}
+		else if (format == Format::Depth24Stencil8 || format == Format::Depth32Stencil8)
+		{
 			Attach(GL_DEPTH_STENCIL_ATTACHMENT, createInfo.depthStencilAttachment, nullptr);
-			break;
-		default:
+		}
+		else
+		{
 			EG_PANIC("Invalid depth stencil attachment format");
 		}
 		framebuffer->hasDepth = true;
@@ -297,7 +302,6 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 
 #ifndef __EMSCRIPTEN__
 		SetEnabled<GL_FRAMEBUFFER_SRGB>(srgbBackBuffer);
-		SetEnabled<GL_MULTISAMPLE>(false);
 #endif
 	}
 	else
@@ -309,7 +313,6 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 
 #ifndef __EMSCRIPTEN__
 		SetEnabled<GL_FRAMEBUFFER_SRGB>(true);
-		SetEnabled<GL_MULTISAMPLE>(currentFramebuffer->multisampled);
 #endif
 	}
 
@@ -560,5 +563,77 @@ void SRGBEmulationEndFrame()
 		currentPipeline = nullptr;
 		viewportOutOfDate = true;
 	}
+}
+
+FramebufferFormat FramebufferFormat::GetCurrent()
+{
+	if (currentFramebuffer == nullptr)
+	{
+		static eg::Format defaultFramebufferColorFormat = eg::Format::DefaultColor;
+		return FramebufferFormat{
+			.colorAttachmentFormats = std::span<const Format>(&defaultFramebufferColorFormat, 1),
+			.depthStencilAttachmentFormat = eg::Format::DefaultDepthStencil,
+			.sampleCount = 1,
+		};
+	}
+
+	return FramebufferFormat{
+		.colorAttachmentFormats = std::span<const Format>(
+			currentFramebuffer->colorAttachmentFormats, currentFramebuffer->numColorAttachments),
+		.depthStencilAttachmentFormat = currentFramebuffer->depthStencilAttachmentFormat,
+		.sampleCount = currentFramebuffer->sampleCount,
+	};
+}
+
+size_t FramebufferFormat::Hash() const
+{
+	size_t h = sampleCount | colorAttachmentFormats.size() << 16;
+	for (eg::Format format : colorAttachmentFormats)
+		HashAppend(h, format);
+	HashAppend(h, depthStencilAttachmentFormat.value_or(eg::Format::Undefined));
+	return h;
+}
+
+void FramebufferFormat::PrintToStdout(std::string_view linePrefix, const FramebufferFormat* expected) const
+{
+	constexpr const char* ANSI_BOLD_ON = "\x1b[1m";
+	constexpr const char* ANSI_BOLD_OFF = "\x1b[22m";
+
+	std::cout << linePrefix << "samples: " << ANSI_BOLD_ON << sampleCount << ANSI_BOLD_OFF << "\n";
+
+	for (size_t i = 0; i < colorAttachmentFormats.size(); i++)
+	{
+		std::cout << linePrefix << "color[" << i << "]: " << FormatToString(colorAttachmentFormats[i]);
+
+		if (expected != nullptr)
+		{
+			eg::Format expectedFormat = expected->colorAttachmentFormats.size() < i
+			                                ? eg::Format::Undefined
+			                                : expected->colorAttachmentFormats[i];
+			if (expected->colorAttachmentFormats[i] != colorAttachmentFormats[i])
+			{
+				std::cout << ANSI_BOLD_ON << " MISMATCH! PSO:" << FormatToString(expectedFormat) << ANSI_BOLD_OFF;
+			}
+		}
+
+		std::cout << "\n";
+	}
+
+	auto GetOptFormatName = [&](std::optional<Format> format) -> std::string_view
+	{
+		if (format.has_value())
+			return FormatToString(*format);
+		else
+			return "none";
+	};
+
+	std::cout << linePrefix << "depth: " << GetOptFormatName(depthStencilAttachmentFormat);
+	if (expected != nullptr && expected->depthStencilAttachmentFormat != depthStencilAttachmentFormat)
+	{
+		std::cout << ANSI_BOLD_ON << " MISMATCH! PSO:" << GetOptFormatName(expected->depthStencilAttachmentFormat)
+				  << ANSI_BOLD_OFF;
+	}
+
+	std::cout << "\n";
 }
 } // namespace eg::graphics_api::gl

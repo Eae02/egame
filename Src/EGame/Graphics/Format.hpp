@@ -86,7 +86,7 @@ enum class Format
 	Depth16,
 	Depth32,
 	Depth24Stencil8,
-	Depth32Stencil8
+	Depth32Stencil8,
 };
 
 enum class FormatTypes

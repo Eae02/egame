@@ -2,6 +2,7 @@
 #include "../../Shaders/Build/Sprite.fs.h"
 #include "../../Shaders/Build/Sprite.vs.h"
 #include "../String.hpp"
+#include "EGame/Color.hpp"
 #include "Graphics.hpp"
 #include "SpriteFont.hpp"
 
@@ -14,6 +15,7 @@ SpriteBatch SpriteBatch::overlay;
 
 static Pipeline spritePipeline;
 static Texture whitePixelTexture;
+static Sampler spriteBatchSampler;
 
 void SpriteBatch::InitStatic()
 {
@@ -24,6 +26,8 @@ void SpriteBatch::InitStatic()
 	pipelineCI.vertexShader = vs.Handle();
 	pipelineCI.fragmentShader = fs.Handle();
 	pipelineCI.enableScissorTest = true;
+	pipelineCI.colorAttachmentFormats[0] =
+		eg::Format::DefaultColor; // TODO: Make the sprite batch able to render to other formats too
 	pipelineCI.blendStates[0] = eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha);
 	pipelineCI.vertexBindings[0] = VertexBinding(sizeof(Vertex), InputRate::Vertex);
 	pipelineCI.vertexAttributes[0] = VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, position));
@@ -32,13 +36,11 @@ void SpriteBatch::InitStatic()
 	pipelineCI.label = "SpriteBatch";
 	spritePipeline = eg::Pipeline::Create(pipelineCI);
 
-	SamplerDescription whiteTexSamplerDesc;
 	TextureCreateInfo whiteTexCreateInfo;
 	whiteTexCreateInfo.width = 1;
 	whiteTexCreateInfo.height = 1;
 	whiteTexCreateInfo.mipLevels = 1;
 	whiteTexCreateInfo.format = Format::R8G8B8A8_UNorm;
-	whiteTexCreateInfo.defaultSamplerDescription = &whiteTexSamplerDesc;
 	whiteTexCreateInfo.flags = TextureFlags::ShaderSample | TextureFlags::CopyDst;
 	whitePixelTexture = Texture::Create2D(whiteTexCreateInfo);
 
@@ -54,6 +56,15 @@ void SpriteBatch::InitStatic()
 	DC.SetTextureData(whitePixelTexture, textureRange, uploadBuffer.buffer, uploadBuffer.offset);
 
 	whitePixelTexture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Fragment);
+
+	spriteBatchSampler = eg::Sampler(eg::SamplerDescription{
+		.wrapU = eg::WrapMode::ClampToEdge,
+		.wrapV = eg::WrapMode::ClampToEdge,
+		.wrapW = eg::WrapMode::ClampToEdge,
+		.minFilter = eg::TextureFilter::Linear,
+		.magFilter = eg::TextureFilter::Linear,
+		.mipFilter = eg::TextureFilter::Linear,
+	});
 }
 
 void SpriteBatch::DestroyStatic()
@@ -490,7 +501,7 @@ void SpriteBatch::Render(int screenWidth, int screenHeight, const glm::mat3* mat
 		eg::TextureSubresource subres;
 		if (GetGraphicsDeviceInfo().partialTextureViews)
 			subres.firstMipLevel = batch.mipLevel;
-		DC.BindTexture(batch.texture, 0, 0, nullptr, subres);
+		DC.BindTexture(batch.texture, 0, 0, &spriteBatchSampler, subres);
 
 		DC.DrawIndexed(batch.firstIndex, batch.numIndices, 0, 0, 1);
 	}

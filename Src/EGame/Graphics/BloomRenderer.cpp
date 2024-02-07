@@ -14,8 +14,9 @@ static const SamplerDescription bloomTextureSamplerDesc = { .wrapU = WrapMode::C
 	                                                        .mipFilter = TextureFilter::Linear };
 
 BloomRenderer::RenderTarget::RenderTarget(
-	uint32_t inputWidth, uint32_t inputHeight, uint32_t levels, Format format, BloomRenderer::RenderTargetFlags flags)
-	: m_inputWidth(inputWidth), m_inputHeight(inputHeight), m_levels(levels)
+	uint32_t inputWidth, uint32_t inputHeight, uint32_t levels, eg::Format format,
+	BloomRenderer::RenderTargetFlags flags)
+	: m_inputWidth(inputWidth), m_inputHeight(inputHeight), m_format(format), m_levels(levels)
 {
 	uint32_t levelWidth = inputWidth;
 	uint32_t levelHeight = inputHeight;
@@ -38,12 +39,6 @@ BloomRenderer::RenderTarget::RenderTarget(
 			char labelBuffer[32];
 			snprintf(labelBuffer, sizeof(labelBuffer), "Bloom:L%u:T%u", l, i);
 			textureCI.label = labelBuffer;
-
-			if (l == 0 && i == 2 && HasFlag(flags, RenderTargetFlags::OutputTextureWithSampler))
-				textureCI.defaultSamplerDescription = &bloomTextureSamplerDesc;
-			else
-				textureCI.defaultSamplerDescription = nullptr;
-
 			m_levels[l].m_textures[i] = eg::Texture::Create2D(textureCI);
 
 			FramebufferAttachment colorAttachment(m_levels[l].m_textures[i].handle);
@@ -75,7 +70,7 @@ void BloomRenderer::RenderTarget::EndFirstLayerRenderPass()
 	m_levels[0].m_textures[0].UsageHint(eg::TextureUsage::ShaderSample, eg::ShaderAccessFlags::Fragment);
 }
 
-BloomRenderer::BloomRenderer()
+BloomRenderer::BloomRenderer(eg::Format format) : m_format(format)
 {
 	eg::ShaderModule vertexShader(ShaderStage::Vertex, Bloom_vs_glsl);
 	eg::ShaderModule brightPassSM(ShaderStage::Fragment, BloomBrightPass_fs_glsl);
@@ -85,16 +80,22 @@ BloomRenderer::BloomRenderer()
 	GraphicsPipelineCreateInfo brightPassPipelineCI;
 	brightPassPipelineCI.vertexShader.shaderModule = vertexShader.Handle();
 	brightPassPipelineCI.fragmentShader.shaderModule = brightPassSM.Handle();
+	brightPassPipelineCI.colorAttachmentFormats[0] = format;
+	brightPassPipelineCI.label = "Bloom[BrightPass]";
 	m_brightPassPipeline = eg::Pipeline::Create(brightPassPipelineCI);
 
 	GraphicsPipelineCreateInfo blurPipelineXCI;
 	blurPipelineXCI.vertexShader.shaderModule = vertexShader.Handle();
 	blurPipelineXCI.fragmentShader.shaderModule = blurXSM.Handle();
+	blurPipelineXCI.colorAttachmentFormats[0] = format;
+	blurPipelineXCI.label = "Bloom[BlurX]";
 	m_blurPipelineX = eg::Pipeline::Create(blurPipelineXCI);
 
 	GraphicsPipelineCreateInfo blurPipelineYCI;
 	blurPipelineYCI.vertexShader.shaderModule = vertexShader.Handle();
 	blurPipelineYCI.fragmentShader.shaderModule = blurYSM.Handle();
+	blurPipelineYCI.colorAttachmentFormats[0] = format;
+	blurPipelineYCI.label = "Bloom[BlurY]";
 	m_blurPipelineY = eg::Pipeline::Create(blurPipelineYCI);
 
 	m_inputSampler = Sampler(bloomTextureSamplerDesc);
@@ -123,6 +124,8 @@ BloomRenderer::BloomRenderer()
 
 void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
 {
+	EG_ASSERT(renderTarget.Format() == m_format);
+
 	// Downscales texture 0
 	for (uint32_t l = 1; l < renderTarget.m_levels.size(); l++)
 	{
@@ -193,6 +196,8 @@ void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
 
 void BloomRenderer::Render(const glm::vec3& threshold, TextureRef inputTexture, RenderTarget& renderTarget) const
 {
+	EG_ASSERT(renderTarget.Format() == m_format);
+
 	renderTarget.BeginFirstLayerRenderPass(AttachmentLoadOp::Discard);
 
 	DC.BindPipeline(m_brightPassPipeline);

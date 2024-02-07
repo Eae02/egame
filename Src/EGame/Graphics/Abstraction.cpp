@@ -2,6 +2,7 @@
 #include "../Assert.hpp"
 #include "../Hash.hpp"
 #include "../Log.hpp"
+#include "Metal/MetalMain.hpp"
 #include "OpenGL/OpenGL.hpp"
 #include "Vulkan/VulkanMain.hpp"
 
@@ -19,6 +20,25 @@ bool eg::SamplerDescription::operator!=(const eg::SamplerDescription& rhs) const
 
 namespace eg
 {
+size_t SamplerDescription::Hash() const
+{
+	size_t h = 0;
+	h |= static_cast<size_t>(wrapU) << 0;
+	h |= static_cast<size_t>(wrapV) << 2;
+	h |= static_cast<size_t>(wrapW) << 4;
+	h |= static_cast<size_t>(minFilter) << 6;
+	h |= static_cast<size_t>(magFilter) << 7;
+	h |= static_cast<size_t>(mipFilter) << 8;
+	h |= static_cast<size_t>(borderColor) << 9;
+	h |= static_cast<size_t>(enableCompare) << 12;
+	h |= static_cast<size_t>(compareOp) << 13;
+
+	HashAppend(h, maxAnistropy);
+	HashAppend(h, mipLodBias);
+
+	return h;
+}
+
 namespace gal
 {
 GraphicsMemoryStat (*GetMemoryStat)();
@@ -51,8 +71,15 @@ bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& init
 		return eg::graphics_api::vk::Initialize(initArguments);
 #endif
 
-	default:
-		break;
+#ifdef __APPLE__
+	case GraphicsAPI::Metal:
+#define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::mtl::name;
+#include "AbstractionCallbacks.inl"
+#undef XM_ABSCALLBACK
+		return eg::graphics_api::mtl::Initialize(initArguments);
+#endif
+
+	default: break;
 	}
 
 	return false;
@@ -72,26 +99,16 @@ std::string LogToString(UniformType type)
 {
 	switch (type)
 	{
-	case UniformType::Int:
-		return "Int";
-	case UniformType::Float:
-		return "Float";
-	case UniformType::Vec2:
-		return "Vec2";
-	case UniformType::Vec3:
-		return "Vec3";
-	case UniformType::Vec4:
-		return "Vec4";
-	case UniformType::IVec2:
-		return "IVec2";
-	case UniformType::IVec3:
-		return "IVec3";
-	case UniformType::IVec4:
-		return "IVec4";
-	case UniformType::Mat3:
-		return "Mat3";
-	case UniformType::Mat4:
-		return "Mat4";
+	case UniformType::Int: return "Int";
+	case UniformType::Float: return "Float";
+	case UniformType::Vec2: return "Vec2";
+	case UniformType::Vec3: return "Vec3";
+	case UniformType::Vec4: return "Vec4";
+	case UniformType::IVec2: return "IVec2";
+	case UniformType::IVec3: return "IVec3";
+	case UniformType::IVec4: return "IVec4";
+	case UniformType::Mat3: return "Mat3";
+	case UniformType::Mat4: return "Mat4";
 	}
 	EG_UNREACHABLE
 }
@@ -100,14 +117,10 @@ std::string_view BindingTypeToString(BindingType bindingType)
 {
 	switch (bindingType)
 	{
-	case BindingType::UniformBuffer:
-		return "UniformBuffer";
-	case BindingType::StorageBuffer:
-		return "StorageBuffer";
-	case BindingType::Texture:
-		return "Texture";
-	case BindingType::StorageImage:
-		return "StorageImage";
+	case BindingType::UniformBuffer: return "UniformBuffer";
+	case BindingType::StorageBuffer: return "StorageBuffer";
+	case BindingType::Texture: return "Texture";
+	case BindingType::StorageImage: return "StorageImage";
 	}
 	EG_UNREACHABLE
 }

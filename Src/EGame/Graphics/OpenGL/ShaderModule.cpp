@@ -7,15 +7,11 @@ namespace eg::graphics_api::gl
 {
 static ConcurrentObjectPool<ShaderModule> shaderModulePool;
 
-ShaderModuleHandle CreateShaderModule(ShaderStage stage, std::span<const char> code)
+ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::ParsedIR& parsedIR)
 {
 	ShaderModule* module = shaderModulePool.New();
 	module->stage = stage;
-
-	spirv_cross::Parser parser(reinterpret_cast<const uint32_t*>(code.data()), code.size() / sizeof(uint32_t));
-	parser.parse();
-	module->parsedIR = parser.get_parsed_ir();
-
+	module->parsedIR = &parsedIR;
 	return reinterpret_cast<ShaderModuleHandle>(module);
 }
 

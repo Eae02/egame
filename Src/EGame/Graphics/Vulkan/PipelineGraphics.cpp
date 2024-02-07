@@ -2,83 +2,36 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
 #include "Common.hpp"
-#include "Framebuffer.hpp"
 #include "Pipeline.hpp"
 #include "RenderPasses.hpp"
 #include "ShaderModule.hpp"
 #include "Translation.hpp"
 
 #include <algorithm>
-#include <iomanip>
 #include <spirv_cross.hpp>
 
 namespace eg::graphics_api::vk
 {
-struct FramebufferPipeline
-{
-	size_t framebufferHash;
-	VkPipeline pipeline;
-};
-
 struct GraphicsPipeline : AbstractPipeline
 {
-	ShaderModule* shaderModules[5];
-	GraphicsPipeline* basePipeline;
-	std::vector<FramebufferPipeline> pipelines;
-	bool enableScissorTest;
+	VkPipeline pipeline;
 
-	bool enableAlphaToCoverage;
-	bool enableAlphaToOne;
-	bool enableSampleShading;
-	float minSampleShading;
+	bool enableScissorTest = false;
+	bool enableDynamicCullMode = false;
+	bool enableDynamicPolygonMode = false;
 
-	bool dynamicStencilCompareMask;
-	bool dynamicStencilWriteMask;
-	bool dynamicStencilReference;
-
-	uint32_t numStages;
-	VkPipelineShaderStageCreateInfo shaderStageCI[5];
-	VkVertexInputBindingDescription vertexBindings[MAX_VERTEX_BINDINGS];
-	VkVertexInputAttributeDescription vertexAttribs[MAX_VERTEX_ATTRIBUTES];
-	VkPipelineVertexInputStateCreateInfo vertexInputStateCI;
-	VkPrimitiveTopology topology;
-	uint32_t patchControlPoints;
-	VkPipelineRasterizationStateCreateInfo rasterizationStateCI;
-	VkPipelineDepthStencilStateCreateInfo depthStencilStateCI;
-	VkPipelineColorBlendAttachmentState blendStates[8];
-	VkPipelineColorBlendStateCreateInfo colorBlendStateCI;
-
-	std::string label;
+	VkCullModeFlags staticCullMode{};
 
 	void Free() override;
 
-	void Bind(CommandContextHandle cc);
+	void Bind(CommandContextHandle cc) override;
 };
 
 static ConcurrentObjectPool<GraphicsPipeline> gfxPipelinesPool;
 
 void GraphicsPipeline::Free()
 {
-	if (basePipeline != nullptr)
-	{
-		basePipeline->UnRef();
-	}
-	else
-	{
-		vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
-	}
-
-	for (ShaderModule* module : shaderModules)
-	{
-		if (module != nullptr)
-			module->UnRef();
-	}
-
-	for (const FramebufferPipeline& pipeline : pipelines)
-	{
-		vkDestroyPipeline(ctx.device, pipeline.pipeline, nullptr);
-	}
-
+	vkDestroyPipeline(ctx.device, pipeline, nullptr);
 	gfxPipelinesPool.Delete(this);
 }
 
@@ -93,13 +46,31 @@ inline void TranslateStencilState(const StencilState& in, VkStencilOpState& out)
 	out.reference = in.reference;
 }
 
+static const VkViewport g_dummyViewport = { 0, 0, 0, 1, 0, 1 };
+static const VkRect2D g_dummyScissor = { { 0, 0 }, { 1, 1 } };
+static const VkPipelineViewportStateCreateInfo g_viewportStateCI = {
+	/* sType         */ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+	/* pNext         */ nullptr,
+	/* flags         */ 0,
+	/* viewportCount */ 1,
+	/* pViewports    */ &g_dummyViewport,
+	/* scissorCount  */ 1,
+	/* pScissors     */ &g_dummyScissor
+};
+
 PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
 {
 	GraphicsPipeline* pipeline = gfxPipelinesPool.New();
 	pipeline->refCount = 1;
-	pipeline->enableScissorTest = createInfo.enableScissorTest;
 	pipeline->bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	std::fill_n(pipeline->shaderModules, 5, nullptr);
+
+	uint32_t numStages = 0;
+	std::array<ShaderModule*, 5> shaderModules{};
+	std::array<VkPipelineShaderStageCreateInfo, 5> shaderStageCI;
+
+	VkVertexInputBindingDescription vertexBindings[MAX_VERTEX_BINDINGS];
+	VkVertexInputAttributeDescription vertexAttribs[MAX_VERTEX_ATTRIBUTES];
+	VkPipelineColorBlendAttachmentState blendStates[MAX_COLOR_ATTACHMENTS];
 
 	std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
 	uint32_t numPushConstantBytes = 0;
@@ -113,9 +84,8 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		ShaderModule* module = UnwrapShaderModule(stageInfo.shaderModule);
 		module->ref++;
 
-		InitShaderStageCreateInfo(
-			pipeline->shaderStageCI[pipeline->numStages], pipeline->linearAllocator, stageInfo, stageFlags);
-		pipeline->shaderModules[pipeline->numStages++] = module;
+		InitShaderStageCreateInfo(shaderStageCI[numStages], pipeline->linearAllocator, stageInfo, stageFlags);
+		shaderModules[numStages++] = module;
 
 		// Adds bindings from this stage
 		for (uint32_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
@@ -156,45 +126,17 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	pipeline->InitPipelineLayout(bindings, createInfo.setBindModes, numPushConstantBytes);
 
-	switch (createInfo.topology)
-	{
-	case Topology::TriangleList:
-		pipeline->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-		break;
-	case Topology::TriangleStrip:
-		pipeline->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-		break;
-	case Topology::TriangleFan:
-		pipeline->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
-		break;
-	case Topology::LineList:
-		pipeline->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-		break;
-	case Topology::LineStrip:
-		pipeline->topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-		break;
-	case Topology::Points:
-		pipeline->topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-		break;
-	case Topology::Patches:
-		pipeline->topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-		break;
-	default:
-		EG_UNREACHABLE break;
-	}
+	VkCullModeFlags staticCullMode = TranslateCullMode(createInfo.cullMode.value_or(eg::CullMode::None));
+	pipeline->staticCullMode = staticCullMode;
 
-	VkPolygonMode polygonMode = VK_POLYGON_MODE_FILL;
-	if (createInfo.wireframe && ctx.deviceFeatures.fillModeNonSolid)
-		polygonMode = VK_POLYGON_MODE_LINE;
-
-	pipeline->rasterizationStateCI = {
+	VkPipelineRasterizationStateCreateInfo rasterizationStateCI = {
 		/* sType                   */ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		/* pNext                   */ nullptr,
 		/* flags                   */ 0,
 		/* depthClampEnable        */ static_cast<VkBool32>(createInfo.enableDepthClamp),
 		/* rasterizerDiscardEnable */ VK_FALSE,
-		/* polygonMode             */ polygonMode,
-		/* cullMode                */ TranslateCullMode(createInfo.cullMode),
+		/* polygonMode             */ VK_POLYGON_MODE_FILL,
+		/* cullMode                */ staticCullMode,
 		/* frontFace               */ createInfo.frontFaceCCW ? VK_FRONT_FACE_COUNTER_CLOCKWISE
 															  : VK_FRONT_FACE_CLOCKWISE,
 		/* depthBiasEnable         */ VK_FALSE,
@@ -206,11 +148,11 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	if (ctx.deviceFeatures.wideLines)
 	{
-		pipeline->rasterizationStateCI.lineWidth =
+		rasterizationStateCI.lineWidth =
 			glm::clamp(createInfo.lineWidth, ctx.deviceLimits.lineWidthRange[0], ctx.deviceLimits.lineWidthRange[1]);
 	}
 
-	pipeline->depthStencilStateCI = {
+	VkPipelineDepthStencilStateCreateInfo depthStencilStateCI = {
 		/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 		/* pNext                 */ nullptr,
 		/* flags                 */ 0,
@@ -227,37 +169,31 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	if (createInfo.enableStencilTest)
 	{
-		TranslateStencilState(createInfo.backStencilState, pipeline->depthStencilStateCI.back);
-		TranslateStencilState(createInfo.frontStencilState, pipeline->depthStencilStateCI.front);
+		TranslateStencilState(createInfo.backStencilState, depthStencilStateCI.back);
+		TranslateStencilState(createInfo.frontStencilState, depthStencilStateCI.front);
 	}
 
-	pipeline->enableAlphaToCoverage = createInfo.enableAlphaToCoverage;
-	pipeline->enableAlphaToOne = createInfo.enableAlphaToOne;
-	pipeline->enableSampleShading = createInfo.enableSampleShading;
-	pipeline->minSampleShading = createInfo.minSampleShading;
-	pipeline->dynamicStencilCompareMask = createInfo.dynamicStencilCompareMask;
-	pipeline->dynamicStencilWriteMask = createInfo.dynamicStencilWriteMask;
-	pipeline->dynamicStencilReference = createInfo.dynamicStencilReference;
-
-	pipeline->colorBlendStateCI = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-	std::copy_n(createInfo.blendConstants, 4, pipeline->colorBlendStateCI.blendConstants);
-	pipeline->colorBlendStateCI.pAttachments = pipeline->blendStates;
+	VkPipelineColorBlendStateCreateInfo colorBlendStateCI = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+		.pAttachments = blendStates,
+	};
+	std::copy_n(createInfo.blendConstants, 4, colorBlendStateCI.blendConstants);
 
 	// Initializes attachment blend states and color attachment information for the render pass description.
 	for (uint32_t i = 0; i < createInfo.numColorAttachments; i++)
 	{
 		const BlendState& blendState = createInfo.blendStates[i];
 
-		pipeline->colorBlendStateCI.attachmentCount = i + 1;
+		colorBlendStateCI.attachmentCount = i + 1;
 
-		pipeline->blendStates[i].blendEnable = static_cast<VkBool32>(blendState.enabled);
-		pipeline->blendStates[i].colorBlendOp = TranslateBlendFunc(blendState.colorFunc);
-		pipeline->blendStates[i].alphaBlendOp = TranslateBlendFunc(blendState.alphaFunc);
-		pipeline->blendStates[i].srcColorBlendFactor = TranslateBlendFactor(blendState.srcColorFactor);
-		pipeline->blendStates[i].dstColorBlendFactor = TranslateBlendFactor(blendState.dstColorFactor);
-		pipeline->blendStates[i].srcAlphaBlendFactor = TranslateBlendFactor(blendState.srcAlphaFactor);
-		pipeline->blendStates[i].dstAlphaBlendFactor = TranslateBlendFactor(blendState.dstAlphaFactor);
-		pipeline->blendStates[i].colorWriteMask = static_cast<VkColorComponentFlags>(blendState.colorWriteMask);
+		blendStates[i].blendEnable = static_cast<VkBool32>(blendState.enabled);
+		blendStates[i].colorBlendOp = TranslateBlendFunc(blendState.colorFunc);
+		blendStates[i].alphaBlendOp = TranslateBlendFunc(blendState.alphaFunc);
+		blendStates[i].srcColorBlendFactor = TranslateBlendFactor(blendState.srcColorFactor);
+		blendStates[i].dstColorBlendFactor = TranslateBlendFactor(blendState.dstColorFactor);
+		blendStates[i].srcAlphaBlendFactor = TranslateBlendFactor(blendState.srcAlphaFactor);
+		blendStates[i].dstAlphaBlendFactor = TranslateBlendFactor(blendState.dstAlphaFactor);
+		blendStates[i].colorWriteMask = static_cast<VkColorComponentFlags>(blendState.colorWriteMask);
 	}
 
 	// Translates vertex bindings
@@ -267,13 +203,13 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		if (createInfo.vertexBindings[b].stride == UINT32_MAX)
 			continue;
 
-		pipeline->vertexBindings[numVertexBindings].binding = b;
-		pipeline->vertexBindings[numVertexBindings].stride = createInfo.vertexBindings[b].stride;
+		vertexBindings[numVertexBindings].binding = b;
+		vertexBindings[numVertexBindings].stride = createInfo.vertexBindings[b].stride;
 
 		if (createInfo.vertexBindings[b].inputRate == InputRate::Vertex)
-			pipeline->vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+			vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		else
-			pipeline->vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+			vertexBindings[numVertexBindings].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 
 		numVertexBindings++;
 	}
@@ -286,103 +222,96 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		if (attribIn.binding == UINT32_MAX)
 			continue;
 
-		pipeline->vertexAttribs[numVertexAttribs].binding = attribIn.binding;
-		pipeline->vertexAttribs[numVertexAttribs].offset = attribIn.offset;
-		pipeline->vertexAttribs[numVertexAttribs].location = a;
-		pipeline->vertexAttribs[numVertexAttribs].format = TranslateFormat(attribIn.format);
+		vertexAttribs[numVertexAttribs].binding = attribIn.binding;
+		vertexAttribs[numVertexAttribs].offset = attribIn.offset;
+		vertexAttribs[numVertexAttribs].location = a;
+		vertexAttribs[numVertexAttribs].format = TranslateFormat(attribIn.format);
 		numVertexAttribs++;
 	}
 
-	pipeline->vertexInputStateCI = {
+	VkPipelineVertexInputStateCreateInfo vertexInputStateCI = {
 		/* sType                           */ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 		/* pNext                           */ nullptr,
 		/* flags                           */ 0,
 		/* vertexBindingDescriptionCount   */ numVertexBindings,
-		/* pVertexBindingDescriptions      */ pipeline->vertexBindings,
+		/* pVertexBindingDescriptions      */ vertexBindings,
 		/* vertexAttributeDescriptionCount */ numVertexAttribs,
-		/* pVertexAttributeDescriptions    */ pipeline->vertexAttribs
+		/* pVertexAttributeDescriptions    */ vertexAttribs
 	};
-
-	pipeline->patchControlPoints = createInfo.patchControlPoints;
 
 	if (createInfo.label != nullptr)
 	{
 		SetObjectName(
 			reinterpret_cast<uint64_t>(pipeline->pipelineLayout), VK_OBJECT_TYPE_PIPELINE_LAYOUT, createInfo.label);
-		pipeline->label = createInfo.label;
 	}
-
-	return WrapPipeline(pipeline);
-}
-
-static const VkViewport g_dummyViewport = { 0, 0, 0, 1, 0, 1 };
-static const VkRect2D g_dummyScissor = { { 0, 0 }, { 1, 1 } };
-static const VkPipelineViewportStateCreateInfo g_viewportStateCI = {
-	/* sType         */ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-	/* pNext         */ nullptr,
-	/* flags         */ 0,
-	/* viewportCount */ 1,
-	/* pViewports    */ &g_dummyViewport,
-	/* scissorCount  */ 1,
-	/* pScissors     */ &g_dummyScissor
-};
-
-static VkPipeline MaybeCreatePipelineFramebufferVariant(
-	const FramebufferFormat& format, GraphicsPipeline& pipeline, bool warn)
-{
-	auto it = std::lower_bound(
-		pipeline.pipelines.begin(), pipeline.pipelines.end(), format.hash,
-		[&](const FramebufferPipeline& a, size_t b) { return a.framebufferHash < b; });
-
-	if (it != pipeline.pipelines.end() && it->framebufferHash == format.hash)
-		return it->pipeline;
-
-	int64_t beginTime = NanoTime();
 
 	RenderPassDescription renderPassDescription;
 	renderPassDescription.numResolveColorAttachments = 0;
 	renderPassDescription.numColorAttachments = 0;
-	renderPassDescription.depthAttachment.format = format.depthStencilFormat;
-	renderPassDescription.depthAttachment.samples = format.sampleCount;
+	renderPassDescription.depthAttachment.format = TranslateFormat(createInfo.depthAttachmentFormat);
+	renderPassDescription.depthAttachment.samples = createInfo.sampleCount;
 	renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	for (uint32_t i = 0; i < 8 && format.colorFormats[i] != VK_FORMAT_UNDEFINED; i++)
+	for (uint32_t i = 0; i < createInfo.numColorAttachments; i++)
 	{
-		renderPassDescription.colorAttachments[i].format = format.colorFormats[i];
-		renderPassDescription.colorAttachments[i].samples = format.sampleCount;
+		EG_ASSERT(createInfo.colorAttachmentFormats[i] != eg::Format::Undefined);
+		renderPassDescription.colorAttachments[i].format = TranslateFormat(createInfo.colorAttachmentFormats[i]);
+		renderPassDescription.colorAttachments[i].samples = createInfo.sampleCount;
 		renderPassDescription.colorAttachments[i].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		renderPassDescription.numColorAttachments++;
 	}
 
 	VkPipelineInputAssemblyStateCreateInfo iaState = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-	iaState.topology = pipeline.topology;
+
+	switch (createInfo.topology)
+	{
+	case Topology::TriangleList: iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; break;
+	case Topology::TriangleStrip: iaState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP; break;
+	case Topology::LineList: iaState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; break;
+	case Topology::LineStrip: iaState.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP; break;
+	case Topology::Points: iaState.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST; break;
+	case Topology::Patches: iaState.topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST; break;
+	default: EG_UNREACHABLE break;
+	}
 
 	const VkPipelineMultisampleStateCreateInfo multisampleState = {
 		/* sType                 */ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 		/* pNext                 */ nullptr,
 		/* flags                 */ 0,
-		/* rasterizationSamples  */ static_cast<VkSampleCountFlagBits>(format.sampleCount),
-		/* sampleShadingEnable   */ pipeline.enableSampleShading,
-		/* minSampleShading      */ pipeline.minSampleShading,
+		/* rasterizationSamples  */ static_cast<VkSampleCountFlagBits>(createInfo.sampleCount),
+		/* sampleShadingEnable   */ createInfo.enableSampleShading,
+		/* minSampleShading      */ createInfo.minSampleShading,
 		/* pSampleMask           */ nullptr,
-		/* alphaToCoverageEnable */ pipeline.enableAlphaToCoverage,
-		/* alphaToOneEnable      */ pipeline.enableAlphaToOne
+		/* alphaToCoverageEnable */ createInfo.enableAlphaToCoverage,
+		/* alphaToOneEnable      */ createInfo.enableAlphaToOne
 	};
 
 	const VkPipelineTessellationStateCreateInfo tessState = {
 		/* sType              */ VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO,
 		/* pNext              */ nullptr,
 		/* flags              */ 0,
-		/* patchControlPoints */ pipeline.patchControlPoints
+		/* patchControlPoints */ createInfo.patchControlPoints
 	};
 
-	VkDynamicState dynamicState[5] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkDynamicState dynamicState[10] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 	uint32_t dynamicStateCount = 2;
-	if (pipeline.dynamicStencilCompareMask)
+	if (createInfo.dynamicStencilCompareMask)
 		dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK;
-	if (pipeline.dynamicStencilWriteMask)
+	if (createInfo.dynamicStencilWriteMask)
 		dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK;
-	if (pipeline.dynamicStencilReference)
+	if (createInfo.dynamicStencilReference)
 		dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+
+	if (!createInfo.cullMode.has_value())
+	{
+		dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_CULL_MODE;
+		pipeline->enableDynamicCullMode = true;
+	}
+
+	if (createInfo.enableWireframeRasterization && ctx.hasDynamicStatePolygonMode)
+	{
+		dynamicState[dynamicStateCount++] = VK_DYNAMIC_STATE_POLYGON_MODE_EXT;
+		pipeline->enableDynamicPolygonMode = true;
+	}
 
 	const VkPipelineDynamicStateCreateInfo dynamicStateCI = {
 		/* sType             */ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
@@ -396,70 +325,32 @@ static VkPipeline MaybeCreatePipelineFramebufferVariant(
 		/* sType               */ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 		/* pNext               */ nullptr,
 		/* flags               */ VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT,
-		/* stageCount          */ pipeline.numStages,
-		/* pStages             */ pipeline.shaderStageCI,
-		/* pVertexInputState   */ &pipeline.vertexInputStateCI,
+		/* stageCount          */ numStages,
+		/* pStages             */ shaderStageCI.data(),
+		/* pVertexInputState   */ &vertexInputStateCI,
 		/* pInputAssemblyState */ &iaState,
-		/* pTessellationState  */ pipeline.patchControlPoints ? &tessState : nullptr,
+		/* pTessellationState  */ createInfo.patchControlPoints != 0 ? &tessState : nullptr,
 		/* pViewportState      */ &g_viewportStateCI,
-		/* pRasterizationState */ &pipeline.rasterizationStateCI,
+		/* pRasterizationState */ &rasterizationStateCI,
 		/* pMultisampleState   */ &multisampleState,
-		/* pDepthStencilState  */ &pipeline.depthStencilStateCI,
-		/* pColorBlendState    */ &pipeline.colorBlendStateCI,
+		/* pDepthStencilState  */ &depthStencilStateCI,
+		/* pColorBlendState    */ &colorBlendStateCI,
 		/* pDynamicState       */ &dynamicStateCI,
-		/* layout              */ pipeline.pipelineLayout,
+		/* layout              */ pipeline->pipelineLayout,
 		/* renderPass          */ GetRenderPass(renderPassDescription, true),
 		/* subpass             */ 0,
 		/* basePipelineHandle  */ VK_NULL_HANDLE,
 		/* basePipelineIndex   */ -1
 	};
 
-	if (!pipeline.pipelines.empty())
+	CheckRes(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &vkCreateInfo, nullptr, &pipeline->pipeline));
+
+	if (createInfo.label != nullptr)
 	{
-		vkCreateInfo.flags |= VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-		vkCreateInfo.basePipelineHandle = pipeline.pipelines.front().pipeline;
+		SetObjectName(reinterpret_cast<uint64_t>(pipeline->pipeline), VK_OBJECT_TYPE_PIPELINE, createInfo.label);
 	}
 
-	FramebufferPipeline& fbPipeline = *pipeline.pipelines.emplace(it);
-	fbPipeline.framebufferHash = format.hash;
-	CheckRes(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &vkCreateInfo, nullptr, &fbPipeline.pipeline));
-
-	int64_t elapsed = NanoTime() - beginTime;
-
-	if (warn)
-	{
-		std::ostringstream msgStream;
-		msgStream << "Creating pipeline on demand stalled CPU for " << std::setprecision(2)
-				  << (static_cast<double>(elapsed) * 1E-6) << "ms.";
-
-		if (!pipeline.label.empty())
-			msgStream << " Label:'" << pipeline.label << "'.";
-
-		msgStream << "\n  FB format: ";
-		for (size_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
-		{
-			if (format.colorFormats[i] != VK_FORMAT_UNDEFINED)
-				msgStream << FormatToString(format.originalColorFormats[i]) << " ";
-		}
-		if (format.depthStencilFormat != VK_FORMAT_UNDEFINED)
-			msgStream << FormatToString(format.originalDepthStencilFormat) << " ";
-		msgStream << "x" << static_cast<int>(format.sampleCount);
-
-		Log(LogLevel::Warning, "vk", "{0}", msgStream.str());
-	}
-
-	if (!pipeline.label.empty())
-	{
-		SetObjectName(reinterpret_cast<uint64_t>(fbPipeline.pipeline), VK_OBJECT_TYPE_PIPELINE, pipeline.label.c_str());
-	}
-
-	return fbPipeline.pipeline;
-}
-
-void PipelineFramebufferFormatHint(PipelineHandle handle, const FramebufferFormatHint& hint)
-{
-	MaybeCreatePipelineFramebufferVariant(
-		FramebufferFormat::FromHint(hint), *static_cast<GraphicsPipeline*>(UnwrapPipeline(handle)), false);
+	return WrapPipeline(pipeline);
 }
 
 inline void CommitDynamicState(CommandContextHandle cc)
@@ -480,6 +371,18 @@ inline void CommitDynamicState(CommandContextHandle cc)
 	{
 		vkCmdSetScissor(cb, 0, 1, &state.scissor);
 		state.scissorOutOfDate = false;
+	}
+
+	if (state.cullModeOutOfDate && state.enableDynamicCullMode)
+	{
+		vkCmdSetCullModeEXT(cb, state.cullMode);
+		state.cullModeOutOfDate = false;
+	}
+
+	if (state.polygonModeOutOfDate && state.enableDynamicPolygonMode)
+	{
+		vkCmdSetPolygonModeEXT(cb, state.polygonMode);
+		state.polygonModeOutOfDate = false;
 	}
 }
 
@@ -528,16 +431,53 @@ void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
 		vkCmdSetStencilReference(GetCB(cc), faceFlags, val);
 }
 
+void SetWireframe(CommandContextHandle cc, bool wireframe)
+{
+	CommandContextState& ctxState = GetCtxState(cc);
+	VkPolygonMode polygonMode = wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+	if (polygonMode != ctxState.polygonMode)
+	{
+		ctxState.polygonModeOutOfDate = true;
+		ctxState.polygonMode = polygonMode;
+	}
+}
+
+void SetCullMode(CommandContextHandle cc, CullMode cullMode)
+{
+	CommandContextState& ctxState = GetCtxState(cc);
+	VkCullModeFlags vkCullMode = TranslateCullMode(cullMode);
+	if (vkCullMode != ctxState.cullMode)
+	{
+		ctxState.cullModeOutOfDate = true;
+		ctxState.cullMode = ctxState.cullMode;
+	}
+}
+
 void GraphicsPipeline::Bind(CommandContextHandle cc)
 {
 	VkCommandBuffer cb = GetCB(cc);
-	VkPipeline vkPipeline = MaybeCreatePipelineFramebufferVariant(currentFBFormat, *this, true);
-	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline);
+	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
+	CommandContextState& ctxState = GetCtxState(cc);
 
 	if (!enableScissorTest)
 	{
-		const CommandContextState& ctxState = GetCtxState(cc);
 		SetScissor(cc, 0, 0, ctxState.framebufferW, ctxState.framebufferH);
+	}
+
+	ctxState.enableDynamicCullMode = enableDynamicCullMode;
+	ctxState.enableDynamicPolygonMode = enableDynamicPolygonMode;
+
+	if (!enableDynamicPolygonMode && ctxState.polygonMode != VK_POLYGON_MODE_FILL)
+	{
+		ctxState.polygonMode = VK_POLYGON_MODE_FILL;
+		ctxState.polygonModeOutOfDate = true;
+	}
+
+	if (!enableDynamicCullMode && ctxState.cullMode != staticCullMode)
+	{
+		ctxState.cullMode = staticCullMode;
+		ctxState.cullModeOutOfDate = true;
 	}
 }
 

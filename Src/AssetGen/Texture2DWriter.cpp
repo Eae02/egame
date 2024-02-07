@@ -54,9 +54,7 @@ void Texture2DWriter::ParseYAMLSettings(const YAML::Node& node)
 
 	m_numMipLevels = node["mipLevels"].as<int>(0);
 
-	m_linearFiltering = node["filtering"].as<std::string>("linear") == "linear";
 	m_dxtDither = node["dither"].as<bool>(false);
-	m_anisotropicFiltering = node["enableAnistropy"].as<bool>(true);
 	m_useGlobalDownscale = node["useGlobalDownscale"].as<bool>(false);
 }
 
@@ -68,13 +66,9 @@ void Texture2DWriter::ProcessMipLevel(const uint8_t* imageData, int width, int h
 	switch (m_format)
 	{
 	case eg::Format::BC1_RGBA_UNorm:
-	case eg::Format::BC4_UNorm:
-		bytesPerBlock = 8;
-		break;
+	case eg::Format::BC4_UNorm: bytesPerBlock = 8; break;
 	case eg::Format::BC3_UNorm:
-	case eg::Format::BC5_UNorm:
-		bytesPerBlock = 16;
-		break;
+	case eg::Format::BC5_UNorm: bytesPerBlock = 16; break;
 	case eg::Format::R8G8B8A8_UNorm:
 	{
 		m_data.emplace_back(imageData, width * height * 4);
@@ -85,8 +79,7 @@ void Texture2DWriter::ProcessMipLevel(const uint8_t* imageData, int width, int h
 		m_data.emplace_back(imageData, width * height);
 		return;
 	}
-	default:
-		EG_PANIC("Unexpected format")
+	default: EG_PANIC("Unexpected format")
 	}
 
 	int numBlocks = ((width + 3) / 4) * ((height + 3) / 4);
@@ -192,8 +185,7 @@ void Texture2DWriter::ProcessMipLevel(const uint8_t* imageData, int width, int h
 
 		break;
 	}
-	default:
-		EG_PANIC("Unexpected format")
+	default: EG_PANIC("Unexpected format")
 	}
 
 	m_data.emplace_back(outputDataUP.get(), outputBytes);
@@ -367,18 +359,10 @@ bool Texture2DWriter::Write(std::ostream& stream) const
 	{
 		switch (m_format)
 		{
-		case Format::R8G8B8A8_UNorm:
-			realFormat = Format::R8G8B8A8_sRGB;
-			break;
-		case Format::BC1_RGBA_UNorm:
-			realFormat = Format::BC1_RGBA_sRGB;
-			break;
-		case Format::BC3_UNorm:
-			realFormat = Format::BC3_sRGB;
-			break;
-		default:
-			Log(LogLevel::Error, "as", "sRGB is not supported for the selected format.");
-			return false;
+		case Format::R8G8B8A8_UNorm: realFormat = Format::R8G8B8A8_sRGB; break;
+		case Format::BC1_RGBA_UNorm: realFormat = Format::BC1_RGBA_sRGB; break;
+		case Format::BC3_UNorm: realFormat = Format::BC3_sRGB; break;
+		default: Log(LogLevel::Error, "as", "sRGB is not supported for the selected format."); return false;
 		}
 	}
 
@@ -397,8 +381,7 @@ bool Texture2DWriter::Write(std::ostream& stream) const
 	BinWrite<uint32_t>(stream, ToUnsigned(m_numLayers));
 	BinWrite<uint32_t>(stream, static_cast<uint32_t>(realFormat));
 
-	uint32_t flags = static_cast<uint32_t>(m_linearFiltering) | static_cast<uint32_t>(m_anisotropicFiltering) << 1U |
-	                 static_cast<uint32_t>(m_useGlobalDownscale) << 2U | static_cast<uint32_t>(m_isArrayTexture) << 3U |
+	uint32_t flags = static_cast<uint32_t>(m_useGlobalDownscale) << 2U | static_cast<uint32_t>(m_isArrayTexture) << 3U |
 	                 static_cast<uint32_t>(m_isCubeMap) << 4U | static_cast<uint32_t>(m_is3D) << 5U;
 	BinWrite<uint32_t>(stream, flags);
 

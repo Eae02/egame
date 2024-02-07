@@ -10,7 +10,13 @@ enum class GraphicsAPI
 {
 	OpenGL,
 	Vulkan,
+	Metal,
+
+#ifdef __APPLE__
+	Preferred = Metal,
+#else
 	Preferred = OpenGL
+#endif
 };
 
 namespace detail

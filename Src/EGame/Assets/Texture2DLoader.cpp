@@ -23,8 +23,6 @@ struct __attribute__((__packed__)) Header
 
 enum
 {
-	TF_LinearFiltering = 1,
-	TF_Anistropy = 2,
 	TF_UseGlobalScale = 4,
 	TF_ArrayTexture = 8,
 	TF_CubeMap = 16,
@@ -35,11 +33,6 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 {
 	EG_ASSERT(reinterpret_cast<uintptr_t>(loadContext.Data().data()) % alignof(Header) == 0);
 	const Header* header = reinterpret_cast<const Header*>(loadContext.Data().data());
-
-	SamplerDescription sampler;
-	sampler.maxAnistropy = (header->flags & TF_Anistropy) ? 16 : 0;
-	auto filter = (header->flags & TF_LinearFiltering) ? eg::TextureFilter::Linear : eg::TextureFilter::Nearest;
-	sampler.minFilter = sampler.magFilter = filter;
 
 	uint32_t mipShift = std::min(header->mipShifts[static_cast<int>(TextureAssetQuality)], header->numMipLevels - 1);
 
@@ -64,7 +57,6 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 
 	TextureCreateInfo createInfo;
 	createInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample;
-	createInfo.defaultSamplerDescription = &sampler;
 	createInfo.width = header->width >> mipShift;
 	createInfo.height = header->height >> mipShift;
 	createInfo.format = header->format;

@@ -11,10 +11,8 @@ static inline VkQueryType TranslateQueryType(QueryType type)
 {
 	switch (type)
 	{
-	case QueryType::Timestamp:
-		return VK_QUERY_TYPE_TIMESTAMP;
-	case QueryType::Occlusion:
-		return VK_QUERY_TYPE_OCCLUSION;
+	case QueryType::Timestamp: return VK_QUERY_TYPE_TIMESTAMP;
+	case QueryType::Occlusion: return VK_QUERY_TYPE_OCCLUSION;
 	}
 	EG_UNREACHABLE
 }

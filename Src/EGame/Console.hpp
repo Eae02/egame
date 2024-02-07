@@ -3,9 +3,9 @@
 #include <functional>
 #include <mutex>
 #include <span>
-#include <typeindex>
-#include <string_view>
 #include <string>
+#include <string_view>
+#include <typeindex>
 #include <vector>
 
 #include "API.hpp"

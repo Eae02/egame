@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../API.hpp"
-#include "Abstraction.hpp"
+#include "AbstractionHL.hpp"
 
 namespace eg
 {
@@ -18,6 +18,6 @@ enum class FullscreenShaderTexCoordMode
 	FlippedIfOpenGL
 };
 
-EG_API ShaderModuleHandle
-GetFullscreenShader(FullscreenShaderTexCoordMode texCoordMode = FullscreenShaderTexCoordMode::FlippedIfOpenGL);
+EG_API const ShaderModule& GetFullscreenShader(
+	FullscreenShaderTexCoordMode texCoordMode = FullscreenShaderTexCoordMode::FlippedIfOpenGL);
 } // namespace eg

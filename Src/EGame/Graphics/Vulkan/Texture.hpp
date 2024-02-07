@@ -44,7 +44,6 @@ struct Texture : Resource
 	VkFormat format;
 	eg::Format originalFormat;
 	VkImageAspectFlags aspectFlags;
-	VkSampler defaultSampler;
 	bool autoBarrier;
 	std::string viewLabel;
 

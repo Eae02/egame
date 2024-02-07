@@ -364,7 +364,7 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 
 	const SpriteFont& font = SpriteFont::DevFont();
 
-	const float fontScale = DisplayScaleFactor();
+	const float fontScale = 1.0f;//DisplayScaleFactor();
 	ctx->textEdit.SetFontScale(fontScale);
 	const float scaledFontSize = static_cast<float>(font.Size()) * fontScale;
 	const float scaledLineHeight = static_cast<float>(font.LineHeight()) * fontScale;
@@ -426,8 +426,8 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 	if (ctx->maxScroll > 0)
 	{
 		const float scrollBarWidth = 2 * fontScale;
-		const float scrollBarHeight = viewWindowHeight * viewWindowHeight /
-		                              (static_cast<float>(ctx->lines.size()) * scaledLineHeight);
+		const float scrollBarHeight =
+			viewWindowHeight * viewWindowHeight / (static_cast<float>(ctx->lines.size()) * scaledLineHeight);
 		const float scrollY = (viewWindowHeight - scrollBarHeight) * (ctx->scroll / ctx->maxScroll);
 		const Rectangle rectangle(
 			innerMaxX - scrollBarWidth, lineY + padding + scrollY, scrollBarWidth, scrollBarHeight);

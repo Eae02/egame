@@ -21,6 +21,8 @@ Pipeline gizmoPipeline;
 
 void InitializeGizmoPipeline()
 {
+	return; // TODO: Implement format for the pipeline
+
 	if (gizmoPipeline.handle)
 		return;
 

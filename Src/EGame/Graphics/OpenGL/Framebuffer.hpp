@@ -2,7 +2,11 @@
 
 #include "GL.hpp"
 
+#include <span>
 #include <string_view>
+#include <optional>
+
+#include "../Format.hpp"
 
 namespace eg::graphics_api::gl
 {
@@ -16,6 +20,19 @@ extern bool srgbBackBuffer;
 extern bool hasWrittenToBackBuffer;
 
 extern bool enableDefaultFramebufferSRGBEmulation;
+
+struct FramebufferFormat
+{
+	std::span<const Format> colorAttachmentFormats;
+	std::optional<Format> depthStencilAttachmentFormat;
+	uint32_t sampleCount;
+
+	static FramebufferFormat GetCurrent();
+
+	size_t Hash() const;
+
+	void PrintToStdout(std::string_view linePrefix, const FramebufferFormat* expected) const;
+};
 
 void AssertRenderPassActive(std::string_view opName);
 void AssertRenderPassNotActive(std::string_view opName);

@@ -40,21 +40,11 @@ void Skeleton::InitDualBones()
 		char otherSideChar;
 		switch (nameI.back())
 		{
-		case 'L':
-			otherSideChar = 'R';
-			break;
-		case 'l':
-			otherSideChar = 'r';
-			break;
-		case 'R':
-			otherSideChar = 'L';
-			break;
-		case 'r':
-			otherSideChar = 'l';
-			break;
-		default:
-			otherSideChar = '\0';
-			break;
+		case 'L': otherSideChar = 'R'; break;
+		case 'l': otherSideChar = 'r'; break;
+		case 'R': otherSideChar = 'L'; break;
+		case 'r': otherSideChar = 'l'; break;
+		default: otherSideChar = '\0'; break;
 		}
 
 		if (otherSideChar == '\0')

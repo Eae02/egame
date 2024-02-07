@@ -2,6 +2,7 @@
 
 #include "../Assets/Asset.hpp"
 #include "Abstraction.hpp"
+#include "SpirvCrossFwd.hpp"
 
 namespace eg
 {
@@ -43,21 +44,6 @@ public:
 		}
 	}
 
-	void FramebufferFormatHint(
-		eg::Format colorFormat, eg::Format depthFormat = eg::Format::Undefined, uint32_t sampleCount = 1)
-	{
-		eg::FramebufferFormatHint hint;
-		hint.depthStencilFormat = depthFormat;
-		hint.colorFormats[0] = colorFormat;
-		hint.sampleCount = sampleCount;
-		gal::PipelineFramebufferFormatHint(handle, hint);
-	}
-
-	void FramebufferFormatHint(const eg::FramebufferFormatHint& hint)
-	{
-		gal::PipelineFramebufferFormatHint(handle, hint);
-	}
-
 	PipelineHandle handle;
 };
 
@@ -87,12 +73,14 @@ class EG_API ShaderModule
 public:
 	ShaderModule() = default;
 
-	ShaderModule(ShaderStage stage, std::span<const char> code) : m_handle(gal::CreateShaderModule(stage, code)) {}
-
-	ShaderModule(ShaderStage stage, std::span<const uint32_t> code)
-		: m_handle(gal::CreateShaderModule(stage, { reinterpret_cast<const char*>(code.data()), code.size_bytes() }))
+	ShaderModule(ShaderStage stage, std::span<const char> code)
+		: ShaderModule(
+			  stage,
+			  std::span<const uint32_t>(reinterpret_cast<const uint32_t*>(code.data()), code.size() / sizeof(uint32_t)))
 	{
 	}
+
+	ShaderModule(ShaderStage stage, std::span<const uint32_t> code);
 
 	static ShaderModule CreateFromFile(const std::string& path);
 
@@ -103,11 +91,15 @@ public:
 	 */
 	ShaderModuleHandle Handle() const { return m_handle.get(); }
 
+	const spirv_cross::ParsedIR& ParsedIR() const { return *m_parsedIR; }
+
 private:
 	struct ShaderModuleDel
 	{
 		void operator()(ShaderModuleHandle handle) { gal::DestroyShaderModule(handle); }
 	};
+
+	std::unique_ptr<spirv_cross::ParsedIR, SpirvCrossParsedIRDeleter> m_parsedIR;
 
 	std::unique_ptr<_ShaderModule, ShaderModuleDel> m_handle;
 };
@@ -127,6 +119,14 @@ public:
 	{
 		gal::BufferUsageHint(handle, newUsage, shaderAccessFlags);
 	}
+
+	template <typename T>
+	void DCUpdateData(uint64_t offset, std::span<const T> data)
+	{
+		DCUpdateData(offset, data.size_bytes(), data.data());
+	}
+
+	void DCUpdateData(uint64_t offset, uint64_t size, const void* data);
 
 	void Destroy()
 	{
@@ -205,6 +205,8 @@ public:
 	{
 		return gal::GetTextureView(handle, viewType, subresource, differentFormat);
 	}
+
+	void DCUpdateData(const TextureRange& range, size_t dataLen, const void* data);
 
 	TextureHandle handle;
 };
@@ -364,20 +366,15 @@ class EG_API Sampler
 {
 public:
 	Sampler() = default;
-	explicit Sampler(const SamplerDescription& description) : m_sampler(gal::CreateSampler(description)) {}
+	explicit Sampler(const SamplerDescription& description);
 
 	/**
 	 * Gets the GAL handle for this sampler.
 	 */
-	SamplerHandle Handle() const { return m_sampler.get(); }
+	SamplerHandle Handle() const { return m_handle; }
 
 private:
-	struct SamplerDel
-	{
-		void operator()(SamplerHandle handle) { gal::DestroySampler(handle); }
-	};
-
-	std::unique_ptr<_Sampler, SamplerDel> m_sampler;
+	SamplerHandle m_handle;
 };
 
 class EG_API DescriptorSetRef
@@ -395,13 +392,12 @@ public:
 	}
 
 	void BindTexture(
-		TextureRef texture, uint32_t binding, const Sampler* sampler = nullptr,
-		const TextureSubresource& subresource = {})
+		TextureRef texture, uint32_t binding, const Sampler* sampler, const TextureSubresource& subresource = {})
 	{
 		BindTextureView(texture.GetView(subresource), binding, sampler);
 	}
 
-	void BindTextureView(TextureViewHandle textureView, uint32_t binding, const Sampler* sampler = nullptr)
+	void BindTextureView(TextureViewHandle textureView, uint32_t binding, const Sampler* sampler)
 	{
 		gal::BindTextureDS(textureView, sampler ? sampler->Handle() : nullptr, handle, binding);
 	}
@@ -582,14 +578,13 @@ public:
 	}
 
 	void BindTexture(
-		TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr,
+		TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler,
 		const TextureSubresource& subresource = {})
 	{
 		BindTextureView(texture.GetView(subresource), set, binding, sampler);
 	}
 
-	void BindTextureView(
-		TextureViewHandle textureView, uint32_t set, uint32_t binding, const Sampler* sampler = nullptr)
+	void BindTextureView(TextureViewHandle textureView, uint32_t set, uint32_t binding, const Sampler* sampler)
 	{
 		gal::BindTexture(Handle(), textureView, sampler ? sampler->Handle() : nullptr, set, binding);
 	}
@@ -625,6 +620,9 @@ public:
 	void SetViewport(float x, float y, float w, float h) { gal::SetViewport(Handle(), x, y, w, h); }
 
 	void SetScissor(int x, int y, int w, int h) { gal::SetScissor(Handle(), x, y, w, h); }
+
+	void SetWireframe(bool wireframe) { gal::SetWireframe(Handle(), wireframe); }
+	void SetCullMode(CullMode cullMode) { gal::SetCullMode(Handle(), cullMode); }
 
 	void SetStencilValue(StencilValue kind, uint32_t val) { gal::SetStencilValue(Handle(), kind, val); }
 

@@ -257,28 +257,16 @@ inline void MaybeBarrierAfterSSBO(BufferUsage newUsage)
 #ifndef EG_GLES
 	switch (newUsage)
 	{
-	case BufferUsage::Undefined:
-		break;
+	case BufferUsage::Undefined: break;
 	case BufferUsage::CopySrc:
-	case BufferUsage::CopyDst:
-		MaybeInsertBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
-		break;
-	case BufferUsage::VertexBuffer:
-		MaybeInsertBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
-		break;
-	case BufferUsage::IndexBuffer:
-		MaybeInsertBarrier(GL_ELEMENT_ARRAY_BARRIER_BIT);
-		break;
-	case BufferUsage::UniformBuffer:
-		MaybeInsertBarrier(GL_UNIFORM_BARRIER_BIT);
-		break;
+	case BufferUsage::CopyDst: MaybeInsertBarrier(GL_BUFFER_UPDATE_BARRIER_BIT); break;
+	case BufferUsage::VertexBuffer: MaybeInsertBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT); break;
+	case BufferUsage::IndexBuffer: MaybeInsertBarrier(GL_ELEMENT_ARRAY_BARRIER_BIT); break;
+	case BufferUsage::UniformBuffer: MaybeInsertBarrier(GL_UNIFORM_BARRIER_BIT); break;
 	case BufferUsage::StorageBufferRead:
 	case BufferUsage::StorageBufferWrite:
-	case BufferUsage::StorageBufferReadWrite:
-		MaybeInsertBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-		break;
-	case BufferUsage::HostRead:
-		break;
+	case BufferUsage::StorageBufferReadWrite: MaybeInsertBarrier(GL_SHADER_STORAGE_BARRIER_BIT); break;
+	case BufferUsage::HostRead: break;
 	}
 #endif
 }

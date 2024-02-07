@@ -212,16 +212,12 @@ static bool ProcessAsset(
 {
 	switch (assetToLoad.state)
 	{
-	case AssetToLoad::STATE_INITIAL:
-		assetToLoad.state = AssetToLoad::STATE_PROCESSING;
-		break;
+	case AssetToLoad::STATE_INITIAL: assetToLoad.state = AssetToLoad::STATE_PROCESSING; break;
 	case AssetToLoad::STATE_PROCESSING:
 		eg::Log(LogLevel::Error, "as", "Circular load-time dependency involving '{0}'", assetToLoad.name);
 		return false;
-	case AssetToLoad::STATE_LOADED:
-		return true;
-	case AssetToLoad::STATE_FAILED:
-		return false;
+	case AssetToLoad::STATE_LOADED: return true;
+	case AssetToLoad::STATE_FAILED: return false;
 	}
 
 	// Processes dependencies

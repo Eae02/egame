@@ -5,7 +5,12 @@
 
 namespace eg
 {
-static DescriptorSetBinding dsBinding(0, BindingType::StorageBuffer, ShaderAccessFlags::Vertex);
+static DescriptorSetBinding dsBinding = DescriptorSetBinding{
+	.binding = 0,
+	.type = BindingType::StorageBuffer,
+	.shaderAccess = ShaderAccessFlags::Vertex,
+	.rwMode = ReadWriteMode::ReadOnly,
+};
 
 void BoneMatrixBuffer::CreateDescriptorSet()
 {

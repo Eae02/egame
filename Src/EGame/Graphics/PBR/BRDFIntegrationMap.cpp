@@ -16,7 +16,6 @@ BRDFIntegrationMap::BRDFIntegrationMap(uint32_t resolution)
 	textureCI.flags = TextureFlags::StorageImage | TextureFlags::ShaderSample;
 	textureCI.mipLevels = 1;
 	textureCI.format = FORMAT;
-	textureCI.defaultSamplerDescription = &samplerDescription;
 	m_texture = Texture::Create2D(textureCI);
 
 	ShaderModule shader(ShaderStage::Compute, BRDFIntegration_cs_glsl);

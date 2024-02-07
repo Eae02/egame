@@ -206,26 +206,16 @@ inline VkAccessFlags GetBarrierAccess(BufferUsage usage)
 {
 	switch (usage)
 	{
-	case BufferUsage::Undefined:
-		return 0;
-	case BufferUsage::CopySrc:
-		return VK_ACCESS_TRANSFER_READ_BIT;
-	case BufferUsage::CopyDst:
-		return VK_ACCESS_TRANSFER_WRITE_BIT;
-	case BufferUsage::VertexBuffer:
-		return VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-	case BufferUsage::IndexBuffer:
-		return VK_ACCESS_INDEX_READ_BIT;
-	case BufferUsage::UniformBuffer:
-		return VK_ACCESS_UNIFORM_READ_BIT;
-	case BufferUsage::StorageBufferRead:
-		return VK_ACCESS_SHADER_READ_BIT;
-	case BufferUsage::StorageBufferWrite:
-		return VK_ACCESS_SHADER_WRITE_BIT;
-	case BufferUsage::StorageBufferReadWrite:
-		return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-	case BufferUsage::HostRead:
-		return VK_ACCESS_HOST_READ_BIT;
+	case BufferUsage::Undefined: return 0;
+	case BufferUsage::CopySrc: return VK_ACCESS_TRANSFER_READ_BIT;
+	case BufferUsage::CopyDst: return VK_ACCESS_TRANSFER_WRITE_BIT;
+	case BufferUsage::VertexBuffer: return VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+	case BufferUsage::IndexBuffer: return VK_ACCESS_INDEX_READ_BIT;
+	case BufferUsage::UniformBuffer: return VK_ACCESS_UNIFORM_READ_BIT;
+	case BufferUsage::StorageBufferRead: return VK_ACCESS_SHADER_READ_BIT;
+	case BufferUsage::StorageBufferWrite: return VK_ACCESS_SHADER_WRITE_BIT;
+	case BufferUsage::StorageBufferReadWrite: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+	case BufferUsage::HostRead: return VK_ACCESS_HOST_READ_BIT;
 	}
 	EG_UNREACHABLE
 }
@@ -234,23 +224,16 @@ inline VkPipelineStageFlags GetBarrierStageFlags(BufferUsage usage, ShaderAccess
 {
 	switch (usage)
 	{
-	case BufferUsage::Undefined:
-		return 0;
-	case BufferUsage::CopySrc:
-		return VK_PIPELINE_STAGE_TRANSFER_BIT;
-	case BufferUsage::CopyDst:
-		return VK_PIPELINE_STAGE_TRANSFER_BIT;
-	case BufferUsage::VertexBuffer:
-		return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-	case BufferUsage::IndexBuffer:
-		return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
-	case BufferUsage::HostRead:
-		return VK_PIPELINE_STAGE_HOST_BIT;
+	case BufferUsage::Undefined: return 0;
+	case BufferUsage::CopySrc: return VK_PIPELINE_STAGE_TRANSFER_BIT;
+	case BufferUsage::CopyDst: return VK_PIPELINE_STAGE_TRANSFER_BIT;
+	case BufferUsage::VertexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+	case BufferUsage::IndexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+	case BufferUsage::HostRead: return VK_PIPELINE_STAGE_HOST_BIT;
 	case BufferUsage::UniformBuffer:
 	case BufferUsage::StorageBufferRead:
 	case BufferUsage::StorageBufferWrite:
-	case BufferUsage::StorageBufferReadWrite:
-		return TranslateShaderPipelineStage(shaderAccessFlags);
+	case BufferUsage::StorageBufferReadWrite: return TranslateShaderPipelineStage(shaderAccessFlags);
 	}
 	EG_UNREACHABLE
 }

@@ -11,3 +11,4 @@ AccessModifierOffset: -4
 AllowShortFunctionsOnASingleLine: Inline
 Cpp11BracedListStyle: false
 AlwaysBreakTemplateDeclarations: true
+AllowShortCaseLabelsOnASingleLine: true

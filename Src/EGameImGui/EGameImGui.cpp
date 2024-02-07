@@ -16,6 +16,8 @@ static eg::EventListener<eg::ButtonEvent>* buttonEventListener;
 
 static Texture fontTexture;
 
+static Sampler textureSampler;
+
 static ShaderModule vertexShader;
 static ShaderModule fragmentShader;
 static Pipeline pipeline;
@@ -173,7 +175,9 @@ void Initialize(const InitializeArgs& args)
 	eg::GraphicsPipelineCreateInfo pipelineCI;
 	pipelineCI.vertexShader = vertexShader.Handle();
 	pipelineCI.fragmentShader = fragmentShader.Handle();
+	pipelineCI.label = "imgui";
 	pipelineCI.enableScissorTest = true;
+	pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
 	pipelineCI.blendStates[0] = eg::AlphaBlend;
 	pipelineCI.vertexBindings[0] = { sizeof(ImDrawVert), eg::InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, eg::DataType::Float32, 2, static_cast<uint32_t>(offsetof(ImDrawVert, pos)) };
@@ -182,7 +186,6 @@ void Initialize(const InitializeArgs& args)
 		                               static_cast<uint32_t>(offsetof(ImDrawVert, col)) };
 
 	pipeline = eg::Pipeline::Create(pipelineCI);
-	pipeline.FramebufferFormatHint(eg::Format::DefaultColor, eg::Format::DefaultDepthStencil);
 
 	// ** Creates the font texture **
 #ifdef __EMSCRIPTEN__
@@ -221,16 +224,16 @@ void Initialize(const InitializeArgs& args)
 	std::memcpy(fontUploadMem, fontTexPixels, fontTexBytes);
 	fontUploadBuffer.Flush(0, fontTexBytes);
 
-	eg::SamplerDescription fontTexSampler;
-	fontTexSampler.wrapU = eg::WrapMode::ClampToEdge;
-	fontTexSampler.wrapV = eg::WrapMode::ClampToEdge;
+	textureSampler = Sampler(SamplerDescription{
+		.wrapU = eg::WrapMode::ClampToEdge,
+		.wrapV = eg::WrapMode::ClampToEdge,
+	});
 
 	eg::TextureCreateInfo fontTexCreateInfo;
 	fontTexCreateInfo.flags = eg::TextureFlags::CopyDst | eg::TextureFlags::ShaderSample;
 	fontTexCreateInfo.width = fontTexWidth;
 	fontTexCreateInfo.height = fontTexHeight;
 	fontTexCreateInfo.format = eg::Format::R8G8B8A8_UNorm;
-	fontTexCreateInfo.defaultSamplerDescription = &fontTexSampler;
 	fontTexCreateInfo.mipLevels = 1;
 
 	fontTexture = eg::Texture::Create2D(fontTexCreateInfo);
@@ -289,29 +292,16 @@ void StartFrame(float dt)
 
 			switch (event.button)
 			{
-			case eg::Button::MouseLeft:
-				io.MouseDown[0] = event.newState;
-				break;
-			case eg::Button::MouseRight:
-				io.MouseDown[1] = event.newState;
-				break;
-			case eg::Button::MouseMiddle:
-				io.MouseDown[2] = event.newState;
-				break;
+			case eg::Button::MouseLeft: io.MouseDown[0] = event.newState; break;
+			case eg::Button::MouseRight: io.MouseDown[1] = event.newState; break;
+			case eg::Button::MouseMiddle: io.MouseDown[2] = event.newState; break;
 			case eg::Button::LeftShift:
-			case eg::Button::RightShift:
-				io.KeyShift = event.newState;
-				break;
+			case eg::Button::RightShift: io.KeyShift = event.newState; break;
 			case eg::Button::LeftControl:
-			case eg::Button::RightControl:
-				io.KeyCtrl = event.newState;
-				break;
+			case eg::Button::RightControl: io.KeyCtrl = event.newState; break;
 			case eg::Button::LeftAlt:
-			case eg::Button::RightAlt:
-				io.KeyAlt = event.newState;
-				break;
-			default:
-				break;
+			case eg::Button::RightAlt: io.KeyAlt = event.newState; break;
+			default: break;
 			}
 		});
 
@@ -409,7 +399,8 @@ void EndFrame()
 
 		for (const ImDrawCmd& drawCommand : commandList->CmdBuffer)
 		{
-			eg::DC.BindTextureView(reinterpret_cast<eg::TextureViewHandle>(drawCommand.TextureId), 0, 0);
+			eg::DC.BindTextureView(
+				reinterpret_cast<eg::TextureViewHandle>(drawCommand.TextureId), 0, 0, &textureSampler);
 
 			if (drawCommand.UserCallback != nullptr)
 			{

@@ -37,7 +37,6 @@ struct Texture
 {
 	GLuint texture;
 	std::unordered_map<TextureViewKey, TextureView, MemberFunctionHash<TextureViewKey>> views;
-	std::optional<SamplerDescription> samplerDescription;
 	GLenum type;
 	Format format;
 	int dim;

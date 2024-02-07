@@ -60,8 +60,6 @@ extern const AbstractPipeline* currentPipeline;
 void MarkBindingAsSatisfied(size_t resolvedBindingIndex);
 void AssertAllBindingsSatisfied();
 
-void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::CompilerGLSL& compiler);
-
 void CompileShaderStage(GLuint shader, std::string_view glslCode);
 void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeStages);
 

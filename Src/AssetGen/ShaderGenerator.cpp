@@ -178,18 +178,21 @@ struct CustomIncludeResult : glsl_include_result_t
 		header_length = 0;
 	}
 
-	CustomIncludeResult(std::string _name, std::vector<char> _data) : name(std::move(_name)), data(std::move(_data))
+	CustomIncludeResult(std::string_view name, std::vector<char> _data)
+		: nameBuffer(name.size() + 1), data(std::move(_data))
 	{
-		header_name = name.c_str();
+		std::copy(name.begin(), name.end(), nameBuffer.begin());
+		nameBuffer.back() = '\0';
+		header_name = nameBuffer.data();
 		header_data = data.data();
 		header_length = data.size();
 	}
 
-	std::string name;
+	std::vector<char> nameBuffer;
 	std::vector<char> data;
 };
 
-inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path, const std::string& name)
+inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& path, std::string_view name)
 {
 	std::ifstream stream(path, std::ios::binary);
 	if (!stream)
@@ -201,32 +204,38 @@ inline static CustomIncludeResult* TryCreateIncludeResult(const std::string& pat
 glsl_include_result_t* includeCallbackSystem(
 	void* ctx, const char* headerName, const char* includerName, size_t includeDepth)
 {
-	auto CheckSystemHeader = [&](const char* name, std::span<const unsigned char> headerData) -> CustomIncludeResult*
+	auto CheckSystemHeader = [&](std::string_view name,
+	                             std::span<const unsigned char> headerData) -> CustomIncludeResult*
 	{
-		if (std::strcmp(name, headerName))
+		if (name != headerName)
 			return nullptr;
 		const char* headerDataChar = reinterpret_cast<const char*>(headerData.data());
-		return new CustomIncludeResult(headerName, { headerDataChar, headerDataChar + headerData.size() });
+		return new CustomIncludeResult(name, { headerDataChar, headerDataChar + headerData.size() });
 	};
 
 	if (auto result = CheckSystemHeader("EGame.glh", Inc_EGame_glh))
 		return result;
 	if (auto result = CheckSystemHeader("Deferred.glh", Inc_Deferred_glh))
 		return result;
-	return new CustomIncludeResult;
+	return nullptr;
 }
 
 glsl_include_result_t* includeCallbackLocal(
 	void* ctx, const char* headerName, const char* includerName, size_t includeDepth)
 {
 	AssetGenerateContext* generateContext = static_cast<AssetGenerateContext*>(ctx);
-	std::string path = Concat({ ParentPath(includerName), headerName });
+
+	std::string_view includer = includerName;
+	if (includer.empty())
+		includer = generateContext->AssetName();
+
+	std::string path = Concat({ ParentPath(includer), headerName });
 	if (auto iRes = TryCreateIncludeResult(generateContext->ResolveRelPath(path), path))
 	{
 		generateContext->FileDependency(std::move(path));
 		return iRes;
 	}
-	return new CustomIncludeResult;
+	return nullptr;
 }
 
 int includeCallbackFree(void* ctx, glsl_include_result_t* result)
@@ -305,26 +314,13 @@ public:
 		ShaderStage egStage;
 		switch (*lang)
 		{
-		case GLSLANG_STAGE_VERTEX:
-			egStage = ShaderStage::Vertex;
-			break;
-		case GLSLANG_STAGE_FRAGMENT:
-			egStage = ShaderStage::Fragment;
-			break;
-		case GLSLANG_STAGE_GEOMETRY:
-			egStage = ShaderStage::Geometry;
-			break;
-		case GLSLANG_STAGE_COMPUTE:
-			egStage = ShaderStage::Compute;
-			break;
-		case GLSLANG_STAGE_TESSCONTROL:
-			egStage = ShaderStage::TessControl;
-			break;
-		case GLSLANG_STAGE_TESSEVALUATION:
-			egStage = ShaderStage::TessEvaluation;
-			break;
-		default:
-			EG_UNREACHABLE break;
+		case GLSLANG_STAGE_VERTEX: egStage = ShaderStage::Vertex; break;
+		case GLSLANG_STAGE_FRAGMENT: egStage = ShaderStage::Fragment; break;
+		case GLSLANG_STAGE_GEOMETRY: egStage = ShaderStage::Geometry; break;
+		case GLSLANG_STAGE_COMPUTE: egStage = ShaderStage::Compute; break;
+		case GLSLANG_STAGE_TESSCONTROL: egStage = ShaderStage::TessControl; break;
+		case GLSLANG_STAGE_TESSEVALUATION: egStage = ShaderStage::TessEvaluation; break;
+		default: EG_UNREACHABLE break;
 		}
 		BinWrite(generateContext.outputStream, static_cast<uint32_t>(egStage));
 
@@ -356,7 +352,7 @@ public:
 				.target_language = GLSLANG_TARGET_SPV,
 				.target_language_version = GLSLANG_TARGET_SPV_1_0,
 				.code = fullSourceCode.c_str(),
-				.default_version = 100,
+				.default_version = 450,
 				.default_profile = GLSLANG_NO_PROFILE,
 				.force_default_version_and_profile = false,
 				.forward_compatible = false,

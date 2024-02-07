@@ -5,7 +5,9 @@
 #include "../Utils.hpp"
 #include "Format.hpp"
 #include "Graphics.hpp"
+#include "SpirvCrossFwd.hpp"
 
+#include <optional>
 #include <span>
 #include <tuple>
 #include <variant>
@@ -119,7 +121,6 @@ enum class Topology
 {
 	TriangleList,
 	TriangleStrip,
-	TriangleFan,
 	LineList,
 	LineStrip,
 	Points,
@@ -243,6 +244,8 @@ struct VertexBinding
 	uint32_t stride = UINT32_MAX; // If stride is UINT32_MAX, the binding is disabled
 	InputRate inputRate = InputRate::Vertex;
 
+	bool IsEnabled() const { return stride != UINT32_MAX; }
+
 	VertexBinding() = default;
 	VertexBinding(uint32_t _stride, InputRate _inputRate) : stride(_stride), inputRate(_inputRate) {}
 };
@@ -252,6 +255,8 @@ struct VertexAttribute
 	uint32_t binding = UINT32_MAX; // If binding is UINT32_MAX, the attribute is disabled
 	Format format = Format::Undefined;
 	uint32_t offset = 0;
+
+	bool IsEnabled() const { return binding != UINT32_MAX; }
 
 	VertexAttribute() = default;
 	VertexAttribute(uint32_t _binding, Format _format, uint32_t _offset)
@@ -363,17 +368,26 @@ struct GraphicsPipelineCreateInfo
 
 	uint32_t patchControlPoints = 0;
 	uint32_t numClipDistances = 0;
-	bool wireframe = false;
 	float lineWidth = 1;
-	CullMode cullMode = CullMode::None;
 	bool frontFaceCCW = false;
 	Topology topology = Topology::TriangleList;
+
+	// nullopt means that cull mode is set dynamically by calling SetCullMode
+	std::optional<CullMode> cullMode = CullMode::None;
+
+	// Setting this this true means that wireframe rasterization can be enabled by calling SetWireframe
+	bool enableWireframeRasterization = false;
 
 	float blendConstants[4] = {};
 	BindMode setBindModes[MAX_DESCRIPTOR_SETS] = {};
 
 	uint32_t numColorAttachments = 1;
+	Format colorAttachmentFormats[MAX_COLOR_ATTACHMENTS] = {};
 	BlendState blendStates[MAX_COLOR_ATTACHMENTS];
+
+	uint32_t sampleCount = 1;
+
+	Format depthAttachmentFormat = Format::Undefined;
 
 	VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 	VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
@@ -391,24 +405,36 @@ enum class BindingType
 
 std::string_view BindingTypeToString(BindingType bindingType);
 
-struct DescriptorSetBinding
+enum class ReadWriteMode
 {
-	uint32_t binding;
-	BindingType type;
-	ShaderAccessFlags shaderAccess;
-	uint32_t count;
-
-	DescriptorSetBinding(uint32_t _binding, BindingType _type, ShaderAccessFlags _shaderAccess, uint32_t _count = 1)
-		: binding(_binding), type(_type), shaderAccess(_shaderAccess), count(_count)
-	{
-	}
+	ReadWrite,
+	ReadOnly,
+	WriteOnly,
 };
 
-struct FramebufferFormatHint
+struct DescriptorSetBinding
 {
-	uint32_t sampleCount = 1;
-	Format depthStencilFormat = Format::Undefined;
-	Format colorFormats[MAX_COLOR_ATTACHMENTS] = {};
+	uint32_t binding = 0;
+	BindingType type = BindingType::UniformBuffer;
+	ShaderAccessFlags shaderAccess = ShaderAccessFlags::None;
+	uint32_t count = 1;
+	ReadWriteMode rwMode = ReadWriteMode::ReadWrite;
+
+	struct BindingCmp
+	{
+		bool operator()(const DescriptorSetBinding& a, const DescriptorSetBinding& b) const
+		{
+			return a.binding < b.binding;
+		}
+	};
+
+	static uint32_t MaxBindingPlusOne(std::span<const DescriptorSetBinding> bindings)
+	{
+		uint32_t maxBindingPlusOne = 0;
+		for (const DescriptorSetBinding& binding : bindings)
+			maxBindingPlusOne = std::max(maxBindingPlusOne, binding.binding + 1);
+		return maxBindingPlusOne;
+	}
 };
 
 struct ComputePipelineCreateInfo
@@ -459,6 +485,8 @@ struct SamplerDescription
 	bool operator==(const SamplerDescription& rhs) const;
 
 	bool operator!=(const SamplerDescription& rhs) const;
+
+	size_t Hash() const;
 };
 
 enum class TextureUsage
@@ -508,7 +536,7 @@ enum class TextureViewType
 	Cube,
 	Array1D,
 	Array2D,
-	ArrayCube
+	ArrayCube,
 };
 
 EG_BIT_FIELD(TextureFlags)
@@ -523,7 +551,6 @@ struct TextureCreateInfo
 	uint32_t depth = 0;
 	uint32_t arrayLayers = 1;
 	Format format = Format::Undefined;
-	const SamplerDescription* defaultSamplerDescription = nullptr;
 	const char* label = nullptr;
 };
 

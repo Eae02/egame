@@ -60,6 +60,15 @@ struct CommandContextState
 	VkRect2D scissor;
 	bool viewportOutOfDate;
 	bool scissorOutOfDate;
+
+	VkPolygonMode polygonMode;
+	bool polygonModeOutOfDate;
+	bool enableDynamicPolygonMode;
+
+	VkCullModeFlags cullMode;
+	bool cullModeOutOfDate;
+	bool enableDynamicCullMode;
+
 	struct AbstractPipeline* pipeline;
 	uint32_t framebufferW;
 	uint32_t framebufferH;
@@ -78,6 +87,7 @@ struct Context
 	VkPhysicalDeviceLimits deviceLimits;
 	VkPhysicalDeviceFeatures deviceFeatures;
 	VkPhysicalDevice physDevice;
+	bool hasDynamicStatePolygonMode = false;
 	std::string deviceName;
 	std::string_view deviceVendorName;
 	VkDevice device;

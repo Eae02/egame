@@ -17,7 +17,7 @@ void SPFMapGenerator::Generate(
 {
 	cc.BindPipeline(m_pipeline);
 
-	cc.BindTexture(inputEnvMap, 0, 0);
+	cc.BindTexture(inputEnvMap, 0, 0, nullptr);
 	uint32_t outputRes = output.Width();
 	for (uint32_t i = 0; i < output.MipLevels(); i++)
 	{

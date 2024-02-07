@@ -12,6 +12,7 @@
 #include "Pipeline.hpp"
 #include "Utils.hpp"
 
+#include "../SpirvCrossUtils.hpp"
 #include <atomic>
 #include <spirv_cross.hpp>
 #include <spirv_glsl.hpp>
@@ -64,14 +65,15 @@ struct GraphicsPipeline : AbstractPipeline
 	uint32_t numShaderModules;
 	GLuint shaderModules[5];
 	GLuint vertexArray;
-	bool wireframe;
-	bool enableFaceCull;
+	std::optional<CullMode> cullMode;
+	bool enableWireframeRasterization;
 	GLenum frontFace;
 	GLenum cullFace;
 	GLenum depthFunc;
 	GLenum topology;
 	GLint patchSize;
 	uint32_t numClipDistances;
+	uint32_t numColorAttachments;
 	float minSampleShading;
 	bool enableScissorTest;
 	bool enableDepthTest;
@@ -87,10 +89,28 @@ struct GraphicsPipeline : AbstractPipeline
 	uint32_t numActiveVertexAttribs;
 	VertexAttribData vertexAttribs[MAX_VERTEX_ATTRIBUTES];
 
+	Format colorAttachmentFormats[MAX_COLOR_ATTACHMENTS]{};
+	std::optional<Format> depthStencilAttachmentFormat;
+
+	bool hasWarnedAboutMismatchedColorAttachmentCount = false;
+	std::unordered_set<size_t> outputtedFramebufferFormatHashes;
+	std::string label;
+
 	void Free() override;
 
 	void Bind() override;
 };
+
+bool ShouldOutputFramebufferFormats()
+{
+	static std::optional<bool> shouldOutputFramebufferFormats;
+	if (!shouldOutputFramebufferFormats.has_value())
+	{
+		const char* envValue = std::getenv("EG_OUTPUT_FBFMT");
+		shouldOutputFramebufferFormats = (envValue != nullptr && std::strcmp(envValue, "1") == 0);
+	}
+	return *shouldOutputFramebufferFormats;
+}
 
 static ObjectPool<GraphicsPipeline> gfxPipelinePool;
 
@@ -115,6 +135,9 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	pipeline->isGraphicsPipeline = true;
 	pipeline->numShaderModules = 0;
 	pipeline->numClipDistances = createInfo.numClipDistances;
+	pipeline->enableWireframeRasterization = createInfo.enableWireframeRasterization;
+	pipeline->label = createInfo.label ? createInfo.label : "unlabeled";
+	pipeline->numColorAttachments = createInfo.numColorAttachments;
 
 	pipeline->minSampleShading = createInfo.enableSampleShading ? createInfo.minSampleShading : 0.0f;
 
@@ -135,7 +158,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		}
 
 		void* compilerMem = spvCompilers + pipeline->numShaderModules;
-		spirv_cross::CompilerGLSL* compiler = new (compilerMem) spirv_cross::CompilerGLSL(module->parsedIR);
+		spirv_cross::CompilerGLSL* compiler = new (compilerMem) spirv_cross::CompilerGLSL(*module->parsedIR);
 
 		SetSpecializationConstants(stageInfo, *compiler);
 
@@ -268,7 +291,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	pipeline->enableDepthWrite = createInfo.enableDepthWrite;
 	pipeline->enableStencilTest = createInfo.enableStencilTest;
 	pipeline->topology = Translate(createInfo.topology);
-	pipeline->wireframe = createInfo.wireframe;
+	pipeline->cullMode = createInfo.cullMode;
 	pipeline->patchSize = createInfo.patchControlPoints;
 
 	if (createInfo.enableStencilTest)
@@ -279,26 +302,15 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	std::copy_n(createInfo.blendConstants, 4, pipeline->blendConstants);
 
-	switch (createInfo.cullMode)
-	{
-	case CullMode::None:
-		pipeline->enableFaceCull = false;
-		pipeline->cullFace = GL_BACK;
-		break;
-	case CullMode::Front:
-		pipeline->enableFaceCull = true;
-		pipeline->cullFace = GL_FRONT;
-		break;
-	case CullMode::Back:
-		pipeline->enableFaceCull = true;
-		pipeline->cullFace = GL_BACK;
-		break;
-	}
-
 	pipeline->depthFunc = TranslateCompareOp(createInfo.depthCompare);
 
-	for (int i = 0; i < 8; i++)
+	if (createInfo.depthAttachmentFormat != eg::Format::Undefined)
+		pipeline->depthStencilAttachmentFormat = createInfo.depthAttachmentFormat;
+
+	for (int i = 0; i < pipeline->numColorAttachments; i++)
 	{
+		pipeline->colorAttachmentFormats[i] = createInfo.colorAttachmentFormats[i];
+
 		bool enabled = pipeline->blend[i].enabled = createInfo.blendStates[i].enabled;
 		if (enabled)
 		{
@@ -315,8 +327,6 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	return reinterpret_cast<PipelineHandle>(pipeline);
 }
-
-void PipelineFramebufferFormatHint(PipelineHandle handle, const FramebufferFormatHint& hint) {}
 
 void GraphicsPipeline::Free()
 {
@@ -349,12 +359,35 @@ static bool updateVAOBindings = false;
 
 static float currentViewport[4];
 static int currentScissor[4];
+static CullMode currentCullMode;
+static bool currentDrawWireframe;
+
 bool viewportOutOfDate;
 bool scissorOutOfDate;
+bool cullModeOutOfDate;
+bool drawWireframeOutOfDate;
 
 bool IsDepthWriteEnabled()
 {
 	return curState.enableDepthWrite;
+}
+
+void SetCullMode(CommandContextHandle, CullMode cullMode)
+{
+	if (currentCullMode != cullMode)
+	{
+		currentCullMode = cullMode;
+		cullModeOutOfDate = true;
+	}
+}
+
+void SetWireframe(CommandContextHandle, bool wireframe)
+{
+	if (currentDrawWireframe != wireframe)
+	{
+		currentDrawWireframe = wireframe;
+		drawWireframeOutOfDate = true;
+	}
 }
 
 void SetViewport(CommandContextHandle, float x, float y, float w, float h)
@@ -392,17 +425,10 @@ void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
 		GLenum face = 0;
 		switch (static_cast<int>(kind) & 0b1100)
 		{
-		case 0b1000:
-			face = GL_BACK;
-			break;
-		case 0b0100:
-			face = GL_FRONT;
-			break;
-		case 0b1100:
-			face = GL_FRONT_AND_BACK;
-			break;
-		default:
-			EG_UNREACHABLE
+		case 0b1000: face = GL_BACK; break;
+		case 0b0100: face = GL_FRONT; break;
+		case 0b1100: face = GL_FRONT_AND_BACK; break;
+		default: EG_UNREACHABLE
 		}
 
 		glStencilMaskSeparate(face, val);
@@ -459,7 +485,7 @@ void InitScissorTest()
 	}
 }
 
-inline void CommitViewportAndScissor()
+inline void FlushDrawState()
 {
 	if (currentPipeline == nullptr)
 		return;
@@ -477,11 +503,63 @@ inline void CommitViewportAndScissor()
 		glScissor(currentScissor[0], currentScissor[1], currentScissor[2], currentScissor[3]);
 		scissorOutOfDate = false;
 	}
+
+	if (cullModeOutOfDate)
+	{
+		SetEnabled<GL_CULL_FACE>(currentCullMode != CullMode::None);
+		if (currentCullMode == CullMode::Front)
+			glCullFace(GL_FRONT);
+		else if (currentCullMode == CullMode::Back)
+			glCullFace(GL_BACK);
+	}
+
+#ifndef __EMSCRIPTEN__
+	if (drawWireframeOutOfDate)
+	{
+		glPolygonMode(GL_FRONT_AND_BACK, currentDrawWireframe ? GL_LINE : GL_FILL);
+		drawWireframeOutOfDate = false;
+	}
+#endif
 }
 
 void GraphicsPipeline::Bind()
 {
 	AssertRenderPassActive("BindPipeline (Graphics)");
+
+	FramebufferFormat framebufferFormat = FramebufferFormat::GetCurrent();
+
+	if (framebufferFormat.colorAttachmentFormats.size() != numColorAttachments &&
+	    !hasWarnedAboutMismatchedColorAttachmentCount)
+	{
+		eg::Log(
+			eg::LogLevel::Error, "gl",
+			"Pipeline '{0}' was created with numColorAttachments={1} but is being bound in a render pass with {2} "
+			"color attachments",
+			label, numColorAttachments, framebufferFormat.colorAttachmentFormats.size());
+
+		hasWarnedAboutMismatchedColorAttachmentCount = true;
+	}
+
+	if (ShouldOutputFramebufferFormats())
+	{
+		size_t hash = framebufferFormat.Hash();
+		if (!outputtedFramebufferFormatHashes.contains(hash))
+		{
+			FramebufferFormat expectedFormat = {
+				.colorAttachmentFormats = std::span<const Format>(colorAttachmentFormats, numColorAttachments),
+				.depthStencilAttachmentFormat = depthStencilAttachmentFormat,
+				.sampleCount = 1,
+			};
+
+			constexpr const char* SetColorCyan = "\x1b[36m";
+			constexpr const char* ResetColor = "\x1b[0m";
+
+			outputtedFramebufferFormatHashes.insert(hash);
+			std::cout << SetColorCyan << "Pipeline '" << label << "' bound to framebuffer with formats:\n";
+			framebufferFormat.PrintToStdout("  ", &expectedFormat);
+			std::cout << ResetColor << std::endl;
+		}
+	}
 
 	glBindVertexArray(vertexArray);
 
@@ -492,15 +570,16 @@ void GraphicsPipeline::Bind()
 	if (enableDepthTest && curState.depthFunc != depthFunc)
 		glDepthFunc(curState.depthFunc = depthFunc);
 
-#ifndef __EMSCRIPTEN__
-	if (curState.wireframe != wireframe)
+	if (cullMode.has_value())
 	{
-		glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
-		curState.wireframe = wireframe;
+		SetCullMode(nullptr, *cullMode);
 	}
-#endif
 
-	SetEnabled<GL_CULL_FACE>(enableFaceCull);
+	if (!enableWireframeRasterization)
+	{
+		SetWireframe(nullptr, false);
+	}
+
 	SetEnabled<GL_DEPTH_TEST>(enableDepthTest);
 	SetEnabled<GL_STENCIL_TEST>(enableStencilTest);
 
@@ -722,7 +801,7 @@ void Draw(
 	AssertRenderPassActive("Draw");
 	AssertAllBindingsSatisfied();
 
-	CommitViewportAndScissor();
+	FlushDrawState();
 	MaybeUpdateVAO(0, firstInstance);
 
 	GLenum topology = static_cast<const GraphicsPipeline*>(currentPipeline)->topology;
@@ -748,7 +827,7 @@ void DrawIndexed(
 	AssertRenderPassActive("DrawIndexed");
 	AssertAllBindingsSatisfied();
 
-	CommitViewportAndScissor();
+	FlushDrawState();
 	MaybeUpdateVAO(firstVertex, firstInstance);
 
 	uintptr_t indexOffset = indexBufferOffset + firstIndex * 2;

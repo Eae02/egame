@@ -95,8 +95,7 @@ void TextEdit::Update(float dt, bool enabled)
 				m_cursorPos = ToInt(m_data.size());
 				m_cursorBlinkProgress = 0;
 				break;
-			default:
-				break;
+			default: break;
 			}
 		});
 

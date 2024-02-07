@@ -1,18 +1,13 @@
 #ifndef EG_NO_VULKAN
-#include "Framebuffer.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
-#include "../../Hash.hpp"
 #include "Common.hpp"
 #include "RenderPasses.hpp"
 #include "Texture.hpp"
-#include "Translation.hpp"
 #include "VulkanMain.hpp"
 
 namespace eg::graphics_api::vk
 {
-FramebufferFormat currentFBFormat;
-
 struct Framebuffer : Resource
 {
 	VkFramebuffer framebuffer;
@@ -167,12 +162,9 @@ inline VkAttachmentLoadOp TranslateLoadOp(AttachmentLoadOp loadOp)
 {
 	switch (loadOp)
 	{
-	case AttachmentLoadOp::Clear:
-		return VK_ATTACHMENT_LOAD_OP_CLEAR;
-	case AttachmentLoadOp::Discard:
-		return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	case AttachmentLoadOp::Load:
-		return VK_ATTACHMENT_LOAD_OP_LOAD;
+	case AttachmentLoadOp::Clear: return VK_ATTACHMENT_LOAD_OP_CLEAR;
+	case AttachmentLoadOp::Discard: return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	case AttachmentLoadOp::Load: return VK_ATTACHMENT_LOAD_OP_LOAD;
 	}
 	EG_UNREACHABLE
 }
@@ -181,17 +173,19 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 {
 	VkCommandBuffer cb = GetCB(cc);
 
-	uint32_t numColorAttachments;
+	uint32_t numColorAttachments = 1;
+	uint32_t sampleCount = 1;
 	VkImageLayout colorImageInitialLayouts[MAX_COLOR_ATTACHMENTS];
 	VkImageLayout colorImageFinalLayouts[MAX_COLOR_ATTACHMENTS];
 	VkImageLayout depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	VkFramebuffer framebuffer;
 	VkExtent2D extent;
+	
+	VkFormat colorFormats[MAX_COLOR_ATTACHMENTS] = {};
+	VkFormat depthStencilFormat = VK_FORMAT_UNDEFINED;
 
 	VkFormat resolveAttachmentFormats[MAX_COLOR_ATTACHMENTS] = {};
 	VkFormat depthStencilResolveAttachmentFormat = VK_FORMAT_UNDEFINED;
-
-	currentFBFormat = {};
 
 	bool changeLoadToClear = false;
 
@@ -199,14 +193,10 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 	{
 		MaybeAcquireSwapchainImage();
 
-		numColorAttachments = 1;
 		extent = ctx.surfaceExtent;
 		framebuffer = ctx.defaultFramebuffers[ctx.currentImage];
-		currentFBFormat.colorFormats[0] = ctx.surfaceFormat.format;
-		currentFBFormat.depthStencilFormat = ctx.defaultDSFormat;
-		currentFBFormat.originalColorFormats[0] = Format::DefaultColor;
-		currentFBFormat.originalDepthStencilFormat = Format::DefaultDepthStencil;
-		currentFBFormat.sampleCount = VK_SAMPLE_COUNT_1_BIT;
+		colorFormats[0] = ctx.surfaceFormat.format;
+		depthStencilFormat = ctx.defaultDSFormat;
 		colorImageInitialLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		colorImageFinalLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		changeLoadToClear = ctx.defaultFramebufferInPresentMode;
@@ -220,15 +210,14 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 
 		RefResource(cc, *framebufferS);
 
-		currentFBFormat.sampleCount = framebufferS->sampleCount;
+		sampleCount = framebufferS->sampleCount;
 
 		// Fetches the initial layouts and formats of color attachments and updates
 		//  auto barrier usage state to reflect the changes made in the render pass.
 		numColorAttachments = framebufferS->numColorAttachments;
 		for (uint32_t i = 0; i < numColorAttachments; i++)
 		{
-			currentFBFormat.colorFormats[i] = framebufferS->colorAttachments[i]->format;
-			currentFBFormat.originalColorFormats[i] = framebufferS->colorAttachments[i]->originalFormat;
+			colorFormats[i] = framebufferS->colorAttachments[i]->format;
 
 			colorImageFinalLayouts[i] =
 				ImageLayoutFromUsage(beginInfo.colorAttachments[i].finalUsage, VK_IMAGE_ASPECT_COLOR_BIT);
@@ -283,8 +272,7 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 		//  auto barrier usage state to reflect the changes made in the render pass.
 		if (framebufferS->depthStencilAttachment != nullptr)
 		{
-			currentFBFormat.depthStencilFormat = framebufferS->depthStencilAttachment->format;
-			currentFBFormat.originalDepthStencilFormat = framebufferS->depthStencilAttachment->originalFormat;
+			depthStencilFormat = framebufferS->depthStencilAttachment->format;
 			if (beginInfo.sampledDepthStencil)
 			{
 				depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -310,18 +298,16 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 		}
 	}
 
-	currentFBFormat.CalcHash();
-
 	uint32_t clearValueShift = 0;
 	VkClearValue clearValues[MAX_COLOR_ATTACHMENTS + 1] = {};
 
 	RenderPassDescription renderPassDescription;
-	if (currentFBFormat.depthStencilFormat != VK_FORMAT_UNDEFINED)
+	if (depthStencilFormat != VK_FORMAT_UNDEFINED)
 	{
 		renderPassDescription.depthStencilReadOnly = beginInfo.sampledDepthStencil;
 
-		renderPassDescription.depthAttachment.format = currentFBFormat.depthStencilFormat;
-		renderPassDescription.depthAttachment.samples = currentFBFormat.sampleCount;
+		renderPassDescription.depthAttachment.format = depthStencilFormat;
+		renderPassDescription.depthAttachment.samples = sampleCount;
 		renderPassDescription.depthAttachment.loadOp = TranslateLoadOp(beginInfo.depthLoadOp);
 		renderPassDescription.depthAttachment.stencilLoadOp = TranslateLoadOp(beginInfo.stencilLoadOp);
 		renderPassDescription.depthAttachment.initialLayout = depthStencilImageLayout;
@@ -352,10 +338,15 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 	for (uint32_t i = 0; i < numColorAttachments; i++)
 	{
 		renderPassDescription.colorAttachments[i].loadOp = TranslateLoadOp(beginInfo.colorAttachments[i].loadOp);
-		renderPassDescription.colorAttachments[i].format = currentFBFormat.colorFormats[i];
-		renderPassDescription.colorAttachments[i].samples = currentFBFormat.sampleCount;
+		renderPassDescription.colorAttachments[i].format = colorFormats[i];
+		renderPassDescription.colorAttachments[i].samples = sampleCount;
 		renderPassDescription.colorAttachments[i].initialLayout = colorImageInitialLayouts[i];
 		renderPassDescription.colorAttachments[i].finalLayout = colorImageFinalLayouts[i];
+
+		if (colorImageFinalLayouts[i] == VK_IMAGE_LAYOUT_UNDEFINED)
+			renderPassDescription.colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		else
+			renderPassDescription.colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
 		if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Load && changeLoadToClear)
 		{
@@ -397,30 +388,6 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 void EndRenderPass(CommandContextHandle cc)
 {
 	vkCmdEndRenderPass(GetCB(cc));
-}
-
-void FramebufferFormat::CalcHash()
-{
-	hash = 0;
-	HashAppend(hash, sampleCount);
-	HashAppend(hash, static_cast<int>(depthStencilFormat));
-	for (VkFormat colorFormat : colorFormats)
-		HashAppend(hash, static_cast<int>(colorFormat));
-}
-
-FramebufferFormat FramebufferFormat::FromHint(const FramebufferFormatHint& hint)
-{
-	FramebufferFormat res = {};
-	res.sampleCount = static_cast<VkSampleCountFlags>(hint.sampleCount);
-	res.originalDepthStencilFormat = hint.depthStencilFormat;
-	res.depthStencilFormat = TranslateFormat(hint.depthStencilFormat);
-	for (uint32_t i = 0; i < MAX_COLOR_ATTACHMENTS; i++)
-	{
-		res.originalColorFormats[i] = hint.colorFormats[i];
-		res.colorFormats[i] = TranslateFormat(hint.colorFormats[i]);
-	}
-	res.CalcHash();
-	return res;
 }
 } // namespace eg::graphics_api::vk
 

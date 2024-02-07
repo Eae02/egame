@@ -1,4 +1,5 @@
 #include "../../Alloc/ObjectPool.hpp"
+#include "../SpirvCrossUtils.hpp"
 #include "Pipeline.hpp"
 
 namespace eg::graphics_api::gl
@@ -32,7 +33,7 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 
 	ShaderModule* computeShaderModule = UnwrapShaderModule(createInfo.computeShader.shaderModule);
 
-	spirv_cross::CompilerGLSL spvCompiler(computeShaderModule->parsedIR);
+	spirv_cross::CompilerGLSL spvCompiler(*computeShaderModule->parsedIR);
 	SetSpecializationConstants(createInfo.computeShader, spvCompiler);
 
 	std::pair<spirv_cross::CompilerGLSL*, GLuint> shaderStagePair(&spvCompiler, pipeline->shaderModule);

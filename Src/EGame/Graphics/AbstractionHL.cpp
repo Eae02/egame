@@ -2,11 +2,15 @@
 #include "../Alloc/PoolAllocator.hpp"
 #include "../Assert.hpp"
 #include "../Core.hpp"
+#include "../Hash.hpp"
 #include "../IOUtils.hpp"
 #include "ImageLoader.hpp"
+#include "SpirvCrossUtils.hpp"
 
 #include <fstream>
+#include <mutex>
 #include <sstream>
+#include <unordered_map>
 
 namespace eg
 {
@@ -53,15 +57,9 @@ Texture Texture::Load(std::istream& stream, LoadFormat format, uint32_t mipLevel
 
 	switch (format)
 	{
-	case LoadFormat::R_UNorm:
-		createInfo.format = Format::R8_UNorm;
-		break;
-	case LoadFormat::RGBA_UNorm:
-		createInfo.format = Format::R8G8B8A8_UNorm;
-		break;
-	case LoadFormat::RGBA_sRGB:
-		createInfo.format = Format::R8G8B8A8_sRGB;
-		break;
+	case LoadFormat::R_UNorm: createInfo.format = Format::R8_UNorm; break;
+	case LoadFormat::RGBA_UNorm: createInfo.format = Format::R8G8B8A8_UNorm; break;
+	case LoadFormat::RGBA_sRGB: createInfo.format = Format::R8G8B8A8_sRGB; break;
 	}
 
 	auto data = loader.Load(format == LoadFormat::R_UNorm ? 1 : 4);
@@ -113,6 +111,9 @@ static std::vector<UploadBufferEntry> uploadBuffers;
 
 UploadBuffer GetTemporaryUploadBuffer(uint64_t size, uint64_t alignment)
 {
+	if (CurrentGraphicsAPI() == GraphicsAPI::Metal && alignment < 16)
+		alignment = 16;
+
 	UploadBufferEntry* selected = nullptr;
 	for (UploadBufferEntry& buffer : uploadBuffers)
 	{
@@ -177,6 +178,48 @@ void AssertFormatSupport(Format format, FormatCapabilities capabilities)
 				messageStream << " " << FormatCapabilityNames.at(i);
 		}
 		detail::PanicImpl(messageStream.str());
+	}
+}
+
+void BufferRef::DCUpdateData(uint64_t offset, uint64_t size, const void* data)
+{
+	UploadBuffer uploadBuffer = GetTemporaryUploadBuffer(size);
+	std::memcpy(uploadBuffer.Map(), data, size);
+	uploadBuffer.Flush();
+
+	DC.CopyBuffer(uploadBuffer.buffer, *this, uploadBuffer.offset, offset, size);
+}
+
+void TextureRef::DCUpdateData(const TextureRange& range, size_t dataLen, const void* data)
+{
+	UploadBuffer uploadBuffer = GetTemporaryUploadBuffer(dataLen);
+	std::memcpy(uploadBuffer.Map(), data, dataLen);
+	uploadBuffer.Flush();
+
+	DC.SetTextureData(*this, range, uploadBuffer.buffer, uploadBuffer.offset);
+}
+
+ShaderModule::ShaderModule(ShaderStage stage, std::span<const uint32_t> code)
+	: m_parsedIR(ParseSpirV(code)), m_handle(gal::CreateShaderModule(stage, *m_parsedIR))
+{
+}
+
+static std::mutex samplersTableMutex;
+static std::unordered_map<SamplerDescription, SamplerHandle, MemberFunctionHash<SamplerDescription>> samplersTable;
+
+Sampler::Sampler(const SamplerDescription& description)
+{
+	std::lock_guard<std::mutex> lock(samplersTableMutex);
+
+	auto it = samplersTable.find(description);
+	if (it == samplersTable.end())
+	{
+		m_handle = gal::CreateSampler(description);
+		samplersTable.emplace(description, m_handle);
+	}
+	else
+	{
+		m_handle = it->second;
 	}
 }
 } // namespace eg

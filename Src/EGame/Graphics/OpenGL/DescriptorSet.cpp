@@ -135,12 +135,8 @@ void BindDescriptorSet(CommandContextHandle, uint32_t set, DescriptorSetHandle h
 				dsBinding.range);
 #endif
 			break;
-		case BindingType::Texture:
-			dsBinding.textureView->Bind(dsBinding.bufferOrSampler, binding.glBinding);
-			break;
-		case BindingType::StorageImage:
-			dsBinding.textureView->BindAsStorageImage(binding.glBinding);
-			break;
+		case BindingType::Texture: dsBinding.textureView->Bind(dsBinding.bufferOrSampler, binding.glBinding); break;
+		case BindingType::StorageImage: dsBinding.textureView->BindAsStorageImage(binding.glBinding); break;
 		}
 
 		curidx++;

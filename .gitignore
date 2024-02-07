@@ -12,3 +12,4 @@ Src/Shaders/**/*.h
 /Assets/DevFont.png.h
 Bin
 *.gch
+/.clangd

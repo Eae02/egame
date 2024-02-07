@@ -1,6 +1,7 @@
 #include "EGame/EG.hpp"
 #include <EGame/Graphics/PBR/BRDFIntegrationMap.hpp>
 #include <glm/gtx/matrix_transform_2d.hpp>
+#include <string_view>
 
 #ifdef EG_HAS_IMGUI
 #include <EGameImGui.hpp>
@@ -9,6 +10,8 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 #endif
+
+bool useIMGUI = true;
 
 struct Game : public eg::IGame
 {
@@ -21,10 +24,14 @@ struct Game : public eg::IGame
 		eg::GraphicsPipelineCreateInfo pipelineCI;
 		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").DefaultVariant();
 		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").DefaultVariant();
+		pipelineCI.numColorAttachments = 1;
+		pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
 		m_pipeline = eg::Pipeline::Create(pipelineCI);
-		m_pipeline.FramebufferFormatHint(eg::Format::DefaultColor, eg::Format::DefaultDepthStencil);
 #ifdef EG_HAS_IMGUI
-		eg::imgui::Initialize(eg::imgui::InitializeArgs());
+		if (useIMGUI)
+		{
+			eg::imgui::Initialize(eg::imgui::InitializeArgs());
+		}
 #endif
 	}
 
@@ -48,7 +55,10 @@ struct Game : public eg::IGame
 		eg::DC.EndRenderPass();
 
 #ifdef EG_HAS_IMGUI
-		ImGui::SliderFloat("Rotation Speed", &m_rotationSpeed, -2.0f, 2.0f);
+		if (useIMGUI)
+		{
+			ImGui::SliderFloat("Rotation Speed", &m_rotationSpeed, -2.0f, 2.0f);
+		}
 #endif
 
 		m_rotation += dt * m_rotationSpeed;
@@ -74,6 +84,12 @@ int main(int argc, char** argv)
 	eg::RunConfig runConfig;
 	runConfig.gameName = "EGame Sandbox";
 	runConfig.flags = eg::RunFlags::DevMode | eg::RunFlags::DefaultFramebufferSRGB;
+
+	for (int i = 1; i < argc; i++)
+	{
+		if (std::string_view(argv[i]) == "--no-imgui")
+			useIMGUI = false;
+	}
 
 	eg::ParseCommandLineArgs(runConfig, argc, argv);
 

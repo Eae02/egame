@@ -11,14 +11,10 @@ inline VkSamplerAddressMode TranslateAddressMode(WrapMode mode)
 {
 	switch (mode)
 	{
-	case WrapMode::Repeat:
-		return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	case WrapMode::MirroredRepeat:
-		return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-	case WrapMode::ClampToEdge:
-		return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	case WrapMode::ClampToBorder:
-		return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+	case WrapMode::Repeat: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	case WrapMode::MirroredRepeat: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+	case WrapMode::ClampToEdge: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	case WrapMode::ClampToBorder: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 	}
 	EG_UNREACHABLE
 }
@@ -27,18 +23,12 @@ inline VkBorderColor TranslateBorderColor(BorderColor color)
 {
 	switch (color)
 	{
-	case BorderColor::F0000:
-		return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
-	case BorderColor::I0000:
-		return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
-	case BorderColor::F0001:
-		return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-	case BorderColor::I0001:
-		return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	case BorderColor::F1111:
-		return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-	case BorderColor::I1111:
-		return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+	case BorderColor::F0000: return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+	case BorderColor::I0000: return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+	case BorderColor::F0001: return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+	case BorderColor::I0001: return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	case BorderColor::F1111: return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+	case BorderColor::I1111: return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
 	}
 	EG_UNREACHABLE
 }
@@ -52,14 +42,8 @@ void DestroySamplers()
 	samplers.clear();
 }
 
-VkSampler GetSampler(const SamplerDescription& description)
+SamplerHandle CreateSampler(const SamplerDescription& description)
 {
-	for (const auto& sampler : samplers)
-	{
-		if (sampler.first == description)
-			return sampler.second;
-	}
-
 	VkSamplerCreateInfo samplerCreateInfo = { VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	samplerCreateInfo.addressModeU = TranslateAddressMode(description.wrapU);
 	samplerCreateInfo.addressModeV = TranslateAddressMode(description.wrapV);
@@ -80,17 +64,9 @@ VkSampler GetSampler(const SamplerDescription& description)
 
 	VkSampler sampler;
 	CheckRes(vkCreateSampler(ctx.device, &samplerCreateInfo, nullptr, &sampler));
-	samplers.emplace_back(description, sampler);
 
-	return sampler;
+	return reinterpret_cast<SamplerHandle>(sampler);
 }
-
-SamplerHandle CreateSampler(const SamplerDescription& description)
-{
-	return reinterpret_cast<SamplerHandle>(GetSampler(description));
-}
-
-void DestroySampler(SamplerHandle sampler) {}
 } // namespace eg::graphics_api::vk
 
 #endif

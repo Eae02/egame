@@ -20,12 +20,9 @@ inline GLenum TranslateWrapMode(WrapMode wrapMode)
 {
 	switch (wrapMode)
 	{
-	case WrapMode::Repeat:
-		return GL_REPEAT;
-	case WrapMode::MirroredRepeat:
-		return GL_MIRRORED_REPEAT;
-	case WrapMode::ClampToEdge:
-		return GL_CLAMP_TO_EDGE;
+	case WrapMode::Repeat: return GL_REPEAT;
+	case WrapMode::MirroredRepeat: return GL_MIRRORED_REPEAT;
+	case WrapMode::ClampToEdge: return GL_CLAMP_TO_EDGE;
 	case WrapMode::ClampToBorder:
 #ifdef __EMSCRIPTEN__
 		EG_PANIC("WrapMode::ClampToBorder is not supported in WebGL");
@@ -67,14 +64,11 @@ inline std::array<float, 4> TranslateBorderColor(BorderColor color)
 	switch (color)
 	{
 	case BorderColor::F0000:
-	case BorderColor::I0000:
-		return { 0.0f, 0.0f, 0.0f, 0.0f };
+	case BorderColor::I0000: return { 0.0f, 0.0f, 0.0f, 0.0f };
 	case BorderColor::F0001:
-	case BorderColor::I0001:
-		return { 0.0f, 0.0f, 0.0f, 1.0f };
+	case BorderColor::I0001: return { 0.0f, 0.0f, 0.0f, 1.0f };
 	case BorderColor::F1111:
-	case BorderColor::I1111:
-		return { 1.0f, 1.0f, 1.0f, 1.0f };
+	case BorderColor::I1111: return { 1.0f, 1.0f, 1.0f, 1.0f };
 	}
 
 	EG_UNREACHABLE
@@ -110,37 +104,7 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 		glSamplerParameteri(sampler, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(description.compareOp));
 	}
 
-	return reinterpret_cast<SamplerHandle>(sampler);
-}
-
-void DestroySampler(SamplerHandle handle)
-{
-	MainThreadInvoke([sampler = static_cast<GLuint>(reinterpret_cast<uintptr_t>(handle))]
-	                 { glDeleteSamplers(1, &sampler); });
-}
-
-static void InitTextureSampler(GLenum textureType, const SamplerDescription& samplerDesc)
-{
-	auto borderColor = TranslateBorderColor(samplerDesc.borderColor);
-
-	glTexParameteri(textureType, GL_TEXTURE_MIN_FILTER, GetMinFilter(samplerDesc));
-	glTexParameteri(textureType, GL_TEXTURE_MAG_FILTER, GetMagFilter(samplerDesc.magFilter));
-	glTexParameteri(textureType, GL_TEXTURE_WRAP_S, TranslateWrapMode(samplerDesc.wrapU));
-	glTexParameteri(textureType, GL_TEXTURE_WRAP_T, TranslateWrapMode(samplerDesc.wrapV));
-	glTexParameteri(textureType, GL_TEXTURE_WRAP_R, TranslateWrapMode(samplerDesc.wrapW));
-
-#ifndef __EMSCRIPTEN__
-	glTexParameterf(
-		textureType, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<float>(ClampMaxAnistropy(samplerDesc.maxAnistropy)));
-	glTexParameterfv(textureType, GL_TEXTURE_BORDER_COLOR, borderColor.data());
-	glTexParameterf(textureType, GL_TEXTURE_LOD_BIAS, samplerDesc.mipLodBias);
-#endif
-
-	if (samplerDesc.enableCompare)
-	{
-		glTexParameteri(textureType, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-		glTexParameteri(textureType, GL_TEXTURE_COMPARE_FUNC, TranslateCompareOp(samplerDesc.compareOp));
-	}
+	return reinterpret_cast<SamplerHandle>(static_cast<uintptr_t>(sampler));
 }
 
 static void InitTexture(Texture& texture, const TextureCreateInfo& createInfo)
@@ -152,12 +116,6 @@ static void InitTexture(Texture& texture, const TextureCreateInfo& createInfo)
 	}
 
 	glTexParameteri(texture.type, GL_TEXTURE_MAX_LEVEL, createInfo.mipLevels);
-
-	if (createInfo.defaultSamplerDescription != nullptr && createInfo.sampleCount == 1)
-	{
-		texture.samplerDescription = *createInfo.defaultSamplerDescription;
-		InitTextureSampler(texture.type, *createInfo.defaultSamplerDescription);
-	}
 }
 
 TextureHandle CreateTexture2D(const TextureCreateInfo& createInfo)
@@ -321,20 +279,13 @@ static inline GLenum TranslateViewType(const Texture& texture, TextureViewType v
 {
 	switch (viewType)
 	{
-	case TextureViewType::SameAsTexture:
-		return texture.type;
-	case TextureViewType::Flat2D:
-		return GL_TEXTURE_2D;
-	case TextureViewType::Flat3D:
-		return GL_TEXTURE_3D;
-	case TextureViewType::Cube:
-		return GL_TEXTURE_CUBE_MAP;
-	case TextureViewType::Array2D:
-		return GL_TEXTURE_2D_ARRAY;
-	case TextureViewType::ArrayCube:
-		return GL_TEXTURE_CUBE_MAP_ARRAY;
-	default:
-		EG_UNREACHABLE
+	case TextureViewType::SameAsTexture: return texture.type;
+	case TextureViewType::Flat2D: return GL_TEXTURE_2D;
+	case TextureViewType::Flat3D: return GL_TEXTURE_3D;
+	case TextureViewType::Cube: return GL_TEXTURE_CUBE_MAP;
+	case TextureViewType::Array2D: return GL_TEXTURE_2D_ARRAY;
+	case TextureViewType::ArrayCube: return GL_TEXTURE_CUBE_MAP_ARRAY;
+	default: EG_UNREACHABLE
 	}
 }
 
@@ -382,12 +333,6 @@ TextureViewHandle GetTextureView(
 		glTextureView(
 			viewHandle, viewKey.type, texture->texture, glFormat, viewKey.subresource.firstMipLevel,
 			viewKey.subresource.numMipLevels, viewKey.subresource.firstArrayLayer, viewKey.subresource.numArrayLayers);
-
-		if (texture->samplerDescription.has_value())
-		{
-			glBindTexture(viewKey.type, viewHandle);
-			InitTextureSampler(viewKey.type, *texture->samplerDescription);
-		}
 #endif
 	}
 
@@ -439,18 +384,12 @@ static std::tuple<GLenum, GLenum> GetUploadFormat(Format format)
 
 	switch (GetFormatType(format))
 	{
-	case FormatTypes::UNorm:
-		return std::make_tuple(floatFormats.at(componentCount), uTypes.at(componentSize));
-	case FormatTypes::SNorm:
-		return std::make_tuple(floatFormats.at(componentCount), sTypes.at(componentSize));
-	case FormatTypes::UInt:
-		return std::make_tuple(integerFormats.at(componentCount), uTypes.at(componentSize));
-	case FormatTypes::SInt:
-		return std::make_tuple(integerFormats.at(componentCount), sTypes.at(componentSize));
-	case FormatTypes::Float:
-		return std::make_tuple(floatFormats.at(componentCount), GL_FLOAT);
-	case FormatTypes::DepthStencil:
-		EG_PANIC("Attempted to set the texture data for a depth/stencil texture.")
+	case FormatTypes::UNorm: return std::make_tuple(floatFormats.at(componentCount), uTypes.at(componentSize));
+	case FormatTypes::SNorm: return std::make_tuple(floatFormats.at(componentCount), sTypes.at(componentSize));
+	case FormatTypes::UInt: return std::make_tuple(integerFormats.at(componentCount), uTypes.at(componentSize));
+	case FormatTypes::SInt: return std::make_tuple(integerFormats.at(componentCount), sTypes.at(componentSize));
+	case FormatTypes::Float: return std::make_tuple(floatFormats.at(componentCount), GL_FLOAT);
+	case FormatTypes::DepthStencil: EG_PANIC("Attempted to set the texture data for a depth/stencil texture.")
 	}
 
 	EG_UNREACHABLE
@@ -715,19 +654,12 @@ void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipL
 
 		switch (GetFormatType(texture->format))
 		{
-		case FormatTypes::UInt:
-			glClearBufferuiv(GL_COLOR, 0, static_cast<const GLuint*>(color));
-			break;
-		case FormatTypes::SInt:
-			glClearBufferiv(GL_COLOR, 0, static_cast<const GLint*>(color));
-			break;
+		case FormatTypes::UInt: glClearBufferuiv(GL_COLOR, 0, static_cast<const GLuint*>(color)); break;
+		case FormatTypes::SInt: glClearBufferiv(GL_COLOR, 0, static_cast<const GLint*>(color)); break;
 		case FormatTypes::SNorm:
 		case FormatTypes::UNorm:
-		case FormatTypes::Float:
-			glClearBufferfv(GL_COLOR, 0, static_cast<const float*>(color));
-			break;
-		case FormatTypes::DepthStencil:
-			EG_PANIC("Cannot clear DepthStencil image using ClearColorTexture")
+		case FormatTypes::Float: glClearBufferfv(GL_COLOR, 0, static_cast<const float*>(color)); break;
+		case FormatTypes::DepthStencil: EG_PANIC("Cannot clear DepthStencil image using ClearColorTexture")
 		}
 
 		BindCorrectFramebuffer();
@@ -771,23 +703,14 @@ inline void MaybeBarrierAfterILS(TextureUsage newUsage)
 #ifndef EG_GLES
 	switch (newUsage)
 	{
-	case TextureUsage::Undefined:
-		break;
+	case TextureUsage::Undefined: break;
 	case TextureUsage::CopySrc:
-	case TextureUsage::CopyDst:
-		MaybeInsertBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
-		break;
-	case TextureUsage::ShaderSample:
-		MaybeInsertBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-		break;
-	case TextureUsage::FramebufferAttachment:
-		MaybeInsertBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
-		break;
+	case TextureUsage::CopyDst: MaybeInsertBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT); break;
+	case TextureUsage::ShaderSample: MaybeInsertBarrier(GL_TEXTURE_FETCH_BARRIER_BIT); break;
+	case TextureUsage::FramebufferAttachment: MaybeInsertBarrier(GL_FRAMEBUFFER_BARRIER_BIT); break;
 	case TextureUsage::ILSRead:
 	case TextureUsage::ILSWrite:
-	case TextureUsage::ILSReadWrite:
-		MaybeInsertBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-		break;
+	case TextureUsage::ILSReadWrite: MaybeInsertBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT); break;
 	}
 #endif
 }

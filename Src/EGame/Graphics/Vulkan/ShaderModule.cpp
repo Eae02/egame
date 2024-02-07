@@ -2,6 +2,7 @@
 #include "ShaderModule.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
+#include "../SpirvCrossUtils.hpp"
 
 #include <spirv_cross.hpp>
 
@@ -18,27 +19,29 @@ void ShaderModule::UnRef()
 	}
 }
 
-static const std::array<VkShaderStageFlags, 6> ShaderStageFlags = { VK_SHADER_STAGE_VERTEX_BIT,
-	                                                                VK_SHADER_STAGE_FRAGMENT_BIT,
-	                                                                VK_SHADER_STAGE_GEOMETRY_BIT,
-	                                                                VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
-	                                                                VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
-	                                                                VK_SHADER_STAGE_COMPUTE_BIT };
+static const std::array<VkShaderStageFlags, 6> ShaderStageFlags = {
+	VK_SHADER_STAGE_VERTEX_BIT,
+	VK_SHADER_STAGE_FRAGMENT_BIT,
+	VK_SHADER_STAGE_GEOMETRY_BIT,
+	VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+	VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+	VK_SHADER_STAGE_COMPUTE_BIT,
+};
 
-ShaderModuleHandle CreateShaderModule(ShaderStage stage, std::span<const char> code)
+ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::ParsedIR& parsedIR)
 {
 	ShaderModule* module = shaderModulesPool.New();
 	module->ref = 1;
 
 	// Creates the shader module
 	VkShaderModuleCreateInfo moduleCreateInfo = { VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-	moduleCreateInfo.codeSize = code.size();
-	moduleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+	moduleCreateInfo.codeSize = parsedIR.spirv.size() * sizeof(uint32_t);
+	moduleCreateInfo.pCode = parsedIR.spirv.data();
 	CheckRes(vkCreateShaderModule(ctx.device, &moduleCreateInfo, nullptr, &module->module));
 
 	VkShaderStageFlags stageFlags = ShaderStageFlags.at(static_cast<int>(stage));
 
-	spirv_cross::Compiler spvCrossCompiler(moduleCreateInfo.pCode, moduleCreateInfo.codeSize / 4);
+	spirv_cross::Compiler spvCrossCompiler(parsedIR);
 
 	// Processes shader resources
 	auto ProcessResources = [&](const spirv_cross::SmallVector<spirv_cross::Resource>& resources, VkDescriptorType type)
@@ -81,15 +84,7 @@ ShaderModuleHandle CreateShaderModule(ShaderStage stage, std::span<const char> c
 	ProcessResources(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER);
 	ProcessResources(resources.storage_images, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
-	module->pushConstantBytes = 0;
-	for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
-	{
-		for (const spirv_cross::BufferRange& range : spvCrossCompiler.get_active_buffer_ranges(pcBlock.id))
-		{
-			module->pushConstantBytes =
-				std::max(module->pushConstantBytes, UnsignedNarrow<uint32_t>(range.offset + range.range));
-		}
-	}
+	module->pushConstantBytes = GetPushConstantBytes(spvCrossCompiler, &resources);
 
 	return reinterpret_cast<ShaderModuleHandle>(module);
 }

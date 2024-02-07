@@ -17,7 +17,7 @@ void IrradianceMapGenerator::Generate(
 {
 	cc.BindPipeline(m_pipeline);
 
-	cc.BindTexture(inputEnvMap, 0, 0);
+	cc.BindTexture(inputEnvMap, 0, 0, nullptr);
 
 	eg::TextureSubresource subresource;
 	subresource.firstMipLevel = 0;

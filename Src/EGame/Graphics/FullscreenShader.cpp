@@ -8,9 +8,9 @@
 
 namespace eg
 {
-static ShaderModuleHandle fullScreenShaders[3];
+static std::array<std::unique_ptr<ShaderModule>, 3> fullScreenShaders;
 
-ShaderModuleHandle GetFullscreenShader(FullscreenShaderTexCoordMode texCoordMode)
+const ShaderModule& GetFullscreenShader(FullscreenShaderTexCoordMode texCoordMode)
 {
 	if (texCoordMode == FullscreenShaderTexCoordMode::FlippedIfOpenGL)
 	{
@@ -20,7 +20,7 @@ ShaderModuleHandle GetFullscreenShader(FullscreenShaderTexCoordMode texCoordMode
 			texCoordMode = FullscreenShaderTexCoordMode::NotFlipped;
 	}
 
-	if (!fullScreenShaders[static_cast<int>(texCoordMode)])
+	if (fullScreenShaders[static_cast<int>(texCoordMode)] == nullptr)
 	{
 		std::span<const char> shaderCode;
 		switch (texCoordMode)
@@ -37,26 +37,18 @@ ShaderModuleHandle GetFullscreenShader(FullscreenShaderTexCoordMode texCoordMode
 			shaderCode = { reinterpret_cast<const char*>(Fullscreen_TCFlip_vs_glsl),
 				           sizeof(Fullscreen_TCFlip_vs_glsl) };
 			break;
-		case FullscreenShaderTexCoordMode::FlippedIfOpenGL:
-			EG_UNREACHABLE
+		case FullscreenShaderTexCoordMode::FlippedIfOpenGL: EG_UNREACHABLE
 		}
 
 		fullScreenShaders[static_cast<int>(texCoordMode)] =
-			gal::CreateShaderModule(eg::ShaderStage::Vertex, shaderCode);
+			std::make_unique<ShaderModule>(eg::ShaderStage::Vertex, shaderCode);
 	}
 
-	return fullScreenShaders[static_cast<int>(texCoordMode)];
+	return *fullScreenShaders[static_cast<int>(texCoordMode)];
 }
 
 void detail::DestroyFullscreenShaders()
 {
-	for (eg::ShaderModuleHandle& shaderModule : fullScreenShaders)
-	{
-		if (shaderModule)
-		{
-			gal::DestroyShaderModule(shaderModule);
-			shaderModule = nullptr;
-		}
-	}
+	fullScreenShaders = {};
 }
 } // namespace eg

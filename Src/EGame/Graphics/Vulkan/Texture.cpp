@@ -83,16 +83,6 @@ static void InitializeImage(
 		texture.viewLabel = Concat({ createInfo.label, " [View]" });
 		SetObjectName(reinterpret_cast<uint64_t>(texture.image), VK_OBJECT_TYPE_IMAGE, createInfo.label);
 	}
-
-	// Creates the default sampler
-	if (createInfo.defaultSamplerDescription != nullptr)
-	{
-		texture.defaultSampler = GetSampler(*createInfo.defaultSamplerDescription);
-	}
-	else
-	{
-		texture.defaultSampler = VK_NULL_HANDLE;
-	}
 }
 
 size_t TextureViewKey::Hash() const
@@ -149,20 +139,13 @@ static inline std::optional<VkImageViewType> TranslateViewType(TextureViewType v
 {
 	switch (viewType)
 	{
-	case TextureViewType::SameAsTexture:
-		return {};
-	case TextureViewType::Flat2D:
-		return VK_IMAGE_VIEW_TYPE_2D;
-	case TextureViewType::Flat3D:
-		return VK_IMAGE_VIEW_TYPE_3D;
-	case TextureViewType::Cube:
-		return VK_IMAGE_VIEW_TYPE_CUBE;
-	case TextureViewType::Array2D:
-		return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-	case TextureViewType::ArrayCube:
-		return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-	default:
-		EG_UNREACHABLE
+	case TextureViewType::SameAsTexture: return {};
+	case TextureViewType::Flat2D: return VK_IMAGE_VIEW_TYPE_2D;
+	case TextureViewType::Flat3D: return VK_IMAGE_VIEW_TYPE_3D;
+	case TextureViewType::Cube: return VK_IMAGE_VIEW_TYPE_CUBE;
+	case TextureViewType::Array2D: return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+	case TextureViewType::ArrayCube: return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+	default: EG_UNREACHABLE
 	}
 }
 
@@ -243,20 +226,13 @@ inline VkAccessFlags GetBarrierAccess(TextureUsage usage, VkImageAspectFlags asp
 {
 	switch (usage)
 	{
-	case TextureUsage::Undefined:
-		return 0;
-	case TextureUsage::CopySrc:
-		return VK_ACCESS_TRANSFER_READ_BIT;
-	case TextureUsage::CopyDst:
-		return VK_ACCESS_TRANSFER_WRITE_BIT;
-	case TextureUsage::ShaderSample:
-		return VK_ACCESS_SHADER_READ_BIT;
-	case TextureUsage::ILSRead:
-		return VK_ACCESS_SHADER_READ_BIT;
-	case TextureUsage::ILSWrite:
-		return VK_ACCESS_SHADER_WRITE_BIT;
-	case TextureUsage::ILSReadWrite:
-		return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+	case TextureUsage::Undefined: return 0;
+	case TextureUsage::CopySrc: return VK_ACCESS_TRANSFER_READ_BIT;
+	case TextureUsage::CopyDst: return VK_ACCESS_TRANSFER_WRITE_BIT;
+	case TextureUsage::ShaderSample: return VK_ACCESS_SHADER_READ_BIT;
+	case TextureUsage::ILSRead: return VK_ACCESS_SHADER_READ_BIT;
+	case TextureUsage::ILSWrite: return VK_ACCESS_SHADER_WRITE_BIT;
+	case TextureUsage::ILSReadWrite: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 	case TextureUsage::FramebufferAttachment:
 		if (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
 			return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -270,20 +246,16 @@ VkPipelineStageFlags GetBarrierStageFlagsFromUsage(TextureUsage usage, ShaderAcc
 {
 	switch (usage)
 	{
-	case TextureUsage::Undefined:
-		return 0;
-	case TextureUsage::CopySrc:
-		return VK_PIPELINE_STAGE_TRANSFER_BIT;
-	case TextureUsage::CopyDst:
-		return VK_PIPELINE_STAGE_TRANSFER_BIT;
+	case TextureUsage::Undefined: return 0;
+	case TextureUsage::CopySrc: return VK_PIPELINE_STAGE_TRANSFER_BIT;
+	case TextureUsage::CopyDst: return VK_PIPELINE_STAGE_TRANSFER_BIT;
 	case TextureUsage::FramebufferAttachment:
 		return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
 		       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	case TextureUsage::ILSRead:
 	case TextureUsage::ILSWrite:
 	case TextureUsage::ILSReadWrite:
-	case TextureUsage::ShaderSample:
-		return TranslateShaderPipelineStage(shaderAccessFlags);
+	case TextureUsage::ShaderSample: return TranslateShaderPipelineStage(shaderAccessFlags);
 	}
 	EG_UNREACHABLE
 }
@@ -292,18 +264,12 @@ VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspect
 {
 	switch (usage)
 	{
-	case TextureUsage::Undefined:
-		return VK_IMAGE_LAYOUT_UNDEFINED;
-	case TextureUsage::CopySrc:
-		return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	case TextureUsage::CopyDst:
-		return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-	case TextureUsage::ILSRead:
-		return VK_IMAGE_LAYOUT_GENERAL;
-	case TextureUsage::ILSWrite:
-		return VK_IMAGE_LAYOUT_GENERAL;
-	case TextureUsage::ILSReadWrite:
-		return VK_IMAGE_LAYOUT_GENERAL;
+	case TextureUsage::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
+	case TextureUsage::CopySrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	case TextureUsage::CopyDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	case TextureUsage::ILSRead: return VK_IMAGE_LAYOUT_GENERAL;
+	case TextureUsage::ILSWrite: return VK_IMAGE_LAYOUT_GENERAL;
+	case TextureUsage::ILSReadWrite: return VK_IMAGE_LAYOUT_GENERAL;
 	case TextureUsage::ShaderSample:
 		if (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
 			return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -404,8 +370,7 @@ static inline void InitImageCopyRegion(
 		outSubres.baseArrayLayer = inputRange.offsetZ;
 		outSubres.layerCount = inputRange.sizeZ;
 		break;
-	default:
-		EG_PANIC("Unknown view type encountered in InitImageCopyRegion.");
+	default: EG_PANIC("Unknown view type encountered in InitImageCopyRegion.");
 	}
 }
 
@@ -610,14 +575,7 @@ void BindTexture(
 	}
 
 	VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
-	if (sampler == VK_NULL_HANDLE)
-	{
-		if (view->texture->defaultSampler == VK_NULL_HANDLE)
-		{
-			EG_PANIC("Attempted to bind texture with no sampler specified.")
-		}
-		sampler = view->texture->defaultSampler;
-	}
+	EG_ASSERT(sampler != VK_NULL_HANDLE);
 
 	AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
 

@@ -30,6 +30,14 @@ bool VulkanAppearsSupported()
 #endif
 }
 
+static inline void UpdateDisplayScaling()
+{
+	int windowWidth, windowHeight, displayWidth, displayHeight;
+	SDL_GetWindowSize(sdlWindow, &windowWidth, &windowHeight);
+	gal::GetDrawableSize(displayWidth, displayHeight);
+	detail::displayScaleFactor = static_cast<float>(displayWidth) / static_cast<float>(windowWidth);
+}
+
 int detail::PlatformInit(const RunConfig& runConfig)
 {
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
@@ -96,7 +104,7 @@ int detail::PlatformInit(const RunConfig& runConfig)
 			contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
 
 #ifdef __APPLE__
-		constexpr std::pair<uint32_t, uint32_t> OPEN_GL_VERSION = { 3, 3 };
+		constexpr std::pair<uint32_t, uint32_t> OPEN_GL_VERSION = { 4, 0 };
 #else
 		constexpr std::pair<uint32_t, uint32_t> OPEN_GL_VERSION = { 4, 3 };
 #endif
@@ -114,6 +122,10 @@ int detail::PlatformInit(const RunConfig& runConfig)
 	else if (runConfig.graphicsAPI == GraphicsAPI::Vulkan)
 	{
 		windowFlags |= SDL_WINDOW_VULKAN;
+	}
+	else if (runConfig.graphicsAPI == GraphicsAPI::Metal)
+	{
+		windowFlags |= SDL_WINDOW_METAL;
 	}
 
 	int windowW = std::max(currentDisplayMode.w * 3 / 5, ToInt(runConfig.minWindowW));
@@ -145,6 +157,8 @@ int detail::PlatformInit(const RunConfig& runConfig)
 	{
 		return 1;
 	}
+
+	UpdateDisplayScaling();
 
 	gal::SetEnableVSync(HasFlag(runConfig.flags, RunFlags::VSync));
 
@@ -204,10 +218,7 @@ void detail::PlatformRunGameLoop(std::unique_ptr<IGame> game)
 		hasCalledTextInputActive = false;
 		hasSetTextInputRect = false;
 
-		int windowWidth, windowHeight, displayWidth, displayHeight;
-		SDL_GetWindowSize(sdlWindow, &windowWidth, &windowHeight);
-		gal::GetDrawableSize(displayWidth, displayHeight);
-		detail::displayScaleFactor = static_cast<float>(displayWidth) / static_cast<float>(windowWidth);
+		UpdateDisplayScaling();
 
 		detail::RunFrame(*game);
 		if (!hasCalledTextInputActive && textInputActive)
@@ -232,9 +243,7 @@ void detail::PlatformStartFrame()
 	{
 		switch (event.type)
 		{
-		case SDL_QUIT:
-			detail::shouldClose = true;
-			break;
+		case SDL_QUIT: detail::shouldClose = true; break;
 		case SDL_KEYDOWN:
 			detail::ButtonDownEvent(detail::TranslateSDLKey(event.key.keysym.scancode), event.key.repeat);
 
@@ -273,9 +282,7 @@ void detail::PlatformStartFrame()
 				detail::currentIS->OnAxisMoved(axis, valueF);
 			}
 			break;
-		case SDL_CONTROLLERDEVICEADDED:
-			AddGameController(SDL_GameControllerFromInstanceID(event.cdevice.which));
-			break;
+		case SDL_CONTROLLERDEVICEADDED: AddGameController(SDL_GameControllerFromInstanceID(event.cdevice.which)); break;
 		case SDL_MOUSEBUTTONDOWN:
 			detail::ButtonDownEvent(detail::TranslateSDLMouseButton(event.button.button), false);
 			break;
@@ -298,9 +305,7 @@ void detail::PlatformStartFrame()
 			detail::currentIS->scrollX += static_cast<float>(event.wheel.x);
 			detail::currentIS->scrollY += static_cast<float>(event.wheel.y);
 			break;
-		case SDL_TEXTINPUT:
-			detail::inputtedText.append(event.text.text);
-			break;
+		case SDL_TEXTINPUT: detail::inputtedText.append(event.text.text); break;
 		}
 	}
 }

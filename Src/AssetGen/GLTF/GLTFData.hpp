@@ -46,14 +46,10 @@ inline int ComponentSize(ComponentType type)
 {
 	switch (type)
 	{
-	case ComponentType::Float:
-		return 4;
-	case ComponentType::UInt8:
-		return 1;
-	case ComponentType::UInt16:
-		return 2;
-	case ComponentType::UInt32:
-		return 4;
+	case ComponentType::Float: return 4;
+	case ComponentType::UInt8: return 1;
+	case ComponentType::UInt16: return 2;
+	case ComponentType::UInt32: return 4;
 	}
 	EG_UNREACHABLE
 }
@@ -62,16 +58,11 @@ inline int ComponentsPerElement(ElementType type)
 {
 	switch (type)
 	{
-	case ElementType::SCALAR:
-		return 1;
-	case ElementType::VEC2:
-		return 2;
-	case ElementType::VEC3:
-		return 3;
-	case ElementType::VEC4:
-		return 4;
-	case ElementType::MAT4:
-		return 16;
+	case ElementType::SCALAR: return 1;
+	case ElementType::VEC2: return 2;
+	case ElementType::VEC3: return 3;
+	case ElementType::VEC4: return 4;
+	case ElementType::MAT4: return 16;
 	}
 	EG_UNREACHABLE
 }
@@ -88,14 +79,10 @@ inline float ReadFNormalized(const char* data, ComponentType componentType, size
 
 	switch (componentType)
 	{
-	case ComponentType::Float:
-		return *reinterpret_cast<const float*>(data);
-	case ComponentType::UInt8:
-		return NormIntToFloat(*reinterpret_cast<const uint8_t*>(data));
-	case ComponentType::UInt16:
-		return NormIntToFloat(*reinterpret_cast<const uint16_t*>(data));
-	case ComponentType::UInt32:
-		return NormIntToFloat(*reinterpret_cast<const uint32_t*>(data));
+	case ComponentType::Float: return *reinterpret_cast<const float*>(data);
+	case ComponentType::UInt8: return NormIntToFloat(*reinterpret_cast<const uint8_t*>(data));
+	case ComponentType::UInt16: return NormIntToFloat(*reinterpret_cast<const uint16_t*>(data));
+	case ComponentType::UInt32: return NormIntToFloat(*reinterpret_cast<const uint32_t*>(data));
 	}
 	EG_UNREACHABLE
 }

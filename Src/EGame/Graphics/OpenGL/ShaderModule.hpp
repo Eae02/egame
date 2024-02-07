@@ -23,7 +23,7 @@ struct PushConstantMember
 struct ShaderModule
 {
 	ShaderStage stage;
-	spirv_cross::ParsedIR parsedIR;
+	const spirv_cross::ParsedIR* parsedIR;
 };
 
 inline ShaderModule* UnwrapShaderModule(ShaderModuleHandle handle)

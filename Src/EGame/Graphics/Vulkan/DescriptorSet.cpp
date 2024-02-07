@@ -109,26 +109,22 @@ void BindTextureDS(
 	ds->AssignResource(binding, view->texture);
 
 	VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
-	if (sampler == VK_NULL_HANDLE)
-	{
-		if (view->texture->defaultSampler == VK_NULL_HANDLE)
-		{
-			EG_PANIC("Attempted to bind texture with no sampler specified.")
-		}
-		sampler = view->texture->defaultSampler;
-	}
+	EG_ASSERT(sampler != VK_NULL_HANDLE);
 
-	VkDescriptorImageInfo imageInfo;
-	imageInfo.imageView = view->view;
-	imageInfo.sampler = sampler;
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	VkDescriptorImageInfo imageInfo = {
+		.sampler = sampler,
+		.imageView = view->view,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
 
-	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	writeDS.descriptorCount = 1;
-	writeDS.dstSet = ds->descriptorSet;
-	writeDS.dstBinding = binding;
-	writeDS.pImageInfo = &imageInfo;
+	VkWriteDescriptorSet writeDS = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = ds->descriptorSet,
+		.dstBinding = binding,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		.pImageInfo = &imageInfo,
+	};
 
 	vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
 }
@@ -140,17 +136,19 @@ void BindStorageImageDS(TextureViewHandle textureViewHandle, DescriptorSetHandle
 
 	ds->AssignResource(binding, view->texture);
 
-	VkDescriptorImageInfo imageInfo;
-	imageInfo.imageView = view->view;
-	imageInfo.sampler = VK_NULL_HANDLE;
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	VkDescriptorImageInfo imageInfo = {
+		.imageView = view->view,
+		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
 
-	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	writeDS.descriptorCount = 1;
-	writeDS.dstSet = ds->descriptorSet;
-	writeDS.dstBinding = binding;
-	writeDS.pImageInfo = &imageInfo;
+	VkWriteDescriptorSet writeDS = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = ds->descriptorSet,
+		.dstBinding = binding,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+		.pImageInfo = &imageInfo,
+	};
 
 	vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
 }

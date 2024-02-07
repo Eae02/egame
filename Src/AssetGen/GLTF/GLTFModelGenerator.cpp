@@ -168,9 +168,7 @@ inline json LoadGLB(std::istream& stream, GLTFData& data)
 			stream.read(binaryChunkData.data(), chunkLength);
 			break;
 
-		default:
-			stream.seekg(chunkLength, std::ios_base::cur);
-			break;
+		default: stream.seekg(chunkLength, std::ios_base::cur); break;
 		}
 	}
 
@@ -248,8 +246,7 @@ static ImportedMesh ImportMesh(
 		CopyIndices<uint32_t>(
 			indicesData, mesh.indices.data(), indicesAccessor.byteStride, indicesAccessor.elementCount);
 		break;
-	default:
-		break;
+	default: break;
 	}
 
 	// ** Vertices **
@@ -551,16 +548,10 @@ public:
 			{
 				switch (accessor.componentType)
 				{
-				case ComponentType::UInt8:
-					accessor.byteStride = 1 * componentsPerElement;
-					break;
-				case ComponentType::UInt16:
-					accessor.byteStride = 2 * componentsPerElement;
-					break;
+				case ComponentType::UInt8: accessor.byteStride = 1 * componentsPerElement; break;
+				case ComponentType::UInt16: accessor.byteStride = 2 * componentsPerElement; break;
 				case ComponentType::UInt32:
-				case ComponentType::Float:
-					accessor.byteStride = 4 * componentsPerElement;
-					break;
+				case ComponentType::Float: accessor.byteStride = 4 * componentsPerElement; break;
 				}
 			}
 
@@ -868,15 +859,9 @@ public:
 
 		switch (vertexType)
 		{
-		case VertexType::Anim16:
-			WriteMeshes(static_cast<StdVertexAnim16*>(nullptr));
-			break;
-		case VertexType::Anim8:
-			WriteMeshes(static_cast<StdVertexAnim8*>(nullptr));
-			break;
-		case VertexType::Std:
-			WriteMeshes(static_cast<StdVertex*>(nullptr));
-			break;
+		case VertexType::Anim16: WriteMeshes(static_cast<StdVertexAnim16*>(nullptr)); break;
+		case VertexType::Anim8: WriteMeshes(static_cast<StdVertexAnim8*>(nullptr)); break;
+		case VertexType::Std: WriteMeshes(static_cast<StdVertex*>(nullptr)); break;
 		}
 
 		return true;

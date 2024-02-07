@@ -15,7 +15,6 @@ option(SPIRV_CROSS_ENABLE_TESTS "" OFF)
 option(SPIRV_CROSS_CLI "" OFF)
 option(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS "" ON)
 option(SPIRV_CROSS_ENABLE_HLSL "" OFF)
-option(SPIRV_CROSS_ENABLE_MSL "" OFF)
 option(SPIRV_CROSS_ENABLE_CPP "" OFF)
 option(SPIRV_CROSS_ENABLE_REFLECT "" OFF)
 option(SPIRV_CROSS_ENABLE_C_API "" OFF)
@@ -28,9 +27,13 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/ SYSTEM)
 
 target_compile_options(yaml-cpp PRIVATE -fPIC)
 
-file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.hpp Src/EGame/*.mm)
-file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp Src/AssetGen/*.hpp)
-file(GLOB_RECURSE ASSET_MAN_SOURCE_FILES Src/AssetMan/*.cpp Src/AssetMan/*.hpp)
+file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.mm)
+file(GLOB_RECURSE ASSET_GEN_SOURCE_FILES Src/AssetGen/*.cpp)
+file(GLOB_RECURSE ASSET_MAN_SOURCE_FILES Src/AssetMan/*.cpp)
+
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/Metal/*")
+endif()
 
 #Adds compile options for warnings
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -95,7 +98,13 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	target_compile_options(EGame PRIVATE ${SDL2_CFLAGS_OTHER})
 	
 	if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-		target_link_libraries(EGame PRIVATE "-framework Cocoa" "-framework OpenAL")
+		target_link_libraries(EGame PRIVATE
+			"-framework Cocoa"
+			"-framework OpenAL"
+			"-framework Metal"
+			"-framework Foundation"
+			"-framework QuartzCore"
+		)
 	endif()
 	
 	if (NOT ${OPENAL_FOUND})
@@ -137,7 +146,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_compile_options(EGameAssetGen PRIVATE ${OGG_VORBIS_CFLAGS_OTHER})
 		
 		set_target_properties(EGameAssetGen PROPERTIES
-			CXX_STANDARD 20
+			CXX_STANDARD 23
 			LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
 		)
 	endif()
@@ -149,7 +158,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_link_libraries(EGameAssetMan PRIVATE EGame)
 		
 		set_target_properties(EGameAssetMan PROPERTIES
-			CXX_STANDARD 20
+			CXX_STANDARD 23
 			RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}
 		)
 	endif()
@@ -179,7 +188,7 @@ if (${EG_BUILD_IMGUI})
 	)
 	
 	set_target_properties(EGameImGui PROPERTIES
-		CXX_STANDARD 20
+		CXX_STANDARD 23
 		ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
 	)
 	
@@ -193,6 +202,7 @@ endif()
 target_link_libraries(EGame
 	PRIVATE
 		spirv-cross-glsl
+		spirv-cross-msl
 		spirv-cross-util
 		spirv-cross-core
 )
@@ -208,6 +218,7 @@ target_include_directories(EGame SYSTEM
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/include
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/utfcpp/source
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vulkan-headers/include
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/metal-cpp/
 )
 
 target_compile_options(EGame
@@ -217,7 +228,7 @@ target_compile_options(EGame
 		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
 
 set_target_properties(EGame EGSandbox PROPERTIES
-	CXX_STANDARD 20
+	CXX_STANDARD 23
 	ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
 	LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
 	RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}

@@ -16,10 +16,8 @@ inline Vec3Generator ReadVec3Generator(uint32_t type, std::istream& stream)
 	{
 		switch (type)
 		{
-		case SphereVec3Generator::TYPE:
-			return SphereVec3Generator();
-		default:
-			EG_PANIC("Unknown vec3 generator " << type)
+		case SphereVec3Generator::TYPE: return SphereVec3Generator();
+		default: EG_PANIC("Unknown vec3 generator " << type)
 		}
 	}();
 

@@ -119,14 +119,15 @@ FormatCapabilities GetFormatCapabilities(Format format)
 			if (glesFormatSupport.floatBlend)
 				capabilities |= FormatCapabilities::ColorAttachmentBlend;
 			break;
-		default:
-			bool supported = true;
+		default: bool supported = true;
+#ifndef __APPLE__
 			if (IsCompressedFormat(format))
 			{
 				supported = supported && glesFormatSupport.compressedS3TC;
 				if (IsSRGBFormat(format))
 					supported = supported && glesFormatSupport.compressedS3TCSRGB;
 			}
+#endif
 			if (supported)
 			{
 				capabilities |= FormatCapabilities::SampledImage | FormatCapabilities::SampledImageFilterLinear |

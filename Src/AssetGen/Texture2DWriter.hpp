@@ -48,8 +48,6 @@ private:
 	bool m_is3D = false;
 	bool m_dxtHighQuality = false;
 	bool m_dxtDither = false;
-	bool m_linearFiltering = true;
-	bool m_anisotropicFiltering = true;
 	bool m_useGlobalDownscale = false;
 
 	std::vector<std::unique_ptr<uint8_t, FreeDel>> m_freeDelUP;

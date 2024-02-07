@@ -27,3 +27,6 @@
 [submodule "Deps/yaml-cpp"]
 	path = Deps/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp.git
+[submodule "Deps/metal-cpp"]
+	path = Deps/metal-cpp
+	url = https://github.com/bkaradzic/metal-cpp.git

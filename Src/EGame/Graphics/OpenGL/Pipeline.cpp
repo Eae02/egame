@@ -2,6 +2,7 @@
 #include "../../Assert.hpp"
 #include "../../MainThreadInvoke.hpp"
 #include "../../String.hpp"
+#include "../SpirvCrossUtils.hpp"
 
 #include <algorithm>
 #include <spirv_glsl.hpp>
@@ -61,31 +62,6 @@ void BindPipeline(CommandContextHandle, PipelineHandle handle)
 
 	glUseProgram(pipeline->program);
 	pipeline->Bind();
-}
-
-void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::CompilerGLSL& compiler)
-{
-	const char* dataChar = reinterpret_cast<const char*>(stageInfo.specConstantsData);
-
-	for (spirv_cross::SpecializationConstant& specConst : compiler.get_specialization_constants())
-	{
-		spirv_cross::SPIRConstant& spirConst = compiler.get_constant(specConst.id);
-		if (specConst.constant_id == 500)
-		{
-			spirConst.m.c[0].r[0].u32 = 1;
-		}
-		else
-		{
-			for (const SpecializationConstantEntry& entry : stageInfo.specConstants)
-			{
-				if (specConst.constant_id == entry.constantID)
-				{
-					std::memcpy(spirConst.m.c[0].r, dataChar + entry.offset, entry.size);
-					break;
-				}
-			}
-		}
-	}
 }
 
 void CompileShaderStage(GLuint shader, std::string_view glslCode)
@@ -550,8 +526,7 @@ void PushConstants(CommandContextHandle, uint32_t offset, uint32_t range, const 
 			SetPushConstantUniform<uint32_t>(func, pushConst, offset, range, data);
 			break;
 		}
-		default:
-			EG_PANIC("Unknown push constant type.");
+		default: EG_PANIC("Unknown push constant type.");
 		}
 	}
 }

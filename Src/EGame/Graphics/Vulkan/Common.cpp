@@ -76,9 +76,7 @@ void CheckRes(VkResult result)
 	switch (result)
 	{
 #define ERROR_TYPE(name)                                                                                               \
-	case name:                                                                                                         \
-		EG_PANIC("Vulkan error " #name);                                                                               \
-		break;
+	case name: EG_PANIC("Vulkan error " #name); break;
 		ERROR_TYPE(VK_ERROR_OUT_OF_HOST_MEMORY)
 		ERROR_TYPE(VK_ERROR_OUT_OF_DEVICE_MEMORY)
 		ERROR_TYPE(VK_ERROR_INITIALIZATION_FAILED)
@@ -103,8 +101,7 @@ void CheckRes(VkResult result)
 		ERROR_TYPE(VK_ERROR_NOT_PERMITTED_EXT)
 		ERROR_TYPE(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT)
 		ERROR_TYPE(VK_ERROR_INVALID_DEVICE_ADDRESS_EXT)
-	default:
-		break;
+	default: break;
 	}
 }
 
