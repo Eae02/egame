@@ -3,6 +3,7 @@
 #include "ProfilingResults.hpp"
 
 #include <memory>
+#include <unordered_map>
 
 namespace eg
 {
@@ -27,22 +28,27 @@ private:
 	bool m_hasAnyResults = false;
 	ProfilingResults m_lastResult;
 
-	size_t m_historyPos = 0;
-	static constexpr size_t RESULT_HISTORY_LEN = 128;
+	size_t m_nextHistoryPos = 0;
+	static constexpr size_t RESULT_HISTORY_LEN = 512;
+	static constexpr float TIMER_RUNNING_AVERAGE_TIME_SPAN = 2.0f;
 
 	struct TimerHistory
 	{
-		uint32_t nameHash;
-		bool isGPU;
-		std::vector<float> history;
-
-		TimerHistory(std::string_view _name, bool isGPU);
+		std::array<float, RESULT_HISTORY_LEN> history{};
+		float historySum = 0.0f;
+		size_t numValues = 0;
 	};
 
-	std::vector<TimerHistory> m_timerHistories;
+	struct TimerReference
+	{
+		std::string_view name;
+		bool isGPU;
 
-	std::vector<std::string> m_timerGraphs;
+		size_t Hash() const;
+	};
 
-	int FindTimerHistory(std::string_view name, bool isGPU) const;
+	std::unordered_map<size_t, TimerHistory> m_timerHistories;
+
+	TimerHistory* FindTimerHistory(TimerReference reference);
 };
 } // namespace eg

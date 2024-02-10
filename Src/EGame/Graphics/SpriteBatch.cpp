@@ -273,13 +273,28 @@ void SpriteBatch::DrawLine(const glm::vec2& begin, const glm::vec2& end, const C
 
 	for (int s = 0; s < 2; s++)
 	{
-		m_vertices.emplace_back(
-			begin + dO * (width * static_cast<float>(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
+		m_vertices.emplace_back(begin + dO * (width * static_cast<float>(s * 2 - 1)), glm::vec2(), color, opacityScale);
 	}
 	for (int s = 0; s < 2; s++)
 	{
-		m_vertices.emplace_back(
-			end + dO * (width * static_cast<float>(s * 2 - 1)), glm::vec2(0, 0), color, opacityScale);
+		m_vertices.emplace_back(end + dO * (width * static_cast<float>(s * 2 - 1)), glm::vec2(), color, opacityScale);
+	}
+}
+
+void SpriteBatch::DrawCustomShape(
+	std::span<const glm::vec2> positions, std::span<const uint32_t> indices, const ColorLin& color)
+{
+	InitBatch(whitePixelTexture, SpriteFlags::None);
+
+	uint32_t i0 = UnsignedNarrow<uint32_t>(m_vertices.size());
+	for (uint32_t i : indices)
+		m_indices.push_back(i0 + i);
+
+	m_batches.back().numIndices += UnsignedNarrow<uint32_t>(indices.size());
+
+	for (glm::vec2 pos : positions)
+	{
+		m_vertices.emplace_back(pos, glm::vec2(), color, opacityScale);
 	}
 }
 

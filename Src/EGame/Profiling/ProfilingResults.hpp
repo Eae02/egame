@@ -32,6 +32,8 @@ public:
 		void StepOver() { m_index += m_timers[m_index].totalChildren; }
 
 		const std::string& CurrentName() const { return m_timers[m_index].name; }
+		
+		std::string_view CurrentNameOrEmpty() const { return AtEnd() ? std::string_view() : m_timers[m_index].name; }
 
 		float CurrentValue() const { return m_timers[m_index].timeNS; }
 
