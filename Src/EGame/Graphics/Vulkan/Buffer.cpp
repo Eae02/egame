@@ -5,6 +5,7 @@
 #include "../Graphics.hpp"
 #include "Pipeline.hpp"
 #include "Translation.hpp"
+#include "VulkanCommandContext.hpp"
 
 namespace eg::detail
 {
@@ -136,16 +137,17 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-			VkCommandBuffer cb = GetCB(nullptr);
+			VkCommandBuffer immediateCB = VulkanCommandContext::currentImmediate->cb;
 			vkCmdPipelineBarrier(
-				cb, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+				immediateCB, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, 0, 0, nullptr, 1, &barrier, 0,
+				nullptr);
 
 			buffer->currentStageFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
 			buffer->currentUsage = eg::BufferUsage::CopyDst;
 
 			if (createInfo.size <= 65536)
 			{
-				vkCmdUpdateBuffer(GetCB(nullptr), buffer->buffer, 0, createInfo.size, createInfo.initialData);
+				vkCmdUpdateBuffer(immediateCB, buffer->buffer, 0, createInfo.size, createInfo.initialData);
 			}
 			else
 			{
@@ -169,7 +171,7 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 				vmaFlushAllocation(ctx.allocator, initAllocation, 0, createInfo.size);
 
 				VkBufferCopy bufferCopyReg = { 0, 0, createInfo.size };
-				vkCmdCopyBuffer(GetCB(nullptr), initBuffer, buffer->buffer, 1, &bufferCopyReg);
+				vkCmdCopyBuffer(immediateCB, initBuffer, buffer->buffer, 1, &bufferCopyReg);
 
 				pendingInitBuffers.push_back(
 					{ initBuffer, initAllocation, detail::frameIndex + MAX_CONCURRENT_FRAMES });
@@ -238,10 +240,13 @@ inline VkPipelineStageFlags GetBarrierStageFlags(BufferUsage usage, ShaderAccess
 	EG_UNREACHABLE
 }
 
-void Buffer::AutoBarrier(VkCommandBuffer cb, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags)
+void Buffer::AutoBarrier(CommandContextHandle cc, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 {
 	if (!autoBarrier || currentUsage == newUsage)
 		return;
+
+	if (cc != nullptr)
+		EG_PANIC("Vulkan resources used on non-direct contexts must use manual barriers");
 
 	VkBufferMemoryBarrier barrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
 	barrier.buffer = buffer;
@@ -256,7 +261,9 @@ void Buffer::AutoBarrier(VkCommandBuffer cb, BufferUsage newUsage, ShaderAccessF
 	if (currentStageFlags == 0)
 		currentStageFlags = dstStageFlags;
 
-	vkCmdPipelineBarrier(cb, currentStageFlags, dstStageFlags, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+	vkCmdPipelineBarrier(
+		VulkanCommandContext::currentImmediate->cb, currentStageFlags, dstStageFlags, 0, 0, nullptr, 1, &barrier, 0,
+		nullptr);
 
 	currentStageFlags = dstStageFlags;
 	currentUsage = newUsage;
@@ -265,16 +272,15 @@ void Buffer::AutoBarrier(VkCommandBuffer cb, BufferUsage newUsage, ShaderAccessF
 void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 {
 	Buffer* buffer = UnwrapBuffer(handle);
-	RefResource(nullptr, *buffer);
-	buffer->AutoBarrier(GetCB(nullptr), newUsage, shaderAccessFlags);
+	VulkanCommandContext::currentImmediate->referencedResources.Add(*buffer);
+	buffer->AutoBarrier(nullptr, newUsage, shaderAccessFlags);
 }
 
 void BufferBarrier(CommandContextHandle cc, BufferHandle handle, const eg::BufferBarrier& barrier)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(handle);
-	RefResource(cc, *buffer);
-
-	VkCommandBuffer cb = GetCB(cc);
+	vcc.referencedResources.Add(*buffer);
 
 	VkBufferMemoryBarrier vkBarrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
 	vkBarrier.buffer = buffer->buffer;
@@ -286,123 +292,76 @@ void BufferBarrier(CommandContextHandle cc, BufferHandle handle, const eg::Buffe
 	vkBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
 	vkCmdPipelineBarrier(
-		cb, GetBarrierStageFlags(barrier.oldUsage, barrier.oldAccess),
+		vcc.cb, GetBarrierStageFlags(barrier.oldUsage, barrier.oldAccess),
 		GetBarrierStageFlags(barrier.newUsage, barrier.newAccess), 0, 0, nullptr, 1, &vkBarrier, 0, nullptr);
 }
 
 void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(handle);
-	RefResource(cc, *buffer);
+	vcc.referencedResources.Add(*buffer);
 
-	VkCommandBuffer cb = GetCB(cc);
-	buffer->AutoBarrier(cb, BufferUsage::CopyDst);
-	vkCmdFillBuffer(cb, buffer->buffer, offset, size, data);
+	buffer->AutoBarrier(cc, BufferUsage::CopyDst);
+	vkCmdFillBuffer(vcc.cb, buffer->buffer, offset, size, data);
 }
 
 void UpdateBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(handle);
-	RefResource(cc, *buffer);
+	vcc.referencedResources.Add(*buffer);
 
-	VkCommandBuffer cb = GetCB(cc);
-	buffer->AutoBarrier(cb, BufferUsage::CopyDst);
-	vkCmdUpdateBuffer(cb, buffer->buffer, offset, size, data);
+	buffer->AutoBarrier(cc, BufferUsage::CopyDst);
+	vkCmdUpdateBuffer(vcc.cb, buffer->buffer, offset, size, data);
 }
 
 void CopyBuffer(
 	CommandContextHandle cc, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+
 	Buffer* srcBuffer = UnwrapBuffer(src);
 	Buffer* dstBuffer = UnwrapBuffer(dst);
 
-	RefResource(cc, *srcBuffer);
-	RefResource(cc, *dstBuffer);
+	vcc.referencedResources.Add(*srcBuffer);
+	vcc.referencedResources.Add(*dstBuffer);
 
-	VkCommandBuffer cb = GetCB(cc);
-	srcBuffer->AutoBarrier(cb, BufferUsage::CopySrc);
-	dstBuffer->AutoBarrier(cb, BufferUsage::CopyDst);
+	srcBuffer->AutoBarrier(cc, BufferUsage::CopySrc);
+	dstBuffer->AutoBarrier(cc, BufferUsage::CopyDst);
 
 	const VkBufferCopy copyRegion = { srcOffset, dstOffset, size };
-	vkCmdCopyBuffer(cb, srcBuffer->buffer, dstBuffer->buffer, 1, &copyRegion);
+	vkCmdCopyBuffer(vcc.cb, srcBuffer->buffer, dstBuffer->buffer, 1, &copyRegion);
 }
 
 void BindVertexBuffer(CommandContextHandle cc, uint32_t binding, BufferHandle bufferHandle, uint32_t offset)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
-	RefResource(cc, *buffer);
+
+	EG_ASSERT(!buffer->autoBarrier || cc == nullptr);
+
+	vcc.referencedResources.Add(*buffer);
 
 	buffer->CheckUsageState(BufferUsage::VertexBuffer, "binding as a vertex buffer");
 
 	VkDeviceSize offsetDS = offset;
-	vkCmdBindVertexBuffers(GetCB(cc), binding, 1, &buffer->buffer, &offsetDS);
+	vkCmdBindVertexBuffers(vcc.cb, binding, 1, &buffer->buffer, &offsetDS);
 }
 
 void BindIndexBuffer(CommandContextHandle cc, IndexType type, BufferHandle bufferHandle, uint32_t offset)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
-	RefResource(cc, *buffer);
+
+	EG_ASSERT(!buffer->autoBarrier || cc == nullptr);
+
+	vcc.referencedResources.Add(*buffer);
 
 	buffer->CheckUsageState(BufferUsage::IndexBuffer, "binding as an index buffer");
 
 	const VkIndexType vkIndexType = type == IndexType::UInt32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
-	vkCmdBindIndexBuffer(GetCB(cc), buffer->buffer, offset, vkIndexType);
-}
-
-void BindUniformBuffer(
-	CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
-{
-	Buffer* buffer = UnwrapBuffer(bufferHandle);
-	RefResource(cc, *buffer);
-
-	buffer->CheckUsageState(BufferUsage::UniformBuffer, "binding as a uniform buffer");
-
-	AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
-
-	VkDescriptorBufferInfo bufferInfo;
-	bufferInfo.buffer = buffer->buffer;
-	bufferInfo.offset = offset;
-	bufferInfo.range = range;
-
-	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	writeDS.dstBinding = binding;
-	writeDS.dstSet = VK_NULL_HANDLE;
-	writeDS.descriptorCount = 1;
-	writeDS.pBufferInfo = &bufferInfo;
-
-	vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
-}
-
-void BindStorageBuffer(
-	CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
-{
-	Buffer* buffer = UnwrapBuffer(bufferHandle);
-	RefResource(cc, *buffer);
-
-	if (buffer->autoBarrier && buffer->currentUsage != BufferUsage::StorageBufferRead &&
-	    buffer->currentUsage != BufferUsage::StorageBufferWrite &&
-	    buffer->currentUsage != BufferUsage::StorageBufferReadWrite)
-	{
-		EG_PANIC("Buffer not in the correct usage state when binding as a storage buffer, did you forget to call "
-		         "UsageHint?");
-	}
-
-	AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
-
-	VkDescriptorBufferInfo bufferInfo;
-	bufferInfo.buffer = buffer->buffer;
-	bufferInfo.offset = offset;
-	bufferInfo.range = range;
-
-	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	writeDS.dstBinding = binding;
-	writeDS.dstSet = VK_NULL_HANDLE;
-	writeDS.descriptorCount = 1;
-	writeDS.pBufferInfo = &bufferInfo;
-
-	vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
+	vkCmdBindIndexBuffer(vcc.cb, buffer->buffer, offset, vkIndexType);
 }
 } // namespace eg::graphics_api::vk
 

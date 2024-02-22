@@ -7,9 +7,9 @@
 #include "CachedDescriptorSetLayout.hpp"
 #include "Common.hpp"
 #include "RenderPasses.hpp"
-#include "Sampler.hpp"
 #include "Translation.hpp"
 
+#include "VulkanCommandContext.hpp"
 #include <SDL_vulkan.h>
 #include <algorithm>
 #include <cstring>
@@ -770,7 +770,17 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		/* level              */ VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 		/* commandBufferCount */ MAX_CONCURRENT_FRAMES
 	};
-	CheckRes(vkAllocateCommandBuffers(ctx.device, &cmdAllocateInfo, ctx.immediateCommandBuffers));
+	VkCommandBuffer immediateCommandBuffers[MAX_CONCURRENT_FRAMES];
+	CheckRes(vkAllocateCommandBuffers(ctx.device, &cmdAllocateInfo, immediateCommandBuffers));
+
+	// Initializes immediate contexts
+	VulkanCommandContext::immediateContexts.resize(MAX_CONCURRENT_FRAMES);
+	for (uint32_t i = 0; i < MAX_CONCURRENT_FRAMES; i++)
+	{
+		VulkanCommandContext::immediateContexts[i].cb = immediateCommandBuffers[i];
+		VulkanCommandContext::immediateContexts[i].SetInitialState();
+	}
+	VulkanCommandContext::currentImmediate = &VulkanCommandContext::immediateContexts[0];
 
 	// Starts the first immediate command buffer
 	static const VkCommandBufferBeginInfo beginInfo = {
@@ -779,7 +789,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		/* flags            */ VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 		/* pInheritanceInfo */ nullptr
 	};
-	vkBeginCommandBuffer(ctx.immediateCommandBuffers[0], &beginInfo);
+	vkBeginCommandBuffer(immediateCommandBuffers[0], &beginInfo);
 
 	return true;
 }
@@ -865,6 +875,8 @@ GraphicsMemoryStat GetMemoryStat()
 	return stat;
 }
 
+void DestroySamplers();
+
 void Shutdown()
 {
 	vkDeviceWaitIdle(ctx.device);
@@ -878,7 +890,7 @@ void Shutdown()
 
 	for (uint32_t i = 0; i < MAX_CONCURRENT_FRAMES; i++)
 	{
-		ctx.referencedResources[i].Release();
+		VulkanCommandContext::immediateContexts[i].referencedResources.Release();
 		vkDestroyFence(ctx.device, ctx.frameQueueFences[i], nullptr);
 		vkDestroySemaphore(ctx.device, ctx.frameQueueSemaphores[i], nullptr);
 	}
@@ -913,11 +925,14 @@ void Shutdown()
 
 void EndLoading()
 {
-	vkEndCommandBuffer(ctx.immediateCommandBuffers[0]);
+	VkCommandBuffer cb = VulkanCommandContext::immediateContexts[0].cb;
+	vkEndCommandBuffer(cb);
 
-	VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &ctx.immediateCommandBuffers[0];
+	const VkSubmitInfo submitInfo = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &cb,
+	};
 
 	vkQueueSubmit(ctx.mainQueue, 1, &submitInfo, ctx.frameQueueFences[0]);
 }
@@ -973,7 +988,10 @@ void BeginFrame()
 
 	ProcessPendingInitBuffers(false);
 
-	ctx.referencedResources[CFrameIdx()].Release();
+	VulkanCommandContext::currentImmediate = &VulkanCommandContext::immediateContexts[CFrameIdx()];
+
+	VulkanCommandContext::currentImmediate->referencedResources.Release();
+	VulkanCommandContext::currentImmediate->SetInitialState();
 
 	static const VkCommandBufferBeginInfo beginInfo = {
 		/* sType            */ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -981,21 +999,16 @@ void BeginFrame()
 		/* flags            */ VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 		/* pInheritanceInfo */ nullptr
 	};
-	CheckRes(vkBeginCommandBuffer(ctx.immediateCommandBuffers[CFrameIdx()], &beginInfo));
+	CheckRes(vkBeginCommandBuffer(VulkanCommandContext::currentImmediate->cb, &beginInfo));
 
 	ctx.defaultFramebufferInPresentMode = true;
-	ctx.immediateCCState.pipeline = nullptr;
-	ctx.immediateCCState.scissorOutOfDate = true;
-	ctx.immediateCCState.viewportOutOfDate = true;
-	ctx.immediateCCState.cullModeOutOfDate = true;
-	ctx.immediateCCState.polygonModeOutOfDate = true;
 }
 
 void EndFrame()
 {
 	MaybeAcquireSwapchainImage();
 
-	VkCommandBuffer immediateCB = ctx.immediateCommandBuffers[CFrameIdx()];
+	VkCommandBuffer immediateCB = VulkanCommandContext::currentImmediate->cb;
 
 	if (!ctx.defaultFramebufferInPresentMode)
 	{
@@ -1104,7 +1117,7 @@ void DebugLabelBegin(CommandContextHandle cctx, const char* label, const float* 
 	{
 		VkDebugUtilsLabelEXT labelInfo;
 		InitLabelInfo(labelInfo, label, color);
-		vkCmdBeginDebugUtilsLabelEXT(GetCB(cctx), &labelInfo);
+		vkCmdBeginDebugUtilsLabelEXT(UnwrapCC(cctx).cb, &labelInfo);
 	}
 }
 
@@ -1112,7 +1125,7 @@ void DebugLabelEnd(CommandContextHandle cctx)
 {
 	if (vkCmdEndDebugUtilsLabelEXT != nullptr)
 	{
-		vkCmdEndDebugUtilsLabelEXT(GetCB(cctx));
+		vkCmdEndDebugUtilsLabelEXT(UnwrapCC(cctx).cb);
 	}
 }
 
@@ -1122,7 +1135,7 @@ void DebugLabelInsert(CommandContextHandle cctx, const char* label, const float*
 	{
 		VkDebugUtilsLabelEXT labelInfo;
 		InitLabelInfo(labelInfo, label, color);
-		vkCmdInsertDebugUtilsLabelEXT(GetCB(cctx), &labelInfo);
+		vkCmdInsertDebugUtilsLabelEXT(UnwrapCC(cctx).cb, &labelInfo);
 	}
 }
 } // namespace eg::graphics_api::vk

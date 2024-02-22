@@ -45,7 +45,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		-Wshadow
 		-Wcast-qual
 		-Wconversion
-		-Wmissing-declarations
 		-Woverlength-strings
 		-Wpointer-arith
 		-Wunused-local-typedefs

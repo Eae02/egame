@@ -7,6 +7,7 @@
 #include "ShaderModule.hpp"
 #include "Translation.hpp"
 
+#include "VulkanCommandContext.hpp"
 #include <algorithm>
 #include <spirv_cross.hpp>
 
@@ -353,65 +354,14 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	return WrapPipeline(pipeline);
 }
 
-inline void CommitDynamicState(CommandContextHandle cc)
-{
-	CommandContextState& state = GetCtxState(cc);
-	VkCommandBuffer cb = GetCB(cc);
-
-	if (state.viewportOutOfDate)
-	{
-		const VkViewport viewport = {
-			state.viewportX, state.viewportY + state.viewportH, state.viewportW, -state.viewportH, 0.0f, 1.0f
-		};
-		vkCmdSetViewport(cb, 0, 1, &viewport);
-		state.viewportOutOfDate = false;
-	}
-
-	if (state.scissorOutOfDate)
-	{
-		vkCmdSetScissor(cb, 0, 1, &state.scissor);
-		state.scissorOutOfDate = false;
-	}
-
-	if (state.cullModeOutOfDate && state.enableDynamicCullMode)
-	{
-		vkCmdSetCullModeEXT(cb, state.cullMode);
-		state.cullModeOutOfDate = false;
-	}
-
-	if (state.polygonModeOutOfDate && state.enableDynamicPolygonMode)
-	{
-		vkCmdSetPolygonModeEXT(cb, state.polygonMode);
-		state.polygonModeOutOfDate = false;
-	}
-}
-
 void SetViewport(CommandContextHandle cc, float x, float y, float w, float h)
 {
-	CommandContextState& state = GetCtxState(cc);
-	if (!FEqual(state.viewportX, x) || !FEqual(state.viewportY, y) || !FEqual(state.viewportW, w) ||
-	    !FEqual(state.viewportH, h))
-	{
-		state.viewportX = x;
-		state.viewportY = y;
-		state.viewportW = w;
-		state.viewportH = h;
-		state.viewportOutOfDate = true;
-	}
+	UnwrapCC(cc).SetViewport(x, y, w, h);
 }
 
 void SetScissor(CommandContextHandle cc, int x, int y, int w, int h)
 {
-	CommandContextState& state = GetCtxState(cc);
-	if (state.scissor.offset.x != x || state.scissor.offset.y != y ||
-	    static_cast<int>(state.scissor.extent.width) != w || static_cast<int>(state.scissor.extent.height) != h)
-	{
-		state.scissor.offset.x = std::max<int>(x, 0);
-		state.scissor.offset.y = std::max<int>(state.framebufferH - (y + h), 0);
-		state.scissor.extent.width = glm::clamp(w, 0, ToInt(state.framebufferW) - x);
-		state.scissor.extent.height = glm::clamp(h, 0, ToInt(state.framebufferH) - state.scissor.offset.y);
-		state.scissorOutOfDate = true;
-	}
+	UnwrapCC(cc).SetScissor(x, y, w, h);
 }
 
 void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
@@ -422,78 +372,83 @@ void SetStencilValue(CommandContextHandle cc, StencilValue kind, uint32_t val)
 	if (static_cast<int>(kind) & 0b1000)
 		faceFlags |= VK_STENCIL_FACE_BACK_BIT;
 
+	VkCommandBuffer cb = UnwrapCC(cc).cb;
+
 	int type = static_cast<int>(kind) & 0b11;
 	if (type == 0)
-		vkCmdSetStencilCompareMask(GetCB(cc), faceFlags, val);
+		vkCmdSetStencilCompareMask(cb, faceFlags, val);
 	else if (type == 1)
-		vkCmdSetStencilWriteMask(GetCB(cc), faceFlags, val);
+		vkCmdSetStencilWriteMask(cb, faceFlags, val);
 	else if (type == 2)
-		vkCmdSetStencilReference(GetCB(cc), faceFlags, val);
+		vkCmdSetStencilReference(cb, faceFlags, val);
 }
 
 void SetWireframe(CommandContextHandle cc, bool wireframe)
 {
-	CommandContextState& ctxState = GetCtxState(cc);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	VkPolygonMode polygonMode = wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
-	if (polygonMode != ctxState.polygonMode)
+	if (polygonMode != vcc.polygonMode)
 	{
-		ctxState.polygonModeOutOfDate = true;
-		ctxState.polygonMode = polygonMode;
+		vcc.polygonModeOutOfDate = true;
+		vcc.polygonMode = polygonMode;
 	}
 }
 
 void SetCullMode(CommandContextHandle cc, CullMode cullMode)
 {
-	CommandContextState& ctxState = GetCtxState(cc);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	VkCullModeFlags vkCullMode = TranslateCullMode(cullMode);
-	if (vkCullMode != ctxState.cullMode)
+	if (vkCullMode != vcc.cullMode)
 	{
-		ctxState.cullModeOutOfDate = true;
-		ctxState.cullMode = ctxState.cullMode;
+		vcc.cullModeOutOfDate = true;
+		vcc.cullMode = vkCullMode;
 	}
 }
 
 void GraphicsPipeline::Bind(CommandContextHandle cc)
 {
-	VkCommandBuffer cb = GetCB(cc);
-	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-
-	CommandContextState& ctxState = GetCtxState(cc);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+	vcc.FlushDescriptorUpdates();
+	vkCmdBindPipeline(vcc.cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	if (!enableScissorTest)
 	{
-		SetScissor(cc, 0, 0, ctxState.framebufferW, ctxState.framebufferH);
+		vcc.SetScissor(0, 0, vcc.framebufferW, vcc.framebufferH);
 	}
 
-	ctxState.enableDynamicCullMode = enableDynamicCullMode;
-	ctxState.enableDynamicPolygonMode = enableDynamicPolygonMode;
+	vcc.enableDynamicCullMode = enableDynamicCullMode;
+	vcc.enableDynamicPolygonMode = enableDynamicPolygonMode;
 
-	if (!enableDynamicPolygonMode && ctxState.polygonMode != VK_POLYGON_MODE_FILL)
+	if (!enableDynamicPolygonMode && vcc.polygonMode != VK_POLYGON_MODE_FILL)
 	{
-		ctxState.polygonMode = VK_POLYGON_MODE_FILL;
-		ctxState.polygonModeOutOfDate = true;
+		vcc.polygonMode = VK_POLYGON_MODE_FILL;
+		vcc.polygonModeOutOfDate = true;
 	}
 
-	if (!enableDynamicCullMode && ctxState.cullMode != staticCullMode)
+	if (!enableDynamicCullMode && vcc.cullMode != staticCullMode)
 	{
-		ctxState.cullMode = staticCullMode;
-		ctxState.cullModeOutOfDate = true;
+		vcc.cullMode = staticCullMode;
+		vcc.cullModeOutOfDate = true;
 	}
 }
 
 void Draw(
 	CommandContextHandle cc, uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
 {
-	CommitDynamicState(cc);
-	vkCmdDraw(GetCB(cc), numVertices, numInstances, firstVertex, firstInstance);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+	vcc.FlushDescriptorUpdates();
+	vcc.FlushDynamicState();
+	vkCmdDraw(vcc.cb, numVertices, numInstances, firstVertex, firstInstance);
 }
 
 void DrawIndexed(
 	CommandContextHandle cc, uint32_t firstIndex, uint32_t numIndices, uint32_t firstVertex, uint32_t firstInstance,
 	uint32_t numInstances)
 {
-	CommitDynamicState(cc);
-	vkCmdDrawIndexed(GetCB(cc), numIndices, numInstances, firstIndex, firstVertex, firstInstance);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+	vcc.FlushDescriptorUpdates();
+	vcc.FlushDynamicState();
+	vkCmdDrawIndexed(vcc.cb, numIndices, numInstances, firstIndex, firstVertex, firstInstance);
 }
 } // namespace eg::graphics_api::vk
 

@@ -2,6 +2,7 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "Pipeline.hpp"
 #include "ShaderModule.hpp"
+#include "VulkanCommandContext.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -61,14 +62,16 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 
 void ComputePipeline::Bind(CommandContextHandle cc)
 {
-	VkCommandBuffer cb = GetCB(cc);
-	vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+	vcc.FlushDescriptorUpdates();
+	vkCmdBindPipeline(vcc.cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 }
 
 void DispatchCompute(CommandContextHandle cc, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)
 {
-	VkCommandBuffer cb = GetCB(cc);
-	vkCmdDispatch(cb, sizeX, sizeY, sizeZ);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+	vcc.FlushDescriptorUpdates();
+	vkCmdDispatch(vcc.cb, sizeX, sizeY, sizeZ);
 }
 } // namespace eg::graphics_api::vk
 

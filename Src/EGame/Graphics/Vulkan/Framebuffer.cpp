@@ -5,6 +5,7 @@
 #include "RenderPasses.hpp"
 #include "Texture.hpp"
 #include "VulkanMain.hpp"
+#include "VulkanCommandContext.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -171,7 +172,7 @@ inline VkAttachmentLoadOp TranslateLoadOp(AttachmentLoadOp loadOp)
 
 void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 {
-	VkCommandBuffer cb = GetCB(cc);
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 
 	uint32_t numColorAttachments = 1;
 	uint32_t sampleCount = 1;
@@ -208,7 +209,7 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 		framebuffer = framebufferS->framebuffer;
 		extent = framebufferS->extent;
 
-		RefResource(cc, *framebufferS);
+		vcc.referencedResources.Add(*framebufferS);
 
 		sampleCount = framebufferS->sampleCount;
 
@@ -375,11 +376,10 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 	vkBeginInfo.clearValueCount = std::size(clearValues);
 	vkBeginInfo.pClearValues = clearValues;
 
-	vkCmdBeginRenderPass(cb, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(vcc.cb, &vkBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	CommandContextState& ctxState = GetCtxState(cc);
-	ctxState.framebufferW = extent.width;
-	ctxState.framebufferH = extent.height;
+	vcc.framebufferW = extent.width;
+	vcc.framebufferH = extent.height;
 
 	SetViewport(cc, 0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height));
 	SetScissor(cc, 0, 0, extent.width, extent.height);
@@ -387,7 +387,7 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 
 void EndRenderPass(CommandContextHandle cc)
 {
-	vkCmdEndRenderPass(GetCB(cc));
+	vkCmdEndRenderPass(UnwrapCC(cc).cb);
 }
 } // namespace eg::graphics_api::vk
 

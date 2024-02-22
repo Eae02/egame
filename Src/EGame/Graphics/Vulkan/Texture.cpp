@@ -8,8 +8,8 @@
 #include "../Graphics.hpp"
 #include "Buffer.hpp"
 #include "Pipeline.hpp"
-#include "Sampler.hpp"
 #include "Translation.hpp"
+#include "VulkanCommandContext.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -284,10 +284,13 @@ VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspect
 	EG_UNREACHABLE
 }
 
-void Texture::AutoBarrier(VkCommandBuffer cb, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
+void Texture::AutoBarrier(CommandContextHandle cc, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 {
 	if (!autoBarrier || currentUsage == newUsage)
 		return;
+
+	if (cc != nullptr)
+		EG_PANIC("Vulkan resources used on non-direct contexts must use manual barriers");
 
 	VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	barrier.image = image;
@@ -303,7 +306,7 @@ void Texture::AutoBarrier(VkCommandBuffer cb, TextureUsage newUsage, ShaderAcces
 	if (currentStageFlags == 0)
 		currentStageFlags = dstStageFlags;
 
-	vkCmdPipelineBarrier(cb, currentStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	vkCmdPipelineBarrier(VulkanCommandContext::currentImmediate->cb, currentStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
 	currentStageFlags = dstStageFlags;
 	currentUsage = newUsage;
@@ -311,8 +314,9 @@ void Texture::AutoBarrier(VkCommandBuffer cb, TextureUsage newUsage, ShaderAcces
 
 void TextureBarrier(CommandContextHandle cc, TextureHandle handle, const eg::TextureBarrier& barrier)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Texture* texture = UnwrapTexture(handle);
-	RefResource(cc, *texture);
+	vcc.referencedResources.Add(*texture);
 
 	VkImageMemoryBarrier vkBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	vkBarrier.image = texture->image;
@@ -333,7 +337,7 @@ void TextureBarrier(CommandContextHandle cc, TextureHandle handle, const eg::Tex
 	if (srcStageFlags == 0)
 		srcStageFlags = dstStageFlags;
 
-	vkCmdPipelineBarrier(GetCB(cc), srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &vkBarrier);
+	vkCmdPipelineBarrier(vcc.cb, srcStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &vkBarrier);
 }
 
 template <typename T>
@@ -378,61 +382,58 @@ void SetTextureData(
 	CommandContextHandle cc, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle,
 	uint64_t offset)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
-	RefResource(cc, *buffer);
+	vcc.referencedResources.Add(*buffer);
 
 	Texture* texture = UnwrapTexture(handle);
-	RefResource(cc, *texture);
+	vcc.referencedResources.Add(*texture);
 
-	VkCommandBuffer cb = GetCB(cc);
-
-	texture->AutoBarrier(cb, TextureUsage::CopyDst);
-	buffer->AutoBarrier(cb, BufferUsage::CopySrc);
+	texture->AutoBarrier(cc, TextureUsage::CopyDst);
+	buffer->AutoBarrier(cc, BufferUsage::CopySrc);
 
 	VkBufferImageCopy copyRegion = {};
 	copyRegion.bufferOffset = offset;
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
 
-	vkCmdCopyBufferToImage(cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+	vkCmdCopyBufferToImage(vcc.cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void GetTextureData(
 	CommandContextHandle cc, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle,
 	uint64_t offset)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
-	RefResource(cc, *buffer);
+	vcc.referencedResources.Add(*buffer);
 
 	Texture* texture = UnwrapTexture(handle);
-	RefResource(cc, *texture);
+	vcc.referencedResources.Add(*texture);
 
-	VkCommandBuffer cb = GetCB(cc);
-
-	texture->AutoBarrier(cb, TextureUsage::CopySrc);
-	buffer->AutoBarrier(cb, BufferUsage::CopyDst);
+	texture->AutoBarrier(cc, TextureUsage::CopySrc);
+	buffer->AutoBarrier(cc, BufferUsage::CopyDst);
 
 	VkBufferImageCopy copyRegion = {};
 	copyRegion.bufferOffset = offset;
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
 
-	vkCmdCopyImageToBuffer(cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer->buffer, 1, &copyRegion);
+	vkCmdCopyImageToBuffer(vcc.cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer->buffer, 1, &copyRegion);
 }
 
 void CopyTextureData(
 	CommandContextHandle cc, TextureHandle srcHandle, TextureHandle dstHandle, const TextureRange& srcRange,
 	const TextureOffset& dstOffset)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Texture* srcTex = UnwrapTexture(srcHandle);
 	Texture* dstTex = UnwrapTexture(dstHandle);
-	RefResource(cc, *srcTex);
-	RefResource(cc, *dstTex);
+	vcc.referencedResources.Add(*srcTex);
+	vcc.referencedResources.Add(*dstTex);
 
-	VkCommandBuffer cb = GetCB(cc);
-
-	srcTex->AutoBarrier(cb, TextureUsage::CopySrc);
-	dstTex->AutoBarrier(cb, TextureUsage::CopyDst);
+	srcTex->AutoBarrier(cc, TextureUsage::CopySrc);
+	dstTex->AutoBarrier(cc, TextureUsage::CopyDst);
 
 	VkImageCopy copyRegion = {};
 	InitImageCopyRegion(
@@ -441,18 +442,17 @@ void CopyTextureData(
 		*dstTex, srcRange, dstOffset, copyRegion.dstOffset, copyRegion.dstSubresource, copyRegion.extent);
 
 	vkCmdCopyImage(
-		cb, srcTex->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTex->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+		vcc.cb, srcTex->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTex->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
 		&copyRegion);
 }
 
 void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t mipLevel, const void* color)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Texture* texture = UnwrapTexture(handle);
-	RefResource(cc, *texture);
+	vcc.referencedResources.Add(*texture);
 
-	VkCommandBuffer cb = GetCB(cc);
-
-	texture->AutoBarrier(cb, TextureUsage::CopyDst);
+	texture->AutoBarrier(cc, TextureUsage::CopyDst);
 
 	VkImageSubresourceRange subresourceRange;
 	subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -462,21 +462,22 @@ void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t m
 	subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
 	vkCmdClearColorImage(
-		cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, reinterpret_cast<const VkClearColorValue*>(color), 1,
+		vcc.cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, reinterpret_cast<const VkClearColorValue*>(color), 1,
 		&subresourceRange);
 }
 
 void ResolveTexture(
 	CommandContextHandle cc, TextureHandle srcHandle, TextureHandle dstHandle, const ResolveRegion& region)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Texture* src = UnwrapTexture(srcHandle);
 	Texture* dst = UnwrapTexture(dstHandle);
 
-	RefResource(cc, *src);
-	RefResource(cc, *dst);
+	vcc.referencedResources.Add(*src);
+	vcc.referencedResources.Add(*dst);
 
-	src->AutoBarrier(GetCB(cc), TextureUsage::CopySrc);
-	dst->AutoBarrier(GetCB(cc), TextureUsage::CopyDst);
+	src->AutoBarrier(cc, TextureUsage::CopySrc);
+	dst->AutoBarrier(cc, TextureUsage::CopyDst);
 
 	VkImageResolve resolve = {};
 	resolve.srcOffset.x = region.srcOffset.x;
@@ -496,25 +497,24 @@ void ResolveTexture(
 	resolve.dstSubresource.layerCount = region.dstSubresource.numArrayLayers;
 
 	vkCmdResolveImage(
-		GetCB(cc), src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		vcc.cb, src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 		1, &resolve);
 }
 
 void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)
 {
 	Texture* texture = UnwrapTexture(handle);
-	RefResource(nullptr, *texture);
-	texture->AutoBarrier(GetCB(nullptr), newUsage, shaderAccessFlags);
+	VulkanCommandContext::currentImmediate->referencedResources.Add(*texture);
+	texture->AutoBarrier(nullptr, newUsage, shaderAccessFlags);
 }
 
 void GenerateMipmaps(CommandContextHandle cc, TextureHandle handle)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Texture* texture = UnwrapTexture(handle);
-	RefResource(cc, *texture);
+	vcc.referencedResources.Add(*texture);
 
-	VkCommandBuffer cb = GetCB(cc);
-
-	texture->AutoBarrier(cb, TextureUsage::CopyDst);
+	texture->AutoBarrier(cc, TextureUsage::CopyDst);
 
 	VkImageMemoryBarrier preBlitBarrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 	preBlitBarrier.image = texture->image;
@@ -532,7 +532,7 @@ void GenerateMipmaps(CommandContextHandle cc, TextureHandle handle)
 	{
 		preBlitBarrier.subresourceRange.baseMipLevel = i - 1;
 		vkCmdPipelineBarrier(
-			cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+			vcc.cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
 			&preBlitBarrier);
 
 		int dstWidth = std::max(srcWidth / 2, 1);
@@ -547,7 +547,7 @@ void GenerateMipmaps(CommandContextHandle cc, TextureHandle handle)
 		blit.dstSubresource = { texture->aspectFlags, i, 0, texture->numArrayLayers };
 
 		vkCmdBlitImage(
-			cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture->image,
+			vcc.cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture->image,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
 		srcWidth = dstWidth;
@@ -556,72 +556,10 @@ void GenerateMipmaps(CommandContextHandle cc, TextureHandle handle)
 
 	preBlitBarrier.subresourceRange.baseMipLevel = texture->numMipLevels - 1;
 	vkCmdPipelineBarrier(
-		cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
+		vcc.cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1,
 		&preBlitBarrier);
 
 	texture->currentUsage = TextureUsage::CopySrc;
-}
-
-void BindTexture(
-	CommandContextHandle cc, TextureViewHandle textureViewHandle, SamplerHandle samplerHandle, uint32_t set,
-	uint32_t binding)
-{
-	TextureView* view = UnwrapTextureView(textureViewHandle);
-	RefResource(cc, *view->texture);
-
-	if (view->texture->autoBarrier && view->texture->currentUsage != TextureUsage::ShaderSample)
-	{
-		EG_PANIC("Texture passed to BindTexture not in the correct usage state, did you forget to call UsageHint?");
-	}
-
-	VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
-	EG_ASSERT(sampler != VK_NULL_HANDLE);
-
-	AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
-
-	VkDescriptorImageInfo imageInfo;
-	imageInfo.imageView = view->view;
-	imageInfo.sampler = sampler;
-	imageInfo.imageLayout = ImageLayoutFromUsage(eg::TextureUsage::ShaderSample, view->texture->aspectFlags);
-
-	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	writeDS.dstBinding = binding;
-	writeDS.dstSet = 0;
-	writeDS.descriptorCount = 1;
-	writeDS.pImageInfo = &imageInfo;
-
-	vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
-}
-
-void BindStorageImage(CommandContextHandle cc, TextureViewHandle textureViewHandle, uint32_t set, uint32_t binding)
-{
-	TextureView* view = UnwrapTextureView(textureViewHandle);
-	RefResource(cc, *view->texture);
-
-	if (view->texture->autoBarrier && view->texture->currentUsage != TextureUsage::ILSRead &&
-	    view->texture->currentUsage != TextureUsage::ILSWrite &&
-	    view->texture->currentUsage != TextureUsage::ILSReadWrite)
-	{
-		EG_PANIC(
-			"Texture passed to BindStorageImage not in the correct usage state, did you forget to call UsageHint?");
-	}
-
-	AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
-
-	VkDescriptorImageInfo imageInfo;
-	imageInfo.imageView = view->view;
-	imageInfo.sampler = VK_NULL_HANDLE;
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	writeDS.dstBinding = binding;
-	writeDS.dstSet = 0;
-	writeDS.descriptorCount = 1;
-	writeDS.pImageInfo = &imageInfo;
-
-	vkCmdPushDescriptorSetKHR(GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &writeDS);
 }
 } // namespace eg::graphics_api::vk
 

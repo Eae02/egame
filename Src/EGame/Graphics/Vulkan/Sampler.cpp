@@ -1,5 +1,5 @@
 #ifndef EG_NO_VULKAN
-#include "Sampler.hpp"
+#include "Common.hpp"
 #include "../../Assert.hpp"
 #include "Translation.hpp"
 

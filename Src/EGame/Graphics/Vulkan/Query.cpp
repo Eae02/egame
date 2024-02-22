@@ -4,6 +4,7 @@
 #include "../Abstraction.hpp"
 #include "Buffer.hpp"
 #include "Common.hpp"
+#include "VulkanCommandContext.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -69,45 +70,50 @@ bool GetQueryResults(QueryPoolHandle queryPool, uint32_t firstQuery, uint32_t nu
 }
 
 void CopyQueryResults(
-	CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries,
+	CommandContextHandle cc, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries,
 	BufferHandle dstBufferHandle, uint64_t dstOffset)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* dstBuffer = UnwrapBuffer(dstBufferHandle);
-	dstBuffer->AutoBarrier(GetCB(cctx), BufferUsage::CopyDst);
+	dstBuffer->AutoBarrier(cc, BufferUsage::CopyDst);
 
 	QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
-	RefResource(cctx, *queryPool);
+	vcc.referencedResources.Add(*queryPool);
 	vkCmdCopyQueryPoolResults(
-		GetCB(cctx), queryPool->pool, firstQuery, numQueries, dstBuffer->buffer, dstOffset, sizeof(uint64_t),
+		vcc.cb, queryPool->pool, firstQuery, numQueries, dstBuffer->buffer, dstOffset, sizeof(uint64_t),
 		VK_QUERY_RESULT_64_BIT);
 }
 
-void WriteTimestamp(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query)
+void WriteTimestamp(CommandContextHandle cc, QueryPoolHandle queryPoolHandle, uint32_t query)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
-	RefResource(cctx, *queryPool);
-	vkCmdWriteTimestamp(GetCB(cctx), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool->pool, query);
+	vcc.referencedResources.Add(*queryPool);
+	vkCmdWriteTimestamp(vcc.cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool->pool, query);
 }
 
-void ResetQueries(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries)
+void ResetQueries(CommandContextHandle cc, QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
-	RefResource(cctx, *queryPool);
-	vkCmdResetQueryPool(GetCB(cctx), queryPool->pool, firstQuery, numQueries);
+	vcc.referencedResources.Add(*queryPool);
+	vkCmdResetQueryPool(vcc.cb, queryPool->pool, firstQuery, numQueries);
 }
 
-void BeginQuery(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query)
+void BeginQuery(CommandContextHandle cc, QueryPoolHandle queryPoolHandle, uint32_t query)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
-	RefResource(cctx, *queryPool);
-	vkCmdBeginQuery(GetCB(cctx), queryPool->pool, query, 0);
+	vcc.referencedResources.Add(*queryPool);
+	vkCmdBeginQuery(vcc.cb, queryPool->pool, query, 0);
 }
 
-void EndQuery(CommandContextHandle cctx, QueryPoolHandle queryPoolHandle, uint32_t query)
+void EndQuery(CommandContextHandle cc, QueryPoolHandle queryPoolHandle, uint32_t query)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
-	RefResource(cctx, *queryPool);
-	vkCmdEndQuery(GetCB(cctx), queryPool->pool, query);
+	vcc.referencedResources.Add(*queryPool);
+	vkCmdEndQuery(vcc.cb, queryPool->pool, query);
 }
 } // namespace eg::graphics_api::vk
 
