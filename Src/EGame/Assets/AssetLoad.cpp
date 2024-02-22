@@ -1,6 +1,5 @@
 #include "AssetLoad.hpp"
 #include "../Graphics/Particles/ParticleEmitterType.hpp"
-#include "../Graphics/StdVertex.hpp"
 #include "../Log.hpp"
 #include "../Platform/FileSystem.hpp"
 #include "AudioClipAsset.hpp"
@@ -78,10 +77,6 @@ void detail::RegisterAssetLoaders()
 			loadContext.CreateResult<std::string>(loadContext.Data().data(), loadContext.Data().size());
 			return true;
 		});
-
-	DefineModelVertexType<StdVertex>();
-	DefineModelVertexType<StdVertexAnim8>();
-	DefineModelVertexType<StdVertexAnim16>();
 
 	BindAssetExtension("glsl", "Shader", "Shader");
 	BindAssetExtension("png", "Texture2D", "Texture2D");

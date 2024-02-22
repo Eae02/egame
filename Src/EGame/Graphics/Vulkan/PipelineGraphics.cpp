@@ -177,7 +177,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		.pAttachments = blendStates,
 	};
-	std::copy_n(createInfo.blendConstants, 4, colorBlendStateCI.blendConstants);
+	std::copy_n(createInfo.blendConstants.data(), 4, colorBlendStateCI.blendConstants);
 
 	// Initializes attachment blend states and color attachment information for the render pass description.
 	for (uint32_t i = 0; i < createInfo.numColorAttachments; i++)

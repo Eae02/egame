@@ -412,12 +412,14 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 					continue;
 				}
 
-				if (memberType.columns != 1 && memberType.columns != memberType.vecsize)
+				static const std::pair<uint32_t, uint32_t> SUPPORTED_DIMENSIONS[] = {
+					{ 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 }, { 2, 2 }, { 3, 3 }, { 3, 4 }, { 4, 4 },
+				};
+
+				if (!Contains(SUPPORTED_DIMENSIONS, std::make_pair(memberType.columns, memberType.vecsize)))
 				{
-					Log(LogLevel::Error, "gl",
-					    "Push constant '{0}': non square matrices are not currently "
-					    "supported as push constants.",
-					    name);
+					Log(LogLevel::Error, "gl", "Unsupported push constant dimensions {0}x{1}", memberType.vecsize,
+					    memberType.columns);
 					continue;
 				}
 
@@ -443,9 +445,10 @@ struct SetUniformFunctions
 	void (*Set2)(GLint location, GLsizei count, const T* value);
 	void (*Set3)(GLint location, GLsizei count, const T* value);
 	void (*Set4)(GLint location, GLsizei count, const T* value);
-	void (*SetMatrix2)(GLint location, GLsizei count, GLboolean transpose, const T* value);
-	void (*SetMatrix3)(GLint location, GLsizei count, GLboolean transpose, const T* value);
-	void (*SetMatrix4)(GLint location, GLsizei count, GLboolean transpose, const T* value);
+	void (*Set2x2)(GLint location, GLsizei count, GLboolean transpose, const T* value);
+	void (*Set3x3)(GLint location, GLsizei count, GLboolean transpose, const T* value);
+	void (*Set3x4)(GLint location, GLsizei count, GLboolean transpose, const T* value);
+	void (*Set4x4)(GLint location, GLsizei count, GLboolean transpose, const T* value);
 };
 
 template <typename T>
@@ -478,22 +481,26 @@ inline void SetPushConstantUniform(
 			func.Set4(pushConst.uniformLocation, pushConst.arraySize, value);
 		}
 	}
-	else if (pushConst.columns == 2)
+	else if (pushConst.columns == 2 && pushConst.vectorSize == 2)
 	{
-		func.SetMatrix2(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
+		func.Set2x2(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
 	}
-	else if (pushConst.columns == 3)
+	else if (pushConst.columns == 3 && pushConst.vectorSize == 3)
 	{
 		T* packedValues = reinterpret_cast<T*>(alloca(pushConst.arraySize * sizeof(T) * 9));
 		for (uint32_t i = 0; i < pushConst.arraySize * 3; i++)
 		{
 			std::memcpy(packedValues + (i * 3), value + (i * 4), sizeof(T) * 3);
 		}
-		func.SetMatrix3(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, packedValues);
+		func.Set3x3(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, packedValues);
+	}
+	else if (pushConst.columns == 3 && pushConst.vectorSize == 4)
+	{
+		func.Set3x4(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
 	}
 	else if (pushConst.columns == 4)
 	{
-		func.SetMatrix4(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
+		func.Set4x4(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
 	}
 }
 
@@ -508,21 +515,39 @@ void PushConstants(CommandContextHandle, uint32_t offset, uint32_t range, const 
 		{
 		case SPIRType::Float:
 		{
-			SetUniformFunctions<float> func = { glUniform1fv,       glUniform2fv,       glUniform3fv,      glUniform4fv,
-				                                glUniformMatrix2fv, glUniformMatrix3fv, glUniformMatrix4fv };
+			SetUniformFunctions<float> func = {
+				.Set1 = glUniform1fv,
+				.Set2 = glUniform2fv,
+				.Set3 = glUniform3fv,
+				.Set4 = glUniform4fv,
+				.Set2x2 = glUniformMatrix2fv,
+				.Set3x3 = glUniformMatrix3fv,
+				.Set3x4 = glUniformMatrix3x4fv,
+				.Set4x4 = glUniformMatrix4fv,
+			};
 			SetPushConstantUniform<float>(func, pushConst, offset, range, data);
 			break;
 		}
 		case SPIRType::Boolean:
 		case SPIRType::Int:
 		{
-			SetUniformFunctions<int32_t> func = { glUniform1iv, glUniform2iv, glUniform3iv, glUniform4iv };
+			SetUniformFunctions<int32_t> func = {
+				.Set1 = glUniform1iv,
+				.Set2 = glUniform2iv,
+				.Set3 = glUniform3iv,
+				.Set4 = glUniform4iv,
+			};
 			SetPushConstantUniform<int32_t>(func, pushConst, offset, range, data);
 			break;
 		}
 		case SPIRType::UInt:
 		{
-			SetUniformFunctions<uint32_t> func = { glUniform1uiv, glUniform2uiv, glUniform3uiv, glUniform4uiv };
+			SetUniformFunctions<uint32_t> func = {
+				.Set1 = glUniform1uiv,
+				.Set2 = glUniform2uiv,
+				.Set3 = glUniform3uiv,
+				.Set4 = glUniform4uiv,
+			};
 			SetPushConstantUniform<uint32_t>(func, pushConst, offset, range, data);
 			break;
 		}

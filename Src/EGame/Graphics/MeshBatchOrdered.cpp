@@ -46,12 +46,7 @@ void MeshBatchOrdered::_AddModelMesh(
 	Instance& instance = m_instances.emplace_back();
 	instance.dataSize = dataSize;
 	instance.data = data;
-	instance.mesh.vertexBuffer = model.VertexBuffer();
-	instance.mesh.indexBuffer = model.IndexBuffer();
-	instance.mesh.firstIndex = model.GetMesh(meshIndex).firstIndex;
-	instance.mesh.firstVertex = model.GetMesh(meshIndex).firstVertex;
-	instance.mesh.numElements = model.GetMesh(meshIndex).numIndices;
-	instance.mesh.indexType = model.IndexType();
+	instance.mesh = MeshBatch::Mesh::FromModel(model, meshIndex);
 	instance.material = &material;
 	instance.order = order;
 	m_totalInstanceData += dataSize;
@@ -129,6 +124,9 @@ void MeshBatchOrdered::Draw(CommandContext& cmdCtx, void* drawArgs) const
 			currentPipelineHash = newPipelineHash;
 		}
 
+		auto vertexInputConfig = instance.material->GetVertexInputConfiguration(drawArgs);
+		EG_ASSERT(vertexInputConfig.instanceDataBindingIndex.has_value() == (instance.dataSize != 0));
+
 		if (currentMaterial != instance.material)
 		{
 			if (!instance.material->BindMaterial(cmdCtx, drawArgs))
@@ -141,19 +139,19 @@ void MeshBatchOrdered::Draw(CommandContext& cmdCtx, void* drawArgs) const
 
 		if (instance.dataSize != 0)
 		{
-			cmdCtx.BindVertexBuffer(1, m_instanceDataBuffer, instanceDataOffset);
+			cmdCtx.BindVertexBuffer(
+				*vertexInputConfig.instanceDataBindingIndex, m_instanceDataBuffer, instanceDataOffset);
 			instanceDataOffset += instance.dataSize;
 		}
 
-		cmdCtx.BindVertexBuffer(0, instance.mesh.vertexBuffer, 0);
-		if (instance.mesh.indexBuffer.handle == nullptr)
+		instance.mesh.buffersDescriptor->Bind(cmdCtx, vertexInputConfig.vertexBindingsMask);
+
+		if (instance.mesh.buffersDescriptor->indexBuffer.handle == nullptr)
 		{
 			cmdCtx.Draw(instance.mesh.firstVertex, instance.mesh.numElements, 0, 1);
 		}
 		else
 		{
-			cmdCtx.BindIndexBuffer(instance.mesh.indexType, instance.mesh.indexBuffer, 0);
-
 			cmdCtx.DrawIndexed(instance.mesh.firstIndex, instance.mesh.numElements, instance.mesh.firstVertex, 0, 1);
 		}
 	}

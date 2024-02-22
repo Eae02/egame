@@ -1,9 +1,5 @@
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Assets/Texture2DLoader.hpp"
-#include "../EGame/Graphics/AbstractionHL.hpp"
-#include "../EGame/Graphics/Format.hpp"
-#include "../EGame/Graphics/ImageLoader.hpp"
-#include "../EGame/IOUtils.hpp"
 #include "../EGame/Log.hpp"
 #include "Texture2DWriter.hpp"
 

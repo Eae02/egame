@@ -1,18 +1,23 @@
 #pragma once
 
 #include "../../Alloc/ObjectPool.hpp"
-#include "../SpirvCrossUtils.hpp"
-#include "EGame/Graphics/Graphics.hpp"
+#include "../Graphics.hpp"
 #include "MetalMain.hpp"
 
 #include <variant>
 
 namespace eg::graphics_api::mtl
 {
+inline uint32_t GetVertexBindingBufferIndex(uint32_t binding)
+{
+	return 30 - binding;
+}
+
 struct StageBindingsTable
 {
 	int pushConstantsBinding = -1;
-	
+	uint32_t pushConstantBytes = 0;
+
 	std::array<std::vector<int>, MAX_DESCRIPTOR_SETS> bindingsMetalIndexTable;
 
 	std::optional<uint32_t> GetResourceMetalIndex(uint32_t set, uint32_t binding) const;
@@ -21,13 +26,21 @@ struct StageBindingsTable
 struct BoundGraphicsPipelineState
 {
 	MTL::PrimitiveType primitiveType;
-	uint32_t vertexShaderPushConstantBytes;
-	uint32_t fragmentShaderPushConstantBytes;
 
 	bool enableScissorTest;
 
-	StageBindingsTable bindingsTableVertexShader;
-	StageBindingsTable bindingsTableFragmentShader;
+	std::shared_ptr<StageBindingsTable> bindingsTableVS;
+	std::shared_ptr<StageBindingsTable> bindingsTableFS;
+
+	std::optional<uint32_t> GetResourceMetalIndexVS(uint32_t set, uint32_t binding) const
+	{
+		return bindingsTableVS->GetResourceMetalIndex(set, binding);
+	}
+
+	std::optional<uint32_t> GetResourceMetalIndexFS(uint32_t set, uint32_t binding) const
+	{
+		return bindingsTableFS ? bindingsTableFS->GetResourceMetalIndex(set, binding) : std::nullopt;
+	}
 };
 
 struct GraphicsPipeline
@@ -38,6 +51,7 @@ struct GraphicsPipeline
 	bool enableDepthClamp = false;
 	bool frontFaceCCW = false;
 	MTL::DepthStencilState* depthStencilState;
+	std::array<float, 4> blendColor;
 
 	BoundGraphicsPipelineState boundState;
 

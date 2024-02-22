@@ -13,6 +13,7 @@
 #include <span>
 
 #include <glslang_c_interface.h>
+#include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
 {

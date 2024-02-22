@@ -4,10 +4,139 @@
 
 namespace eg
 {
-void Model::Bind(CommandContext& cc, uint32_t vertexBinding) const
+Model::Model(ModelCreateArgs args)
+	: m_numVertices(args.numVertices), m_meshes(std::move(args.meshes)), m_vertexFormat(args.vertexFormat),
+	  m_materialNames(std::move(args.materialNames)), m_animations(std::move(args.animations))
 {
-	cc.BindVertexBuffer(vertexBinding, m_vertexBuffer, 0);
-	cc.BindIndexBuffer(m_indexTypeE, m_indexBuffer, 0);
+	EG_ASSERT(m_numVertices > 0);
+
+	if (HasFlag(args.accessFlags, ModelAccessFlags::CPU))
+	{
+		EG_ASSERT(args.memoryForCpuAccess != nullptr);
+		m_dataForCPUAccess = DataForCPUAccess{
+			.meshData = std::move(args.memoryForCpuAccess),
+			.vertexData = args.vertexData,
+		};
+	}
+
+	std::sort(m_animations.begin(), m_animations.end(), AnimationNameCompare());
+
+	m_buffersDescriptor = std::make_unique<MeshBuffersDescriptor>();
+
+	// Calculates vertex stream offsets
+	uint32_t nextVertexStreamOffset = 0;
+	for (size_t s = 0; s < m_vertexFormat.streamsBytesPerVertex.size(); s++)
+	{
+		m_buffersDescriptor->vertexStreamOffsets[s] = nextVertexStreamOffset;
+		nextVertexStreamOffset += m_vertexFormat.streamsBytesPerVertex[s] * args.numVertices;
+	}
+	EG_ASSERT(nextVertexStreamOffset <= args.vertexData.size_bytes());
+
+	// Validates attribute ranges
+	for (const ModelVertexAttribute& attribute : args.vertexFormat.attributes)
+	{
+		uint32_t bytesPerVertex = args.vertexFormat.streamsBytesPerVertex[attribute.streamIndex];
+		uint32_t verticesEnd = *m_buffersDescriptor->vertexStreamOffsets[attribute.streamIndex] + attribute.offset +
+		                       bytesPerVertex * (m_numVertices - 1) + GetVertexAttributeByteWidth(attribute.type);
+		EG_ASSERT(verticesEnd <= args.vertexData.size_bytes());
+	}
+
+	std::span<const char> indexData;
+	std::visit(
+		[&]<typename I>(std::span<const I> indices)
+		{
+			m_numIndices = indices.size();
+			indexData = { reinterpret_cast<const char*>(indices.data()), indices.size_bytes() };
+			if (m_dataForCPUAccess)
+				m_dataForCPUAccess->indexDataPtr = indices.data();
+		},
+		args.indices);
+
+	if (std::holds_alternative<std::span<const uint16_t>>(args.indices))
+		m_buffersDescriptor->indexType = IndexType::UInt16;
+
+	// Checks that all meshes refer to valid data
+	for (const MeshDescriptor& mesh : m_meshes)
+	{
+		EG_ASSERT(mesh.firstVertex + mesh.numVertices <= m_numVertices);
+		EG_ASSERT(mesh.firstIndex + mesh.numIndices <= m_numIndices);
+		if (mesh.materialIndex.has_value())
+			EG_ASSERT(*mesh.materialIndex < m_materialNames.size());
+	}
+
+	// Uploads vertices and indices
+	const uint64_t verticesBytes = args.vertexData.size_bytes();
+	const uint64_t indicesBytes = indexData.size_bytes();
+	const uint64_t totalBytesToUpload = verticesBytes + indicesBytes;
+	if (HasFlag(args.accessFlags, ModelAccessFlags::GPU) && totalBytesToUpload != 0)
+	{
+		Buffer uploadBuffer(
+			BufferFlags::HostAllocate | BufferFlags::MapWrite | BufferFlags::CopySrc, totalBytesToUpload, nullptr);
+		char* uploadBufferData = static_cast<char*>(uploadBuffer.Map(0, totalBytesToUpload));
+
+		std::memcpy(uploadBufferData, args.vertexData.data(), verticesBytes);
+		std::memcpy(uploadBufferData + verticesBytes, indexData.data(), indicesBytes);
+
+		uploadBuffer.Flush(0, totalBytesToUpload);
+
+		m_vertexBuffer = Buffer(BufferFlags::VertexBuffer | BufferFlags::CopyDst, verticesBytes, nullptr);
+		m_indexBuffer = Buffer(BufferFlags::IndexBuffer | BufferFlags::CopyDst, verticesBytes, nullptr);
+
+		eg::DC.CopyBuffer(uploadBuffer, m_vertexBuffer, 0, 0, verticesBytes);
+		eg::DC.CopyBuffer(uploadBuffer, m_indexBuffer, verticesBytes, 0, indicesBytes);
+
+		m_vertexBuffer.UsageHint(eg::BufferUsage::VertexBuffer);
+		m_indexBuffer.UsageHint(eg::BufferUsage::IndexBuffer);
+
+		m_buffersDescriptor->vertexBuffer = m_vertexBuffer;
+		m_buffersDescriptor->indexBuffer = m_indexBuffer;
+	}
+}
+
+std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetIndices() const
+{
+	EG_ASSERT(m_dataForCPUAccess.has_value());
+	switch (m_buffersDescriptor->indexType)
+	{
+	case IndexType::UInt32:
+		return std::span<const uint32_t>(static_cast<const uint32_t*>(m_dataForCPUAccess->indexDataPtr), m_numIndices);
+	case IndexType::UInt16:
+		return std::span<const uint16_t>(static_cast<const uint16_t*>(m_dataForCPUAccess->indexDataPtr), m_numIndices);
+	}
+}
+
+std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetMeshIndices(size_t meshIndex) const
+{
+	const MeshDescriptor& mesh = GetMesh(meshIndex);
+	return std::visit(
+		[&](auto indices) -> std::variant<std::span<const uint32_t>, std::span<const uint16_t>>
+		{ return indices.subspan(mesh.firstIndex, mesh.numIndices); },
+		GetIndices());
+}
+
+std::optional<std::pair<uint32_t, uint32_t>> Model::GetVertexAttributeOffsetAndStride(
+	ModelVertexAttributeType attributeType, uint32_t typeIndex) const
+{
+	std::optional<ModelVertexAttribute> attrib = m_vertexFormat.FindAttribute(attributeType, typeIndex);
+	if (!attrib.has_value())
+		return std::nullopt;
+	return std::make_pair(
+		*m_buffersDescriptor->vertexStreamOffsets.at(attrib->streamIndex) + attrib->offset,
+		m_vertexFormat.streamsBytesPerVertex[attrib->streamIndex]);
+}
+
+std::optional<std::pair<const void*, uint32_t>> Model::GetMeshVertexAttributePtrAndStride(
+	size_t meshIndex, ModelVertexAttributeType attributeType, uint32_t typeIndex) const
+{
+	if (!m_dataForCPUAccess.has_value())
+		return std::nullopt;
+
+	auto offsetAndStride = GetVertexAttributeOffsetAndStride(attributeType, typeIndex);
+	if (!offsetAndStride.has_value())
+		return std::nullopt;
+	auto [offset, stride] = *offsetAndStride;
+	const char* dataPtr = m_dataForCPUAccess->vertexData.data() + offset + stride * GetMesh(meshIndex).firstVertex;
+	return std::make_pair(dataPtr, stride);
 }
 
 int Model::GetMeshIndex(std::string_view name) const
@@ -26,7 +155,7 @@ int Model::RequireMeshIndex(std::string_view name) const
 	if (idx != -1)
 		return idx;
 	std::cerr << "Mesh not found: '" << name << "', the model has the following meshes:\n";
-	for (const Mesh& mesh : m_meshes)
+	for (const MeshDescriptor& mesh : m_meshes)
 	{
 		std::cerr << " * " << mesh.name << "\n";
 	}
@@ -56,12 +185,6 @@ int Model::RequireMaterialIndex(std::string_view name) const
 	std::abort();
 }
 
-void Model::SetAnimations(std::vector<Animation> animations)
-{
-	EG_ASSERT(std::is_sorted(animations.begin(), animations.end(), AnimationNameCompare()));
-	m_animations = std::move(animations);
-}
-
 const Animation* Model::FindAnimation(std::string_view name) const
 {
 	auto it = std::lower_bound(m_animations.begin(), m_animations.end(), name, AnimationNameCompare());
@@ -70,135 +193,59 @@ const Animation* Model::FindAnimation(std::string_view name) const
 	return &*it;
 }
 
-std::tuple<void*, void*> ModelBuilderUnformatted::AddMesh(
-	uint32_t numVertices, uint32_t numIndices, std::string name, MeshAccess access, int materialIndex,
-	const Sphere* boundingSphere, const eg::AABB* boundingAABB)
+std::optional<CollisionMesh> Model::MakeCollisionMesh(size_t meshIndex) const
 {
-	Mesh& mesh = m_meshes.emplace_back();
-	mesh.access = access;
-	mesh.materialIndex = materialIndex;
-	mesh.numVertices = numVertices;
-	mesh.numIndices = numIndices;
-	mesh.name = std::move(name);
-	if (boundingSphere)
-		mesh.boundingSphere = *boundingSphere;
-	if (boundingAABB)
-		mesh.boundingAABB = *boundingAABB;
+	auto ptrAndStride = GetMeshVertexAttributePtrAndStride(meshIndex, ModelVertexAttributeType::Position_F32, 0);
+	if (!ptrAndStride.has_value())
+		return std::nullopt;
 
-	char* memory = static_cast<char*>(std::malloc(numVertices * m_vertexSize + numIndices * m_indexSize));
-	mesh.memory.reset(memory);
-
-	return std::tuple<void*, void*>(memory, memory + numVertices * m_vertexSize);
+	CollisionMeshCreateArgs createArgs = {
+		.numVertices = GetMesh(meshIndex).numVertices,
+		.positionDataPtr = ptrAndStride->first,
+		.positionDataStride = ptrAndStride->second,
+		.indices = GetMeshIndices(meshIndex),
+	};
+	return CollisionMesh(createArgs);
+}
+std::optional<CollisionMesh> Model::MakeCollisionMesh() const
+{
+	if (m_meshes.size() == 0)
+		return CollisionMesh();
+	if (m_meshes.size() == 1)
+		return MakeCollisionMesh(0);
+	std::vector<CollisionMesh> meshes(m_meshes.size());
+	for (size_t i = 0; i < meshes.size(); i++)
+	{
+		auto mesh = MakeCollisionMesh(i);
+		if (!mesh.has_value())
+			return std::nullopt;
+		meshes[i] = std::move(*mesh);
+	}
+	return CollisionMesh::Join(meshes);
 }
 
-int ModelBuilderUnformatted::AddMaterial(std::string_view name)
+void MeshBuffersDescriptor::Bind(CommandContext& cmdCtx, uint32_t enabledBindingsMask) const
 {
-	for (int i = 0; i < ToInt(m_materialNames.size()); i++)
+	// Iterates bits set in enabledBindingsMask
+	while (enabledBindingsMask != 0)
 	{
-		if (m_materialNames[i] == name)
-			return i;
+		uint32_t t = enabledBindingsMask & -enabledBindingsMask;
+		uint32_t binding = __builtin_ctzl(enabledBindingsMask);
+
+		if (!vertexStreamOffsets[binding].has_value()) [[unlikely]]
+		{
+			// clang-format off
+			EG_PANIC("binding with index " << binding << " was specified as enabled but not set in the MeshBuffersDescriptor");
+			// clang-format on
+		}
+		cmdCtx.BindVertexBuffer(binding, vertexBuffer, *vertexStreamOffsets[binding]);
+
+		enabledBindingsMask ^= t;
 	}
 
-	int index = ToInt(m_materialNames.size());
-	m_materialNames.emplace_back(name);
-	return index;
-}
-
-Model ModelBuilderUnformatted::CreateAndReset()
-{
-	Model model;
-	model.m_vertexType = m_vertexType;
-	model.m_indexType = m_indexType;
-	model.m_indexTypeE = m_indexTypeE;
-	model.m_materialNames.swap(m_materialNames);
-
-	// Counts the amount of data to upload
-	uint64_t totalVerticesBytes = 0;
-	uint64_t totalIndicesBytes = 0;
-	for (const Mesh& mesh : m_meshes)
+	if (indexBuffer.handle != nullptr) [[likely]]
 	{
-		if (mesh.access != MeshAccess::CPUOnly)
-		{
-			totalVerticesBytes += mesh.numVertices;
-			totalIndicesBytes += mesh.numIndices;
-		}
+		cmdCtx.BindIndexBuffer(indexType, indexBuffer, 0);
 	}
-	totalVerticesBytes *= m_vertexSize;
-	totalIndicesBytes *= m_indexSize;
-
-	// Uploads vertices and indices
-	const uint64_t totalBytesToUpload = totalVerticesBytes + totalIndicesBytes;
-	if (totalBytesToUpload != 0)
-	{
-		Buffer uploadBuffer(
-			BufferFlags::HostAllocate | BufferFlags::MapWrite | BufferFlags::CopySrc, totalBytesToUpload, nullptr);
-		char* verticesUploadMem = static_cast<char*>(uploadBuffer.Map(0, totalBytesToUpload));
-		char* indicesUploadMem = verticesUploadMem + totalVerticesBytes;
-
-		for (const Mesh& mesh : m_meshes)
-		{
-			if (mesh.access != MeshAccess::CPUOnly)
-			{
-				uint64_t meshVerticesBytes = mesh.numVertices * m_vertexSize;
-				uint64_t meshIndicesBytes = mesh.numIndices * m_indexSize;
-
-				const char* srcMemory = static_cast<const char*>(mesh.memory.get());
-				std::memcpy(verticesUploadMem, srcMemory, meshVerticesBytes);
-				std::memcpy(indicesUploadMem, srcMemory + meshVerticesBytes, meshIndicesBytes);
-				verticesUploadMem += meshVerticesBytes;
-				indicesUploadMem += meshIndicesBytes;
-			}
-		}
-
-		uploadBuffer.Flush(0, totalBytesToUpload);
-
-		model.m_vertexBuffer = Buffer(BufferFlags::VertexBuffer | BufferFlags::CopyDst, totalVerticesBytes, nullptr);
-		model.m_indexBuffer = Buffer(BufferFlags::IndexBuffer | BufferFlags::CopyDst, totalIndicesBytes, nullptr);
-
-		eg::DC.CopyBuffer(uploadBuffer, model.m_vertexBuffer, 0, 0, totalVerticesBytes);
-		eg::DC.CopyBuffer(uploadBuffer, model.m_indexBuffer, totalVerticesBytes, 0, totalIndicesBytes);
-
-		model.m_vertexBuffer.UsageHint(eg::BufferUsage::VertexBuffer);
-		model.m_indexBuffer.UsageHint(eg::BufferUsage::IndexBuffer);
-	}
-
-	// Initializes the model's mesh objects
-	uint32_t firstVertex = 0;
-	uint32_t firstIndex = 0;
-	model.m_meshes.resize(m_meshes.size());
-	for (size_t i = 0; i < m_meshes.size(); i++)
-	{
-		model.m_meshes[i].access = m_meshes[i].access;
-		model.m_meshes[i].materialIndex = m_meshes[i].materialIndex;
-		model.m_meshes[i].numVertices = m_meshes[i].numVertices;
-		model.m_meshes[i].numIndices = m_meshes[i].numIndices;
-		model.m_meshes[i].boundingSphere = m_meshes[i].boundingSphere;
-		model.m_meshes[i].boundingAABB = m_meshes[i].boundingAABB;
-		model.m_meshes[i].name = std::move(m_meshes[i].name);
-
-		if (m_meshes[i].access != MeshAccess::CPUOnly)
-		{
-			model.m_meshes[i].firstVertex = firstVertex;
-			model.m_meshes[i].firstIndex = firstIndex;
-			firstVertex += m_meshes[i].numVertices;
-			firstIndex += m_meshes[i].numIndices;
-		}
-		else
-		{
-			model.m_meshes[i].firstVertex = UINT32_MAX;
-			model.m_meshes[i].firstIndex = UINT32_MAX;
-		}
-
-		if (m_meshes[i].access != MeshAccess::GPUOnly)
-		{
-			model.m_meshes[i].memory = std::move(m_meshes[i].memory);
-			model.m_meshes[i].indices =
-				static_cast<char*>(model.m_meshes[i].memory.get()) + m_meshes[i].numVertices * m_vertexSize;
-		}
-	}
-
-	m_meshes.clear();
-
-	return model;
 }
 } // namespace eg

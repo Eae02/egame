@@ -1,8 +1,11 @@
 #pragma once
 
-#include <yaml-cpp/yaml.h>
-
 #include <cstdlib>
+
+namespace YAML
+{
+class Node;
+};
 
 namespace eg
 {

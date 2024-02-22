@@ -11,12 +11,24 @@ class EG_API MeshBatch
 public:
 	struct Mesh
 	{
-		eg::BufferRef vertexBuffer;
-		eg::BufferRef indexBuffer;
+		const MeshBuffersDescriptor* buffersDescriptor;
 		uint32_t firstIndex;
 		uint32_t firstVertex;
-		uint32_t numElements; // Number of vertices or indices
-		eg::IndexType indexType;
+
+		// If buffersDescriptor->indexBuffer is nullptr this is a non-indexed draw and numElements is the number of
+		// vertices to draw, otherwise it is the number of indices to draw.
+		uint32_t numElements;
+
+		static Mesh FromModel(const Model& model, size_t meshIndex)
+		{
+			const MeshDescriptor& meshDesc = model.GetMesh(meshIndex);
+			return Mesh{
+				.buffersDescriptor = &model.BuffersDescriptor(),
+				.firstIndex = meshDesc.firstIndex,
+				.firstVertex = meshDesc.firstVertex,
+				.numElements = meshDesc.numIndices,
+			};
+		}
 	};
 
 	template <typename T>
@@ -32,14 +44,7 @@ public:
 	void AddModelMesh(
 		const Model& model, size_t meshIndex, const IMaterial& material, const T& instanceData, int orderPriority = 0)
 	{
-		Mesh mesh;
-		mesh.vertexBuffer = model.VertexBuffer();
-		mesh.indexBuffer = model.IndexBuffer();
-		mesh.firstIndex = model.GetMesh(meshIndex).firstIndex;
-		mesh.firstVertex = model.GetMesh(meshIndex).firstVertex;
-		mesh.numElements = model.GetMesh(meshIndex).numIndices;
-		mesh.indexType = model.IndexType();
-		Add<T>(mesh, material, instanceData, orderPriority);
+		Add<T>(Mesh::FromModel(model, meshIndex), material, instanceData, orderPriority);
 	}
 
 	template <typename T>
@@ -91,9 +96,7 @@ private:
 
 	struct ModelBucket
 	{
-		eg::BufferRef vertexBuffer;
-		eg::BufferRef indexBuffer;
-		eg::IndexType indexType;
+		const MeshBuffersDescriptor* buffersDescriptor;
 		MeshBucket* meshes;
 		ModelBucket* next = nullptr;
 	};

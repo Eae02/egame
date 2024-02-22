@@ -2,9 +2,9 @@
 
 #include "GL.hpp"
 
+#include <optional>
 #include <span>
 #include <string_view>
-#include <optional>
 
 #include "../Format.hpp"
 

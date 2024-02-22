@@ -1,12 +1,10 @@
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Assets/ModelAsset.hpp"
 #include "../EGame/Graphics/NormalTangentGen.hpp"
-#include "../EGame/Graphics/StdVertex.hpp"
-#include "../EGame/IOUtils.hpp"
 #include "../EGame/Log.hpp"
 
-#include <charconv>
 #include <fstream>
+#include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
 {
@@ -86,7 +84,7 @@ public:
 		bool addDefaultTexCoord = false;
 
 		std::string accessStr = generateContext.YAMLNode()["access"].as<std::string>("");
-		MeshAccess access = ParseMeshAccessMode(accessStr);
+		ModelAccessFlags access = ParseModelAccessFlagsMode(accessStr, ModelAccessFlags::GPU);
 		bool removeNameSuffix = generateContext.YAMLNode()["removeNameSuffix"].as<bool>(false);
 
 		std::string line;
@@ -195,7 +193,9 @@ public:
 
 		CommitCurrentObject();
 
-		ModelAssetWriter<StdVertex> writer(generateContext.outputStream);
+		std::string vertexFormatName = generateContext.YAMLNode()["vertexFormat"].as<std::string>("");
+		if (vertexFormatName.empty())
+			vertexFormatName = "eg::StdVertexAos";
 
 		if (addDefaultNormal)
 		{
@@ -208,15 +208,21 @@ public:
 
 		const bool flipWinding = !generateContext.YAMLNode()["flipWinding"].as<bool>(false);
 
+		std::vector<WriteModelAssetMesh> meshes;
 		std::map<VertexPtr, uint32_t> indexMap;
 		std::vector<VertexPtr> verticesP;
-		std::vector<uint32_t> indices;
-		std::vector<StdVertex> vertices;
+		std::vector<std::unique_ptr<glm::vec3[], FreeDel>> tangentAllocations;
+
+		LinearAllocator allocator;
+
 		for (const OBJObject& object : objects)
 		{
 			indexMap.clear();
 			verticesP.clear();
-			indices.clear();
+
+			size_t numIndices = (object.facesEnd - object.facesBegin) * 3;
+			std::span<uint32_t> meshIndices = allocator.AllocateSpan<uint32_t>(numIndices);
+			size_t nextIndexI = 0;
 
 			// Remaps OBJ style vertex references to vertices and indices
 			for (size_t f = object.facesBegin; f < object.facesEnd; f++)
@@ -232,12 +238,12 @@ public:
 					if (it == indexMap.end())
 					{
 						indexMap.emplace(faceVertexPtr, verticesP.size());
-						indices.push_back(UnsignedNarrow<uint32_t>(verticesP.size()));
+						meshIndices[nextIndexI++] = UnsignedNarrow<uint32_t>(verticesP.size());
 						verticesP.push_back(faceVertexPtr);
 					}
 					else
 					{
-						indices.push_back(it->second);
+						meshIndices[nextIndexI++] = it->second;
 					}
 				}
 			}
@@ -245,45 +251,55 @@ public:
 			// Potentially flips winding order
 			if (flipWinding)
 			{
-				for (size_t i = 0; i < indices.size(); i += 3)
+				for (size_t i = 0; i < numIndices; i += 3)
 				{
-					std::swap(indices[i], indices[i + 2]);
+					std::swap(meshIndices[i], meshIndices[i + 2]);
 				}
 			}
 
+			std::span<glm::vec3> meshPositions = allocator.AllocateSpan<glm::vec3>(verticesP.size());
+			std::span<glm::vec2> meshTexCoords = allocator.AllocateSpan<glm::vec2>(verticesP.size());
+			std::span<glm::vec3> meshNormals = allocator.AllocateSpan<glm::vec3>(verticesP.size());
+
 			// Initializes AoS vertex data
-			vertices.resize(verticesP.size());
-			for (size_t i = 0; i < vertices.size(); i++)
+			for (size_t i = 0; i < verticesP.size(); i++)
 			{
-				std::copy_n(&positions[verticesP[i].position].x, 3, vertices[i].position);
-				std::copy_n(&texCoords[verticesP[i].texCoord].x, 2, vertices[i].texCoord);
-				glm::vec3 n = normals[verticesP[i].normal];
-				for (int j = 0; j < 3; j++)
-				{
-					vertices[i].normal[j] = FloatToSNorm(n[j]);
-				}
-				std::fill_n(vertices[i].color, 4, 0);
+				meshPositions[i] = positions[verticesP[i].position];
+				meshTexCoords[i] = texCoords[verticesP[i].texCoord];
+				meshNormals[i] = normals[verticesP[i].normal];
 			}
 
 			// Generates tangents for the vertices
 			std::unique_ptr<glm::vec3[], FreeDel> tangents = GenerateTangents<uint32_t>(
-				indices, vertices.size(), [&](size_t i) { return positions[verticesP[i].position]; },
-				[&](size_t i) { return texCoords[verticesP[i].texCoord]; },
-				[&](size_t i) { return normals[verticesP[i].normal]; });
-			for (size_t v = 0; v < vertices.size(); v++)
-			{
-				for (int j = 0; j < 3; j++)
-					vertices[v].tangent[j] = FloatToSNorm(tangents[v][j]);
-			}
+				meshIndices, meshPositions.size(), [&](size_t i) { return meshPositions[i]; },
+				[&](size_t i) { return meshTexCoords[i]; }, [&](size_t i) { return meshNormals[i]; });
 
-			writer.WriteMesh(
-				vertices, indices, object.name, access, Sphere::CreateEnclosing(positions),
-				AABB::CreateEnclosing(positions), object.material);
+			WriteModelAssetMesh mesh = {
+				.positions = meshPositions,
+				.normals = meshNormals,
+				.tangents = std::span<const glm::vec3>(tangents.get(), verticesP.size()),
+				.indices = meshIndices,
+				.name = object.name,
+				.materialName = object.material,
+			};
+
+			mesh.textureCoordinates[0] = meshTexCoords;
+
+			meshes.push_back(mesh);
+
+			tangentAllocations.push_back(std::move(tangents));
 		}
 
-		writer.End();
+		const WriteModelAssetArgs writeArgs = {
+			.vertexFormatName = vertexFormatName,
+			.meshes = meshes,
+			.accessFlags = access,
+		};
 
-		return true;
+		WriteModelAssetResult result = WriteModelAsset(generateContext.outputStream, writeArgs);
+		result.AssertOk();
+
+		return result.successful;
 	}
 };
 

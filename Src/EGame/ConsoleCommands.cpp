@@ -58,10 +58,13 @@ void RegisterConsoleCommands()
 			writer.WriteLine(console::InfoColor, ":");
 
 			writer.Write(console::InfoColor, "  vtype:");
-			std::string demangledTypeName = DemangeTypeName(model->VertexType().name());
-			writer.Write(console::InfoColorSpecial, demangledTypeName);
+			const ModelVertexFormat& format = model->VertexFormat();
+			auto formatName = ModelVertexFormat::FindNameByFormat(format);
+			writer.Write(console::InfoColorSpecial, formatName ? *formatName : "?");
 			writer.Write(console::InfoColor, " itype:");
-			writer.WriteLine(console::InfoColorSpecial, model->IndexType() == IndexType::UInt32 ? "uint32" : "uint16");
+			writer.WriteLine(
+				console::InfoColorSpecial,
+				model->BuffersDescriptor().indexType == IndexType::UInt32 ? "uint32" : "uint16");
 
 			// Prepares column data
 			size_t nameColLen = 0;
@@ -95,12 +98,7 @@ void RegisterConsoleCommands()
 
 				str = std::string(vertexColLen + 1 - vertexStrings[i].size(), ' ') + "T:";
 				writer.Write(console::InfoColor, str);
-				writer.Write(console::InfoColorSpecial, triangleStrings[i]);
-
-				str = std::string(triangleColLen + 1 - triangleStrings[i].size(), ' ') + "A:";
-				writer.Write(console::InfoColor, str);
-				writer.WriteLine(
-					console::InfoColorSpecial, meshAccessNames.at(static_cast<int>(model->GetMesh(i).access)));
+				writer.WriteLine(console::InfoColorSpecial, triangleStrings[i]);
 
 				totVertices += model->GetMesh(i).numVertices;
 				totIndices += model->GetMesh(i).numIndices;

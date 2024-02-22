@@ -82,7 +82,7 @@ struct GraphicsPipeline : AbstractPipeline
 	GLStencilState frontStencilState;
 	GLStencilState backStencilState;
 	BlendState blend[8];
-	float blendConstants[4];
+	std::array<float, 4> blendConstants;
 	ColorWriteMask colorWriteMasks[8];
 
 	VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
@@ -300,7 +300,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		TranslateStencilState(pipeline->frontStencilState, createInfo.frontStencilState);
 	}
 
-	std::copy_n(createInfo.blendConstants, 4, pipeline->blendConstants);
+	pipeline->blendConstants = createInfo.blendConstants;
 
 	pipeline->depthFunc = TranslateCompareOp(createInfo.depthCompare);
 
@@ -350,7 +350,7 @@ static struct
 	bool wireframe = false;
 	bool enableDepthWrite = true;
 	bool blendEnabled[8] = {};
-	float blendConstants[4] = {};
+	std::array<float, 4> blendConstants{};
 	ColorWriteMask colorWriteMasks[8] = {};
 } curState;
 
@@ -650,10 +650,10 @@ void GraphicsPipeline::Bind()
 		curState.enableDepthWrite = enableDepthWrite;
 	}
 
-	if (std::memcmp(curState.blendConstants, blendConstants, sizeof(float) * 4))
+	if (curState.blendConstants != blendConstants)
 	{
 		glBlendColor(blendConstants[0], blendConstants[1], blendConstants[2], blendConstants[3]);
-		std::copy_n(blendConstants, 4, curState.blendConstants);
+		curState.blendConstants = blendConstants;
 	}
 
 #ifdef __EMSCRIPTEN__

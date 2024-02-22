@@ -6,44 +6,45 @@
 #include <algorithm>
 #include <cstdint>
 #include <span>
+#include <variant>
 #include <vector>
 
 namespace eg
 {
+struct CollisionMeshCreateArgs
+{
+	size_t numVertices;
+	const void* positionDataPtr;
+	size_t positionDataStride;
+	std::variant<std::span<const uint32_t>, std::span<const uint16_t>> indices;
+};
+
 class EG_API CollisionMesh
 {
 public:
 	CollisionMesh() = default;
 
-	template <typename V, typename I>
-	static CollisionMesh Create(std::span<const V> vertices, std::span<const I> indices)
-	{
-		CollisionMesh mesh;
-		mesh.m_vertices.resize(vertices.size());
-		mesh.m_indices.resize(indices.size());
-		std::copy(indices.begin(), indices.end(), mesh.m_indices.begin());
-		for (size_t i = 0; i < vertices.size(); i++)
-		{
-			for (int j = 0; j < 3; j++)
-			{
-				mesh.m_vertices[i][j] = vertices[i].position[j];
-			}
-		}
+	explicit CollisionMesh(const CollisionMeshCreateArgs& args);
 
-		mesh.InitAABB();
-		return mesh;
+	CollisionMesh(
+		std::span<const glm::vec3> vertices, std::variant<std::span<const uint32_t>, std::span<const uint16_t>> indices)
+		: m_vertices(vertices.begin(), vertices.end())
+	{
+		SetIndices(indices);
+		InitAABB();
 	}
 
-	template <typename I>
-	static CollisionMesh CreateV3(std::span<const glm::vec3> vertices, std::span<const I> indices)
+	template <typename V, typename = std::enable_if_t<std::is_same_v<decltype(std::declval<V>().position), glm::vec3>>>
+	static CollisionMesh Create(
+		std::span<const V> vertices, std::variant<std::span<const uint32_t>, std::span<const uint16_t>> indices)
 	{
-		CollisionMesh mesh;
-		mesh.m_vertices.resize(vertices.size());
-		mesh.m_indices.resize(indices.size());
-		std::copy(vertices.begin(), vertices.end(), mesh.m_vertices.begin());
-		std::copy(indices.begin(), indices.end(), mesh.m_indices.begin());
-		mesh.InitAABB();
-		return mesh;
+		CollisionMeshCreateArgs createArgs = {
+			.numVertices = vertices.size(),
+			.positionDataPtr = reinterpret_cast<const char*>(vertices.data()) + offsetof(V, position),
+			.positionDataStride = sizeof(V),
+			.indices = indices,
+		};
+		return CollisionMesh(createArgs);
 	}
 
 	static CollisionMesh Join(std::span<const CollisionMesh> meshes);
@@ -69,6 +70,8 @@ public:
 	const eg::AABB& BoundingBox() const { return m_aabb; }
 
 private:
+	void SetIndices(std::variant<std::span<const uint32_t>, std::span<const uint16_t>>);
+
 	void InitAABB();
 
 	std::vector<uint32_t> m_indices;

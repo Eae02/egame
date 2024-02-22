@@ -4,6 +4,7 @@
 #include "Texture2DWriter.hpp"
 
 #include <fstream>
+#include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
 {

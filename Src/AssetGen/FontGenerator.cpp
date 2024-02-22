@@ -1,13 +1,11 @@
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Assets/SpriteFontLoader.hpp"
-#include "../EGame/Graphics/AbstractionHL.hpp"
 #include "../EGame/Graphics/FontAtlas.hpp"
-#include "../EGame/Graphics/Format.hpp"
-#include "../EGame/IOUtils.hpp"
 #include "../EGame/Log.hpp"
 #include "../EGame/Platform/FontConfig.hpp"
 
 #include <fstream>
+#include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
 {

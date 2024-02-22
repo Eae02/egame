@@ -1,13 +1,13 @@
 #pragma once
 
 #include "../EGame/Assets/Texture2DLoader.hpp"
+#include "../EGame/Assets/YAMLUtils.hpp"
 #include "../EGame/Graphics/Format.hpp"
 #include "../EGame/Utils.hpp"
 
 #include <cstdint>
 #include <span>
 #include <string_view>
-#include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
 {

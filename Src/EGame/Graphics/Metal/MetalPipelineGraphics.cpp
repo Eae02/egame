@@ -11,8 +11,6 @@
 #include <spirv_cross.hpp>
 #include <spirv_msl.hpp>
 
-#include <iostream>
-
 namespace eg::graphics_api::mtl
 {
 static const std::pair<MTL::PrimitiveTopologyClass, MTL::PrimitiveType> topologyTranslationTable[] = {
@@ -23,239 +21,70 @@ static const std::pair<MTL::PrimitiveTopologyClass, MTL::PrimitiveType> topology
 	[(int)Topology::Points] = { MTL::PrimitiveTopologyClassPoint, MTL::PrimitiveTypePoint },
 };
 
-/*
-Fields not handled:
-enableStencilTest
-frontStencilState
-backStencilState
-dynamicStencilCompareMask
-dynamicStencilWriteMask
-dynamicStencilReference
-enableSampleShading
-minSampleShading
-patchControlPoints
-numClipDistances
-lineWidth
-blendConstants
-*/
-
-static std::optional<bool> shouldDumpMSL;
-
-bool ShouldDumpMSL()
-{
-	if (!shouldDumpMSL.has_value())
-	{
-		const char* envValue = std::getenv("EG_DUMP_MSL");
-		shouldDumpMSL = envValue != nullptr && std::strcmp(envValue, "1") == 0;
-	}
-	return *shouldDumpMSL;
-}
-
 PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
 {
 	MTL::RenderPipelineDescriptor* descriptor = MTL::RenderPipelineDescriptor::alloc()->init();
 
-	struct ShaderStageData
-	{
-		const ShaderModule* module;
-		const ShaderStageInfo* stageInfo;
-
-		std::unique_ptr<spirv_cross::CompilerMSL> compiler;
-		spirv_cross::ShaderResources shaderResources;
-		uint32_t pushConstantBytes;
-
-		StageBindingsTable bindingsTable;
-
-		MTL::Library* library;
-		MTL::Function* function;
-	};
-
-	DescriptorSetBindings bindings;
-
-	auto MakeShaderStageData = [&](const ShaderStageInfo& stageInfo) -> std::optional<ShaderStageData>
+	auto PrepareShaderModule =
+		[&](const ShaderStageInfo& stageInfo) -> std::pair<MTL::Function*, std::shared_ptr<StageBindingsTable>>
 	{
 		if (stageInfo.shaderModule == nullptr)
-			return std::nullopt;
+			return { nullptr, nullptr };
 
-		ShaderModule* module = reinterpret_cast<ShaderModule*>(stageInfo.shaderModule);
+		const ShaderModule& module = *reinterpret_cast<const ShaderModule*>(stageInfo.shaderModule);
 
-		ShaderStageData data = {
-			.module = module,
-			.stageInfo = &stageInfo,
-			.compiler = std::make_unique<spirv_cross::CompilerMSL>(*module->parsedIR),
-			.pushConstantBytes = 0,
-		};
+		MTL::FunctionConstantValues* constantValues = MTL::FunctionConstantValues::alloc()->init();
 
-		data.compiler->set_msl_options(spirv_cross::CompilerMSL::Options{});
+		static const uint32_t METAL_API_CONSTANT = 2;
+		constantValues->setConstantValue(&METAL_API_CONSTANT, MTL::DataTypeUInt, 500);
 
-		data.shaderResources = data.compiler->get_shader_resources();
-
-		data.pushConstantBytes = GetPushConstantBytes(*data.compiler, &data.shaderResources);
-		bindings.AppendFromReflectionInfo(module->stage, *data.compiler, data.shaderResources);
-
-		return data;
-	};
-
-	ShaderStageData vertexStageData = *MakeShaderStageData(createInfo.vertexShader);
-	std::optional<ShaderStageData> fragmentStageData = MakeShaderStageData(createInfo.fragmentShader);
-
-	// Constructs metal binding maps
-	std::array<uint32_t, MAX_DESCRIPTOR_SETS> descriptorSetsMaxBindingPlusOne;
-	for (uint32_t i = 0; i < MAX_DESCRIPTOR_SETS; i++)
-	{
-		descriptorSetsMaxBindingPlusOne[i] = DescriptorSetBinding::MaxBindingPlusOne(bindings.sets[i]);
-	}
-
-	uint32_t maxActiveVertexBindingPlusOne = 0;
-	for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
-	{
-		if (createInfo.vertexBindings[i].IsEnabled())
-			maxActiveVertexBindingPlusOne = i + 1;
-	}
-
-	auto CompileShaderStageToMSL = [&](ShaderStageData& stageData, const char* stageName, spv::ExecutionModel stage)
-	{
-		uint32_t nextBufferIndex = stage == spv::ExecutionModelVertex ? maxActiveVertexBindingPlusOne : 0;
-
-		auto stageAccessFlag = static_cast<ShaderAccessFlags>(1 << static_cast<int>(stageData.module->stage));
-
-		// Assigns a binding to the push constants buffer
-		if (stageData.pushConstantBytes != 0)
+		for (const SpecializationConstantEntry& specConstant : stageInfo.specConstants)
 		{
-			uint32_t metalBinding = nextBufferIndex++;
-			stageData.bindingsTable.pushConstantsBinding = metalBinding;
-			stageData.compiler->add_msl_resource_binding(spirv_cross::MSLResourceBinding{
-				.stage = stage,
-				.desc_set = spirv_cross::kPushConstDescSet,
-				.binding = spirv_cross::kPushConstBinding,
-				.count = 1,
-				.msl_buffer = metalBinding,
-			});
-		}
+			auto specConstIt = std::lower_bound(
+				module.specializationConstants.begin(), module.specializationConstants.end(), specConstant.constantID);
 
-		uint32_t nextTextureIndex = 0;
-
-		for (uint32_t i = 0; i < MAX_DESCRIPTOR_SETS; i++)
-		{
-			stageData.bindingsTable.bindingsMetalIndexTable[i].resize(descriptorSetsMaxBindingPlusOne[i], -1);
-
-			// Assigns a binding to each resource in this descriptor set
-			for (const DescriptorSetBinding& setBinding : bindings.sets[i])
+			if (specConstIt != module.specializationConstants.end() &&
+			    specConstIt->constantID == specConstant.constantID)
 			{
-				if (!HasFlag(setBinding.shaderAccess, stageAccessFlag))
-					continue;
-
-				uint32_t metalIndex;
-
-				switch (setBinding.type)
-				{
-				case BindingType::UniformBuffer:
-				case BindingType::StorageBuffer: metalIndex = nextBufferIndex++; break;
-				case BindingType::Texture:
-				case BindingType::StorageImage: metalIndex = nextTextureIndex++; break;
-				}
-
-				stageData.bindingsTable.bindingsMetalIndexTable[i].at(setBinding.binding) = metalIndex;
-
-				stageData.compiler->add_msl_resource_binding(spirv_cross::MSLResourceBinding{
-					.stage = stage,
-					.desc_set = i,
-					.binding = setBinding.binding,
-					.count = 1,
-					.msl_buffer = metalIndex,
-					.msl_texture = metalIndex,
-					.msl_sampler = metalIndex,
-				});
+				const char* dataPtr = static_cast<const char*>(stageInfo.specConstantsData) + specConstant.offset;
+				constantValues->setConstantValue(dataPtr, specConstIt->dataType, specConstant.constantID);
 			}
-		}
-
-		std::string code = stageData.compiler->compile();
-
-		if (ShouldDumpMSL())
-		{
-			std::cerr << "-- MSL Dump - " << (createInfo.label ? createInfo.label : "unlabeled") << " - " << stageName
-					  << " --\n";
-			IterateStringParts(code, '\n', [&](std::string_view line) { std::cerr << " |   " << line << "\n"; });
-			std::cerr << "---------------\n\n";
 		}
 
 		NS::Error* error = nullptr;
-		stageData.library =
-			metalDevice->newLibrary(NS::String::string(code.c_str(), NS::UTF8StringEncoding), nullptr, &error);
-		if (!stageData.library)
-		{
-			EG_PANIC("Error creating shader library: " << error->localizedDescription()->utf8String());
-		}
+		MTL::Function* function =
+			module.mtlLibrary->newFunction(NS::String::string("main0", NS::UTF8StringEncoding), constantValues, &error);
 
-		MTL::FunctionConstantValues* constantValues = MTL::FunctionConstantValues::alloc()->init();
-		for (spirv_cross::SpecializationConstant& specConst : stageData.compiler->get_specialization_constants())
-		{
-			spirv_cross::SPIRConstant& spirConst = stageData.compiler->get_constant(specConst.id);
-			const void* dataPointer = nullptr;
-			MTL::DataType dataType;
-
-			if (specConst.constant_id == 500)
-			{
-				static const uint32_t METAL_API_CONSTANT = 2;
-				dataPointer = &METAL_API_CONSTANT;
-				dataType = MTL::DataTypeUInt;
-			}
-			else
-			{
-				for (const SpecializationConstantEntry& entry : stageData.stageInfo->specConstants)
-				{
-					if (specConst.constant_id == entry.constantID)
-					{
-						dataPointer = static_cast<const char*>(stageData.stageInfo->specConstantsData) + entry.offset;
-						break;
-					}
-				}
-
-				const auto& constant =
-					stageData.compiler->get_type(stageData.compiler->get_constant(specConst.id).constant_type);
-				switch (constant.basetype)
-				{
-				case spirv_cross::SPIRType::Boolean: dataType = MTL::DataTypeBool; break;
-				case spirv_cross::SPIRType::Int: dataType = MTL::DataTypeInt; break;
-				case spirv_cross::SPIRType::UInt: dataType = MTL::DataTypeUInt; break;
-				case spirv_cross::SPIRType::Float: dataType = MTL::DataTypeFloat; break;
-				default:
-					eg::Log(
-						eg::LogLevel::Error, "mtl", "Unrecognized specialization constant type: {0}",
-						constant.basetype);
-					dataPointer = nullptr;
-					break;
-				}
-			}
-
-			if (dataPointer != nullptr)
-			{
-				constantValues->setConstantValue(dataPointer, dataType, specConst.constant_id);
-			}
-		}
-
-		stageData.function =
-			stageData.library->newFunction(NS::String::string("main0", NS::UTF8StringEncoding), constantValues, &error);
-
-		if (!stageData.function)
+		if (function == nullptr)
 		{
 			EG_PANIC("Error creating shader function: " << error->localizedDescription()->utf8String());
 		}
 
 		constantValues->release();
+
+		return { function, module.bindingsTable };
 	};
 
-	CompileShaderStageToMSL(vertexStageData, "vs", spv::ExecutionModelVertex);
-	descriptor->setVertexFunction(vertexStageData.function);
+	auto [vsFunction, vsBindingTable] = PrepareShaderModule(createInfo.vertexShader);
+	auto [fsFunction, fsBindingTable] = PrepareShaderModule(createInfo.fragmentShader);
 
-	if (fragmentStageData.has_value())
+	EG_ASSERT(vsFunction != nullptr);
+
+	std::array<uint32_t, MAX_DESCRIPTOR_SETS> descriptorSetsMaxBindingPlusOne;
+	for (uint32_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
 	{
-		CompileShaderStageToMSL(*fragmentStageData, "fs", spv::ExecutionModelFragment);
-		descriptor->setFragmentFunction(fragmentStageData->function);
+		size_t maxBindingPlusOne = vsBindingTable->bindingsMetalIndexTable[set].size();
+		if (fsBindingTable != nullptr)
+			maxBindingPlusOne = std::max(maxBindingPlusOne, fsBindingTable->bindingsMetalIndexTable[set].size());
+		descriptorSetsMaxBindingPlusOne[set] = static_cast<uint32_t>(maxBindingPlusOne);
 	}
+
+	descriptor->setVertexFunction(vsFunction);
+	descriptor->setFragmentFunction(fsFunction);
 
 	descriptor->setAlphaToCoverageEnabled(createInfo.enableAlphaToCoverage);
 	descriptor->setAlphaToOneEnabled(createInfo.enableAlphaToOne);
+	descriptor->setRasterSampleCount(createInfo.sampleCount);
 
 	EG_ASSERT(static_cast<int>(createInfo.topology) < std::size(topologyTranslationTable));
 	auto [topologyClass, primitiveType] = topologyTranslationTable[static_cast<int>(createInfo.topology)];
@@ -267,7 +96,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	{
 		if (createInfo.vertexBindings[i].IsEnabled())
 		{
-			auto layoutDescriptor = vertexDescriptor->layouts()->object(i);
+			auto layoutDescriptor = vertexDescriptor->layouts()->object(GetVertexBindingBufferIndex(i));
 			layoutDescriptor->setStride(createInfo.vertexBindings[i].stride);
 			if (createInfo.vertexBindings[i].inputRate == InputRate::Instance)
 				layoutDescriptor->setStepFunction(MTL::VertexStepFunctionPerInstance);
@@ -278,7 +107,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		if (createInfo.vertexAttributes[i].IsEnabled())
 		{
 			auto attribDescriptor = vertexDescriptor->attributes()->object(i);
-			attribDescriptor->setBufferIndex(createInfo.vertexAttributes[i].binding);
+			attribDescriptor->setBufferIndex(GetVertexBindingBufferIndex(createInfo.vertexAttributes[i].binding));
 			attribDescriptor->setOffset(createInfo.vertexAttributes[i].offset);
 			attribDescriptor->setFormat(TranslateVertexFormat(createInfo.vertexAttributes[i].format));
 		}
@@ -357,15 +186,13 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		.enableDepthClamp = createInfo.enableDepthClamp,
 		.frontFaceCCW = createInfo.frontFaceCCW,
 		.depthStencilState = depthStencilState,
+		.blendColor = createInfo.blendConstants,
 		.boundState =
 			BoundGraphicsPipelineState{
 				.primitiveType = primitiveType,
-				.vertexShaderPushConstantBytes = vertexStageData.pushConstantBytes,
-				.fragmentShaderPushConstantBytes = fragmentStageData ? fragmentStageData->pushConstantBytes : 0,
 				.enableScissorTest = createInfo.enableScissorTest,
-				.bindingsTableVertexShader = std::move(vertexStageData.bindingsTable),
-				.bindingsTableFragmentShader =
-					fragmentStageData ? std::move(fragmentStageData->bindingsTable) : StageBindingsTable(),
+				.bindingsTableVS = std::move(vsBindingTable),
+				.bindingsTableFS = std::move(fsBindingTable),
 			},
 	};
 
@@ -397,6 +224,7 @@ void GraphicsPipeline::Bind(MetalCommandContext& mcc) const
 
 	mcc.SetFrontFaceCCW(frontFaceCCW);
 	mcc.SetEnableDepthClamp(enableDepthClamp);
+	mcc.SetBlendColor(blendColor);
 
 	mcc.boundGraphicsPipelineState = &boundState;
 }

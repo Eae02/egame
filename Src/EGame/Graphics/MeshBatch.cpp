@@ -69,16 +69,13 @@ void MeshBatch::_Add(
 	ModelBucket* modelBucket = materialBucket->models;
 	for (; modelBucket != nullptr; modelBucket = modelBucket->next)
 	{
-		if (modelBucket->vertexBuffer.handle == mesh.vertexBuffer.handle &&
-		    modelBucket->indexBuffer.handle == mesh.indexBuffer.handle && modelBucket->indexType == mesh.indexType)
+		if (modelBucket->buffersDescriptor == mesh.buffersDescriptor)
 			break;
 	}
 	if (modelBucket == nullptr)
 	{
 		modelBucket = m_allocator.New<ModelBucket>();
-		modelBucket->vertexBuffer = mesh.vertexBuffer;
-		modelBucket->indexBuffer = mesh.indexBuffer;
-		modelBucket->indexType = mesh.indexType;
+		modelBucket->buffersDescriptor = mesh.buffersDescriptor;
 		modelBucket->next = materialBucket->models;
 		materialBucket->models = modelBucket;
 	}
@@ -189,9 +186,13 @@ void MeshBatch::Draw(CommandContext& cmdCtx, void* drawArgs)
 			if (!pipeline->materials->material->BindPipeline(cmdCtx, drawArgs))
 				continue;
 
+			auto vertexInputConfig = pipeline->materials->material->GetVertexInputConfiguration(drawArgs);
+			EG_ASSERT(vertexInputConfig.instanceDataBindingIndex.has_value() == pipeline->hasInstanceData);
+
 			if (pipeline->hasInstanceData)
 			{
-				cmdCtx.BindVertexBuffer(1, m_instanceDataBuffer, pipeline->instanceDataOffset);
+				cmdCtx.BindVertexBuffer(
+					*vertexInputConfig.instanceDataBindingIndex, m_instanceDataBuffer, pipeline->instanceDataOffset);
 			}
 
 			for (MaterialBucket* material = pipeline->materials; material; material = material->next)
@@ -201,24 +202,22 @@ void MeshBatch::Draw(CommandContext& cmdCtx, void* drawArgs)
 
 				for (ModelBucket* model = material->models; model; model = model->next)
 				{
-					cmdCtx.BindVertexBuffer(0, model->vertexBuffer, 0);
-					if (model->indexBuffer.handle != nullptr)
-					{
-						cmdCtx.BindIndexBuffer(model->indexType, model->indexBuffer, 0);
-					}
+					const MeshBuffersDescriptor& buffersDescriptor = *model->buffersDescriptor;
+
+					buffersDescriptor.Bind(cmdCtx, vertexInputConfig.vertexBindingsMask);
 
 					for (MeshBucket* mesh = model->meshes; mesh; mesh = mesh->next)
 					{
-						if (model->indexBuffer.handle == nullptr)
-						{
-							cmdCtx.Draw(
-								mesh->firstVertex, mesh->numElements, mesh->instanceBufferOffset, mesh->numInstances);
-						}
-						else
+						if (buffersDescriptor.indexBuffer.handle != nullptr) [[likely]]
 						{
 							cmdCtx.DrawIndexed(
 								mesh->firstIndex, mesh->numElements, mesh->firstVertex, mesh->instanceBufferOffset,
 								mesh->numInstances);
+						}
+						else
+						{
+							cmdCtx.Draw(
+								mesh->firstVertex, mesh->numElements, mesh->instanceBufferOffset, mesh->numInstances);
 						}
 					}
 				}

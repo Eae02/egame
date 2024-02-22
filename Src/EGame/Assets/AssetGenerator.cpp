@@ -3,7 +3,7 @@
 #include "../Log.hpp"
 
 #include <algorithm>
-#include <fstream>
+#include <yaml-cpp/yaml.h>
 
 namespace eg
 {

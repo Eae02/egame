@@ -15,6 +15,7 @@
 #include <fstream>
 #include <span>
 #include <variant>
+#include <yaml-cpp/yaml.h>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/norm.hpp>
@@ -191,7 +192,14 @@ inline json LoadGLB(std::istream& stream, GLTFData& data)
 struct ImportedMesh
 {
 	std::vector<uint32_t> indices;
-	std::vector<StdVertexAnim16> vertices;
+
+	std::vector<glm::vec3> positions;
+	std::vector<glm::vec3> normals;
+	std::vector<glm::vec3> tangents;
+	std::array<std::vector<glm::vec2>, 4> textureCoordinates;
+	std::array<std::vector<glm::vec4>, 4> colors;
+	std::vector<glm::vec4> boneWeights;
+	std::vector<glm::uvec4> boneIndices;
 
 	bool flipWinding = false;
 	bool hasSkeleton = false;
@@ -201,9 +209,6 @@ struct ImportedMesh
 	int sourceNodeIndex;
 	uint16_t materialIndex;
 	glm::mat4 transform;
-
-	Sphere boundingSphere;
-	AABB boundingBox;
 };
 
 template <typename T>
@@ -268,10 +273,38 @@ static ImportedMesh ImportMesh(
 
 	const Accessor* positionAccessor = TryGetAccessor("POSITION", ElementType::VEC3);
 	const Accessor* normalAccessor = TryGetAccessor("NORMAL", ElementType::VEC3);
-	const Accessor* texCoordAccessor = TryGetAccessor("TEXCOORD_0", ElementType::VEC2);
-	const Accessor* colorAccessor = TryGetAccessor("COLOR_0", ElementType::VEC4);
 	const Accessor* weightsAccessor = TryGetAccessor("WEIGHTS_0", ElementType::VEC4);
 	const Accessor* jointsAccessor = TryGetAccessor("JOINTS_0", ElementType::VEC4);
+
+	size_t numVertices = static_cast<size_t>(positionAccessor->elementCount);
+
+	std::array<const Accessor*, 4> texCoordAccessors;
+	std::array<const char*, 4> texCoordBuffers;
+	for (uint32_t i = 0; i < texCoordAccessors.size(); i++)
+	{
+		char accessorName[16];
+		snprintf(accessorName, sizeof(accessorName), "TEXCOORD_%u", i);
+		texCoordAccessors[i] = TryGetAccessor(accessorName, ElementType::VEC2);
+		if (texCoordAccessors[i] != nullptr)
+		{
+			texCoordBuffers[i] = gltfData.GetAccessorData(*texCoordAccessors[i]);
+			mesh.textureCoordinates[i].resize(numVertices);
+		}
+	}
+
+	std::array<const Accessor*, 4> colorAccessors;
+	std::array<const char*, 4> colorBuffers;
+	for (uint32_t i = 0; i < colorAccessors.size(); i++)
+	{
+		char accessorName[16];
+		snprintf(accessorName, sizeof(accessorName), "COLOR_0%u", i);
+		colorAccessors[i] = TryGetAccessor(accessorName, ElementType::VEC4);
+		if (colorAccessors[i] != nullptr)
+		{
+			colorBuffers[i] = gltfData.GetAccessorData(*colorAccessors[i]);
+			mesh.colors[i].resize(numVertices);
+		}
+	}
 
 	// Checks required accessors
 	if (positionAccessor == nullptr || positionAccessor->componentType != ComponentType::Float)
@@ -279,23 +312,22 @@ static ImportedMesh ImportMesh(
 	if (normalAccessor == nullptr || normalAccessor->componentType != ComponentType::Float)
 		throw std::runtime_error("Invalid or missing normal accessor.");
 
-	mesh.hasTextureCoordinates = texCoordAccessor != nullptr;
-
-	auto numVertices = static_cast<size_t>(positionAccessor->elementCount);
+	// mesh.hasTextureCoordinates = texCoordAccessor != nullptr;
 
 	const char* positionBuffer = gltfData.GetAccessorData(*positionAccessor);
 	const char* normalBuffer = gltfData.GetAccessorData(*normalAccessor);
-	const char* texCoordBuffer = texCoordAccessor ? gltfData.GetAccessorData(*texCoordAccessor) : nullptr;
-	const char* colorBuffer = colorAccessor ? gltfData.GetAccessorData(*colorAccessor) : nullptr;
 	const char* weightsBuffer = weightsAccessor ? gltfData.GetAccessorData(*weightsAccessor) : nullptr;
 	const char* jointsBuffer = jointsAccessor ? gltfData.GetAccessorData(*jointsAccessor) : nullptr;
 
-	mesh.vertices.resize(numVertices);
-	std::memset(mesh.vertices.data(), 0, sizeof(StdVertexAnim16) * numVertices);
+	mesh.positions.resize(numVertices);
+	mesh.normals.resize(numVertices);
+	mesh.tangents.resize(numVertices);
+	if (weightsAccessor)
+		mesh.boneWeights.resize(numVertices);
+	if (jointsAccessor)
+		mesh.boneIndices.resize(numVertices);
 
 	// Reads vertices
-	std::unique_ptr<glm::vec3[]> positions = std::make_unique<glm::vec3[]>(numVertices);
-	std::unique_ptr<glm::vec3[]> normals = std::make_unique<glm::vec3[]>(numVertices);
 	for (size_t v = 0; v < numVertices; v++)
 	{
 		glm::vec3 pos = *reinterpret_cast<const glm::vec3*>(positionBuffer + v * positionAccessor->byteStride);
@@ -303,30 +335,30 @@ static ImportedMesh ImportMesh(
 
 		pos = glm::vec3(transform * glm::vec4(pos, 1.0f));
 		normal = glm::normalize(glm::vec3(transform * glm::vec4(normal, 0.0f)));
-		positions[v] = pos;
-		normals[v] = normal;
+		mesh.positions[v] = pos;
+		mesh.normals[v] = normal;
 
-		for (int i = 0; i < 3; i++)
+		for (uint32_t i = 0; i < texCoordAccessors.size(); i++)
 		{
-			mesh.vertices[v].position[i] = pos[i];
-			mesh.vertices[v].normal[i] = FloatToSNorm(normal[i]);
-		}
+			if (texCoordAccessors[i] == nullptr)
+				continue;
 
-		if (texCoordAccessor)
-		{
-			const char* tcBufferPtr = texCoordBuffer + v * texCoordAccessor->byteStride;
+			const char* tcBufferPtr = texCoordBuffers[i] + v * texCoordAccessors[i]->byteStride;
 			for (int c = 0; c < 2; c++)
 			{
-				mesh.vertices[v].texCoord[c] = ReadFNormalized(tcBufferPtr, texCoordAccessor->componentType, c);
+				mesh.textureCoordinates[i][v][c] = ReadFNormalized(tcBufferPtr, texCoordAccessors[i]->componentType, c);
 			}
 		}
 
-		if (colorAccessor)
+		for (uint32_t i = 0; i < colorAccessors.size(); i++)
 		{
-			const char* colorBufferPtr = colorBuffer + v * colorAccessor->byteStride;
+			if (colorAccessors[i] == nullptr)
+				continue;
+
+			const char* colorBufferPtr = colorBuffers[i] + v * colorAccessors[i]->byteStride;
 			for (int c = 0; c < 4; c++)
 			{
-				mesh.vertices[v].color[c] = ToUNorm8(ReadFNormalized(colorBufferPtr, colorAccessor->componentType, c));
+				mesh.colors[i][v][c] = ReadFNormalized(colorBufferPtr, colorAccessors[i]->componentType, c);
 			}
 		}
 
@@ -334,13 +366,18 @@ static ImportedMesh ImportMesh(
 		{
 			const char* weightsBufferPtr = weightsBuffer + v * weightsAccessor->byteStride;
 
-			std::array<float, 4> weights;
+			glm::vec4 weights;
+			float weightSum = 0;
 			for (int c = 0; c < 4; c++)
 			{
 				weights[c] = ReadFNormalized(weightsBufferPtr, weightsAccessor->componentType, c);
+				weightSum += weights[c];
 			}
 
-			SetBoneWeights(weights.data(), mesh.vertices[v].boneWeights);
+			if (weightSum > 1E-6f)
+				weights /= weightSum;
+
+			mesh.boneWeights[v] = weights;
 		}
 
 		if (jointsAccessor)
@@ -348,33 +385,24 @@ static ImportedMesh ImportMesh(
 			const void* jointsBufferPtr = jointsBuffer + v * jointsAccessor->byteStride;
 			if (jointsAccessor->componentType == ComponentType::UInt8)
 			{
-				std::copy_n(static_cast<const uint8_t*>(jointsBufferPtr), 4, mesh.vertices[v].boneIndices);
+				std::copy_n(static_cast<const uint8_t*>(jointsBufferPtr), 4, &mesh.boneIndices[v].x);
 			}
 			else if (jointsAccessor->componentType == ComponentType::UInt16)
 			{
-				std::copy_n(static_cast<const uint16_t*>(jointsBufferPtr), 4, mesh.vertices[v].boneIndices);
+				std::copy_n(static_cast<const uint16_t*>(jointsBufferPtr), 4, &mesh.boneIndices[v].x);
 			}
 		}
 	}
 
 	// Generates tangents
-	if (texCoordAccessor)
+	if (texCoordAccessors[0] != nullptr)
 	{
 		std::unique_ptr<glm::vec3[], FreeDel> tangents = GenerateTangents<uint32_t>(
-			mesh.indices, numVertices, [&](size_t i) { return positions[i]; },
-			[&](size_t i) { return glm::vec2(mesh.vertices[i].texCoord[0], mesh.vertices[i].texCoord[1]); },
-			[&](size_t i) { return normals[i]; });
-		for (size_t v = 0; v < numVertices; v++)
-		{
-			for (int i = 0; i < 3; i++)
-			{
-				mesh.vertices[v].tangent[i] = FloatToSNorm(tangents[v][i]);
-			}
-		}
-	}
+			mesh.indices, numVertices, [&](size_t i) { return mesh.positions[i]; },
+			[&](size_t i) { return mesh.textureCoordinates[0][i]; }, [&](size_t i) { return mesh.normals[i]; });
 
-	mesh.boundingSphere = eg::Sphere::CreateEnclosing(std::span<const glm::vec3>(positions.get(), numVertices));
-	mesh.boundingBox = eg::AABB::CreateEnclosing(std::span<const glm::vec3>(positions.get(), numVertices));
+		std::copy_n(tangents.get(), numVertices, mesh.tangents.begin());
+	}
 
 	return mesh;
 }
@@ -436,22 +464,12 @@ public:
 		const float sphereScale = generateContext.YAMLNode()["sphereScale"].as<float>(1.0f);
 		const bool globalFlipWinding = !generateContext.YAMLNode()["flipWinding"].as<bool>(false);
 
-		std::string vertexTypeString = generateContext.YAMLNode()["vertexType"].as<std::string>("std");
-		VertexType vertexType = VertexType::Std;
-		if (vertexTypeString == "anim8")
-			vertexType = VertexType::Anim8;
-		else if (vertexTypeString == "anim16")
-			vertexType = VertexType::Anim16;
-		else if (vertexTypeString != "std")
-		{
-			Log(LogLevel::Warning, "as",
-			    "Unknown mesh vertex type: '{0}'. "
-			    "Should be 'std', 'anim8' or 'anim16'.",
-			    vertexTypeString);
-		}
+		std::string vertexFormatName = generateContext.YAMLNode()["vertexFormat"].as<std::string>("");
+		if (vertexFormatName.empty())
+			vertexFormatName = StdVertex::Name;
 
 		const std::string accessStr = generateContext.YAMLNode()["access"].as<std::string>("");
-		const MeshAccess access = ParseMeshAccessMode(accessStr);
+		const ModelAccessFlags access = ParseModelAccessFlagsMode(accessStr, ModelAccessFlags::GPU);
 
 		json jsonRoot;
 		GLTFData data;
@@ -681,7 +699,6 @@ public:
 				}
 
 				ImportedMesh mesh = ImportMesh(data, std::move(name), primitiveEl, meshToImport.transform);
-				mesh.boundingSphere.radius *= sphereScale;
 				mesh.materialIndex = materialIndex;
 				mesh.sourceNodeIndex = ToInt(meshToImport.nodeIndex);
 				mesh.hasSkeleton = hasSkeleton;
@@ -717,41 +734,19 @@ public:
 		if (skinIndexToImport != -1)
 		{
 			skeleton = ImportSkeleton(data, nodesArray, jsonRoot.at("skins").at(skinIndexToImport));
-			if (vertexType == VertexType::Std)
-			{
-				Log(LogLevel::Warning, "gltf",
-				    "{0}: The model has a skeleton, "
-				    "but vertex type (std) does not include bone indices.",
-				    generateContext.AssetName());
-			}
-			else if (vertexType == VertexType::Anim8 && skeleton.skeleton.NumBones() > 256)
-			{
-				Log(LogLevel::Warning, "gltf",
-				    "{0}: Vertex type anim8 was selected, but the skeleton has "
-				    "more than 256 bones ({1}).",
-				    generateContext.AssetName(), skeleton.skeleton.NumBones());
-			}
 
 			for (ImportedMesh& mesh : meshes)
 			{
-				for (const StdVertexAnim16& vtx : mesh.vertices)
+				for (const glm::uvec4& boneIndices : mesh.boneIndices)
 				{
-					for (uint16_t boneId : vtx.boneIndices)
+					for (uint32_t i = 0; i < 4; i++)
 					{
-						if (boneId != 0 && boneId >= skeleton.skeleton.NumBones())
+						if (boneIndices[i] != 0 && boneIndices[i] >= skeleton.skeleton.NumBones())
 						{
 							Log(LogLevel::Error, "gltf",
 							    "{0}: Invalid vertex to bone reference, "
 							    "bone {1} does not exist.",
-							    generateContext.AssetName(), boneId);
-							return false;
-						}
-						if (vertexType == VertexType::Anim8 && boneId >= 256)
-						{
-							Log(LogLevel::Error, "gltf",
-							    "{0}: Invalid vertex to bone reference, anim8 vertex "
-							    "format cannot reference bone {1}.",
-							    generateContext.AssetName(), boneId);
+							    generateContext.AssetName(), boneIndices[i]);
 							return false;
 						}
 					}
@@ -810,59 +805,99 @@ public:
 			}
 		}
 
+		// Merges meshes
 		if (generateContext.YAMLNode()["mergeMeshes"].as<bool>(false))
 		{
 			for (size_t src = 1; src < meshes.size();)
 			{
-				bool merged = false;
+				ImportedMesh& srcMesh = meshes[src];
+
+				ImportedMesh* dstMesh = nullptr;
 				for (size_t dst = 0; dst < src; dst++)
 				{
-					if (meshes[src].materialIndex == meshes[dst].materialIndex)
+					if (srcMesh.materialIndex == meshes[dst].materialIndex)
 					{
-						for (uint32_t& idx : meshes[src].indices)
-							idx += static_cast<uint32_t>(meshes[dst].vertices.size());
-
-						meshes[dst].vertices.insert(
-							meshes[dst].vertices.end(), meshes[src].vertices.begin(), meshes[src].vertices.end());
-
-						meshes[dst].indices.insert(
-							meshes[dst].indices.end(), meshes[src].indices.begin(), meshes[src].indices.end());
-
-						merged = true;
+						dstMesh = &meshes[dst];
 						break;
 					}
 				}
 
-				if (merged)
-				{
-					meshes.erase(meshes.begin() + src);
-				}
-				else
+				if (dstMesh == nullptr)
 				{
 					src++;
+					continue;
 				}
+
+				for (uint32_t& idx : srcMesh.indices)
+					idx += static_cast<uint32_t>(dstMesh->positions.size());
+
+				size_t srcNumVertices = srcMesh.positions.size();
+				size_t dstNumVertices = dstMesh->positions.size();
+
+				auto CopyVertexData = [&]<typename T>(std::vector<T>& dstVector, const std::vector<T>& srcVector)
+				{
+					if (srcVector.empty())
+					{
+						if (!dstVector.empty())
+							dstVector.insert(dstVector.end(), srcNumVertices, T());
+					}
+					else
+					{
+						if (dstVector.empty())
+							dstVector.insert(dstVector.end(), dstNumVertices, T());
+						dstVector.insert(dstVector.end(), srcVector.begin(), srcVector.end());
+					}
+				};
+
+				CopyVertexData(dstMesh->positions, srcMesh.positions);
+				CopyVertexData(dstMesh->normals, srcMesh.normals);
+				CopyVertexData(dstMesh->tangents, srcMesh.tangents);
+				CopyVertexData(dstMesh->boneWeights, srcMesh.boneWeights);
+				CopyVertexData(dstMesh->boneIndices, srcMesh.boneIndices);
+				for (uint32_t i = 0; i < srcMesh.textureCoordinates.size(); i++)
+					CopyVertexData(dstMesh->textureCoordinates[i], srcMesh.textureCoordinates[i]);
+				for (uint32_t i = 0; i < srcMesh.colors.size(); i++)
+					CopyVertexData(dstMesh->colors[i], srcMesh.colors[i]);
+
+				dstMesh->indices.insert(dstMesh->indices.end(), srcMesh.indices.begin(), srcMesh.indices.end());
+
+				meshes.erase(meshes.begin() + src);
 			}
 		}
 
-		auto WriteMeshes = [&]<typename VertexType>(VertexType* vertices)
+		std::vector<WriteModelAssetMesh> writeMeshes(meshes.size());
+		for (size_t i = 0; i < meshes.size(); i++)
 		{
-			ModelAssetWriter<VertexType> writer(generateContext.outputStream);
-			std::vector<VertexType> verticesOutput;
-			for (ImportedMesh& mesh : meshes)
-			{
-				writer.WriteMesh(
-					ConvertVertices(mesh.vertices, verticesOutput), mesh.indices, mesh.name, access,
-					mesh.boundingSphere, mesh.boundingBox, materialNames[mesh.materialIndex]);
-			}
-			writer.End(skeleton.skeleton, animations);
+			Sphere boundingSphere = Sphere::CreateEnclosing(meshes[i].positions);
+			boundingSphere.radius *= sphereScale;
+
+			writeMeshes[i] = WriteModelAssetMesh{
+				.positions = meshes[i].positions,
+				.normals = meshes[i].normals,
+				.tangents = meshes[i].tangents,
+				.boneWeights = meshes[i].boneWeights,
+				.boneIndices = meshes[i].boneIndices,
+				.indices = meshes[i].indices,
+				.name = meshes[i].name,
+				.materialName = materialNames[meshes[i].materialIndex],
+				.boundingSphere = boundingSphere,
+			};
+			for (uint32_t j = 0; j < meshes[i].textureCoordinates.size(); j++)
+				writeMeshes[i].textureCoordinates[j] = meshes[i].textureCoordinates[j];
+			for (uint32_t j = 0; j < meshes[i].colors.size(); j++)
+				writeMeshes[i].colors[j] = meshes[i].colors[j];
+		}
+
+		const WriteModelAssetArgs writeAssetArgs = {
+			.vertexFormatName = vertexFormatName,
+			.meshes = writeMeshes,
+			.accessFlags = access,
+			.animations = animations,
+			.skeleton = &skeleton.skeleton,
 		};
 
-		switch (vertexType)
-		{
-		case VertexType::Anim16: WriteMeshes(static_cast<StdVertexAnim16*>(nullptr)); break;
-		case VertexType::Anim8: WriteMeshes(static_cast<StdVertexAnim8*>(nullptr)); break;
-		case VertexType::Std: WriteMeshes(static_cast<StdVertex*>(nullptr)); break;
-		}
+		WriteModelAssetResult writeResult = WriteModelAsset(generateContext.outputStream, writeAssetArgs);
+		writeResult.AssertOk();
 
 		return true;
 	}

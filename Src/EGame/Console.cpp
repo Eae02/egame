@@ -364,7 +364,7 @@ void console::Draw(SpriteBatch& spriteBatch, int screenWidth, int screenHeight)
 
 	const SpriteFont& font = SpriteFont::DevFont();
 
-	const float fontScale = 1.0f;//DisplayScaleFactor();
+	const float fontScale = 1.0f; // DisplayScaleFactor();
 	ctx->textEdit.SetFontScale(fontScale);
 	const float scaledFontSize = static_cast<float>(font.Size()) * fontScale;
 	const float scaledLineHeight = static_cast<float>(font.LineHeight()) * fontScale;

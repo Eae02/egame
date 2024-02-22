@@ -7,6 +7,38 @@
 
 namespace eg
 {
+CollisionMesh::CollisionMesh(const CollisionMeshCreateArgs& args)
+{
+	m_vertices.resize(args.numVertices);
+	if (args.positionDataStride == sizeof(glm::vec3))
+	{
+		std::memcpy(m_vertices.data(), args.positionDataPtr, args.numVertices * sizeof(glm::vec3));
+	}
+	else
+	{
+		for (size_t i = 0; i < args.numVertices; i++)
+		{
+			std::memcpy(
+				&m_vertices[i], static_cast<const char*>(args.positionDataPtr) + i * args.positionDataStride,
+				sizeof(glm::vec3));
+		}
+	}
+
+	SetIndices(args.indices);
+	InitAABB();
+}
+
+void CollisionMesh::SetIndices(std::variant<std::span<const uint32_t>, std::span<const uint16_t>> indicesV)
+{
+	std::visit(
+		[&](auto indices)
+		{
+			m_indices.resize(indices.size());
+			std::copy(indices.begin(), indices.end(), m_indices.begin());
+		},
+		indicesV);
+}
+
 int CollisionMesh::Intersect(const Ray& ray, float& distanceOut, const glm::mat4* transform) const
 {
 	int ans = -1;

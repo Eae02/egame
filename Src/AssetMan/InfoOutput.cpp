@@ -1,5 +1,5 @@
 #include "InfoOutput.hpp"
-#include "ANSIColors.hpp"
+#include "../ANSIColors.hpp"
 
 #include "../EGame/Assets/AssetLoad.hpp"
 #include "../EGame/Assets/Texture2DLoader.hpp"

@@ -116,7 +116,6 @@ void SetTextureData(
 	{
 		EG_ASSERT(range.sizeZ == 1);
 		slice = range.offsetZ;
-		destSize.depth = 1;
 		destOrigin.z = 0;
 	}
 
@@ -134,7 +133,31 @@ void CopyTextureData(
 	CommandContextHandle ctx, TextureHandle src, TextureHandle dst, const TextureRange& srcRange,
 	const TextureOffset& dstOffset)
 {
-	// EG_PANIC("Unimplemented: CopyTextureData")
+	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
+	mcc.FlushComputeCommands();
+	Texture& msrc = Texture::Unwrap(src);
+	Texture& mdst = Texture::Unwrap(dst);
+
+	uint32_t srcSlice = 0;
+	uint32_t dstSlice = 0;
+	MTL::Size size = MTL::Size::Make(srcRange.sizeX, srcRange.sizeY, srcRange.sizeZ);
+	MTL::Origin srcOrigin = MTL::Origin::Make(srcRange.offsetX, srcRange.offsetY, srcRange.offsetZ);
+	MTL::Origin dstOrigin = MTL::Origin::Make(srcRange.offsetX, srcRange.offsetY, srcRange.offsetZ);
+
+	if (msrc.texture->textureType() == MTL::TextureType2DArray) // TODO: Check for other array types
+	{
+		srcSlice = srcRange.offsetZ;
+		srcOrigin.z = 0;
+	}
+
+	if (mdst.texture->textureType() == MTL::TextureType2DArray) // TODO: Check for other array types
+	{
+		dstSlice = dstOffset.offsetZ;
+		dstOrigin.z = 0;
+	}
+
+	mcc.GetBlitCmdEncoder().copyFromTexture(
+		msrc.texture, srcSlice, srcRange.mipLevel, mdst.texture, dstSlice, dstOffset.mipLevel, size.depth, 1);
 }
 
 void GenerateMipmaps(CommandContextHandle ctx, TextureHandle handle)

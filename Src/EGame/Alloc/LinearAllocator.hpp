@@ -3,6 +3,7 @@
 #include "../API.hpp"
 #include <cstddef>
 #include <cstring>
+#include <span>
 #include <string_view>
 
 namespace eg
@@ -34,6 +35,12 @@ public:
 	inline T* AllocateArray(size_t len)
 	{
 		return static_cast<T*>(Allocate(sizeof(T) * len, alignof(T)));
+	}
+
+	template <typename T>
+	inline std::span<T> AllocateSpan(size_t len)
+	{
+		return { AllocateArray<T>(len), len };
 	}
 
 	template <typename T, typename... Args>

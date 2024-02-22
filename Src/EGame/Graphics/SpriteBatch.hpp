@@ -97,7 +97,8 @@ public:
 
 	void DrawLine(const glm::vec2& begin, const glm::vec2& end, const ColorLin& color, float width = 1);
 
-	void DrawCustomShape(std::span<const glm::vec2> positions, std::span<const uint32_t> indices, const ColorLin& color);
+	void DrawCustomShape(
+		std::span<const glm::vec2> positions, std::span<const uint32_t> indices, const ColorLin& color);
 
 	struct RenderArgs
 	{

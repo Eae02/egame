@@ -1,6 +1,8 @@
 #include "YAMLUtils.hpp"
 #include "../Hash.hpp"
 
+#include <yaml-cpp/yaml.h>
+
 namespace eg
 {
 size_t HashYAMLNode(const YAML::Node& node)

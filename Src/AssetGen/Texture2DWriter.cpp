@@ -8,6 +8,7 @@
 
 #include <stb_dxt.h>
 #include <stb_image_resize2.h>
+#include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
 {

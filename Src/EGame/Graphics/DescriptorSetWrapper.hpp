@@ -45,10 +45,12 @@ public:
 
 	void BindTexture(uint32_t binding, TextureBinding texture)
 	{
+		EG_ASSERT(binding < m_numBindings);
 		m_bindings[binding] = { .state = BindingState::Texture, .u = { .texture = texture } };
 	}
 	void BindBuffer(uint32_t binding, BufferBinding buffer)
 	{
+		EG_ASSERT(binding < m_numBindings);
 		m_bindings[binding] = { .state = BindingState::Buffer, .u = { .buffer = buffer } };
 	}
 

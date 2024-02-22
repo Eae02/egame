@@ -52,6 +52,7 @@ public:
 
 	void SetFrontFaceCCW(bool frontFaceCCW);
 	void SetEnableDepthClamp(bool enableDepthClamp);
+	void SetBlendColor(const std::array<float, 4>& blendColor);
 
 	static MetalCommandContext main;
 
@@ -68,8 +69,8 @@ public:
 	uint32_t framebufferHeight = 0;
 
 	MTL::CommandBuffer* m_commandBuffer = nullptr;
-private:
 
+private:
 	MTL::RenderCommandEncoder* m_renderEncoder = nullptr;
 	MTL::BlitCommandEncoder* m_blitEncoder = nullptr;
 	MTL::ComputeCommandEncoder* m_computeEncoder = nullptr;
@@ -78,6 +79,8 @@ private:
 	{
 		bool currentFrontFaceCCW = false;
 		bool currentEnableDepthClamp = false;
+
+		std::array<float, 4> currentBlendColor{};
 
 		MTL::TriangleFillMode triangleFillMode = MTL::TriangleFillModeFill;
 		bool triangleFillModeChanged = false;

@@ -78,17 +78,18 @@ void MetalCommandContext::FlushDrawState()
 
 	if (pushConstantsChanged)
 	{
-		if (uint32_t pcBytes = boundGraphicsPipelineState->vertexShaderPushConstantBytes)
+		const StageBindingsTable* vsBindingsTable = boundGraphicsPipelineState->bindingsTableVS.get();
+		const StageBindingsTable* fsBindingsTable = boundGraphicsPipelineState->bindingsTableFS.get();
+
+		if (vsBindingsTable != nullptr && vsBindingsTable->pushConstantsBinding != -1)
 		{
-			uint32_t binding = boundGraphicsPipelineState->bindingsTableVertexShader.pushConstantsBinding;
-			EG_ASSERT(binding != -1);
-			m_renderEncoder->setVertexBytes(pushConstantData.data(), pushConstantData.size(), binding);
+			m_renderEncoder->setVertexBytes(
+				pushConstantData.data(), pushConstantData.size(), vsBindingsTable->pushConstantsBinding);
 		}
-		if (uint32_t pcBytes = boundGraphicsPipelineState->fragmentShaderPushConstantBytes)
+		if (fsBindingsTable != nullptr && fsBindingsTable->pushConstantsBinding != -1)
 		{
-			uint32_t binding = boundGraphicsPipelineState->bindingsTableFragmentShader.pushConstantsBinding;
-			EG_ASSERT(binding != -1);
-			m_renderEncoder->setFragmentBytes(pushConstantData.data(), pushConstantData.size(), binding);
+			m_renderEncoder->setFragmentBytes(
+				pushConstantData.data(), pushConstantData.size(), fsBindingsTable->pushConstantsBinding);
 		}
 
 		pushConstantsChanged = false;
@@ -99,9 +100,9 @@ void MetalCommandContext::BindTexture(MTL::Texture* texture, uint32_t set, uint3
 {
 	if (m_renderEncoder != nullptr)
 	{
-		if (auto location = boundGraphicsPipelineState->bindingsTableVertexShader.GetResourceMetalIndex(set, binding))
+		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexVS(set, binding))
 			m_renderEncoder->setVertexTexture(texture, *location);
-		if (auto location = boundGraphicsPipelineState->bindingsTableFragmentShader.GetResourceMetalIndex(set, binding))
+		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexFS(set, binding))
 			m_renderEncoder->setFragmentTexture(texture, *location);
 	}
 }
@@ -110,9 +111,9 @@ void MetalCommandContext::BindSampler(MTL::SamplerState* sampler, uint32_t set, 
 {
 	if (m_renderEncoder != nullptr)
 	{
-		if (auto location = boundGraphicsPipelineState->bindingsTableVertexShader.GetResourceMetalIndex(set, binding))
+		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexVS(set, binding))
 			m_renderEncoder->setVertexSamplerState(sampler, *location);
-		if (auto location = boundGraphicsPipelineState->bindingsTableFragmentShader.GetResourceMetalIndex(set, binding))
+		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexFS(set, binding))
 			m_renderEncoder->setFragmentSamplerState(sampler, *location);
 	}
 }
@@ -121,9 +122,9 @@ void MetalCommandContext::BindBuffer(MTL::Buffer* buffer, uint64_t offset, uint3
 {
 	if (m_renderEncoder != nullptr)
 	{
-		if (auto location = boundGraphicsPipelineState->bindingsTableVertexShader.GetResourceMetalIndex(set, binding))
+		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexVS(set, binding))
 			m_renderEncoder->setVertexBuffer(buffer, offset, *location);
-		if (auto location = boundGraphicsPipelineState->bindingsTableFragmentShader.GetResourceMetalIndex(set, binding))
+		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexFS(set, binding))
 			m_renderEncoder->setFragmentBuffer(buffer, offset, *location);
 	}
 }
@@ -190,6 +191,15 @@ void MetalCommandContext::SetEnableDepthClamp(bool enableDepthClamp)
 	{
 		m_renderEncoder->setDepthClipMode(enableDepthClamp ? MTL::DepthClipModeClamp : MTL::DepthClipModeClip);
 		m_renderState.currentEnableDepthClamp = enableDepthClamp;
+	}
+}
+
+void MetalCommandContext::SetBlendColor(const std::array<float, 4>& blendColor)
+{
+	if (blendColor != m_renderState.currentBlendColor)
+	{
+		m_renderEncoder->setBlendColor(blendColor[0], blendColor[1], blendColor[2], blendColor[3]);
+		m_renderState.currentBlendColor = blendColor;
 	}
 }
 } // namespace eg::graphics_api::mtl

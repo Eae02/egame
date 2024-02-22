@@ -83,12 +83,12 @@ static void BindBuffer(CommandContextHandle ctx, BufferHandle handle, uint32_t s
 
 	MTL::Buffer* buffer = UnwrapBuffer(handle);
 
-	if (auto location = mcc.boundGraphicsPipelineState->bindingsTableVertexShader.GetResourceMetalIndex(set, binding))
+	if (auto location = mcc.boundGraphicsPipelineState->GetResourceMetalIndexVS(set, binding))
 	{
 		mcc.RenderCmdEncoder().setVertexBuffer(buffer, offset, *location);
 	}
 
-	if (auto location = mcc.boundGraphicsPipelineState->bindingsTableFragmentShader.GetResourceMetalIndex(set, binding))
+	if (auto location = mcc.boundGraphicsPipelineState->GetResourceMetalIndexFS(set, binding))
 	{
 		mcc.RenderCmdEncoder().setFragmentBuffer(buffer, offset, *location);
 	}

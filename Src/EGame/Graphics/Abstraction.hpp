@@ -378,7 +378,7 @@ struct GraphicsPipelineCreateInfo
 	// Setting this this true means that wireframe rasterization can be enabled by calling SetWireframe
 	bool enableWireframeRasterization = false;
 
-	float blendConstants[4] = {};
+	std::array<float, 4> blendConstants = {};
 	BindMode setBindModes[MAX_DESCRIPTOR_SETS] = {};
 
 	uint32_t numColorAttachments = 1;

@@ -180,7 +180,7 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 	VkImageLayout depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	VkFramebuffer framebuffer;
 	VkExtent2D extent;
-	
+
 	VkFormat colorFormats[MAX_COLOR_ATTACHMENTS] = {};
 	VkFormat depthStencilFormat = VK_FORMAT_UNDEFINED;
 

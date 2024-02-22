@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <vorbis/vorbisfile.h>
+#include <yaml-cpp/yaml.h>
 
 namespace eg::asset_gen
 {

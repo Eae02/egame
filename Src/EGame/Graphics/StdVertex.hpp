@@ -3,6 +3,8 @@
 #include "../API.hpp"
 #include "../Hash.hpp"
 
+#include "ModelVertexFormat.hpp"
+
 #include <array>
 #include <span>
 
@@ -10,7 +12,7 @@ namespace eg
 {
 struct StdVertex
 {
-	static constexpr CTStringHash Name = "EG::StdVertex";
+	static constexpr std::string_view Name = "eg::StdVertexAos";
 
 	float position[3];
 	float texCoord[2];
@@ -21,7 +23,7 @@ struct StdVertex
 
 struct StdVertexAnim8
 {
-	static constexpr CTStringHash Name = "EG::StdVertexAnim8";
+	static constexpr std::string_view Name = "eg::StdVertexAnim8Aos";
 
 	float position[3];
 	float texCoord[2];
@@ -36,7 +38,7 @@ struct StdVertexAnim8
 
 struct StdVertexAnim16
 {
-	static constexpr CTStringHash Name = "EG::StdVertexAnim16";
+	static constexpr std::string_view Name = "eg::StdVertexAnim16Aos";
 
 	float position[3];
 	float texCoord[2];

@@ -4,11 +4,11 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
-#include <span>
 
 #include "API.hpp"
 #include "Assert.hpp"

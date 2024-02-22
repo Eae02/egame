@@ -1,8 +1,8 @@
 #include "ProfilerPane.hpp"
+#include "../Core.hpp"
 #include "../Graphics/SpriteBatch.hpp"
 #include "../Graphics/SpriteFont.hpp"
 #include "../Hash.hpp"
-#include "../Core.hpp"
 #include "Memory.hpp"
 
 namespace eg

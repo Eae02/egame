@@ -260,7 +260,7 @@ void BindIndexBuffer(CommandContextHandle ctx, IndexType type, BufferHandle buff
 void BindVertexBuffer(CommandContextHandle ctx, uint32_t binding, BufferHandle buffer, uint32_t offset)
 {
 	MTL::RenderCommandEncoder& rce = MetalCommandContext::Unwrap(ctx).RenderCmdEncoder();
-	rce.setVertexBuffer(UnwrapBuffer(buffer), offset, binding);
+	rce.setVertexBuffer(UnwrapBuffer(buffer), offset, GetVertexBindingBufferIndex(binding));
 }
 
 void Draw(
