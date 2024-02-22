@@ -6,8 +6,10 @@
 #include "../EGame/Utils.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <span>
 #include <string_view>
+#include <vector>
 
 namespace eg::asset_gen
 {

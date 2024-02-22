@@ -50,7 +50,7 @@ struct WriteModelAssetResult
 	bool successful;
 	std::string error;
 
-	void AssertOk() const;
+	EG_API void AssertOk() const;
 };
 
 [[nodiscard]] EG_API WriteModelAssetResult WriteModelAsset(std::ostream& stream, const WriteModelAssetArgs& args);

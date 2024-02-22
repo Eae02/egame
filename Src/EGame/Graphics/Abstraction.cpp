@@ -9,18 +9,6 @@
 #include "Metal/MetalMain.hpp"
 #endif
 
-bool eg::SamplerDescription::operator==(const eg::SamplerDescription& rhs) const
-{
-	return wrapU == rhs.wrapU && wrapV == rhs.wrapV && wrapW == rhs.wrapW && minFilter == rhs.minFilter &&
-	       magFilter == rhs.magFilter && mipFilter == rhs.mipFilter && mipLodBias == rhs.mipLodBias &&
-	       maxAnistropy == rhs.maxAnistropy && borderColor == rhs.borderColor;
-}
-
-bool eg::SamplerDescription::operator!=(const eg::SamplerDescription& rhs) const
-{
-	return !(rhs == *this);
-}
-
 namespace eg
 {
 size_t SamplerDescription::Hash() const
@@ -39,6 +27,17 @@ size_t SamplerDescription::Hash() const
 	HashAppend(h, maxAnistropy);
 	HashAppend(h, mipLodBias);
 
+	return h;
+}
+
+size_t DescriptorSetBinding::Hash() const
+{
+	size_t h = 0;
+	h |= static_cast<size_t>(type);
+	h |= static_cast<size_t>(shaderAccess) << 3;
+	h |= static_cast<size_t>(rwMode) << 15;
+	h |= static_cast<size_t>(count) << 18;
+	h |= static_cast<size_t>(binding) << 32;
 	return h;
 }
 

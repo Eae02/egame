@@ -72,18 +72,7 @@ DescriptorSetHandle CreateDescriptorSetP(PipelineHandle pipelineHandle, uint32_t
 
 DescriptorSetHandle CreateDescriptorSetB(std::span<const DescriptorSetBinding> bindings)
 {
-	std::vector<VkDescriptorSetLayoutBinding> vkBindings(bindings.size());
-	for (size_t i = 0; i < bindings.size(); i++)
-	{
-		vkBindings[i].binding = bindings[i].binding;
-		vkBindings[i].descriptorType = TranslateBindingType(bindings[i].type);
-		vkBindings[i].descriptorCount = bindings[i].count;
-		vkBindings[i].stageFlags = TranslateShaderStage(bindings[i].shaderAccess);
-		vkBindings[i].pImmutableSamplers = nullptr;
-	}
-
-	CachedDescriptorSetLayout& dsl =
-		CachedDescriptorSetLayout::FindOrCreateNew(std::move(vkBindings), BindMode::DescriptorSet);
+	CachedDescriptorSetLayout& dsl = CachedDescriptorSetLayout::FindOrCreateNew(bindings, BindMode::DescriptorSet);
 
 	auto [descriptorSet, pool] = dsl.AllocateDescriptorSet();
 

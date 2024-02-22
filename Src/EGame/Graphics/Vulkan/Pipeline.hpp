@@ -3,6 +3,7 @@
 #ifndef EG_NO_VULKAN
 
 #include "../../Alloc/LinearAllocator.hpp"
+#include "../SpirvCrossUtils.hpp"
 #include "Common.hpp"
 
 namespace eg::graphics_api::vk
@@ -19,8 +20,8 @@ struct AbstractPipeline : public Resource
 	CachedDescriptorSetLayout* setLayouts[MAX_DESCRIPTOR_SETS];
 
 	void InitPipelineLayout(
-		const std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS],
-		const BindMode setBindModes[MAX_DESCRIPTOR_SETS], uint32_t pushConstantBytes);
+		const DescriptorSetBindings& bindings, const BindMode setBindModes[MAX_DESCRIPTOR_SETS],
+		uint32_t pushConstantBytes);
 
 	virtual void Bind(CommandContextHandle cc) = 0;
 

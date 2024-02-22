@@ -35,15 +35,15 @@ void PushConstants(CommandContextHandle cc, uint32_t offset, uint32_t range, con
 }
 
 void AbstractPipeline::InitPipelineLayout(
-	const std::vector<VkDescriptorSetLayoutBinding>* bindings, const BindMode* setBindModes, uint32_t pushConstantBytes)
+	const DescriptorSetBindings& bindings, const BindMode* setBindModes, uint32_t pushConstantBytes)
 {
 	// Gets descriptor set layouts for each descriptor set
 	uint32_t numDS = 0;
 	VkDescriptorSetLayout vkSetLayouts[MAX_DESCRIPTOR_SETS] = {};
 	std::fill_n(setLayouts, MAX_DESCRIPTOR_SETS, nullptr);
-	for (; numDS < MAX_DESCRIPTOR_SETS && !bindings[numDS].empty(); numDS++)
+	for (; numDS < MAX_DESCRIPTOR_SETS && !bindings.sets[numDS].empty(); numDS++)
 	{
-		setLayouts[numDS] = &CachedDescriptorSetLayout::FindOrCreateNew(bindings[numDS], setBindModes[numDS]);
+		setLayouts[numDS] = &CachedDescriptorSetLayout::FindOrCreateNew(bindings.sets[numDS], setBindModes[numDS]);
 		vkSetLayouts[numDS] = setLayouts[numDS]->Layout();
 	}
 

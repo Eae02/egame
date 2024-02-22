@@ -2,6 +2,7 @@
 
 #ifndef EG_NO_VULKAN
 
+#include "../SpirvCrossUtils.hpp"
 #include "Common.hpp"
 
 namespace eg::graphics_api::vk
@@ -11,7 +12,9 @@ struct ShaderModule
 	VkShaderModule module;
 	std::atomic_int ref;
 	uint32_t pushConstantBytes;
-	std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
+
+	DescriptorSetBindings bindings;
+
 	std::vector<std::pair<uint32_t, uint32_t>> specConstantIDs;
 
 	void UnRef();

@@ -67,7 +67,7 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 		aabb.max.y = BinRead<float>(stream);
 		aabb.max.z = BinRead<float>(stream);
 
-		uint32_t materialIndex;
+		uint64_t materialIndex;
 		auto materialIt = std::find(materialNames.begin(), materialNames.end(), materialName);
 		if (materialIt != materialNames.end())
 		{
@@ -81,7 +81,7 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 
 		meshes.push_back(MeshDescriptor{
 			.name = std::move(meshName),
-			.materialIndex = materialIndex,
+			.materialIndex = UnsignedNarrow<uint32_t>(materialIndex),
 			.firstVertex = nextMeshFirstVertex,
 			.firstIndex = nextMeshFirstIndex,
 			.numVertices = numVertices,
@@ -195,7 +195,7 @@ void WriteVertexAttribute(
 	{
 		size_t dstOffset = v * bytesPerVertex;
 		EG_ASSERT(dstOffset + sizeof(OutCompT) * InVecT::length() <= output.size());
-		for (size_t c = 0; c < InVecT::length(); c++)
+		for (int c = 0; c < InVecT::length(); c++)
 		{
 			OutCompT value = ConvertComponent<typename InVecT::value_type, OutCompT>(input[v][c]);
 			std::memcpy(output.data() + dstOffset + c * sizeof(OutCompT), &value, sizeof(OutCompT));
@@ -212,9 +212,7 @@ static std::pair<std::unique_ptr<char, FreeDel>, size_t> SerializeVertices(
 	for (const WriteModelAssetMesh& mesh : meshes)
 		totalVertices += mesh.positions.size();
 
-	const size_t bytesPerVertex = vertexFormat.CalculateBytesPerVertex();
-
-	const size_t totalVertexBytes = bytesPerVertex * totalVertices;
+	const size_t totalVertexBytes = vertexFormat.CalculateBytesPerVertex() * totalVertices;
 	std::unique_ptr<char, FreeDel> vertexData(static_cast<char*>(std::calloc(1, totalVertexBytes)));
 
 	std::vector<std::span<char>> vertexStreamDataSpans(numVertexStreams);

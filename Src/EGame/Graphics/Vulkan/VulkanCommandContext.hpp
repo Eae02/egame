@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../Abstraction.hpp"
 #include "../../Alloc/LinearAllocator.hpp"
+#include "../Abstraction.hpp"
 #include "Common.hpp"
 
 #include <vector>

@@ -178,7 +178,7 @@ VkPipelineStageFlags TranslateShaderPipelineStage(ShaderAccessFlags accessFlags)
 	return flags;
 }
 
-VkShaderStageFlags TranslateShaderStage(ShaderAccessFlags accessFlags)
+VkShaderStageFlags TranslateShaderStageFlags(ShaderAccessFlags accessFlags)
 {
 	VkShaderStageFlags flags = 0;
 	if (HasFlag(accessFlags, ShaderAccessFlags::Vertex))

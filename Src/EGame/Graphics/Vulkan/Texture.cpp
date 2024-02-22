@@ -306,7 +306,9 @@ void Texture::AutoBarrier(CommandContextHandle cc, TextureUsage newUsage, Shader
 	if (currentStageFlags == 0)
 		currentStageFlags = dstStageFlags;
 
-	vkCmdPipelineBarrier(VulkanCommandContext::currentImmediate->cb, currentStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	vkCmdPipelineBarrier(
+		VulkanCommandContext::currentImmediate->cb, currentStageFlags, dstStageFlags, 0, 0, nullptr, 0, nullptr, 1,
+		&barrier);
 
 	currentStageFlags = dstStageFlags;
 	currentUsage = newUsage;
@@ -397,7 +399,8 @@ void SetTextureData(
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
 
-	vkCmdCopyBufferToImage(vcc.cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+	vkCmdCopyBufferToImage(
+		vcc.cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void GetTextureData(
@@ -419,7 +422,8 @@ void GetTextureData(
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
 
-	vkCmdCopyImageToBuffer(vcc.cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer->buffer, 1, &copyRegion);
+	vkCmdCopyImageToBuffer(
+		vcc.cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer->buffer, 1, &copyRegion);
 }
 
 void CopyTextureData(
@@ -442,8 +446,8 @@ void CopyTextureData(
 		*dstTex, srcRange, dstOffset, copyRegion.dstOffset, copyRegion.dstSubresource, copyRegion.extent);
 
 	vkCmdCopyImage(
-		vcc.cb, srcTex->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTex->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
-		&copyRegion);
+		vcc.cb, srcTex->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dstTex->image,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t mipLevel, const void* color)
@@ -462,8 +466,8 @@ void ClearColorTexture(CommandContextHandle cc, TextureHandle handle, uint32_t m
 	subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
 	vkCmdClearColorImage(
-		vcc.cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, reinterpret_cast<const VkClearColorValue*>(color), 1,
-		&subresourceRange);
+		vcc.cb, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, reinterpret_cast<const VkClearColorValue*>(color),
+		1, &subresourceRange);
 }
 
 void ResolveTexture(
@@ -497,8 +501,8 @@ void ResolveTexture(
 	resolve.dstSubresource.layerCount = region.dstSubresource.numArrayLayers;
 
 	vkCmdResolveImage(
-		vcc.cb, src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		1, &resolve);
+		vcc.cb, src->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+		&resolve);
 }
 
 void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags)

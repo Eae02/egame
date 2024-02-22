@@ -1,6 +1,7 @@
 #ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
+#include "../SpirvCrossUtils.hpp"
 #include "Common.hpp"
 #include "Pipeline.hpp"
 #include "RenderPasses.hpp"
@@ -73,7 +74,8 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	VkVertexInputAttributeDescription vertexAttribs[MAX_VERTEX_ATTRIBUTES];
 	VkPipelineColorBlendAttachmentState blendStates[MAX_COLOR_ATTACHMENTS];
 
-	std::vector<VkDescriptorSetLayoutBinding> bindings[MAX_DESCRIPTOR_SETS];
+	DescriptorSetBindings bindings;
+
 	uint32_t numPushConstantBytes = 0;
 	pipeline->pushConstantStages = 0;
 
@@ -88,29 +90,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 		InitShaderStageCreateInfo(shaderStageCI[numStages], pipeline->linearAllocator, stageInfo, stageFlags);
 		shaderModules[numStages++] = module;
 
-		// Adds bindings from this stage
-		for (uint32_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
-		{
-			for (const VkDescriptorSetLayoutBinding& binding : module->bindings[set])
-			{
-				auto it = std::find_if(
-					bindings[set].begin(), bindings[set].end(),
-					[&](const VkDescriptorSetLayoutBinding& b) { return b.binding == binding.binding; });
-
-				if (it != bindings[set].end())
-				{
-					if (it->descriptorType != binding.descriptorType)
-						EG_PANIC("Descriptor type mismatch for binding " << binding.binding << " in set " << set);
-					if (it->descriptorCount != binding.descriptorCount)
-						EG_PANIC("Descriptor count mismatch for binding " << binding.binding << " in set " << set);
-					it->stageFlags |= stageFlags;
-				}
-				else
-				{
-					bindings[set].push_back(binding);
-				}
-			}
-		}
+		bindings.AppendFrom(module->bindings);
 
 		if (module->pushConstantBytes > 0)
 		{
@@ -124,6 +104,17 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	MaybeAddStage(createInfo.geometryShader, VK_SHADER_STAGE_GEOMETRY_BIT);
 	MaybeAddStage(createInfo.tessControlShader, VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
 	MaybeAddStage(createInfo.tessEvaluationShader, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+
+	for (size_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
+	{
+		if (!createInfo.descriptorSetBindings[set].empty())
+		{
+			bindings.sets[set].assign(
+				createInfo.descriptorSetBindings[set].begin(), createInfo.descriptorSetBindings[set].end());
+		}
+	}
+
+	bindings.SortByBinding();
 
 	pipeline->InitPipelineLayout(bindings, createInfo.setBindModes, numPushConstantBytes);
 

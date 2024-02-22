@@ -35,8 +35,8 @@ Model::Model(ModelCreateArgs args)
 	// Validates attribute ranges
 	for (const ModelVertexAttribute& attribute : args.vertexFormat.attributes)
 	{
-		uint32_t bytesPerVertex = args.vertexFormat.streamsBytesPerVertex[attribute.streamIndex];
-		uint32_t verticesEnd = *m_buffersDescriptor->vertexStreamOffsets[attribute.streamIndex] + attribute.offset +
+		uint64_t bytesPerVertex = args.vertexFormat.streamsBytesPerVertex[attribute.streamIndex];
+		uint64_t verticesEnd = *m_buffersDescriptor->vertexStreamOffsets[attribute.streamIndex] + attribute.offset +
 		                       bytesPerVertex * (m_numVertices - 1) + GetVertexAttributeByteWidth(attribute.type);
 		EG_ASSERT(verticesEnd <= args.vertexData.size_bytes());
 	}
@@ -103,6 +103,7 @@ std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetInd
 	case IndexType::UInt16:
 		return std::span<const uint16_t>(static_cast<const uint16_t*>(m_dataForCPUAccess->indexDataPtr), m_numIndices);
 	}
+	EG_UNREACHABLE
 }
 
 std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetMeshIndices(size_t meshIndex) const

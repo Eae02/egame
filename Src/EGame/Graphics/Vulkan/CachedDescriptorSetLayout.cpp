@@ -3,86 +3,104 @@
 #include "../../Assert.hpp"
 #include "../../Hash.hpp"
 
+#include "Translation.hpp"
 #include <algorithm>
+#include <memory>
 #include <unordered_map>
 
 namespace eg::graphics_api::vk
 {
 struct DSLKey
 {
-	std::vector<VkDescriptorSetLayoutBinding> bindings;
 	BindMode bindMode;
+	std::span<const DescriptorSetBinding> bindings;
+	std::unique_ptr<DescriptorSetBinding[]> ownedBindings;
 
 	bool operator==(const DSLKey& o) const
 	{
 		return bindMode == o.bindMode &&
-		       std::equal(
-				   bindings.begin(), bindings.end(), o.bindings.begin(), o.bindings.end(),
-				   [](const VkDescriptorSetLayoutBinding& a, const VkDescriptorSetLayoutBinding& b)
-				   {
-					   return a.binding == b.binding && a.stageFlags == b.stageFlags &&
-			                  a.descriptorType == b.descriptorType && a.descriptorCount == b.descriptorCount;
-				   });
+		       std::equal(bindings.begin(), bindings.end(), o.bindings.begin(), o.bindings.end());
 	}
 
 	size_t Hash() const
 	{
 		size_t h = static_cast<size_t>(bindMode) | (bindings.size() << 1);
-		for (const VkDescriptorSetLayoutBinding& binding : bindings)
+		for (const DescriptorSetBinding& binding : bindings)
 		{
-			HashAppend(h, binding.binding);
-			HashAppend(h, binding.stageFlags);
-			HashAppend(h, binding.descriptorType);
-			HashAppend(h, binding.descriptorCount);
+			HashAppend(h, binding.Hash());
 		}
 		return h;
+	}
+
+	void CreateOwnedCopyOfBindings()
+	{
+		ownedBindings = std::make_unique<DescriptorSetBinding[]>(bindings.size());
+		std::copy(bindings.begin(), bindings.end(), ownedBindings.get());
+		bindings = { ownedBindings.get(), bindings.size() };
 	}
 };
 
 static std::unordered_map<DSLKey, CachedDescriptorSetLayout, MemberFunctionHash<DSLKey>> cachedSetLayouts;
 
 CachedDescriptorSetLayout& CachedDescriptorSetLayout::FindOrCreateNew(
-	std::vector<VkDescriptorSetLayoutBinding> _bindings, BindMode bindMode)
+	std::span<const DescriptorSetBinding> bindings, BindMode bindMode)
 {
 	DSLKey dslKey;
-	dslKey.bindings = std::move(_bindings);
+	dslKey.bindings = bindings;
 	dslKey.bindMode = bindMode;
 
-	std::sort(
-		dslKey.bindings.begin(), dslKey.bindings.end(),
-		[&](const VkDescriptorSetLayoutBinding& a, const VkDescriptorSetLayoutBinding& b)
-		{ return a.binding < b.binding; });
+	if (!std::is_sorted(bindings.begin(), bindings.end(), DescriptorSetBinding::BindingCmp()))
+	{
+		dslKey.CreateOwnedCopyOfBindings();
+		std::sort(
+			dslKey.ownedBindings.get(), dslKey.ownedBindings.get() + dslKey.bindings.size(),
+			DescriptorSetBinding::BindingCmp());
+		bindings = dslKey.bindings;
+	}
 
 	// Searches for a matching descriptor set in the cache
 	auto cacheIt = cachedSetLayouts.find(dslKey);
 	if (cacheIt != cachedSetLayouts.end())
 		return cacheIt->second;
 
+	std::vector<VkDescriptorSetLayoutBinding> vkBindings(bindings.size());
+
 	std::vector<VkDescriptorPoolSize> poolSizes;
 	uint32_t maxBinding = 0;
-	for (const VkDescriptorSetLayoutBinding& binding : dslKey.bindings)
+	for (size_t i = 0; i < bindings.size(); i++)
 	{
-		maxBinding = std::max(maxBinding, binding.binding);
+		VkDescriptorType descriptorType = TranslateBindingType(bindings[i].type);
+
+		vkBindings[i] = VkDescriptorSetLayoutBinding{
+			.binding = bindings[i].binding,
+			.descriptorType = descriptorType,
+			.descriptorCount = bindings[i].count,
+			.stageFlags = TranslateShaderStageFlags(bindings[i].shaderAccess),
+		};
+
+		maxBinding = std::max(maxBinding, bindings[i].binding);
 
 		bool found = false;
 		for (VkDescriptorPoolSize& poolSize : poolSizes)
 		{
-			if (poolSize.type == binding.descriptorType)
+			if (poolSize.type == descriptorType)
 			{
-				poolSize.descriptorCount += binding.descriptorCount;
+				poolSize.descriptorCount += bindings[i].count;
 				found = true;
 				break;
 			}
 		}
 		if (!found)
 		{
-			poolSizes.push_back({ binding.descriptorType, binding.descriptorCount });
+			poolSizes.push_back({ descriptorType, bindings[i].count });
 		}
 	}
 
-	VkDescriptorSetLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-	createInfo.bindingCount = UnsignedNarrow<uint32_t>(dslKey.bindings.size());
-	createInfo.pBindings = dslKey.bindings.data();
+	VkDescriptorSetLayoutCreateInfo createInfo = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.bindingCount = UnsignedNarrow<uint32_t>(vkBindings.size()),
+		.pBindings = vkBindings.data(),
+	};
 
 	if (bindMode == BindMode::Dynamic)
 	{
@@ -95,6 +113,10 @@ CachedDescriptorSetLayout& CachedDescriptorSetLayout::FindOrCreateNew(
 	dsl.m_sizes = std::move(poolSizes);
 
 	CheckRes(vkCreateDescriptorSetLayout(ctx.device, &createInfo, nullptr, &dsl.m_layout));
+
+	dslKey.ownedBindings = std::make_unique<DescriptorSetBinding[]>(bindings.size());
+	std::copy(bindings.begin(), bindings.end(), dslKey.ownedBindings.get());
+	dslKey.bindings = { dslKey.ownedBindings.get(), bindings.size() };
 
 	return cachedSetLayouts.emplace(std::move(dslKey), std::move(dsl)).first->second;
 }

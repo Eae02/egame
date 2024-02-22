@@ -336,6 +336,53 @@ enum class StencilValue
 	Reference = 0b1110
 };
 
+enum class BindingType
+{
+	UniformBuffer,
+	StorageBuffer,
+	Texture,
+	StorageImage
+};
+
+std::string_view BindingTypeToString(BindingType bindingType);
+
+enum class ReadWriteMode
+{
+	ReadWrite,
+	ReadOnly,
+	WriteOnly,
+};
+
+struct DescriptorSetBinding
+{
+	uint32_t binding = 0;
+	BindingType type = BindingType::UniformBuffer;
+	ShaderAccessFlags shaderAccess = ShaderAccessFlags::None;
+	uint32_t count = 1;
+	ReadWriteMode rwMode = ReadWriteMode::ReadWrite;
+
+	bool operator==(const DescriptorSetBinding&) const = default;
+	bool operator!=(const DescriptorSetBinding&) const = default;
+
+	size_t Hash() const;
+
+	struct BindingCmp
+	{
+		bool operator()(const DescriptorSetBinding& a, const DescriptorSetBinding& b) const
+		{
+			return a.binding < b.binding;
+		}
+	};
+
+	static uint32_t MaxBindingPlusOne(std::span<const DescriptorSetBinding> bindings)
+	{
+		uint32_t maxBindingPlusOne = 0;
+		for (const DescriptorSetBinding& binding : bindings)
+			maxBindingPlusOne = std::max(maxBindingPlusOne, binding.binding + 1);
+		return maxBindingPlusOne;
+	}
+};
+
 struct GraphicsPipelineCreateInfo
 {
 	// Shader stages
@@ -380,6 +427,7 @@ struct GraphicsPipelineCreateInfo
 
 	std::array<float, 4> blendConstants = {};
 	BindMode setBindModes[MAX_DESCRIPTOR_SETS] = {};
+	std::span<const eg::DescriptorSetBinding> descriptorSetBindings[MAX_DESCRIPTOR_SETS];
 
 	uint32_t numColorAttachments = 1;
 	Format colorAttachmentFormats[MAX_COLOR_ATTACHMENTS] = {};
@@ -393,48 +441,6 @@ struct GraphicsPipelineCreateInfo
 	VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
 
 	const char* label = nullptr;
-};
-
-enum class BindingType
-{
-	UniformBuffer,
-	StorageBuffer,
-	Texture,
-	StorageImage
-};
-
-std::string_view BindingTypeToString(BindingType bindingType);
-
-enum class ReadWriteMode
-{
-	ReadWrite,
-	ReadOnly,
-	WriteOnly,
-};
-
-struct DescriptorSetBinding
-{
-	uint32_t binding = 0;
-	BindingType type = BindingType::UniformBuffer;
-	ShaderAccessFlags shaderAccess = ShaderAccessFlags::None;
-	uint32_t count = 1;
-	ReadWriteMode rwMode = ReadWriteMode::ReadWrite;
-
-	struct BindingCmp
-	{
-		bool operator()(const DescriptorSetBinding& a, const DescriptorSetBinding& b) const
-		{
-			return a.binding < b.binding;
-		}
-	};
-
-	static uint32_t MaxBindingPlusOne(std::span<const DescriptorSetBinding> bindings)
-	{
-		uint32_t maxBindingPlusOne = 0;
-		for (const DescriptorSetBinding& binding : bindings)
-			maxBindingPlusOne = std::max(maxBindingPlusOne, binding.binding + 1);
-		return maxBindingPlusOne;
-	}
 };
 
 struct ComputePipelineCreateInfo
@@ -482,9 +488,8 @@ struct SamplerDescription
 	bool enableCompare = false;
 	CompareOp compareOp = CompareOp::Less;
 
-	bool operator==(const SamplerDescription& rhs) const;
-
-	bool operator!=(const SamplerDescription& rhs) const;
+	bool operator==(const SamplerDescription&) const = default;
+	bool operator!=(const SamplerDescription&) const = default;
 
 	size_t Hash() const;
 };

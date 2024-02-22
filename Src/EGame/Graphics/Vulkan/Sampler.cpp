@@ -1,6 +1,6 @@
 #ifndef EG_NO_VULKAN
-#include "Common.hpp"
 #include "../../Assert.hpp"
+#include "Common.hpp"
 #include "Translation.hpp"
 
 namespace eg::graphics_api::vk

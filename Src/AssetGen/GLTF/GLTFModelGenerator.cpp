@@ -407,45 +407,6 @@ static ImportedMesh ImportMesh(
 	return mesh;
 }
 
-enum class VertexType
-{
-	Std,
-	Anim8,
-	Anim16
-};
-
-static std::span<const StdVertex> ConvertVertices(
-	const std::vector<StdVertexAnim16>& vertices, std::vector<StdVertex>& outputVector)
-{
-	if (outputVector.size() < vertices.size())
-		outputVector.resize(vertices.size());
-	for (size_t v = 0; v < vertices.size(); v++)
-	{
-		std::memcpy(&outputVector[v], &vertices[v], sizeof(StdVertex));
-	}
-	return { outputVector.data(), vertices.size() };
-}
-
-static std::span<const StdVertexAnim8> ConvertVertices(
-	const std::vector<StdVertexAnim16>& vertices, std::vector<StdVertexAnim8>& outputVector)
-{
-	if (outputVector.size() < vertices.size())
-		outputVector.resize(vertices.size());
-	for (size_t v = 0; v < vertices.size(); v++)
-	{
-		std::memcpy(&outputVector[v], &vertices[v], sizeof(StdVertex));
-		std::copy_n(vertices[v].boneWeights, 4, outputVector[v].boneWeights);
-		std::copy_n(vertices[v].boneIndices, 4, outputVector[v].boneIndices);
-	}
-	return { outputVector.data(), vertices.size() };
-}
-
-static std::span<const StdVertexAnim16> ConvertVertices(
-	const std::vector<StdVertexAnim16>& vertices, std::vector<StdVertexAnim16>& outputVector)
-{
-	return vertices;
-}
-
 class GLTFModelGenerator : public AssetGenerator
 {
 public:

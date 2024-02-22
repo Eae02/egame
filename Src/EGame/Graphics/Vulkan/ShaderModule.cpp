@@ -19,7 +19,7 @@ void ShaderModule::UnRef()
 	}
 }
 
-static const std::array<VkShaderStageFlags, 6> ShaderStageFlags = {
+static const std::array<VkShaderStageFlags, 6> shaderStageFlags = {
 	VK_SHADER_STAGE_VERTEX_BIT,
 	VK_SHADER_STAGE_FRAGMENT_BIT,
 	VK_SHADER_STAGE_GEOMETRY_BIT,
@@ -39,51 +39,11 @@ ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::Pars
 	moduleCreateInfo.pCode = parsedIR.spirv.data();
 	CheckRes(vkCreateShaderModule(ctx.device, &moduleCreateInfo, nullptr, &module->module));
 
-	VkShaderStageFlags stageFlags = ShaderStageFlags.at(static_cast<int>(stage));
-
 	spirv_cross::Compiler spvCrossCompiler(parsedIR);
 
-	// Processes shader resources
-	auto ProcessResources = [&](const spirv_cross::SmallVector<spirv_cross::Resource>& resources, VkDescriptorType type)
-	{
-		for (const spirv_cross::Resource& resource : resources)
-		{
-			const uint32_t set = spvCrossCompiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
-			const uint32_t binding = spvCrossCompiler.get_decoration(resource.id, spv::DecorationBinding);
-			const uint32_t count = 1;
-
-			auto it = std::find_if(
-				module->bindings[set].begin(), module->bindings[set].end(),
-				[&](const VkDescriptorSetLayoutBinding& b) { return b.binding == binding; });
-
-			if (it != module->bindings[set].end())
-			{
-				if (it->descriptorType != type)
-					EG_PANIC("Descriptor type mismatch for binding " << binding << " in set " << set);
-				if (it->descriptorCount != count)
-					EG_PANIC("Descriptor count mismatch for binding " << binding << " in set " << set);
-				it->stageFlags |= stageFlags;
-			}
-			else
-			{
-				VkDescriptorSetLayoutBinding& bindingRef = module->bindings[set].emplace_back();
-				bindingRef.binding = binding;
-				bindingRef.stageFlags = stageFlags;
-				bindingRef.descriptorType = type;
-				bindingRef.descriptorCount = count;
-				bindingRef.pImmutableSamplers = nullptr;
-			}
-		}
-	};
-
 	const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
-	ProcessResources(resources.uniform_buffers, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	ProcessResources(resources.storage_buffers, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-	ProcessResources(resources.sampled_images, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	ProcessResources(resources.separate_images, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
-	ProcessResources(resources.separate_samplers, VK_DESCRIPTOR_TYPE_SAMPLER);
-	ProcessResources(resources.storage_images, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 
+	module->bindings.AppendFromReflectionInfo(stage, spvCrossCompiler, resources);
 	module->pushConstantBytes = GetPushConstantBytes(spvCrossCompiler, &resources);
 
 	return reinterpret_cast<ShaderModuleHandle>(module);

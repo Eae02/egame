@@ -24,7 +24,7 @@ void PrintStackTraceToStdOut(std::string_view message)
 	{
 		for (const std::string& entry : trace)
 		{
-			
+
 			std::cout << " - " << entry << "\n";
 		}
 	}

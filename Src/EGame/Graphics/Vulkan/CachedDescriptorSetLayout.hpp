@@ -10,7 +10,7 @@ class CachedDescriptorSetLayout
 {
 public:
 	static CachedDescriptorSetLayout& FindOrCreateNew(
-		std::vector<VkDescriptorSetLayoutBinding> bindings, BindMode bindMode);
+		std::span<const DescriptorSetBinding> bindings, BindMode bindMode);
 
 	static void DestroyCached();
 	static bool IsCacheEmpty();

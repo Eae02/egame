@@ -52,12 +52,12 @@ struct ModelCreateArgs
 	std::unique_ptr<char[]> memoryForCpuAccess;
 };
 
-struct MeshBuffersDescriptor
+struct EG_API MeshBuffersDescriptor
 {
 	eg::BufferRef vertexBuffer;
 	eg::BufferRef indexBuffer;
 	eg::IndexType indexType{};
-	std::array<std::optional<uint64_t>, MAX_VERTEX_BINDINGS> vertexStreamOffsets;
+	std::array<std::optional<uint32_t>, MAX_VERTEX_BINDINGS> vertexStreamOffsets;
 
 	void Bind(CommandContext& cmdCtx, uint32_t enabledBindingsMask) const;
 };

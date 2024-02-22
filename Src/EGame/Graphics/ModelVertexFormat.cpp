@@ -1,4 +1,5 @@
 #include "ModelVertexFormat.hpp"
+#include "../Assert.hpp"
 #include "StdVertex.hpp"
 
 #include <unordered_map>
@@ -203,5 +204,6 @@ size_t GetVertexAttributeByteWidth(ModelVertexAttributeType attributeType)
 	case ModelVertexAttributeType::BoneIndices_U16: return 4 * sizeof(uint16_t);
 	case ModelVertexAttributeType::BoneIndices_U8: return 4 * sizeof(uint8_t);
 	}
+	EG_UNREACHABLE
 }
 } // namespace eg

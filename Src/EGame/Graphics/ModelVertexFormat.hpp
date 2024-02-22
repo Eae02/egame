@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../API.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -30,9 +32,9 @@ enum class ModelVertexAttributeType : uint8_t
 	BoneIndices_U8,
 };
 
-size_t GetVertexAttributeByteWidth(ModelVertexAttributeType attributeType);
+EG_API size_t GetVertexAttributeByteWidth(ModelVertexAttributeType attributeType);
 
-struct ModelVertexAttribute
+struct EG_API ModelVertexAttribute
 {
 	ModelVertexAttributeType type;
 	uint32_t typeIndex;
@@ -45,7 +47,7 @@ struct ModelVertexAttribute
 static_assert(sizeof(ModelVertexAttribute) == 16);
 static_assert(std::is_trivial_v<ModelVertexAttribute>);
 
-struct ModelVertexFormat
+struct EG_API ModelVertexFormat
 {
 	std::span<const ModelVertexAttribute> attributes;
 	std::span<const uint32_t> streamsBytesPerVertex;

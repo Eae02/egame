@@ -83,7 +83,6 @@ void RegisterConsoleCommands()
 			}
 
 			// Writes information about meshes
-			std::array<const char*, 3> meshAccessNames = { "gpu", "cpu", "gpu+cpu" };
 			uint32_t totVertices = 0;
 			uint32_t totIndices = 0;
 			for (size_t i = 0; i < model->NumMeshes(); i++)

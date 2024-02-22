@@ -4,6 +4,7 @@
 #include "Ray.hpp"
 
 #include <bit>
+#include <cstring>
 
 namespace eg
 {

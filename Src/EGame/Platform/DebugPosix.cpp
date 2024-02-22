@@ -1,7 +1,7 @@
 #if defined(__linux__) || defined(__APPLE__)
 
-#include "../Utils.hpp"
 #include "../String.hpp"
+#include "../Utils.hpp"
 #include "Debug.hpp"
 
 #include <array>
@@ -81,7 +81,7 @@ std::vector<std::string> GetStackTrace()
 	for (size_t i = 0; i < traceSize; i++)
 	{
 		result[i] = traceSybmols[i];
-		
+
 		if (!hasAddr2Line)
 			continue;
 
@@ -101,12 +101,12 @@ std::vector<std::string> GetStackTrace()
 			symbolBegin, symbolEnd == std::string::npos ? std::string::npos : (symbolEnd - symbolBegin));
 
 		std::string path = result[i].substr(0, pathEnd);
-		
+
 		if (std::optional<std::string> demangled = RunAddr2Line(path, symbol))
 		{
 			if (demangled->back() == '\n')
 				demangled->pop_back();
-			result[i] = Concat({result[i], " = ", *demangled});
+			result[i] = Concat({ result[i], " = ", *demangled });
 		}
 	}
 
