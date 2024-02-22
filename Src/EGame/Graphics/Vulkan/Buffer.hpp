@@ -19,8 +19,7 @@ struct Buffer : Resource
 
 	void CheckUsageState(BufferUsage requiredUsage, const char* actionName);
 
-	void AutoBarrier(
-		VkCommandBuffer cb, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
+	void AutoBarrier(CommandContextHandle cc, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
 
 	void Free() override;
 };

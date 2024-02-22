@@ -30,8 +30,6 @@ private:
 	std::vector<VkDescriptorPoolSize> m_sizes;
 	std::vector<VkDescriptorPool> m_pools;
 };
-
-uint32_t CalculateMaxBindingIndex(std::span<const VkDescriptorSetLayoutBinding>& bindings);
 } // namespace eg::graphics_api::vk
 
 #endif

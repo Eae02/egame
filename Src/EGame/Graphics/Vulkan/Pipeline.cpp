@@ -2,6 +2,7 @@
 #include "Pipeline.hpp"
 #include "CachedDescriptorSetLayout.hpp"
 #include "ShaderModule.hpp"
+#include "VulkanCommandContext.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -12,25 +13,25 @@ void DestroyPipeline(PipelineHandle handle)
 
 void BindPipeline(CommandContextHandle cc, PipelineHandle handle)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	AbstractPipeline* pipeline = UnwrapPipeline(handle);
 
-	RefResource(cc, *pipeline);
-	CommandContextState& ctxState = GetCtxState(cc);
-	ctxState.pipeline = pipeline;
+	vcc.referencedResources.Add(*pipeline);
+	vcc.pipeline = pipeline;
 
 	pipeline->Bind(cc);
 }
 
 void PushConstants(CommandContextHandle cc, uint32_t offset, uint32_t range, const void* data)
 {
-	AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
-	if (pipeline == nullptr)
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+	if (vcc.pipeline == nullptr)
 	{
 		Log(LogLevel::Error, "gfx", "No pipeline bound when updating push constants.");
 		return;
 	}
 
-	vkCmdPushConstants(GetCB(cc), pipeline->pipelineLayout, pipeline->pushConstantStages, offset, range, data);
+	vkCmdPushConstants(vcc.cb, vcc.pipeline->pipelineLayout, vcc.pipeline->pushConstantStages, offset, range, data);
 }
 
 void AbstractPipeline::InitPipelineLayout(

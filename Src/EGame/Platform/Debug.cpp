@@ -23,7 +23,10 @@ void PrintStackTraceToStdOut(std::string_view message)
 	if (!trace.empty())
 	{
 		for (const std::string& entry : trace)
-			std::cout << "  " << entry << "\n";
+		{
+			
+			std::cout << " - " << entry << "\n";
+		}
 	}
 	else
 	{

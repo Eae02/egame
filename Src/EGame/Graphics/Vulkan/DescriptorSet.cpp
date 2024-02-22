@@ -7,6 +7,7 @@
 #include "Pipeline.hpp"
 #include "Texture.hpp"
 #include "Translation.hpp"
+#include "VulkanCommandContext.hpp"
 
 namespace eg::graphics_api::vk
 {
@@ -201,11 +202,11 @@ void BindStorageBufferDS(
 
 void BindDescriptorSet(CommandContextHandle cc, uint32_t set, DescriptorSetHandle handle)
 {
+	VulkanCommandContext& vcc = UnwrapCC(cc);
 	DescriptorSet* ds = UnwrapDescriptorSet(handle);
-	RefResource(cc, *ds);
-	AbstractPipeline* pipeline = GetCtxState(cc).pipeline;
+	vcc.referencedResources.Add(*ds);
 	vkCmdBindDescriptorSets(
-		GetCB(cc), pipeline->bindPoint, pipeline->pipelineLayout, set, 1, &ds->descriptorSet, 0, nullptr);
+		vcc.cb, vcc.pipeline->bindPoint, vcc.pipeline->pipelineLayout, set, 1, &ds->descriptorSet, 0, nullptr);
 }
 } // namespace eg::graphics_api::vk
 

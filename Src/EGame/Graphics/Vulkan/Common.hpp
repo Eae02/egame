@@ -51,29 +51,6 @@ private:
 	std::set<Resource*> m_resources;
 };
 
-struct CommandContextState
-{
-	float viewportX;
-	float viewportY;
-	float viewportW;
-	float viewportH;
-	VkRect2D scissor;
-	bool viewportOutOfDate;
-	bool scissorOutOfDate;
-
-	VkPolygonMode polygonMode;
-	bool polygonModeOutOfDate;
-	bool enableDynamicPolygonMode;
-
-	VkCullModeFlags cullMode;
-	bool cullModeOutOfDate;
-	bool enableDynamicCullMode;
-
-	struct AbstractPipeline* pipeline;
-	uint32_t framebufferW;
-	uint32_t framebufferH;
-};
-
 struct Context
 {
 	bool hasDebugUtils;
@@ -119,31 +96,11 @@ struct Context
 	// ** Frame queue related fields **
 	VkSemaphore frameQueueSemaphores[MAX_CONCURRENT_FRAMES];
 	VkFence frameQueueFences[MAX_CONCURRENT_FRAMES];
-	VkCommandBuffer immediateCommandBuffers[MAX_CONCURRENT_FRAMES];
-	ReferencedResourceSet referencedResources[MAX_CONCURRENT_FRAMES];
-
-	CommandContextState immediateCCState;
 
 	uint32_t currentImage;
 };
 
 extern Context ctx;
-
-inline VkCommandBuffer GetCB(CommandContextHandle handle)
-{
-	return handle == nullptr ? ctx.immediateCommandBuffers[CFrameIdx()] : reinterpret_cast<VkCommandBuffer>(handle);
-}
-
-inline CommandContextState& GetCtxState(CommandContextHandle handle)
-{
-	return ctx.immediateCCState;
-}
-
-inline void RefResource(CommandContextHandle handle, Resource& resource)
-{
-	if (handle == nullptr)
-		ctx.referencedResources[CFrameIdx()].Add(resource);
-}
 
 inline bool HasStencil(VkFormat format)
 {

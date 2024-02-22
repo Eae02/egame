@@ -53,7 +53,7 @@ struct Texture : Resource
 	VkImageLayout CurrentLayout() const { return ImageLayoutFromUsage(currentUsage, aspectFlags); }
 
 	void AutoBarrier(
-		VkCommandBuffer cb, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
+		CommandContextHandle cc, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None);
 
 	TextureView& GetView(
 		const TextureSubresource& subresource, VkImageAspectFlags aspectFlags = 0,
