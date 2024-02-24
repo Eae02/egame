@@ -1,3 +1,6 @@
+#include "EGame/Graphics/Abstraction.hpp"
+#include "EGame/Utils.hpp"
+#include <SDL_video.h>
 #ifndef __EMSCRIPTEN__
 
 #include "../../Assert.hpp"
@@ -214,13 +217,14 @@ void GetDrawableSize(int& width, int& height)
 void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
 #ifdef EG_GLES
-	deviceInfo.tessellation = false;
-	deviceInfo.computeShader = false;
-	deviceInfo.partialTextureViews = false;
+	if (SDL_GL_ExtensionSupported("GL_ARB_texture_cube_map_array"))
+		deviceInfo.features |= DeviceFeatureFlags::TextureCubeMapArray;
+	if (SDL_GL_ExtensionSupported("GL_ARB_tessellation_shader"))
+		deviceInfo.features |= DeviceFeatureFlags::TessellationShader;
 #else
 	for (int i = 0; i < 3; i++)
 	{
-		int ans;
+		GLint ans;
 		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, i, &ans);
 		deviceInfo.maxComputeWorkGroupCount[i] = ans;
 		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, i, &ans);
@@ -228,16 +232,36 @@ void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	}
 	deviceInfo.maxComputeWorkGroupInvocations = ToUnsigned(GetIntegerLimit(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS));
 	deviceInfo.storageBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT));
-	deviceInfo.tessellation = true;
-	deviceInfo.computeShader = true;
-	deviceInfo.partialTextureViews = SDL_GL_ExtensionSupported("GL_ARB_texture_view");
+	deviceInfo.features |= DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceFeatureFlags::TextureCubeMapArray |
+	                       DeviceFeatureFlags::TessellationShader;
+
+	if (SDL_GL_ExtensionSupported("GL_KHR_shader_subgroup"))
+	{
+		deviceInfo.subgroupSize = ToUnsigned(GetIntegerLimit(GL_SUBGROUP_SIZE_KHR));
+
+		const GLint subgroupFeatures = GetIntegerLimit(GL_SUBGROUP_SUPPORTED_FEATURES_KHR);
+
+		// Adds features for subgroup operations. This relies on the flags having the same order in DeviceFeatureFlags
+		// as in GL_SUBGROUP_FEATURE_*.
+		static_assert(
+			(GL_SUBGROUP_FEATURE_BASIC_BIT_KHR << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
+			static_cast<uint32_t>(DeviceFeatureFlags::SubgroupBasic));
+		static_assert(
+			(GL_SUBGROUP_FEATURE_QUAD_BIT_KHR << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
+			static_cast<uint32_t>(DeviceFeatureFlags::SubgroupQuad));
+		deviceInfo.features |= SubgroupOperationFlagsFromGlVk(static_cast<uint32_t>(subgroupFeatures));
+	}
 #endif
 
 	deviceInfo.maxClipDistances = ToUnsigned(GetIntegerLimit(GL_MAX_CLIP_DISTANCES));
 	deviceInfo.maxTessellationPatchSize = ToUnsigned(GetIntegerLimit(GL_MAX_PATCH_VERTICES));
-	deviceInfo.persistentMappedBuffers = true;
-	deviceInfo.textureCubeMapArray = true;
-	deviceInfo.blockTextureCompression = SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc");
+
+	if (SDL_GL_ExtensionSupported("GL_EXT_texture_compression_s3tc"))
+		deviceInfo.features |= DeviceFeatureFlags::TextureCompressionBC;
+	if (SDL_GL_ExtensionSupported("GL_KHR_texture_compression_astc_ldr"))
+		deviceInfo.features |= DeviceFeatureFlags::TextureCompressionASTC;
+	if (SDL_GL_ExtensionSupported("GL_ARB_texture_view"))
+		deviceInfo.features |= DeviceFeatureFlags::PartialTextureViews;
 }
 
 static GLsync loadFence;

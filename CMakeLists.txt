@@ -146,7 +146,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_compile_options(EGameAssetGen PRIVATE ${OGG_VORBIS_CFLAGS_OTHER})
 		
 		set_target_properties(EGameAssetGen PROPERTIES
-			CXX_STANDARD 23
+			CXX_STANDARD 20
 			LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
 		)
 	endif()
@@ -158,7 +158,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_link_libraries(EGameAssetMan PRIVATE EGame)
 		
 		set_target_properties(EGameAssetMan PROPERTIES
-			CXX_STANDARD 23
+			CXX_STANDARD 20
 			RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}
 		)
 	endif()
@@ -188,7 +188,7 @@ if (${EG_BUILD_IMGUI})
 	)
 	
 	set_target_properties(EGameImGui PROPERTIES
-		CXX_STANDARD 23
+		CXX_STANDARD 20
 		ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
 	)
 	
@@ -228,7 +228,7 @@ target_compile_options(EGame
 		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
 
 set_target_properties(EGame EGSandbox PROPERTIES
-	CXX_STANDARD 23
+	CXX_STANDARD 20
 	ARCHIVE_OUTPUT_DIRECTORY ${OUT_DIR}
 	LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
 	RUNTIME_OUTPUT_DIRECTORY ${OUT_DIR}

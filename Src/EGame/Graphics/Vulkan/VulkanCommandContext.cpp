@@ -94,6 +94,7 @@ void VulkanCommandContext::UpdateDynamicDescriptor(
 	uint32_t set, uint32_t binding, VkDescriptorType descriptorType, const VkDescriptorBufferInfo& info)
 {
 	EG_ASSERT(set < MAX_DESCRIPTOR_SETS);
+	EG_ASSERT(ctx.hasPushDescriptorExtension);
 
 	auto* infoCopy = m_pushDescriptorInfoAllocator.New<VkDescriptorBufferInfo>(info);
 
@@ -110,6 +111,7 @@ void VulkanCommandContext::UpdateDynamicDescriptor(
 	uint32_t set, uint32_t binding, VkDescriptorType descriptorType, const VkDescriptorImageInfo& info)
 {
 	EG_ASSERT(set < MAX_DESCRIPTOR_SETS);
+	EG_ASSERT(ctx.hasPushDescriptorExtension);
 
 	auto* infoCopy = m_pushDescriptorInfoAllocator.New<VkDescriptorImageInfo>(info);
 

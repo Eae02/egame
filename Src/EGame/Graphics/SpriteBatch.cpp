@@ -522,7 +522,7 @@ void SpriteBatch::Render(const RenderArgs& renderArgs) const
 			DC.SetScissor(0, 0, screenWidth, screenHeight);
 
 		eg::TextureSubresource subres;
-		if (GetGraphicsDeviceInfo().partialTextureViews)
+		if (HasFlag(GetGraphicsDeviceInfo().features, DeviceFeatureFlags::PartialTextureViews))
 			subres.firstMipLevel = batch.mipLevel;
 		DC.BindTexture(batch.texture, 0, 0, &spriteBatchSampler, subres);
 

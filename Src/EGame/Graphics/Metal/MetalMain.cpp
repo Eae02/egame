@@ -71,27 +71,27 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
 	auto maxThreadsPerThreadgroup = metalDevice->maxThreadsPerThreadgroup();
 
+	DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShader | DeviceFeatureFlags::TextureCubeMapArray |
+	                              DeviceFeatureFlags::DynamicResourceBind |
+	                              DeviceFeatureFlags::ConcurrentResourceCreation |
+	                              DeviceFeatureFlags::PartialTextureViews | DeviceFeatureFlags::DeferredContext;
+
+	if (metalDevice->supportsBCTextureCompression())
+		features |= DeviceFeatureFlags::TextureCompressionBC;
+
 	deviceInfo = GraphicsDeviceInfo{
 		.uniformBufferOffsetAlignment = 4,
 		.storageBufferOffsetAlignment = 4,
 		.maxTessellationPatchSize = 0,
 		.maxClipDistances = 0,
-		.maxMSAA = 16,
 		.maxComputeWorkGroupSize = { static_cast<uint32_t>(maxThreadsPerThreadgroup.width),
 		                             static_cast<uint32_t>(maxThreadsPerThreadgroup.height),
 		                             static_cast<uint32_t>(maxThreadsPerThreadgroup.depth), },
 		.maxComputeWorkGroupCount = { UINT32_MAX, UINT32_MAX, UINT32_MAX },
 		.maxComputeWorkGroupInvocations = 1024, //?
 		.depthRange = DepthRange::ZeroToOne,
-		.geometryShader = false,
-		.computeShader = true,
-		.tessellation = true,
-		.persistentMappedBuffers = true,
-		.partialTextureViews = true,
-		.textureCubeMapArray = true,
-		.blockTextureCompression = metalDevice->supportsBCTextureCompression(),
+		.features = features,
 		.timerTicksPerNS = 1.0f,
-		.concurrentResourceCreation = true,
 		.deviceName = deviceName,
 		.deviceVendorName = "Apple",
 	};

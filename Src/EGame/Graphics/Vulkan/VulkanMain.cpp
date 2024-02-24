@@ -1,5 +1,6 @@
+#include "EGame/Graphics/Abstraction.hpp"
+#include <vulkan/vulkan_core.h>
 #ifndef EG_NO_VULKAN
-#include "VulkanMain.hpp"
 #include "../../Assert.hpp"
 #include "../../Core.hpp"
 #include "../RenderDoc.hpp"
@@ -8,6 +9,7 @@
 #include "Common.hpp"
 #include "RenderPasses.hpp"
 #include "Translation.hpp"
+#include "VulkanMain.hpp"
 
 #include "VulkanCommandContext.hpp"
 #include <SDL_vulkan.h>
@@ -252,21 +254,14 @@ static void CreateSwapchain()
 
 static const char* REQUIRED_DEVICE_EXTENSIONS[] = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-	VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-	VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-	VK_KHR_MAINTENANCE2_EXTENSION_NAME,
-	VK_KHR_MULTIVIEW_EXTENSION_NAME,
 	VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
 	VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME,
 };
 
 static const char* OPTIONAL_DEVICE_EXTENSIONS[] = {
-	VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-	VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
 	VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
 	VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME,
-	VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-	VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+	VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
 };
 
 static inline std::string_view GetVendorName(uint32_t id)
@@ -298,12 +293,22 @@ static inline bool InstanceExtensionSupported(const char* name)
 
 static std::optional<bool> earlyInitializeResult;
 
+static constexpr uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_1;
+
 bool EarlyInitializeMemoized()
 {
 	if (earlyInitializeResult.has_value())
 		return earlyInitializeResult.value();
 
 	if (volkInitialize() != VK_SUCCESS || SDL_Vulkan_LoadLibrary(nullptr) != 0)
+	{
+		earlyInitializeResult = false;
+		return false;
+	}
+
+	uint32_t vulkanApiVersion = 0;
+	vkEnumerateInstanceVersion(&vulkanApiVersion);
+	if (vulkanApiVersion < VULKAN_API_VERSION)
 	{
 		earlyInitializeResult = false;
 		return false;
@@ -320,8 +325,6 @@ bool EarlyInitializeMemoized()
 	SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlNumInstanceExtensions, nullptr);
 	instanceExtensionsToEnable.resize(sdlNumInstanceExtensions);
 	SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlNumInstanceExtensions, instanceExtensionsToEnable.data());
-
-	instanceExtensionsToEnable.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
 	for (const char* extensionName : instanceExtensionsToEnable)
 	{
@@ -390,18 +393,16 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	VkApplicationInfo applicationInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	applicationInfo.pApplicationName = GameName().c_str();
 	applicationInfo.pEngineName = "EGame";
-	applicationInfo.apiVersion = VK_API_VERSION_1_0;
+	applicationInfo.apiVersion = VULKAN_API_VERSION;
 
 	// Creates the instance
 	const VkInstanceCreateInfo instanceCreateInfo = {
-		/* sType                   */ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-		/* pNext                   */ nullptr,
-		/* flags                   */ 0,
-		/* pApplicationInfo        */ &applicationInfo,
-		/* enabledLayerCount       */ UnsignedNarrow<uint32_t>(enabledValidationLayers.size()),
-		/* ppEnabledLayerNames     */ enabledValidationLayers.data(),
-		/* enabledExtensionCount   */ UnsignedNarrow<uint32_t>(instanceExtensionsToEnable.size()),
-		/* ppEnabledExtensionNames */ instanceExtensionsToEnable.data()
+		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+		.pApplicationInfo = &applicationInfo,
+		.enabledLayerCount = UnsignedNarrow<uint32_t>(enabledValidationLayers.size()),
+		.ppEnabledLayerNames = enabledValidationLayers.data(),
+		.enabledExtensionCount = UnsignedNarrow<uint32_t>(instanceExtensionsToEnable.size()),
+		.ppEnabledExtensionNames = instanceExtensionsToEnable.data(),
 	};
 	VkResult instanceCreateRes = vkCreateInstance(&instanceCreateInfo, nullptr, &ctx.instance);
 	if (instanceCreateRes != VK_SUCCESS)
@@ -455,8 +456,15 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		VkPhysicalDeviceFeatures deviceFeatures;
 		vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
-		VkPhysicalDeviceProperties deviceProperties;
-		vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+		VkPhysicalDeviceSubgroupProperties subgroupProperties = {
+			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES
+		};
+
+		VkPhysicalDeviceProperties2 deviceProperties = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+			.pNext = &subgroupProperties,
+		};
+		vkGetPhysicalDeviceProperties2(physicalDevice, &deviceProperties);
 
 		// Enumerates the queue families exposed by this device
 		uint32_t numQueueFamilies;
@@ -488,7 +496,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 			Log(LogLevel::Info, "vk",
 			    "Cannot use vulkan device '{0}' because it does not have a queue family "
 			    " that supports graphics, compute and present.",
-			    deviceProperties.deviceName);
+			    deviceProperties.properties.deviceName);
 			continue;
 		}
 
@@ -530,7 +538,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 				Log(LogLevel::Info, "vk",
 				    "Cannot use vulkan device '{0}' because it does not support the "
 				    "{1} extension",
-				    deviceProperties.deviceName, REQUIRED_DEVICE_EXTENSIONS[i]);
+				    deviceProperties.properties.deviceName, REQUIRED_DEVICE_EXTENSIONS[i]);
 				hasAllExtensions = false;
 				break;
 			}
@@ -539,19 +547,23 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		if (!hasAllExtensions)
 			continue;
 
-		okDeviceNames.emplace_back(deviceProperties.deviceName);
+		okDeviceNames.emplace_back(deviceProperties.properties.deviceName);
 
-		if (ctx.physDevice != VK_NULL_HANDLE && !IsDevicePreferredOver(deviceProperties, currentDeviceProperties))
+		if (ctx.physDevice != VK_NULL_HANDLE &&
+		    !IsDevicePreferredOver(deviceProperties.properties, currentDeviceProperties))
+		{
 			continue;
+		}
 
 		ctx.queueFamily = *selectedQueueFamily;
 		ctx.queueFamilyProperties = selectedQueueFamilyProperties;
 		ctx.physDevice = physicalDevice;
 		ctx.deviceFeatures = deviceFeatures;
-		ctx.deviceName = deviceProperties.deviceName;
-		ctx.deviceVendorName = GetVendorName(deviceProperties.vendorID);
-		ctx.deviceLimits = deviceProperties.limits;
-		currentDeviceProperties = deviceProperties;
+		ctx.deviceName = deviceProperties.properties.deviceName;
+		ctx.deviceVendorName = GetVendorName(deviceProperties.properties.vendorID);
+		ctx.deviceLimits = deviceProperties.properties.limits;
+		ctx.subgroupProperties = subgroupProperties;
+		currentDeviceProperties = deviceProperties.properties;
 	}
 
 	if (ctx.physDevice == VK_NULL_HANDLE)
@@ -628,11 +640,6 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		return false;
 	};
 
-	const bool hasDedicatedAllocation = OptionalExtensionAvailable(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME) &&
-	                                    OptionalExtensionAvailable(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME) &&
-	                                    !renderdoc::IsPresent();
-	const bool hasBindMemory2 = OptionalExtensionAvailable(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME);
-
 	VkDeviceCreateInfo deviceCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.queueCreateInfoCount = 1,
@@ -646,34 +653,39 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
 		.extendedDynamicState = VK_TRUE,
 	};
-	deviceCreateInfo.pNext = &extendedDynamicStateEnabledFeatures;
+	PushPNext(deviceCreateInfo, extendedDynamicStateEnabledFeatures);
 
-	VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dynamicState3EnabledFeatures = {
-		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
-	};
+	// ** Queries physical device features using VkPhysicalDeviceFeatures2
+
+	VkPhysicalDeviceFeatures2 physDeviceFeatures2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
 
 	// Checks for support for extended dynamic state 3
-	if (OptionalExtensionAvailable(VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME) &&
-	    OptionalExtensionAvailable(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME))
+	const bool hasDynamicState3Extension = OptionalExtensionAvailable(VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME);
+	VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dynamicState3Features = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
+	};
+	if (hasDynamicState3Extension)
+		PushPNext(physDeviceFeatures2, dynamicState3Features);
+
+	vkGetPhysicalDeviceFeatures2(ctx.physDevice, &physDeviceFeatures2);
+
+	// Enables support for dynamic state from extended dynamic state 3
+	VkPhysicalDeviceExtendedDynamicState3FeaturesEXT extendedDynamicState3EnabledFeatures = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
+	};
+	if (hasDynamicState3Extension)
 	{
-		VkPhysicalDeviceExtendedDynamicState3FeaturesEXT dynamicState3Features = {
-			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT
-		};
-
-		VkPhysicalDeviceFeatures2KHR physDeviceFeatures2 = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
-			.pNext = &dynamicState3Features,
-		};
-		vkGetPhysicalDeviceFeatures2KHR(ctx.physDevice, &physDeviceFeatures2);
-
-		extendedDynamicStateEnabledFeatures.pNext = &dynamicState3EnabledFeatures;
-
 		if (dynamicState3Features.extendedDynamicState3PolygonMode)
 		{
-			dynamicState3EnabledFeatures.extendedDynamicState3PolygonMode = true;
+			extendedDynamicState3EnabledFeatures.extendedDynamicState3PolygonMode = true;
 			ctx.hasDynamicStatePolygonMode = true;
 		}
+		PushPNext(deviceCreateInfo, extendedDynamicState3EnabledFeatures);
 	}
+
+	ctx.hasPushDescriptorExtension = OptionalExtensionAvailable(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+
+	// ** Creates the device **
 
 	VkResult createDeviceRes = vkCreateDevice(ctx.physDevice, &deviceCreateInfo, nullptr, &ctx.device);
 	if (createDeviceRes != VK_SUCCESS)
@@ -697,10 +709,9 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 	// Creates the main command pool
 	const VkCommandPoolCreateInfo mainCommandPoolCreateInfo = {
-		/* sType            */ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-		/* pNext            */ nullptr,
-		/* flags            */ VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-		/* queueFamilyIndex */ ctx.queueFamily
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+		.queueFamilyIndex = ctx.queueFamily,
 	};
 	CheckRes(vkCreateCommandPool(ctx.device, &mainCommandPoolCreateInfo, nullptr, &ctx.mainCommandPool));
 
@@ -708,41 +719,35 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	if (ctx.hasDebugUtils)
 	{
 		const VkDebugUtilsMessengerCreateInfoEXT messengerCreateInfo = {
-			/* sType           */ VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-			/* pNext           */ nullptr,
-			/* flags           */ 0,
-			/* messageSeverity */ VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
-				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
-			/* messageType     */ VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-				VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
-			/* pfnUserCallback */ DebugCallback,
-			/* pUserData       */ nullptr
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+			.messageSeverity =
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT,
+			.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+			               VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+			               VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT,
+			.pfnUserCallback = DebugCallback,
 		};
 		CheckRes(vkCreateDebugUtilsMessengerEXT(ctx.instance, &messengerCreateInfo, nullptr, &ctx.debugMessenger));
 	}
 
-	VmaVulkanFunctions allocatorVulkanFunctions = {};
-	allocatorVulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-	allocatorVulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+	const VmaVulkanFunctions allocatorVulkanFunctions = {
+		.vkGetInstanceProcAddr = vkGetInstanceProcAddr,
+		.vkGetDeviceProcAddr = vkGetDeviceProcAddr,
+		.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2,
+		.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2,
+		.vkBindBufferMemory2KHR = vkBindBufferMemory2,
+		.vkBindImageMemory2KHR = vkBindImageMemory2,
+	};
 
-	VmaAllocatorCreateInfo allocatorCreateInfo = {};
-	allocatorCreateInfo.physicalDevice = ctx.physDevice;
-	allocatorCreateInfo.device = ctx.device;
-	allocatorCreateInfo.instance = ctx.instance;
-	allocatorCreateInfo.pVulkanFunctions = &allocatorVulkanFunctions;
+	const VmaAllocatorCreateInfo allocatorCreateInfo = {
+		.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT,
+		.physicalDevice = ctx.physDevice,
+		.device = ctx.device,
+		.pVulkanFunctions = &allocatorVulkanFunctions,
+		.instance = ctx.instance,
+		.vulkanApiVersion = VULKAN_API_VERSION,
+	};
 
-	if (hasDedicatedAllocation)
-	{
-		allocatorVulkanFunctions.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2KHR;
-		allocatorVulkanFunctions.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2KHR;
-		allocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
-	}
-	if (hasBindMemory2)
-	{
-		allocatorVulkanFunctions.vkBindBufferMemory2KHR = vkBindBufferMemory2KHR;
-		allocatorVulkanFunctions.vkBindImageMemory2KHR = vkBindImageMemory2KHR;
-		allocatorCreateInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_BIND_MEMORY2_BIT;
-	}
 	CheckRes(vmaCreateAllocator(&allocatorCreateInfo, &ctx.allocator));
 
 	ctx.surfaceFormat = SelectSurfaceFormat(initArguments.defaultFramebufferSRGB);
@@ -763,12 +768,11 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	}
 
 	// Allocates immediate command buffers
-	VkCommandBufferAllocateInfo cmdAllocateInfo = {
-		/* sType              */ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-		/* pNext              */ nullptr,
-		/* commandPool        */ ctx.mainCommandPool,
-		/* level              */ VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-		/* commandBufferCount */ MAX_CONCURRENT_FRAMES
+	const VkCommandBufferAllocateInfo cmdAllocateInfo = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.commandPool = ctx.mainCommandPool,
+		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		.commandBufferCount = MAX_CONCURRENT_FRAMES,
 	};
 	VkCommandBuffer immediateCommandBuffers[MAX_CONCURRENT_FRAMES];
 	CheckRes(vkAllocateCommandBuffers(ctx.device, &cmdAllocateInfo, immediateCommandBuffers));
@@ -783,11 +787,9 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	VulkanCommandContext::currentImmediate = &VulkanCommandContext::immediateContexts[0];
 
 	// Starts the first immediate command buffer
-	static const VkCommandBufferBeginInfo beginInfo = {
-		/* sType            */ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-		/* pNext            */ nullptr,
-		/* flags            */ VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-		/* pInheritanceInfo */ nullptr
+	const VkCommandBufferBeginInfo beginInfo = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 	};
 	vkBeginCommandBuffer(immediateCommandBuffers[0], &beginInfo);
 
@@ -796,25 +798,47 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
-	deviceInfo.uniformBufferOffsetAlignment =
-		UnsignedNarrow<uint32_t>(ctx.deviceLimits.minUniformBufferOffsetAlignment);
-	deviceInfo.storageBufferOffsetAlignment =
-		UnsignedNarrow<uint32_t>(ctx.deviceLimits.minStorageBufferOffsetAlignment);
-	deviceInfo.depthRange = DepthRange::ZeroToOne;
-	deviceInfo.tessellation = ctx.deviceFeatures.tessellationShader;
-	deviceInfo.geometryShader = ctx.deviceFeatures.geometryShader;
-	deviceInfo.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize;
-	deviceInfo.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0;
-	deviceInfo.maxMSAA = ctx.deviceLimits.sampledImageColorSampleCounts;
-	deviceInfo.computeShader = true;
-	deviceInfo.textureCubeMapArray = ctx.deviceFeatures.imageCubeArray;
-	deviceInfo.blockTextureCompression = ctx.deviceFeatures.textureCompressionBC;
-	deviceInfo.timerTicksPerNS = ctx.deviceLimits.timestampPeriod;
-	deviceInfo.concurrentResourceCreation = true;
-	deviceInfo.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations;
-	deviceInfo.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations;
-	deviceInfo.deviceName = ctx.deviceName;
-	deviceInfo.deviceVendorName = ctx.deviceVendorName;
+	DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO |
+	                              DeviceFeatureFlags::ConcurrentResourceCreation |
+	                              DeviceFeatureFlags::PartialTextureViews | DeviceFeatureFlags::DeferredContext;
+
+	if (ctx.deviceFeatures.tessellationShader)
+		features |= DeviceFeatureFlags::TessellationShader;
+	if (ctx.deviceFeatures.geometryShader)
+		features |= DeviceFeatureFlags::GeometryShader;
+	if (ctx.deviceFeatures.imageCubeArray)
+		features |= DeviceFeatureFlags::TextureCubeMapArray;
+	if (ctx.deviceFeatures.textureCompressionBC)
+		features |= DeviceFeatureFlags::TextureCompressionBC;
+	if (ctx.deviceFeatures.textureCompressionASTC_LDR)
+		features |= DeviceFeatureFlags::TextureCompressionASTC;
+	if (ctx.hasPushDescriptorExtension)
+		features |= DeviceFeatureFlags::DynamicResourceBind;
+
+	// Adds features for subgroup operations. This relies on the flags having the same order in DeviceFeatureFlags as in
+	// VkSubgroupFeatureFlags.
+	static_assert(
+		(VK_SUBGROUP_FEATURE_BASIC_BIT << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
+		static_cast<uint32_t>(DeviceFeatureFlags::SubgroupBasic));
+	static_assert(
+		(VK_SUBGROUP_FEATURE_QUAD_BIT << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
+		static_cast<uint32_t>(DeviceFeatureFlags::SubgroupQuad));
+	features |= SubgroupOperationFlagsFromGlVk(ctx.subgroupProperties.supportedOperations);
+
+	deviceInfo = GraphicsDeviceInfo{
+		.uniformBufferOffsetAlignment = UnsignedNarrow<uint32_t>(ctx.deviceLimits.minUniformBufferOffsetAlignment),
+		.storageBufferOffsetAlignment = UnsignedNarrow<uint32_t>(ctx.deviceLimits.minStorageBufferOffsetAlignment),
+		.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize,
+		.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0,
+		.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations,
+		.subgroupSize = ctx.subgroupProperties.subgroupSize,
+		.depthRange = DepthRange::ZeroToOne,
+		.features = features,
+		.timerTicksPerNS = ctx.deviceLimits.timestampPeriod,
+		.deviceName = ctx.deviceName,
+		.deviceVendorName = ctx.deviceVendorName,
+	};
+
 	std::copy_n(ctx.deviceLimits.maxComputeWorkGroupCount, 3, deviceInfo.maxComputeWorkGroupCount);
 	std::copy_n(ctx.deviceLimits.maxComputeWorkGroupSize, 3, deviceInfo.maxComputeWorkGroupSize);
 }
@@ -973,8 +997,8 @@ void MaybeAcquireSwapchainImage()
 
 void GetDrawableSize(int& width, int& height)
 {
-	width = ctx.surfaceExtent.width;
-	height = ctx.surfaceExtent.height;
+	width = ToInt(ctx.surfaceExtent.width);
+	height = ToInt(ctx.surfaceExtent.height);
 }
 
 void BeginFrame()

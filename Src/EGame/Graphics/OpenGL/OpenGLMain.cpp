@@ -1,4 +1,5 @@
 #include "../../Alloc/ObjectPool.hpp"
+#include "EGame/Graphics/Abstraction.hpp"
 #include "Framebuffer.hpp"
 #include "OpenGL.hpp"
 #include "PipelineGraphics.hpp"
@@ -83,14 +84,14 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
-	deviceInfo.uniformBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT));
-	deviceInfo.geometryShader = true;
-	deviceInfo.concurrentResourceCreation = false;
-	deviceInfo.depthRange = depthRange;
-	deviceInfo.timerTicksPerNS = 1.0f;
-	deviceInfo.deviceName = rendererName;
-	deviceInfo.deviceVendorName = vendorName;
-	deviceInfo.maxMSAA = ToUnsigned(GetIntegerLimit(GL_MAX_SAMPLES));
+	deviceInfo = GraphicsDeviceInfo{
+		.uniformBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT)),
+		.depthRange = depthRange,
+		.features = DeviceFeatureFlags::GeometryShader | DeviceFeatureFlags::DynamicResourceBind,
+		.timerTicksPerNS = 1.0f,
+		.deviceName = rendererName,
+		.deviceVendorName = vendorName,
+	};
 
 	PlatformSpecificGetDeviceInfo(deviceInfo);
 }

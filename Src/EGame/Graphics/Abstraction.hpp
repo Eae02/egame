@@ -707,26 +707,55 @@ enum class DepthRange
 	ZeroToOne
 };
 
+enum class DeviceFeatureFlags
+{
+	ComputeShaderAndSSBO = 1 << 0,
+	GeometryShader = 1 << 1,
+	TessellationShader = 1 << 2,
+	PartialTextureViews = 1 << 3,
+	TextureCubeMapArray = 1 << 4,
+	TextureCompressionBC = 1 << 5,
+	TextureCompressionASTC = 1 << 6,
+	ConcurrentResourceCreation = 1 << 7,
+	DynamicResourceBind = 1 << 8,
+	DeferredContext = 1 << 9,
+
+	// Subgroup flags must have the same order as in VkSubgroupFeatureFlags
+	SubgroupBasic = 1 << 10,
+	SubgroupVote = 1 << 11,
+	SubgroupArithmetic = 1 << 12,
+	SubgroupBallot = 1 << 13,
+	SubgroupShuffle = 1 << 14,
+	SubgroupShuffleRelative = 1 << 15,
+	SubgroupClustered = 1 << 16,
+	SubgroupQuad = 1 << 17,
+};
+
+constexpr uint32_t DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT = 10;
+static_assert(
+	static_cast<DeviceFeatureFlags>(1 << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) == DeviceFeatureFlags::SubgroupBasic);
+
+inline DeviceFeatureFlags SubgroupOperationFlagsFromGlVk(uint32_t ops)
+{
+	constexpr uint32_t MASK = 0xFF;
+	return static_cast<DeviceFeatureFlags>((ops & MASK) << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT);
+}
+
+EG_BIT_FIELD(DeviceFeatureFlags)
+
 struct GraphicsDeviceInfo
 {
 	uint32_t uniformBufferOffsetAlignment;
 	uint32_t storageBufferOffsetAlignment;
 	uint32_t maxTessellationPatchSize;
 	uint32_t maxClipDistances;
-	uint32_t maxMSAA;
 	uint32_t maxComputeWorkGroupSize[3];
 	uint32_t maxComputeWorkGroupCount[3];
 	uint32_t maxComputeWorkGroupInvocations;
+	uint32_t subgroupSize;
 	DepthRange depthRange;
-	bool geometryShader;
-	bool computeShader;
-	bool tessellation;
-	bool persistentMappedBuffers;
-	bool partialTextureViews;
-	bool textureCubeMapArray;
-	bool blockTextureCompression;
+	DeviceFeatureFlags features;
 	float timerTicksPerNS;
-	bool concurrentResourceCreation;
 
 	std::string_view deviceName;
 	std::string_view deviceVendorName;
@@ -749,11 +778,17 @@ struct GraphicsAPIInitArguments
 namespace detail
 {
 EG_API extern GraphicsAPI graphicsAPI;
-}
+EG_API extern std::string_view graphicsAPIName;
+} // namespace detail
 
 inline GraphicsAPI CurrentGraphicsAPI()
 {
 	return detail::graphicsAPI;
+}
+
+inline std::string_view CurrentGraphicsAPIName()
+{
+	return detail::graphicsAPIName;
 }
 
 bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments);

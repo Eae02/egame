@@ -1,6 +1,7 @@
 #include "ParticleManager.hpp"
 #include "../../Assert.hpp"
 #include "../../SIMD.hpp"
+#include "EGame/Graphics/Abstraction.hpp"
 #include "ParticleEmitterInstance.hpp"
 
 #include <algorithm>
@@ -317,7 +318,7 @@ void ParticleManager::SimulateOneStep()
 
 		if (uploadBufferIdx == m_particleUploadBuffers.size())
 		{
-			if (!GetGraphicsDeviceInfo().concurrentResourceCreation)
+			if (!HasFlag(GetGraphicsDeviceInfo().features, DeviceFeatureFlags::ConcurrentResourceCreation))
 			{
 				m_missingUploadBuffers =
 					(m_particleInstances.size() - i + PARTICLES_PER_UPLOAD_BUFFER - 1) / PARTICLES_PER_UPLOAD_BUFFER;

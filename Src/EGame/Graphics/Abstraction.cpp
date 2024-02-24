@@ -51,10 +51,23 @@ GraphicsMemoryStat (*GetMemoryStat)();
 } // namespace gal
 
 GraphicsAPI detail::graphicsAPI;
+std::string_view detail::graphicsAPIName;
 
 bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments)
 {
 	detail::graphicsAPI = api;
+
+	switch (api)
+	{
+	case GraphicsAPI::OpenGL:
+		if (initArguments.preferGLESPath)
+			detail::graphicsAPIName = "GLES3";
+		else
+			detail::graphicsAPIName = "GL4";
+		break;
+	case GraphicsAPI::Vulkan: detail::graphicsAPIName = "Vulkan"; break;
+	case GraphicsAPI::Metal: detail::graphicsAPIName = "Metal"; break;
+	}
 
 	switch (api)
 	{

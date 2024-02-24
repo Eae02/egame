@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vulkan/vulkan_core.h>
 #ifndef EG_NO_VULKAN
 
 #include "../../Log.hpp"
@@ -54,6 +55,8 @@ private:
 struct Context
 {
 	bool hasDebugUtils;
+	bool hasPushDescriptorExtension;
+
 	VkInstance instance;
 	VkSurfaceKHR surface;
 
@@ -64,6 +67,7 @@ struct Context
 	VkPhysicalDeviceLimits deviceLimits;
 	VkPhysicalDeviceFeatures deviceFeatures;
 	VkPhysicalDevice physDevice;
+	VkPhysicalDeviceSubgroupProperties subgroupProperties;
 	bool hasDynamicStatePolygonMode = false;
 	std::string deviceName;
 	std::string_view deviceVendorName;
@@ -101,6 +105,13 @@ struct Context
 };
 
 extern Context ctx;
+
+template <typename Root, typename Ext>
+inline void PushPNext(Root& root, Ext& ext)
+{
+	ext.pNext = const_cast<void*>(root.pNext);
+	root.pNext = &ext;
+}
 
 inline bool HasStencil(VkFormat format)
 {

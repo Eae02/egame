@@ -39,12 +39,12 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT messageType,
 	const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void*)
 {
-	std::string_view messageIdName = callbackData->pMessageIdName;
-	if (messageIdName.contains("CoreValidation-DrawState-InvalidCommandBuffer-VkDescriptorSet"))
+	const char* messageIdName = callbackData->pMessageIdName;
+	if (std::strstr(messageIdName, "CoreValidation-DrawState-InvalidCommandBuffer-VkDescriptorSet"))
 		return VK_FALSE;
-	if (messageIdName.contains("CoreValidation-Shader-OutputNotConsumed"))
+	if (std::strstr(messageIdName, "CoreValidation-Shader-OutputNotConsumed"))
 		return VK_FALSE;
-	if (messageIdName.contains("vkDestroyDevice"))
+	if (std::strstr(messageIdName, "vkDestroyDevice"))
 		return VK_FALSE;
 
 	std::cerr << "Vk[" << callbackData->messageIdNumber << " " << callbackData->pMessageIdName << "]: \n"

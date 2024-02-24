@@ -1,6 +1,7 @@
 #include "ConsoleCommands.hpp"
 #include "Console.hpp"
 #include "Core.hpp"
+#include "EGame/Graphics/Abstraction.hpp"
 #include "Graphics/Model.hpp"
 #include "Platform/Debug.hpp"
 #include "Profiling/ProfilerPane.hpp"
@@ -176,10 +177,44 @@ void RegisterConsoleCommands()
 		"gpuinfo", 0,
 		[&](std::span<const std::string_view> args, console::Writer& writer)
 		{
-			writer.Write(console::InfoColor, "GPU Name:   ");
-			writer.WriteLine(console::InfoColorSpecial, GetGraphicsDeviceInfo().deviceName);
-			writer.Write(console::InfoColor, "GPU Vendor: ");
-			writer.WriteLine(console::InfoColorSpecial, GetGraphicsDeviceInfo().deviceVendorName);
+			std::string subgroupSize = std::to_string(GetGraphicsDeviceInfo().subgroupSize);
+
+			std::vector<std::pair<std::string_view, std::string_view>> lines;
+			lines.emplace_back("API", CurrentGraphicsAPIName());
+			lines.emplace_back("Device", GetGraphicsDeviceInfo().deviceName);
+			lines.emplace_back("Vendor", GetGraphicsDeviceInfo().deviceVendorName);
+			lines.emplace_back("SubgroupSize", subgroupSize);
+
+			static const std::pair<DeviceFeatureFlags, std::string_view> featureFlags[] = {
+				{ DeviceFeatureFlags::GeometryShader, "GeometryShader" },
+				{ DeviceFeatureFlags::TessellationShader, "TessellationShader" },
+				{ DeviceFeatureFlags::PartialTextureViews, "PartialTextureViews" },
+				{ DeviceFeatureFlags::TextureCubeMapArray, "TextureCubeMapArray" },
+				{ DeviceFeatureFlags::TextureCompressionBC, "TextureCompressionBC" },
+				{ DeviceFeatureFlags::TextureCompressionASTC, "TextureCompressionASTC" },
+				{ DeviceFeatureFlags::DynamicResourceBind, "DynamicResourceBind" },
+				{ DeviceFeatureFlags::SubgroupBasic, "SubgroupBasic" },
+				{ DeviceFeatureFlags::SubgroupVote, "SubgroupVote" },
+				{ DeviceFeatureFlags::SubgroupArithmetic, "SubgroupArithmetic" },
+				{ DeviceFeatureFlags::SubgroupBallot, "SubgroupBallot" },
+				{ DeviceFeatureFlags::SubgroupShuffle, "SubgroupShuffle" },
+				{ DeviceFeatureFlags::SubgroupShuffleRelative, "SubgroupShuffleRelative" },
+				{ DeviceFeatureFlags::SubgroupClustered, "SubgroupClustered" },
+				{ DeviceFeatureFlags::SubgroupQuad, "SubgroupQuad" },
+			};
+
+			for (auto [flag, flagName] : featureFlags)
+			{
+				std::string_view supported = (HasFlag(GetGraphicsDeviceInfo().features, flag)) ? "Yes" : "No";
+				lines.emplace_back(flagName, supported);
+			}
+
+			for (auto [label, value] : lines)
+			{
+				writer.Write(console::InfoColor, label);
+				writer.Write(console::InfoColor, ": ");
+				writer.WriteLine(console::InfoColorSpecial, value);
+			}
 		});
 }
 } // namespace eg::detail
