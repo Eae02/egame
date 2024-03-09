@@ -16,6 +16,7 @@ public:
 
 	ReferencedResourceSet referencedResources;
 
+	VkCommandPool commandPool;
 	VkCommandBuffer cb;
 
 	float viewportX;

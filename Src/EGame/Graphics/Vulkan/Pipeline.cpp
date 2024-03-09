@@ -74,17 +74,26 @@ void InitShaderStageCreateInfo(
 
 	if (!stageInfo.specConstants.empty())
 	{
+		auto specConstantsData = linAllocator.AllocateSpan<uint32_t>(stageInfo.specConstants.size());
+		auto mapEntries = linAllocator.AllocateSpan<VkSpecializationMapEntry>(stageInfo.specConstants.size());
+		for (size_t i = 0; i < stageInfo.specConstants.size(); i++)
+		{
+			std::visit(
+				[&](auto value) { specConstantsData[i] = std::bit_cast<uint32_t>(value); },
+				stageInfo.specConstants[i].value);
+
+			mapEntries[i] = VkSpecializationMapEntry{
+				.constantID = stageInfo.specConstants[i].constantID,
+				.offset = static_cast<uint32_t>(i * sizeof(uint32_t)),
+				.size = sizeof(uint32_t),
+			};
+		}
+
 		VkSpecializationInfo* specInfo = linAllocator.New<VkSpecializationInfo>();
-		specInfo->dataSize = stageInfo.specConstantsDataSize;
+		specInfo->dataSize = specConstantsData.size_bytes();
+		specInfo->pData = specConstantsData.data();
 		specInfo->mapEntryCount = UnsignedNarrow<uint32_t>(stageInfo.specConstants.size());
-
-		void* specConstantsData = linAllocator.Allocate(stageInfo.specConstantsDataSize);
-		specInfo->pData = specConstantsData;
-		std::memcpy(specConstantsData, stageInfo.specConstantsData, stageInfo.specConstantsDataSize);
-
-		auto* mapEntries = linAllocator.AllocateArray<VkSpecializationMapEntry>(stageInfo.specConstants.size());
-		specInfo->pMapEntries = mapEntries;
-		std::memcpy(mapEntries, stageInfo.specConstants.data(), stageInfo.specConstants.size_bytes());
+		specInfo->pMapEntries = mapEntries.data();
 
 		createInfo.pSpecializationInfo = specInfo;
 	}

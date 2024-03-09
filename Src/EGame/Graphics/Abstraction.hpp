@@ -19,6 +19,8 @@ namespace eg
 constexpr uint32_t MAX_VERTEX_ATTRIBUTES = 32;
 constexpr uint32_t MAX_VERTEX_BINDINGS = 16;
 
+constexpr uint64_t BIND_BUFFER_OFFSET_DYNAMIC = UINT64_MAX;
+
 typedef struct _Buffer* BufferHandle;
 typedef struct _Texture* TextureHandle;
 typedef struct _TextureView* TextureViewHandle;
@@ -29,6 +31,7 @@ typedef struct _Pipeline* PipelineHandle;
 typedef struct _CommandContext* CommandContextHandle;
 typedef struct _DescriptorSet* DescriptorSetHandle;
 typedef struct _QueryPool* QueryPoolHandle;
+typedef struct _Fence* FenceHandle;
 
 enum class QueryType
 {
@@ -62,18 +65,19 @@ EG_BIT_FIELD(ShaderAccessFlags)
 enum class BufferFlags
 {
 	None = 0,
-	HostAllocate = 1,   // Allocate the buffer in host memory, if not included the buffer is allocated in device memory.
-	ManualBarrier = 2,  // Barriers will be inserted manually (also disables automatic barriers).
-	MapWrite = 4,       // The buffer can be mapped for writing.
-	MapRead = 8,        // The buffer can be mapped for reading.
-	Download = 16,      // The buffer can be used to download data from the GPU.
-	Update = 32,        // The buffer can be updated.
-	CopySrc = 64,       // Allows copy operations from the buffer to other buffers and textures.
-	CopyDst = 128,      // Allows copy operations to the buffer from other buffers.
-	VertexBuffer = 256, // The buffer can be used as a vertex buffer.
-	IndexBuffer = 512,  // The buffer can be used as an index buffer.
-	UniformBuffer = 1024, // The buffer can be used as a uniform buffer.
-	StorageBuffer = 2048  // The buffer can be used as a shader storage buffer.
+	HostAllocate = 1 << 0,      // Allocate the buffer in host memory instead of device memory.
+	ManualBarrier = 1 << 1,     // Barriers will be inserted manually (also disables automatic barriers).
+	MapWrite = 1 << 2,          // The buffer can be mapped for writing.
+	MapRead = 1 << 3,           // The buffer can be mapped for reading.
+	Download = 1 << 4,          // The buffer can be used to download data from the GPU.
+	Update = 1 << 5,            // The buffer can be updated.
+	CopySrc = 1 << 6,           // Allows copy operations from the buffer to other buffers and textures.
+	CopyDst = 1 << 7,           // Allows copy operations to the buffer from other buffers.
+	VertexBuffer = 1 << 8,      // The buffer can be used as a vertex buffer.
+	IndexBuffer = 1 << 9,       // The buffer can be used as an index buffer.
+	UniformBuffer = 1 << 10,    // The buffer can be used as a uniform buffer.
+	StorageBuffer = 1 << 11,    // The buffer can be used as a shader storage buffer.
+	IndirectCommands = 1 << 12, // The buffer can be used for arguments to indirect draw / dispatch
 };
 
 EG_BIT_FIELD(BufferFlags)
@@ -89,7 +93,8 @@ enum class BufferUsage
 	StorageBufferRead,
 	StorageBufferWrite,
 	StorageBufferReadWrite,
-	HostRead
+	HostRead,
+	IndirectCommandRead,
 };
 
 struct BufferBarrier
@@ -98,8 +103,8 @@ struct BufferBarrier
 	BufferUsage newUsage;
 	ShaderAccessFlags oldAccess = ShaderAccessFlags::None;
 	ShaderAccessFlags newAccess = ShaderAccessFlags::None;
-	uint64_t offset;
-	uint64_t range;
+	uint64_t offset = 0;
+	std::optional<uint64_t> range;
 };
 
 struct BufferCreateInfo
@@ -278,19 +283,13 @@ enum class BindMode : uint8_t
 struct SpecializationConstantEntry
 {
 	uint32_t constantID;
-	uint32_t offset;
-	size_t size;
+	std::variant<uint32_t, int32_t, float> value;
 };
 
 struct ShaderStageInfo
 {
-	ShaderModuleHandle shaderModule;
-
+	ShaderModuleHandle shaderModule = nullptr;
 	std::span<const SpecializationConstantEntry> specConstants;
-	size_t specConstantsDataSize = 0;
-	void* specConstantsData = nullptr;
-
-	ShaderStageInfo(ShaderModuleHandle _shaderModule = nullptr) : shaderModule(_shaderModule) {}
 };
 
 enum class StencilOp
@@ -340,9 +339,16 @@ enum class BindingType
 {
 	UniformBuffer,
 	StorageBuffer,
+	UniformBufferDynamicOffset,
+	StorageBufferDynamicOffset,
 	Texture,
 	StorageImage
 };
+
+inline bool BindingTypeHasDynamicOffset(BindingType type)
+{
+	return type == BindingType::StorageBufferDynamicOffset || type == BindingType::UniformBufferDynamicOffset;
+}
 
 std::string_view BindingTypeToString(BindingType bindingType);
 
@@ -447,7 +453,35 @@ struct ComputePipelineCreateInfo
 {
 	ShaderStageInfo computeShader;
 	BindMode setBindModes[MAX_DESCRIPTOR_SETS] = {};
+	bool allowVaryingSubgroupSize = false;
+	bool requireFullSubgroups = false;
+	std::optional<uint32_t> requiredSubgroupSize;
 	const char* label = nullptr;
+};
+
+enum class Queue
+{
+	Main,
+	ComputeOnly,
+};
+
+enum class CommandContextBeginFlags
+{
+	OneTimeSubmit = 0x1,
+	SimultaneousUse = 0x2,
+};
+EG_BIT_FIELD(CommandContextBeginFlags);
+
+struct CommandContextSubmitArgs
+{
+	FenceHandle fence;
+};
+
+enum class FenceStatus
+{
+	Signaled,
+	Timeout,
+	Error,
 };
 
 enum class WrapMode
@@ -719,29 +753,33 @@ enum class DeviceFeatureFlags
 	ConcurrentResourceCreation = 1 << 7,
 	DynamicResourceBind = 1 << 8,
 	DeferredContext = 1 << 9,
-
-	// Subgroup flags must have the same order as in VkSubgroupFeatureFlags
-	SubgroupBasic = 1 << 10,
-	SubgroupVote = 1 << 11,
-	SubgroupArithmetic = 1 << 12,
-	SubgroupBallot = 1 << 13,
-	SubgroupShuffle = 1 << 14,
-	SubgroupShuffleRelative = 1 << 15,
-	SubgroupClustered = 1 << 16,
-	SubgroupQuad = 1 << 17,
 };
 
-constexpr uint32_t DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT = 10;
-static_assert(
-	static_cast<DeviceFeatureFlags>(1 << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) == DeviceFeatureFlags::SubgroupBasic);
-
-inline DeviceFeatureFlags SubgroupOperationFlagsFromGlVk(uint32_t ops)
-{
-	constexpr uint32_t MASK = 0xFF;
-	return static_cast<DeviceFeatureFlags>((ops & MASK) << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT);
-}
-
 EG_BIT_FIELD(DeviceFeatureFlags)
+
+enum class SubgroupFeatureFlags
+{
+	// Subgroup flags must have the same values as in VkSubgroupFeatureFlags
+	SubgroupBasic = 1 << 0,
+	SubgroupVote = 1 << 1,
+	SubgroupArithmetic = 1 << 2,
+	SubgroupBallot = 1 << 3,
+	SubgroupShuffle = 1 << 4,
+	SubgroupShuffleRelative = 1 << 5,
+	SubgroupClustered = 1 << 6,
+	SubgroupQuad = 1 << 7,
+};
+
+struct SubgroupFeatures
+{
+	uint32_t minSubgroupSize;
+	uint32_t maxSubgroupSize;
+	uint32_t maxWorkgroupSubgroups;
+	bool supportsRequireFullSubgroups;
+	bool supportsRequiredSubgroupSize;
+	bool subgroupUniformControlFlow;
+	SubgroupFeatureFlags featureFlags;
+};
 
 struct GraphicsDeviceInfo
 {
@@ -752,7 +790,7 @@ struct GraphicsDeviceInfo
 	uint32_t maxComputeWorkGroupSize[3];
 	uint32_t maxComputeWorkGroupCount[3];
 	uint32_t maxComputeWorkGroupInvocations;
-	uint32_t subgroupSize;
+	std::optional<SubgroupFeatures> subgroupFeatures;
 	DepthRange depthRange;
 	DeviceFeatureFlags features;
 	float timerTicksPerNS;

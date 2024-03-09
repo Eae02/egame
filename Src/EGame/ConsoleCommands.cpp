@@ -177,13 +177,19 @@ void RegisterConsoleCommands()
 		"gpuinfo", 0,
 		[&](std::span<const std::string_view> args, console::Writer& writer)
 		{
-			std::string subgroupSize = std::to_string(GetGraphicsDeviceInfo().subgroupSize);
-
 			std::vector<std::pair<std::string_view, std::string_view>> lines;
 			lines.emplace_back("API", CurrentGraphicsAPIName());
 			lines.emplace_back("Device", GetGraphicsDeviceInfo().deviceName);
 			lines.emplace_back("Vendor", GetGraphicsDeviceInfo().deviceVendorName);
-			lines.emplace_back("SubgroupSize", subgroupSize);
+
+			char subgroupSizeValue[40];
+			if (const auto& subgroupFeatures = GetGraphicsDeviceInfo().subgroupFeatures)
+			{
+				snprintf(
+					subgroupSizeValue, sizeof(subgroupSizeValue), "%u-%u", subgroupFeatures->minSubgroupSize,
+					subgroupFeatures->maxSubgroupSize);
+				lines.emplace_back("SubgroupSize", subgroupSizeValue);
+			}
 
 			static const std::pair<DeviceFeatureFlags, std::string_view> featureFlags[] = {
 				{ DeviceFeatureFlags::GeometryShader, "GeometryShader" },
@@ -193,14 +199,6 @@ void RegisterConsoleCommands()
 				{ DeviceFeatureFlags::TextureCompressionBC, "TextureCompressionBC" },
 				{ DeviceFeatureFlags::TextureCompressionASTC, "TextureCompressionASTC" },
 				{ DeviceFeatureFlags::DynamicResourceBind, "DynamicResourceBind" },
-				{ DeviceFeatureFlags::SubgroupBasic, "SubgroupBasic" },
-				{ DeviceFeatureFlags::SubgroupVote, "SubgroupVote" },
-				{ DeviceFeatureFlags::SubgroupArithmetic, "SubgroupArithmetic" },
-				{ DeviceFeatureFlags::SubgroupBallot, "SubgroupBallot" },
-				{ DeviceFeatureFlags::SubgroupShuffle, "SubgroupShuffle" },
-				{ DeviceFeatureFlags::SubgroupShuffleRelative, "SubgroupShuffleRelative" },
-				{ DeviceFeatureFlags::SubgroupClustered, "SubgroupClustered" },
-				{ DeviceFeatureFlags::SubgroupQuad, "SubgroupQuad" },
 			};
 
 			for (auto [flag, flagName] : featureFlags)

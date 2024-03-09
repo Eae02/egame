@@ -38,8 +38,8 @@ void InitGizmoPipeline()
 		ShaderModule(ShaderStage::Fragment, { reinterpret_cast<const char*>(Gizmo_fs_glsl), sizeof(Gizmo_fs_glsl) });
 
 	GraphicsPipelineCreateInfo pipelineCI;
-	pipelineCI.vertexShader = gizmoVertexShader.Handle();
-	pipelineCI.fragmentShader = gizmoFragmentShader.Handle();
+	pipelineCI.vertexShader = { .shaderModule = gizmoVertexShader.Handle() };
+	pipelineCI.fragmentShader = { .shaderModule = gizmoFragmentShader.Handle() };
 	pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };
 

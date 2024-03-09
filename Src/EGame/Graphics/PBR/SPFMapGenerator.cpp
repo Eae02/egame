@@ -8,7 +8,7 @@ SPFMapGenerator::SPFMapGenerator()
 	eg::ShaderModule shaderModule(ShaderStage::Compute, SPFMapGenerator_cs_glsl);
 
 	eg::ComputePipelineCreateInfo pipelineCI;
-	pipelineCI.computeShader = shaderModule.Handle();
+	pipelineCI.computeShader.shaderModule = shaderModule.Handle();
 	m_pipeline = Pipeline::Create(pipelineCI);
 }
 

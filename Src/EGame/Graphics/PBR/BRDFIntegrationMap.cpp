@@ -20,7 +20,7 @@ BRDFIntegrationMap::BRDFIntegrationMap(uint32_t resolution)
 
 	ShaderModule shader(ShaderStage::Compute, BRDFIntegration_cs_glsl);
 	ComputePipelineCreateInfo pipelineCI;
-	pipelineCI.computeShader = shader.Handle();
+	pipelineCI.computeShader.shaderModule = shader.Handle();
 	Pipeline pipeline = Pipeline::Create(pipelineCI);
 
 	m_texture.UsageHint(TextureUsage::ILSWrite, ShaderAccessFlags::Compute);

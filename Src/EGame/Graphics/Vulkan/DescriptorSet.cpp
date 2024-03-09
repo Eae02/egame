@@ -1,3 +1,4 @@
+#include <vulkan/vulkan_core.h>
 #ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
@@ -143,59 +144,58 @@ void BindStorageImageDS(TextureViewHandle textureViewHandle, DescriptorSetHandle
 	vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
 }
 
-void BindUniformBufferDS(
-	BufferHandle bufferHandle, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
+void BindBufferDS(
+	BufferHandle bufferHandle, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range, VkDescriptorType descriptorTypeIfNotDynamic)
 {
 	DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
 
 	ds->AssignResource(binding, buffer);
 
+	bool isDynamic = offset == BIND_BUFFER_OFFSET_DYNAMIC;
+	if (isDynamic)
+		offset = 0;
+
 	VkDescriptorBufferInfo bufferInfo;
 	bufferInfo.buffer = buffer->buffer;
 	bufferInfo.offset = offset;
-	bufferInfo.range = range;
+	bufferInfo.range = range.value_or(VK_WHOLE_SIZE);
 
 	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	writeDS.descriptorType =
+		static_cast<VkDescriptorType>(static_cast<int>(descriptorTypeIfNotDynamic) + 2 * isDynamic);
 	writeDS.descriptorCount = 1;
 	writeDS.dstSet = ds->descriptorSet;
 	writeDS.dstBinding = binding;
 	writeDS.pBufferInfo = &bufferInfo;
 
 	vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
+}
+
+void BindUniformBufferDS(
+	BufferHandle bufferHandle, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
+{
+	BindBufferDS(bufferHandle, setHandle, binding, offset, range, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 }
 
 void BindStorageBufferDS(
-	BufferHandle bufferHandle, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
+	BufferHandle bufferHandle, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
 {
-	DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
-	Buffer* buffer = UnwrapBuffer(bufferHandle);
-
-	ds->AssignResource(binding, buffer);
-
-	VkDescriptorBufferInfo bufferInfo;
-	bufferInfo.buffer = buffer->buffer;
-	bufferInfo.offset = offset;
-	bufferInfo.range = range;
-
-	VkWriteDescriptorSet writeDS = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-	writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	writeDS.descriptorCount = 1;
-	writeDS.dstSet = ds->descriptorSet;
-	writeDS.dstBinding = binding;
-	writeDS.pBufferInfo = &bufferInfo;
-
-	vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
+	BindBufferDS(bufferHandle, setHandle, binding, offset, range, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
 }
 
-void BindDescriptorSet(CommandContextHandle cc, uint32_t set, DescriptorSetHandle handle)
+void BindDescriptorSet(
+	CommandContextHandle cc, uint32_t set, DescriptorSetHandle handle, std::span<const uint32_t> dynamicOffsets)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	DescriptorSet* ds = UnwrapDescriptorSet(handle);
 	vcc.referencedResources.Add(*ds);
 	vkCmdBindDescriptorSets(
-		vcc.cb, vcc.pipeline->bindPoint, vcc.pipeline->pipelineLayout, set, 1, &ds->descriptorSet, 0, nullptr);
+		vcc.cb, vcc.pipeline->bindPoint, vcc.pipeline->pipelineLayout, set, 1, &ds->descriptorSet,
+		static_cast<uint32_t>(dynamicOffsets.size()), dynamicOffsets.data());
 }
 } // namespace eg::graphics_api::vk
 

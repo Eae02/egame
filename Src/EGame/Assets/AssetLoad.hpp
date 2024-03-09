@@ -80,6 +80,6 @@ EG_API void RegisterAssetLoader(
 
 namespace detail
 {
-void RegisterAssetLoaders();
+EG_API void RegisterAssetLoaders();
 }
 } // namespace eg

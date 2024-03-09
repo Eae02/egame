@@ -1,8 +1,9 @@
+#include <vulkan/vulkan_core.h>
 #ifndef EG_NO_VULKAN
-#include "Buffer.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
 #include "../Graphics.hpp"
+#include "Buffer.hpp"
 #include "Pipeline.hpp"
 #include "Translation.hpp"
 #include "VulkanCommandContext.hpp"
@@ -81,6 +82,8 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 		vkCreateInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	if (HasFlag(createInfo.flags, BufferFlags::StorageBuffer))
 		vkCreateInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	if (HasFlag(createInfo.flags, BufferFlags::IndirectCommands))
+		vkCreateInfo.usage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 
 	const bool wantsMap =
 		HasFlag(createInfo.flags, BufferFlags::MapWrite) || HasFlag(createInfo.flags, BufferFlags::MapRead);
@@ -187,21 +190,23 @@ void DestroyBuffer(BufferHandle handle)
 	UnwrapBuffer(handle)->UnRef();
 }
 
-void* MapBuffer(BufferHandle handle, uint64_t offset, uint64_t range)
+void* MapBuffer(BufferHandle handle, uint64_t offset, std::optional<uint64_t> _range)
 {
 	return UnwrapBuffer(handle)->mappedMemory + offset;
 }
 
-void FlushBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
+void FlushBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange)
 {
 	Buffer* buffer = UnwrapBuffer(handle);
-	vmaFlushAllocation(ctx.allocator, buffer->allocation, modOffset, modRange);
+	uint64_t size = modRange.value_or(buffer->size - modOffset);
+	vmaFlushAllocation(ctx.allocator, buffer->allocation, modOffset, size);
 }
 
-void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
+void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange)
 {
 	Buffer* buffer = UnwrapBuffer(handle);
-	vmaInvalidateAllocation(ctx.allocator, buffer->allocation, modOffset, modRange);
+	uint64_t size = modRange.value_or(buffer->size - modOffset);
+	vmaInvalidateAllocation(ctx.allocator, buffer->allocation, modOffset, size);
 }
 
 inline VkAccessFlags GetBarrierAccess(BufferUsage usage)
@@ -218,6 +223,7 @@ inline VkAccessFlags GetBarrierAccess(BufferUsage usage)
 	case BufferUsage::StorageBufferWrite: return VK_ACCESS_SHADER_WRITE_BIT;
 	case BufferUsage::StorageBufferReadWrite: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 	case BufferUsage::HostRead: return VK_ACCESS_HOST_READ_BIT;
+	case BufferUsage::IndirectCommandRead: return VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 	}
 	EG_UNREACHABLE
 }
@@ -232,6 +238,7 @@ inline VkPipelineStageFlags GetBarrierStageFlags(BufferUsage usage, ShaderAccess
 	case BufferUsage::VertexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 	case BufferUsage::IndexBuffer: return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 	case BufferUsage::HostRead: return VK_PIPELINE_STAGE_HOST_BIT;
+	case BufferUsage::IndirectCommandRead: return VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
 	case BufferUsage::UniformBuffer:
 	case BufferUsage::StorageBufferRead:
 	case BufferUsage::StorageBufferWrite:
@@ -282,10 +289,10 @@ void BufferBarrier(CommandContextHandle cc, BufferHandle handle, const eg::Buffe
 	Buffer* buffer = UnwrapBuffer(handle);
 	vcc.referencedResources.Add(*buffer);
 
-	VkBufferMemoryBarrier vkBarrier = { VK_STRUCTURE_TYPE_MEMORY_BARRIER };
+	VkBufferMemoryBarrier vkBarrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
 	vkBarrier.buffer = buffer->buffer;
 	vkBarrier.offset = barrier.offset;
-	vkBarrier.size = barrier.range;
+	vkBarrier.size = barrier.range.value_or(VK_WHOLE_SIZE);
 	vkBarrier.srcAccessMask = GetBarrierAccess(barrier.oldUsage);
 	vkBarrier.dstAccessMask = GetBarrierAccess(barrier.newUsage);
 	vkBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -296,14 +303,18 @@ void BufferBarrier(CommandContextHandle cc, BufferHandle handle, const eg::Buffe
 		GetBarrierStageFlags(barrier.newUsage, barrier.newAccess), 0, 0, nullptr, 1, &vkBarrier, 0, nullptr);
 }
 
-void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
+void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint8_t data)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(handle);
 	vcc.referencedResources.Add(*buffer);
 
+	// Repeats data 4 times because the vulkan function takes a 32 bit int
+	const uint32_t data16 = static_cast<uint32_t>(data) | (static_cast<uint32_t>(data) << 8);
+	const uint32_t data32 = data16 | (data16 << 16);
+
 	buffer->AutoBarrier(cc, BufferUsage::CopyDst);
-	vkCmdFillBuffer(vcc.cb, buffer->buffer, offset, size, data);
+	vkCmdFillBuffer(vcc.cb, buffer->buffer, offset, size, data32);
 }
 
 void UpdateBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)

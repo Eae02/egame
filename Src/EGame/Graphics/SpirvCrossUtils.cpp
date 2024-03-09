@@ -9,8 +9,6 @@ namespace eg
 {
 void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::Compiler& compiler)
 {
-	const char* dataChar = reinterpret_cast<const char*>(stageInfo.specConstantsData);
-
 	for (spirv_cross::SpecializationConstant& specConst : compiler.get_specialization_constants())
 	{
 		spirv_cross::SPIRConstant& spirConst = compiler.get_constant(specConst.id);
@@ -24,7 +22,8 @@ void SetSpecializationConstants(const ShaderStageInfo& stageInfo, spirv_cross::C
 			{
 				if (specConst.constant_id == entry.constantID)
 				{
-					std::memcpy(spirConst.m.c[0].r, dataChar + entry.offset, entry.size);
+					std::visit(
+						[&](auto value) { std::memcpy(spirConst.m.c[0].r, &value, sizeof(uint32_t)); }, entry.value);
 					break;
 				}
 			}
@@ -117,6 +116,15 @@ void DescriptorSetBindings::AppendFromReflectionInfo(
 			const bool canWrite = !compiler.get_decoration(resource.id, spv::DecorationNonWritable);
 			const bool canRead = !compiler.get_decoration(resource.id, spv::DecorationNonReadable);
 
+			BindingType typeForThisBinding = type;
+			if (resource.name.ends_with("_UseDynamicOffset"))
+			{
+				if (type == BindingType::UniformBuffer)
+					typeForThisBinding = BindingType::UniformBufferDynamicOffset;
+				if (type == BindingType::StorageBuffer)
+					typeForThisBinding = BindingType::StorageBufferDynamicOffset;
+			}
+
 			ReadWriteMode rwMode = ReadWriteMode::ReadWrite;
 			if (canRead && !canWrite)
 				rwMode = ReadWriteMode::ReadOnly;
@@ -126,7 +134,7 @@ void DescriptorSetBindings::AppendFromReflectionInfo(
 			AppendResult result = Append(
 				set, DescriptorSetBinding{
 						 .binding = binding,
-						 .type = type,
+						 .type = typeForThisBinding,
 						 .shaderAccess = accessFlags,
 						 .rwMode = rwMode,
 					 });

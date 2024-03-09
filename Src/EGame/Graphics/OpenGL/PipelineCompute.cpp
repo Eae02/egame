@@ -1,5 +1,6 @@
 #include "../../Alloc/ObjectPool.hpp"
 #include "../SpirvCrossUtils.hpp"
+#include "OpenGLBuffer.hpp"
 #include "Pipeline.hpp"
 
 namespace eg::graphics_api::gl
@@ -60,6 +61,14 @@ void DispatchCompute(CommandContextHandle, uint32_t sizeX, uint32_t sizeY, uint3
 {
 	AssertAllBindingsSatisfied();
 	glDispatchCompute(sizeX, sizeY, sizeZ);
+	ClearBarriers();
+}
+
+void DispatchComputeIndirect(CommandContextHandle cc, BufferHandle argsBuffer, uint64_t argsBufferOffset)
+{
+	AssertAllBindingsSatisfied();
+	glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, UnwrapBuffer(argsBuffer)->buffer);
+	glDispatchComputeIndirect(static_cast<GLintptr>(argsBufferOffset));
 	ClearBarriers();
 }
 #endif

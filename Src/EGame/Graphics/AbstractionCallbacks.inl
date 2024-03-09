@@ -12,18 +12,28 @@ XM_ABSCALLBACK(Shutdown, void, ())
 XM_ABSCALLBACK(SetEnableVSync, void, (bool enableVSync))
 XM_ABSCALLBACK(DeviceWaitIdle, void, ())
 
+XM_ABSCALLBACK(CreateCommandContext, CommandContextHandle, (Queue queue));
+XM_ABSCALLBACK(DestroyCommandContext, void, (CommandContextHandle context));
+XM_ABSCALLBACK(BeginRecordingCommandContext, void, (CommandContextHandle context, CommandContextBeginFlags flags));
+XM_ABSCALLBACK(FinishRecordingCommandContext, void, (CommandContextHandle context));
+XM_ABSCALLBACK(SubmitCommandContext, void, (CommandContextHandle context, const CommandContextSubmitArgs& args));
+
+XM_ABSCALLBACK(CreateFence, FenceHandle, ());
+XM_ABSCALLBACK(DestroyFence, void, (FenceHandle handle));
+XM_ABSCALLBACK(WaitForFence, FenceStatus, (FenceHandle handle, uint64_t timeout));
+
 XM_ABSCALLBACK(CreateBuffer, BufferHandle, (const BufferCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyBuffer, void, (BufferHandle buffer))
 XM_ABSCALLBACK(BufferUsageHint, void, (BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags))
 XM_ABSCALLBACK(BufferBarrier, void, (CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier))
-XM_ABSCALLBACK(MapBuffer, void*, (BufferHandle handle, uint64_t offset, uint64_t range))
-XM_ABSCALLBACK(FlushBuffer, void, (BufferHandle handle, uint64_t modOffset, uint64_t modRange))
-XM_ABSCALLBACK(InvalidateBuffer, void, (BufferHandle handle, uint64_t modOffset, uint64_t modRange))
+XM_ABSCALLBACK(MapBuffer, void*, (BufferHandle handle, uint64_t offset, std::optional<uint64_t> range))
+XM_ABSCALLBACK(FlushBuffer, void, (BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange))
+XM_ABSCALLBACK(InvalidateBuffer, void, (BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange))
 XM_ABSCALLBACK(UpdateBuffer, void, (CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, const void* data))
-XM_ABSCALLBACK(FillBuffer, void, (CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data))
+XM_ABSCALLBACK(FillBuffer, void, (CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, uint8_t data))
 XM_ABSCALLBACK(CopyBuffer, void, (CommandContextHandle, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size))
-XM_ABSCALLBACK(BindUniformBuffer, void, (CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range))
-XM_ABSCALLBACK(BindStorageBuffer, void, (CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range))
+XM_ABSCALLBACK(BindUniformBuffer, void, (CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range))
+XM_ABSCALLBACK(BindStorageBuffer, void, (CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range))
 
 XM_ABSCALLBACK(CreateTexture2D, TextureHandle, (const TextureCreateInfo& createInfo))
 XM_ABSCALLBACK(CreateTexture2DArray, TextureHandle, (const TextureCreateInfo& createInfo))
@@ -48,9 +58,9 @@ XM_ABSCALLBACK(CreateDescriptorSetB, DescriptorSetHandle, (std::span<const Descr
 XM_ABSCALLBACK(DestroyDescriptorSet, void, (DescriptorSetHandle set))
 XM_ABSCALLBACK(BindTextureDS, void, (TextureViewHandle textureView, SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding))
 XM_ABSCALLBACK(BindStorageImageDS, void, (TextureViewHandle textureView, DescriptorSetHandle set, uint32_t binding))
-XM_ABSCALLBACK(BindUniformBufferDS, void, (BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, uint64_t range))
-XM_ABSCALLBACK(BindStorageBufferDS, void, (BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, uint64_t range))
-XM_ABSCALLBACK(BindDescriptorSet, void, (CommandContextHandle ctx, uint32_t set, DescriptorSetHandle handle))
+XM_ABSCALLBACK(BindUniformBufferDS, void, (BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range))
+XM_ABSCALLBACK(BindStorageBufferDS, void, (BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range))
+XM_ABSCALLBACK(BindDescriptorSet, void, (CommandContextHandle ctx, uint32_t set, DescriptorSetHandle handle, std::span<const uint32_t> dynamicOffsets))
 
 XM_ABSCALLBACK(CreateFramebuffer, FramebufferHandle, (const FramebufferCreateInfo& createInfo))
 XM_ABSCALLBACK(DestroyFramebuffer, void, (FramebufferHandle framebuffer))
@@ -65,7 +75,8 @@ XM_ABSCALLBACK(DestroyPipeline, void, (PipelineHandle handle))
 XM_ABSCALLBACK(BindPipeline, void, (CommandContextHandle ctx, PipelineHandle handle))
 XM_ABSCALLBACK(PushConstants, void, (CommandContextHandle ctx, uint32_t offset, uint32_t range, const void* data))
 
-XM_ABSCALLBACK(DispatchCompute, void, (CommandContextHandle ctx, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ))
+XM_ABSCALLBACK(DispatchCompute, void, (CommandContextHandle cc, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ))
+XM_ABSCALLBACK(DispatchComputeIndirect, void, (CommandContextHandle cc, BufferHandle argsBuffer, uint64_t argsBufferOffset))
 
 XM_ABSCALLBACK(SetViewport, void, (CommandContextHandle ctx, float x, float y, float w, float h))
 XM_ABSCALLBACK(SetScissor, void, (CommandContextHandle, int x, int y, int w, int h))

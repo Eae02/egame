@@ -42,28 +42,31 @@ void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlag
 
 void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier) {}
 
-void* MapBuffer(BufferHandle handle, uint64_t offset, uint64_t range)
+void* MapBuffer(BufferHandle handle, uint64_t offset, std::optional<uint64_t> _range)
 {
 	MTL::Buffer* buffer = UnwrapBuffer(handle);
 	return static_cast<char*>(buffer->contents()) + offset;
 }
 
-void FlushBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
+void FlushBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange)
 {
 	MTL::Buffer* buffer = UnwrapBuffer(handle);
-	buffer->didModifyRange(NS::Range::Make(modOffset, modRange));
+	uint64_t size = modRange.value_or(buffer->length() - modOffset);
+	buffer->didModifyRange(NS::Range::Make(modOffset, size));
 }
 
-void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange) {}
+void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange) {}
 
 void UpdateBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 {
 	EG_PANIC("Unimplemented: UpdateBuffer")
 }
 
-void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
+void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint8_t data)
 {
-	EG_PANIC("Unimplemented: FillBuffer")
+	MetalCommandContext& mcc = MetalCommandContext::Unwrap(cc);
+	mcc.FlushComputeCommands();
+	mcc.GetBlitCmdEncoder().fillBuffer(UnwrapBuffer(handle), NS::Range::Make(offset, size), data);
 }
 
 void CopyBuffer(
@@ -95,13 +98,15 @@ static void BindBuffer(CommandContextHandle ctx, BufferHandle handle, uint32_t s
 }
 
 void BindUniformBuffer(
-	CommandContextHandle cc, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t _range)
+	CommandContextHandle cc, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> _range)
 {
 	BindBuffer(cc, handle, set, binding, offset);
 }
 
 void BindStorageBuffer(
-	CommandContextHandle cc, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t _range)
+	CommandContextHandle cc, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> _range)
 {
 	BindBuffer(cc, handle, set, binding, offset);
 }

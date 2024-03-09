@@ -27,8 +27,8 @@ void SpriteBatch::InitStatic()
 	spriteBatchFS = ShaderModule(ShaderStage::Fragment, Sprite_fs_glsl);
 
 	GraphicsPipelineCreateInfo pipelineCI;
-	pipelineCI.vertexShader = spriteBatchVS.Handle();
-	pipelineCI.fragmentShader = spriteBatchFS.Handle();
+	pipelineCI.vertexShader.shaderModule = spriteBatchVS.Handle();
+	pipelineCI.fragmentShader.shaderModule = spriteBatchFS.Handle();
 	pipelineCI.enableScissorTest = true;
 	pipelineCI.blendStates[0] = eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha);
 	pipelineCI.vertexBindings[0] = VertexBinding(sizeof(Vertex), InputRate::Vertex);

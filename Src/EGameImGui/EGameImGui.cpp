@@ -173,8 +173,8 @@ void Initialize(const InitializeArgs& args)
 	fragmentShader = ShaderModule(eg::ShaderStage::Fragment, ImGui_fs_glsl);
 
 	eg::GraphicsPipelineCreateInfo pipelineCI;
-	pipelineCI.vertexShader = vertexShader.Handle();
-	pipelineCI.fragmentShader = fragmentShader.Handle();
+	pipelineCI.vertexShader.shaderModule = vertexShader.Handle();
+	pipelineCI.fragmentShader.shaderModule = fragmentShader.Handle();
 	pipelineCI.label = "imgui";
 	pipelineCI.enableScissorTest = true;
 	pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;

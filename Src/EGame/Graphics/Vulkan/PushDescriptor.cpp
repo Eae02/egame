@@ -6,7 +6,7 @@
 namespace eg::graphics_api::vk
 {
 void BindUniformBuffer(
-	CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+	CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
@@ -19,12 +19,13 @@ void BindUniformBuffer(
 		VkDescriptorBufferInfo{
 			.buffer = buffer->buffer,
 			.offset = offset,
-			.range = range,
+			.range = range.value_or(VK_WHOLE_SIZE),
 		});
 }
 
 void BindStorageBuffer(
-	CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+	CommandContextHandle cc, BufferHandle bufferHandle, uint32_t set, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
@@ -43,7 +44,7 @@ void BindStorageBuffer(
 		VkDescriptorBufferInfo{
 			.buffer = buffer->buffer,
 			.offset = offset,
-			.range = range,
+			.range = range.value_or(VK_WHOLE_SIZE),
 		});
 }
 

@@ -1,7 +1,10 @@
 #include <fstream>
 #include <iostream>
 
+#include "../ANSIColors.hpp"
 #include "../EGame/Alloc/LinearAllocator.hpp"
+#include "../EGame/Assets/Asset.hpp"
+#include "../EGame/Assets/AssetLoad.hpp"
 #include "../EGame/Assets/EAPFile.hpp"
 #include "InfoOutput.hpp"
 #include "ParseArguments.hpp"
@@ -15,6 +18,34 @@ int main(int argc, char** argv)
 	}
 
 	ParsedArguments parsedArguments = ParseArguments(argc, argv);
+
+	if (parsedArguments.updateCache)
+	{
+		eg::LoadAssetGenLibrary();
+		eg::detail::RegisterAssetLoaders();
+		auto assetsInfo = eg::DetectAndGenerateYAMLAssets(parsedArguments.inputFileName);
+		if (assetsInfo.has_value())
+		{
+			for (const eg::YAMLAssetInfo& assetInfo : *assetsInfo)
+			{
+				switch (assetInfo.status)
+				{
+				case eg::YAMLAssetStatus::Cached: break;
+				case eg::YAMLAssetStatus::Generated:
+					std::cout << ANSI_COLOR_CYAN "regenerated asset: " << assetInfo.name << ANSI_COLOR_RESET
+							  << std::endl;
+					break;
+				case eg::YAMLAssetStatus::ErrorGenerate:
+					std::cout << ANSI_COLOR_RED "error generating asset: " << assetInfo.name << ANSI_COLOR_RESET
+							  << std::endl;
+					break;
+				case eg::YAMLAssetStatus::ErrorUnknownExtension:
+				case eg::YAMLAssetStatus::ErrorLoaderNotFound: break;
+				}
+			}
+		}
+		return 0;
+	}
 
 	std::ifstream inStream(std::string(parsedArguments.inputFileName), std::ios::binary);
 	if (!inStream)

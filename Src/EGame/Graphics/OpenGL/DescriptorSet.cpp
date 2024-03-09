@@ -85,32 +85,43 @@ void BindStorageImageDS(TextureViewHandle viewHandle, DescriptorSetHandle setHan
 }
 
 static inline void BindBuffer(
-	BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
+	BufferHandle bufferHandle, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
 {
+	if (offset == BIND_BUFFER_OFFSET_DYNAMIC)
+		offset = 0;
+
 	DescriptorSet* set = UnwrapDescriptorSet(setHandle);
 	set->CheckBinding(binding);
-	UnwrapBuffer(buffer)->AssertRange(offset, range);
-	set->bindings[binding].bufferOrSampler = UnwrapBuffer(buffer)->buffer;
+	Buffer* buffer = UnwrapBuffer(bufferHandle);
+	uint64_t resolvedRange = range.value_or(buffer->size - offset);
+	buffer->AssertRange(offset, resolvedRange);
+	set->bindings[binding].bufferOrSampler = buffer->buffer;
 	set->bindings[binding].offset = static_cast<GLsizeiptr>(offset);
-	set->bindings[binding].range = static_cast<GLsizeiptr>(range);
+	set->bindings[binding].range = static_cast<GLsizeiptr>(resolvedRange);
 	set->bindings[binding].assigned = true;
 }
 
 void BindUniformBufferDS(
-	BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
+	BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
 {
 	BindBuffer(buffer, setHandle, binding, offset, range);
 }
 
 void BindStorageBufferDS(
-	BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset, uint64_t range)
+	BufferHandle buffer, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
 {
 	BindBuffer(buffer, setHandle, binding, offset, range);
 }
 
-void BindDescriptorSet(CommandContextHandle, uint32_t set, DescriptorSetHandle handle)
+void BindDescriptorSet(
+	CommandContextHandle, uint32_t set, DescriptorSetHandle handle, std::span<const uint32_t> dynamicOffsets)
 {
 	DescriptorSet* ds = UnwrapDescriptorSet(handle);
+
+	size_t nextDynamicOffsetIndex = 0;
 
 	size_t curidx = currentPipeline->FindBindingsSetStartIndex(set);
 	while (curidx < currentPipeline->bindings.size() && currentPipeline->bindings[curidx].set == set)
@@ -122,17 +133,26 @@ void BindDescriptorSet(CommandContextHandle, uint32_t set, DescriptorSetHandle h
 		if (!dsBinding.assigned)
 			EG_PANIC("Descriptor set binding not updated before binding descriptor set");
 
+		GLsizeiptr bufferOffset = dsBinding.offset;
+		if (BindingTypeHasDynamicOffset(binding.type))
+		{
+			EG_ASSERT(nextDynamicOffsetIndex < dynamicOffsets.size());
+			bufferOffset += dynamicOffsets[nextDynamicOffsetIndex];
+			nextDynamicOffsetIndex++;
+		}
+
 		switch (binding.type)
 		{
 		case BindingType::UniformBuffer:
+		case BindingType::UniformBufferDynamicOffset:
 			glBindBufferRange(
-				GL_UNIFORM_BUFFER, binding.glBinding, dsBinding.bufferOrSampler, dsBinding.offset, dsBinding.range);
+				GL_UNIFORM_BUFFER, binding.glBinding, dsBinding.bufferOrSampler, bufferOffset, dsBinding.range);
 			break;
 		case BindingType::StorageBuffer:
+		case BindingType::StorageBufferDynamicOffset:
 #ifndef EG_GLES
 			glBindBufferRange(
-				GL_SHADER_STORAGE_BUFFER, binding.glBinding, dsBinding.bufferOrSampler, dsBinding.offset,
-				dsBinding.range);
+				GL_SHADER_STORAGE_BUFFER, binding.glBinding, dsBinding.bufferOrSampler, bufferOffset, dsBinding.range);
 #endif
 			break;
 		case BindingType::Texture: dsBinding.textureView->Bind(dsBinding.bufferOrSampler, binding.glBinding); break;

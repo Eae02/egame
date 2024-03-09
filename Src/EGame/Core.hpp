@@ -86,7 +86,7 @@ extern EG_API void (*imguiEndFrame)();
 void ButtonDownEvent(Button button, bool isRepeat);
 void ButtonUpEvent(Button button, bool isRepeat);
 
-int PlatformInit(const RunConfig& runConfig);
+int PlatformInit(const RunConfig& runConfig, bool headless);
 void PlatformStartFrame();
 void PlatformRunGameLoop(std::unique_ptr<IGame> game);
 
@@ -139,6 +139,8 @@ int Run(const RunConfig& runConfig = {})
 {
 	return detail::Run(runConfig, []() -> std::unique_ptr<IGame> { return std::make_unique<Game>(); });
 }
+
+EG_API int InitializeHeadless(const RunConfig& runConfig);
 
 /**
  * Gets the path to the directory where the executable is located, guaranteed to end with a directory separator.

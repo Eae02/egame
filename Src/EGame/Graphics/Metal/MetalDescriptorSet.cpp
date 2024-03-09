@@ -40,20 +40,30 @@ void BindStorageImageDS(TextureViewHandle textureView, DescriptorSetHandle set, 
 	DescriptorSetWrapper::Unwrap(set)->BindTexture(binding, { .textureView = textureView });
 }
 
-void BindUniformBufferDS(
-	BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, uint64_t range)
+static void BindBufferDS(BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset)
 {
-	DescriptorSetWrapper::Unwrap(set)->BindBuffer(binding, { .buffer = handle, .offset = offset, .range = range });
+	if (offset == BIND_BUFFER_OFFSET_DYNAMIC)
+		offset = 0;
+	DescriptorSetWrapper::Unwrap(set)->BindBuffer(binding, { .buffer = handle, .offset = offset });
+}
+
+void BindUniformBufferDS(
+	BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> _range)
+{
+	BindBufferDS(handle, set, binding, offset);
 }
 
 void BindStorageBufferDS(
-	BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, uint64_t range)
+	BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> _range)
 {
-	DescriptorSetWrapper::Unwrap(set)->BindBuffer(binding, { .buffer = handle, .offset = offset, .range = range });
+	BindBufferDS(handle, set, binding, offset);
 }
 
-void BindDescriptorSet(CommandContextHandle ctx, uint32_t set, DescriptorSetHandle handle)
+void BindDescriptorSet(
+	CommandContextHandle ctx, uint32_t set, DescriptorSetHandle handle, std::span<const uint32_t> dynamicOffsets)
 {
+	EG_ASSERT(dynamicOffsets.empty()); // not implemented
+
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
 
 	DescriptorSetWrapper::Unwrap(handle)->BindDescriptorSet(

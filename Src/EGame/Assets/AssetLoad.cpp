@@ -77,14 +77,5 @@ void detail::RegisterAssetLoaders()
 			loadContext.CreateResult<std::string>(loadContext.Data().data(), loadContext.Data().size());
 			return true;
 		});
-
-	BindAssetExtension("glsl", "Shader", "Shader");
-	BindAssetExtension("png", "Texture2D", "Texture2D");
-	BindAssetExtension("obj", "Model", "OBJModel");
-	BindAssetExtension("gltf", "Model", "GLTFModel");
-	BindAssetExtension("glb", "Model", "GLTFModel");
-	BindAssetExtension("ype", "ParticleEmitter", "ParticleEmitter");
-	BindAssetExtension("ttf", "SpriteFont", "Font");
-	BindAssetExtension("ogg", "AudioClip", "OGGVorbis");
 }
 } // namespace eg

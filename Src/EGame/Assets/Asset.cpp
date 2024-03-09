@@ -85,29 +85,37 @@ static AssetDirectory* FindDirectory(AssetDirectory* current, std::string_view p
 
 struct BoundAssetExtension
 {
-	std::string_view extension;
 	std::string_view loader;
 	std::string_view generator;
-
-	bool operator<(const std::string_view& other) const { return extension < other; }
 };
 
-std::vector<BoundAssetExtension> assetExtensions;
+std::unordered_map<std::string_view, BoundAssetExtension> assetExtensions = {
+	{ "glsl", { .loader = "Shader", .generator = "Shader" } },
+	{ "png", { .loader = "Texture2D", .generator = "Texture2D" } },
+	{ "obj", { .loader = "Model", .generator = "OBJModel" } },
+	{ "gltf", { .loader = "Model", .generator = "GLTFModel" } },
+	{ "glb", { .loader = "Model", .generator = "GLTFModel" } },
+	{ "ype", { .loader = "ParticleEmitter", .generator = "ParticleEmitter" } },
+	{ "ttf", { .loader = "SpriteFont", .generator = "Font" } },
+	{ "ogg", { .loader = "AudioClip", .generator = "OGGVorbis" } },
+};
 
 void BindAssetExtension(std::string_view extension, std::string_view loader, std::string_view generator)
 {
-	auto it = std::lower_bound(assetExtensions.begin(), assetExtensions.end(), extension);
-	if (it != assetExtensions.end() && it->extension == extension)
+	BoundAssetExtension newEntry = {
+		.loader = detail::assetAllocator.MakeStringCopy(loader),
+		.generator = detail::assetAllocator.MakeStringCopy(generator),
+	};
+
+	if (assetExtensions.contains(extension))
 	{
+		assetExtensions[extension] = newEntry;
 		Log(LogLevel::Warning, "as", "Re-binding asset extension '{0}'", extension);
 	}
 	else
 	{
-		it = assetExtensions.emplace(it);
-		it->extension = detail::assetAllocator.MakeStringCopy(extension);
+		assetExtensions.emplace(detail::assetAllocator.MakeStringCopy(extension), newEntry);
 	}
-	it->loader = detail::assetAllocator.MakeStringCopy(loader);
-	it->generator = detail::assetAllocator.MakeStringCopy(generator);
 }
 
 static const char cachedAssetMagic[] = { -1, 'E', 'A', 'C' };
@@ -304,83 +312,81 @@ static void FindAllFilesInDirectory(
 	}
 }
 
-static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
+std::optional<std::vector<YAMLAssetInfo>> DetectAndGenerateYAMLAssets(std::string_view path)
 {
-#if defined(__EMSCRIPTEN__)
-	return false;
-#else
-	std::string yamlPath = path + "/Assets.yaml";
+	std::string yamlPath = Concat({ path, "/Assets.yaml" });
 	std::ifstream yamlStream(yamlPath, std::ios::binary);
 	if (!yamlStream)
-		return false;
+		return std::nullopt;
 
-	std::string cachePath = path + "/.AssetCache/";
+	std::string cachePath = Concat({ path, "/.AssetCache/" });
 	std::string dirPath = yamlPath.substr(0, path.size() + 1);
 
 	YAML::Node node = YAML::Load(yamlStream);
 
-	std::vector<AssetToLoad> assetsToLoad;
-	std::unordered_map<std::string_view, AssetToLoad*> assetsToLoadByName;
+	std::vector<YAMLAssetInfo> assetsToLoad;
 	std::unordered_set<std::string> assetsAlreadyAdded;
 	auto LoadAsset = [&](std::string name, const YAML::Node& assetNode)
 	{
 		if (assetsAlreadyAdded.count(name))
 			return;
 
-		AssetToLoad assetToLoad;
-		assetToLoad.name = std::move(name);
-		assetToLoad.state = AssetToLoad::STATE_INITIAL;
+		YAMLAssetInfo& asset = assetsToLoad.emplace_back(YAMLAssetInfo{ .name = std::move(name) });
 
 		// Tries to find the generator and loader names
-		std::string loaderName;
 		std::string generatorName;
 		if (const YAML::Node& loaderNode = assetNode["loader"])
 		{
-			loaderName = loaderNode.as<std::string>();
+			asset.loaderName = loaderNode.as<std::string>();
 			generatorName = assetNode["generator"].as<std::string>("Default");
 		}
 		else
 		{
-			std::string_view extension = PathExtension(assetToLoad.name);
-			auto it = std::lower_bound(assetExtensions.begin(), assetExtensions.end(), extension);
-			if (it != assetExtensions.end() && it->extension == extension)
+			std::string_view extension = PathExtension(asset.name);
+			auto it = assetExtensions.find(extension);
+			if (it != assetExtensions.end())
 			{
-				loaderName = it->loader;
-				generatorName = it->generator;
+				asset.loaderName = it->second.loader;
+				generatorName = it->second.generator;
 			}
 			else
 			{
-				Log(LogLevel::Error, "as", "Unrecognized asset extension for '{0}'", assetToLoad.name);
+				asset.status = YAMLAssetStatus::ErrorUnknownExtension;
 				return;
 			}
 		}
 
-		assetToLoad.loader = FindAssetLoader(loaderName);
-		if (assetToLoad.loader == nullptr)
+		asset.loader = FindAssetLoader(asset.loaderName);
+		if (asset.loader == nullptr)
 		{
-			Log(LogLevel::Error, "as", "Asset loader not found: '{0}'.", loaderName);
+			asset.status = YAMLAssetStatus::ErrorLoaderNotFound;
 			return;
 		}
 
 		const uint64_t yamlHash = HashYAMLNode(assetNode);
 
 		// Tries to load the asset from the cache
-		std::string assetCachePath = Concat({ cachePath, assetToLoad.name, ".eab" });
+		std::string assetCachePath = Concat({ cachePath, asset.name, ".eab" });
 		std::optional<GeneratedAsset> generated =
-			TryReadAssetFromCache(dirPath, *assetToLoad.loader->format, yamlHash, assetCachePath);
+			TryReadAssetFromCache(dirPath, *asset.loader->format, yamlHash, assetCachePath);
 
 		// Generates the asset if loading from the cache failed
 		if (!generated.has_value())
 		{
 			int64_t timeBegin = NanoTime();
-			generated = GenerateAsset(dirPath, generatorName, assetToLoad.name, assetNode, node);
+			generated = GenerateAsset(dirPath, generatorName, asset.name, assetNode, node);
 			int64_t genDuration = NanoTime() - timeBegin;
 
 			if (!generated.has_value())
+			{
+				asset.status = YAMLAssetStatus::ErrorGenerate;
 				return;
+			}
+
+			asset.status = YAMLAssetStatus::Generated;
 
 			std::ostringstream msg;
-			msg << "Generated asset '" << assetToLoad.name << "' in " << std::setprecision(2) << std::fixed
+			msg << "Generated asset '" << asset.name << "' in " << std::setprecision(2) << std::fixed
 				<< (static_cast<double>(genDuration) * 1E-6) << "ms";
 			eg::Log(LogLevel::Info, "as", "{0}", msg.str());
 
@@ -391,10 +397,14 @@ static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 				SaveAssetToCache(*generated, yamlHash, assetCachePath);
 			}
 		}
+		else
+		{
+			asset.status = YAMLAssetStatus::Cached;
+		}
 
-		assetsAlreadyAdded.insert(assetToLoad.name);
-		assetToLoad.generatedAsset = std::move(*generated);
-		assetsToLoad.push_back(std::move(assetToLoad));
+		asset.generatedAsset = std::move(*generated);
+
+		assetsAlreadyAdded.insert(asset.name);
 	};
 
 	std::vector<std::string> allFilesInDirectory;
@@ -425,6 +435,46 @@ static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 		}
 	}
 
+	return assetsToLoad;
+}
+
+static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
+{
+#if defined(__EMSCRIPTEN__)
+	return false;
+#else
+	std::optional<std::vector<YAMLAssetInfo>> yamlAssets = DetectAndGenerateYAMLAssets(path);
+	if (!yamlAssets.has_value())
+		return false;
+
+	std::vector<AssetToLoad> assetsToLoad;
+	assetsToLoad.reserve(yamlAssets->size());
+	for (YAMLAssetInfo& asset : *yamlAssets)
+	{
+		switch (asset.status)
+		{
+		case YAMLAssetStatus::ErrorGenerate:
+			Log(LogLevel::Error, "as", "Asset failed to generate: '{0}'", asset.name);
+			break;
+		case YAMLAssetStatus::ErrorUnknownExtension:
+			Log(LogLevel::Error, "as", "Unrecognized asset extension for '{0}'", asset.name);
+			break;
+		case YAMLAssetStatus::ErrorLoaderNotFound:
+			Log(LogLevel::Error, "as", "Asset loader not found: '{0}'", asset.loaderName);
+			break;
+		case YAMLAssetStatus::Cached:
+		case YAMLAssetStatus::Generated:
+			assetsToLoad.push_back(AssetToLoad{
+				.state = AssetToLoad::STATE_INITIAL,
+				.name = std::move(asset.name),
+				.generatedAsset = std::move(asset.generatedAsset),
+				.loader = asset.loader,
+			});
+			break;
+		}
+	}
+
+	std::unordered_map<std::string_view, AssetToLoad*> assetsToLoadByName;
 	for (AssetToLoad& asset : assetsToLoad)
 	{
 		assetsToLoadByName.emplace(asset.name, &asset);
@@ -553,9 +603,13 @@ bool LoadAssets(const std::string& path, std::string_view mountPath)
 void detail::LoadAssetGenLibrary() {}
 #else
 static DynamicLibrary assetGenLibrary;
+static bool hasLoadedAssetGenLibrary = false;
 
-void detail::LoadAssetGenLibrary()
+void LoadAssetGenLibrary()
 {
+	if (hasLoadedAssetGenLibrary)
+		return;
+
 	std::string libraryName = DynamicLibrary::PlatformFormat("EGameAssetGen");
 
 	if (!assetGenLibrary.Open(libraryName.c_str()))
@@ -570,6 +624,8 @@ void detail::LoadAssetGenLibrary()
 		Log(LogLevel::Warning, "as", "Could not load asset generator library: missing Init.");
 		return;
 	}
+
+	hasLoadedAssetGenLibrary = true;
 
 	reinterpret_cast<void (*)()>(initSym)();
 }

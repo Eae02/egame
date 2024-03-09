@@ -109,11 +109,20 @@ class EG_API BufferRef
 public:
 	BufferRef(BufferHandle _handle = nullptr) : handle(_handle) {}
 
-	void* Map(uint64_t offset, uint64_t range) { return gal::MapBuffer(handle, offset, range); }
+	void* Map(uint64_t offset = 0, std::optional<uint64_t> range = std::nullopt)
+	{
+		return gal::MapBuffer(handle, offset, range);
+	}
 
-	void Flush(uint64_t modOffset, uint64_t modRange) { gal::FlushBuffer(handle, modOffset, modRange); }
+	void Flush(uint64_t modOffset = 0, std::optional<uint64_t> modRange = std::nullopt)
+	{
+		gal::FlushBuffer(handle, modOffset, modRange);
+	}
 
-	void Invalidate(uint64_t modOffset, uint64_t modRange) { gal::InvalidateBuffer(handle, modOffset, modRange); }
+	void Invalidate(uint64_t modOffset = 0, std::optional<uint64_t> modRange = std::nullopt)
+	{
+		gal::InvalidateBuffer(handle, modOffset, modRange);
+	}
 
 	void UsageHint(BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags = ShaderAccessFlags::None)
 	{
@@ -412,12 +421,14 @@ public:
 		gal::BindStorageImageDS(textureView, handle, binding);
 	}
 
-	void BindUniformBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
+	void BindUniformBuffer(
+		BufferRef buffer, uint32_t binding, uint64_t offset = 0, std::optional<uint64_t> range = std::nullopt)
 	{
 		gal::BindUniformBufferDS(buffer.handle, handle, binding, offset, range);
 	}
 
-	void BindStorageBuffer(BufferRef buffer, uint32_t binding, uint64_t offset, uint64_t range)
+	void BindStorageBuffer(
+		BufferRef buffer, uint32_t binding, uint64_t offset = 0, std::optional<uint64_t> range = std::nullopt)
 	{
 		gal::BindStorageBufferDS(buffer.handle, handle, binding, offset, range);
 	}
@@ -471,6 +482,8 @@ class EG_API CommandContext
 {
 public:
 	CommandContext() : CommandContext(nullptr) {}
+
+	static CommandContext CreateDeferred(Queue queue) { return CommandContext(gal::CreateCommandContext(queue)); }
 
 	void SetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
 	{
@@ -536,7 +549,7 @@ public:
 		gal::UpdateBuffer(Handle(), buffer.handle, offset, size, data);
 	}
 
-	void FillBuffer(BufferRef buffer, uint64_t offset, uint64_t size, uint32_t data)
+	void FillBuffer(BufferRef buffer, uint64_t offset, uint64_t size, uint8_t data)
 	{
 		gal::FillBuffer(Handle(), buffer.handle, offset, size, data);
 	}
@@ -551,19 +564,24 @@ public:
 		gal::BindIndexBuffer(Handle(), type, buffer.handle, offset);
 	}
 
-	void BindUniformBuffer(BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+	void BindUniformBuffer(
+		BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset = 0,
+		std::optional<uint64_t> range = std::nullopt)
 	{
 		gal::BindUniformBuffer(Handle(), buffer.handle, set, binding, offset, range);
 	}
 
-	void BindStorageBuffer(BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+	void BindStorageBuffer(
+		BufferRef buffer, uint32_t set, uint32_t binding, uint64_t offset = 0,
+		std::optional<uint64_t> range = std::nullopt)
 	{
 		gal::BindStorageBuffer(Handle(), buffer.handle, set, binding, offset, range);
 	}
 
-	void BindDescriptorSet(DescriptorSetRef descriptorSet, uint32_t setIndex)
+	void BindDescriptorSet(
+		DescriptorSetRef descriptorSet, uint32_t setIndex, std::span<const uint32_t> dynamicOffsets = {})
 	{
-		gal::BindDescriptorSet(Handle(), setIndex, descriptorSet.handle);
+		gal::BindDescriptorSet(Handle(), setIndex, descriptorSet.handle, dynamicOffsets);
 	}
 
 	void Draw(uint32_t firstVertex, uint32_t numVertices, uint32_t firstInstance, uint32_t numInstances)
@@ -668,12 +686,20 @@ public:
 	 */
 	CommandContextHandle Handle() const { return m_context.get(); }
 
+	void BeginRecording(CommandContextBeginFlags flags) { gal::BeginRecordingCommandContext(Handle(), flags); }
+	void FinishRecording() { gal::FinishRecordingCommandContext(Handle()); }
+	void Submit(const CommandContextSubmitArgs& args) { gal::SubmitCommandContext(Handle(), args); }
+
 private:
 	explicit CommandContext(CommandContextHandle handle) : m_context(handle) {}
 
 	struct CommandContextDel
 	{
-		void operator()(CommandContextHandle handle) {}
+		void operator()(CommandContextHandle handle)
+		{
+			if (handle != nullptr)
+				gal::DestroyCommandContext(handle);
+		}
 	};
 
 	std::unique_ptr<_CommandContext, CommandContextDel> m_context;

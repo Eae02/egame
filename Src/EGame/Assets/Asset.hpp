@@ -10,6 +10,7 @@
 #include "../API.hpp"
 #include "../Alloc/LinearAllocator.hpp"
 #include "../Assert.hpp"
+#include "AssetGenerator.hpp"
 
 namespace eg
 {
@@ -19,8 +20,6 @@ extern EG_API LinearAllocator assetAllocator;
 
 extern bool createAssetPackage;
 extern bool disableAssetPackageCompression;
-
-void LoadAssetGenLibrary();
 } // namespace detail
 
 struct Asset
@@ -67,7 +66,29 @@ inline void BindAssetExtension(std::string_view extension, std::string_view load
 // Similar to LoadAssets, but loads from an EAP stream
 [[nodiscard]] EG_API bool LoadAssetsFromEAPStream(std::istream& stream, std::string_view mountPath);
 
+EG_API void LoadAssetGenLibrary();
+
 EG_API void UnloadAssets();
+
+enum class YAMLAssetStatus
+{
+	Cached,
+	Generated,
+	ErrorGenerate,
+	ErrorUnknownExtension,
+	ErrorLoaderNotFound,
+};
+
+struct YAMLAssetInfo
+{
+	YAMLAssetStatus status;
+	std::string name;
+	GeneratedAsset generatedAsset;
+	std::string loaderName;
+	const struct AssetLoader* loader;
+};
+
+EG_API std::optional<std::vector<YAMLAssetInfo>> DetectAndGenerateYAMLAssets(std::string_view path);
 
 namespace console
 {

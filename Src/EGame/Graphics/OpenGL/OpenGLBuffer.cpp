@@ -3,6 +3,7 @@
 #include "../../Assert.hpp"
 #include "../../MainThreadInvoke.hpp"
 #include "../Graphics.hpp"
+#include "EGame/Graphics/OpenGL/Utils.hpp"
 #include "Framebuffer.hpp"
 #include "OpenGL.hpp"
 #include "Pipeline.hpp"
@@ -130,27 +131,28 @@ void DestroyBuffer(BufferHandle handle)
 		});
 }
 
-void* MapBuffer(BufferHandle handle, uint64_t offset, uint64_t range)
+void* MapBuffer(BufferHandle handle, uint64_t offset, std::optional<uint64_t> range)
 {
 	Buffer* buffer = UnwrapBuffer(handle);
-	if (offset + range > buffer->size)
+	if (offset > buffer->size || (range.has_value() && offset + *range > buffer->size))
 		EG_PANIC("MapBuffer out of range!");
 	if (useGLESPath && !buffer->isFakeHostBuffer)
 		EG_PANIC("Attempted to map a non host buffer!")
 	return buffer->persistentMapping + offset;
 }
 
-void FlushBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange)
+void FlushBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange)
 {
 	if (!useGLESPath)
 	{
 		Buffer* buffer = UnwrapBuffer(handle);
 		BindTempBuffer(buffer->buffer);
-		glFlushMappedBufferRange(TEMP_BUFFER_BINDING, modOffset, modRange);
+		uint64_t size = modRange.value_or(buffer->size - modOffset);
+		glFlushMappedBufferRange(TEMP_BUFFER_BINDING, modOffset, size);
 	}
 }
 
-void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, uint64_t modRange) {}
+void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange) {}
 
 void UpdateBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 {
@@ -170,14 +172,14 @@ void UpdateBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, ui
 	glBufferSubData(TEMP_BUFFER_BINDING, offset, size, data);
 }
 
-void FillBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, uint32_t data)
+void FillBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint64_t size, uint8_t value)
 {
 	AssertRenderPassNotActive("FillBuffer");
 
 	Buffer* buffer = UnwrapBuffer(handle);
 	if (buffer->isFakeHostBuffer)
 	{
-		std::memset(buffer->persistentMapping + offset, data, size);
+		std::fill_n(reinterpret_cast<uint8_t*>(buffer->persistentMapping) + offset, size, value);
 		return;
 	}
 
@@ -186,14 +188,14 @@ void FillBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint
 	BindTempBuffer(buffer->buffer);
 	if (useGLESPath)
 	{
-		std::vector<char> dataVec(size);
-		memset(dataVec.data(), data, size);
-		glBufferSubData(TEMP_BUFFER_BINDING, offset, size, dataVec.data());
+		std::unique_ptr<uint8_t[]> dataAllocation = std::make_unique<uint8_t[]>(size);
+		std::fill_n(dataAllocation.get(), size, value);
+		glBufferSubData(TEMP_BUFFER_BINDING, offset, size, dataAllocation.get());
 	}
 	else
 	{
 #ifndef EG_GLES
-		glClearBufferData(TEMP_BUFFER_BINDING, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_INT, &data);
+		glClearBufferData(TEMP_BUFFER_BINDING, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, &value);
 #endif
 	}
 }
@@ -235,20 +237,25 @@ void CopyBuffer(
 }
 
 void BindUniformBuffer(
-	CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+	CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
 {
 	Buffer* buffer = UnwrapBuffer(handle);
-	glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, range);
+	uint64_t resolvedRange = range.value_or(buffer->size - offset);
+	glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, resolvedRange);
 }
 
 void BindStorageBuffer(
-	CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset, uint64_t range)
+	CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset,
+	std::optional<uint64_t> range)
 {
 #ifdef EG_GLES
 	EG_PANIC("BindStorageBuffer unsupported");
 #else
 	Buffer* buffer = UnwrapBuffer(handle);
-	glBindBufferRange(GL_SHADER_STORAGE_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, range);
+	uint64_t resolvedRange = range.value_or(buffer->size - offset);
+	glBindBufferRange(
+		GL_SHADER_STORAGE_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, resolvedRange);
 #endif
 }
 
@@ -263,6 +270,7 @@ inline void MaybeBarrierAfterSSBO(BufferUsage newUsage)
 	case BufferUsage::VertexBuffer: MaybeInsertBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT); break;
 	case BufferUsage::IndexBuffer: MaybeInsertBarrier(GL_ELEMENT_ARRAY_BARRIER_BIT); break;
 	case BufferUsage::UniformBuffer: MaybeInsertBarrier(GL_UNIFORM_BARRIER_BIT); break;
+	case BufferUsage::IndirectCommandRead: MaybeInsertBarrier(GL_COMMAND_BARRIER_BIT); break;
 	case BufferUsage::StorageBufferRead:
 	case BufferUsage::StorageBufferWrite:
 	case BufferUsage::StorageBufferReadWrite: MaybeInsertBarrier(GL_SHADER_STORAGE_BARRIER_BIT); break;

@@ -237,19 +237,15 @@ void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 
 	if (SDL_GL_ExtensionSupported("GL_KHR_shader_subgroup"))
 	{
-		deviceInfo.subgroupSize = ToUnsigned(GetIntegerLimit(GL_SUBGROUP_SIZE_KHR));
-
+		const uint32_t subgroupSize = ToUnsigned(GetIntegerLimit(GL_SUBGROUP_SIZE_KHR));
 		const GLint subgroupFeatures = GetIntegerLimit(GL_SUBGROUP_SUPPORTED_FEATURES_KHR);
 
-		// Adds features for subgroup operations. This relies on the flags having the same order in DeviceFeatureFlags
-		// as in GL_SUBGROUP_FEATURE_*.
-		static_assert(
-			(GL_SUBGROUP_FEATURE_BASIC_BIT_KHR << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
-			static_cast<uint32_t>(DeviceFeatureFlags::SubgroupBasic));
-		static_assert(
-			(GL_SUBGROUP_FEATURE_QUAD_BIT_KHR << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
-			static_cast<uint32_t>(DeviceFeatureFlags::SubgroupQuad));
-		deviceInfo.features |= SubgroupOperationFlagsFromGlVk(static_cast<uint32_t>(subgroupFeatures));
+		deviceInfo.subgroupFeatures = SubgroupFeatures{
+			.minSubgroupSize = subgroupSize,
+			.maxSubgroupSize = subgroupSize,
+			.maxWorkgroupSubgroups = 0xFF,
+			.featureFlags = static_cast<SubgroupFeatureFlags>(subgroupFeatures),
+		};
 	}
 #endif
 

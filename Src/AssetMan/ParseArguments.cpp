@@ -20,6 +20,7 @@ ParsedArguments ParseArguments(int argc, char** argv)
 	argumentHandlers["i"] = [&]() { parsed.writeInfo = true; };
 	argumentHandlers["l"] = [&]() { parsed.writeList = true; };
 	argumentHandlers["d"] = [&]() { parsed.dryRun = true; };
+	argumentHandlers["u"] = [&]() { parsed.updateCache = true; };
 
 	for (int i = 1; i < argc; i++)
 	{

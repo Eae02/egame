@@ -38,7 +38,7 @@ static inline void UpdateDisplayScaling()
 	detail::displayScaleFactor = static_cast<float>(displayWidth) / static_cast<float>(windowWidth);
 }
 
-int detail::PlatformInit(const RunConfig& runConfig)
+int detail::PlatformInit(const RunConfig& runConfig, bool headless)
 {
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
 	{
@@ -52,6 +52,19 @@ int detail::PlatformInit(const RunConfig& runConfig)
 	}
 
 	graphics_api::vk::EarlyInitializeMemoized();
+	
+	if (exeDirPathPtr == nullptr)
+	{
+		exeDirPathPtr = SDL_GetBasePath();
+		detail::exeDirPath = exeDirPathPtr;
+	}
+	
+	Format defaultDSFormat = runConfig.defaultDepthStencilFormat;
+	if (GetFormatType(defaultDSFormat) != FormatTypes::DepthStencil && defaultDSFormat != Format::Undefined)
+	{
+		Log(LogLevel::Error, "gfx", "Invalid default depth/stencil format");
+		defaultDSFormat = Format::Depth16;
+	}
 
 	constexpr int DISPLAY_INDEX = 0;
 	SDL_DisplayMode currentDisplayMode;
@@ -82,20 +95,7 @@ int detail::PlatformInit(const RunConfig& runConfig)
 		detail::nativeDisplayModeIndex = 0;
 	}
 
-	if (exeDirPathPtr == nullptr)
-	{
-		exeDirPathPtr = SDL_GetBasePath();
-		detail::exeDirPath = exeDirPathPtr;
-	}
-
 	uint32_t windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI;
-
-	Format defaultDSFormat = runConfig.defaultDepthStencilFormat;
-	if (GetFormatType(defaultDSFormat) != FormatTypes::DepthStencil && defaultDSFormat != Format::Undefined)
-	{
-		Log(LogLevel::Error, "gfx", "Invalid default depth/stencil format");
-		defaultDSFormat = Format::Depth16;
-	}
 
 	if (runConfig.graphicsAPI == GraphicsAPI::OpenGL)
 	{

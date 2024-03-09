@@ -204,23 +204,23 @@ void detail::RunFrame(IGame& game)
 	lastFrameBeginTime = frameBeginTime;
 }
 
-int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
+static int InitializeUntilAssetDownload(const RunConfig& runConfig)
 {
 	if (runConfig.framerateCap != 0)
 	{
 		maxFrameTimeNS = 1000000000ULL / static_cast<uint64_t>(runConfig.framerateCap);
 	}
 
-	devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
+	detail::devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
 	detail::createAssetPackage = HasFlag(runConfig.flags, RunFlags::CreateAssetPackage);
-	disableAssetPackageCompression = HasFlag(runConfig.flags, RunFlags::AssetPackageFast);
+	detail::disableAssetPackageCompression = HasFlag(runConfig.flags, RunFlags::AssetPackageFast);
 
 	if (const char* devEnv = getenv("EG_DEV"))
 	{
 		if (std::strcmp(devEnv, "true") == 0)
-			devMode = true;
+			detail::devMode = true;
 		else if (std::strcmp(devEnv, "false") == 0)
-			devMode = false;
+			detail::devMode = false;
 		else
 		{
 			Log(LogLevel::Warning, "misc",
@@ -229,7 +229,7 @@ int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)
 	}
 
 	const char* createEapEnv = getenv("EG_CREATE_EAP");
-	if (createEapEnv != nullptr && std::strcmp(createEapEnv, "true") == 0 && devMode)
+	if (createEapEnv != nullptr && std::strcmp(createEapEnv, "true") == 0 && detail::devMode)
 	{
 		detail::createAssetPackage = true;
 	}
@@ -243,21 +243,22 @@ int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)
 	eg::DefineEventType<ButtonEvent>();
 	eg::DefineEventType<RelativeMouseModeLostEvent>();
 
-	if (devMode)
+	if (detail::devMode)
 	{
 		console::Init();
+		detail::RegisterConsoleCommands();
 	}
 
-	int platformInitStatus = detail::PlatformInit(runConfig);
+	int platformInitStatus = detail::PlatformInit(runConfig, false);
 	if (platformInitStatus != 0)
 		return platformInitStatus;
 
 	renderdoc::Init();
 	InitPlatformFontConfig();
-	RegisterDefaultAssetGenerator();
+	detail::RegisterDefaultAssetGenerator();
 	LoadAssetGenLibrary();
-	RegisterAssetLoaders();
-	LoadGameControllers();
+	detail::RegisterAssetLoaders();
+	detail::LoadGameControllers();
 
 	gal::GetDeviceInfo(detail::graphicsDeviceInfo);
 
@@ -270,6 +271,49 @@ int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)
 		EnableProfiling();
 	}
 
+	detail::currentIS = new InputState;
+	detail::previousIS = new InputState;
+
+	return 0;
+}
+
+static void RunInitCallbacks()
+{
+	for (detail::CallbackNode* node = detail::onInit; node != nullptr; node = node->next)
+		node->callback();
+}
+
+static void FinishInitialization()
+{
+	gal::EndLoading();
+
+	MarkUploadBuffersAvailable();
+
+	detail::resolutionX = -1;
+	detail::resolutionY = -1;
+	detail::shouldClose = false;
+	detail::frameIndex = 0;
+}
+
+int InitializeHeadless(const RunConfig& runConfig)
+{
+	if (int status = InitializeUntilAssetDownload(runConfig))
+		return status;
+
+	if (runConfig.initialize)
+		runConfig.initialize();
+
+	RunInitCallbacks();
+	FinishInitialization();
+
+	return 0;
+}
+
+int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
+{
+	if (int status = InitializeUntilAssetDownload(runConfig))
+		return status;
+
 	auto initialize = runConfig.initialize;
 
 	detail::WebDownloadAssetPackages(
@@ -278,28 +322,13 @@ int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)
 			if (initialize)
 				initialize();
 
-			RegisterConsoleCommands();
-
-			for (CallbackNode* node = onInit; node != nullptr; node = node->next)
-			{
-				node->callback();
-			}
+			RunInitCallbacks();
 
 			std::unique_ptr<IGame> game = createGame();
 
-			detail::currentIS = new InputState;
-			detail::previousIS = new InputState;
+			FinishInitialization();
 
 			detail::PruneDownloadedAssetPackages();
-
-			gal::EndLoading();
-
-			MarkUploadBuffersAvailable();
-
-			resolutionX = -1;
-			resolutionY = -1;
-			detail::shouldClose = false;
-			frameIndex = 0;
 
 			lastFrameBeginTime = high_resolution_clock::now();
 

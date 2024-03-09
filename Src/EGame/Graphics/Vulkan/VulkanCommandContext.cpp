@@ -1,12 +1,20 @@
 #include "VulkanCommandContext.hpp"
+#include "../../Alloc/ObjectPool.hpp"
+#include "EGame/Assert.hpp"
+#include "EGame/Graphics/Abstraction.hpp"
+#include "EGame/Graphics/Vulkan/Common.hpp"
+#include "EGame/Utils.hpp"
 #include "Pipeline.hpp"
 
 #include <cstring>
+#include <vulkan/vulkan_core.h>
 
 namespace eg::graphics_api::vk
 {
 VulkanCommandContext* VulkanCommandContext::currentImmediate;
 std::vector<VulkanCommandContext> VulkanCommandContext::immediateContexts;
+
+static ConcurrentObjectPool<VulkanCommandContext> commandContextPool;
 
 void VulkanCommandContext::SetInitialState()
 {
@@ -141,4 +149,78 @@ void VulkanCommandContext::FlushDescriptorUpdates()
 
 	m_pushDescriptorInfoAllocator.Reset();
 }
+
+CommandContextHandle CreateCommandContext(Queue queue)
+{
+	const VkCommandPoolCreateInfo poolCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.queueFamilyIndex = ctx.queueFamily,
+	};
+	VkCommandPool commandPool;
+	CheckRes(vkCreateCommandPool(ctx.device, &poolCreateInfo, nullptr, &commandPool));
+
+	const VkCommandBufferAllocateInfo cbAllocateInfo = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.commandPool = commandPool,
+		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		.commandBufferCount = 1,
+	};
+	VkCommandBuffer commandBuffer;
+	CheckRes(vkAllocateCommandBuffers(ctx.device, &cbAllocateInfo, &commandBuffer));
+
+	VulkanCommandContext* context = commandContextPool.New();
+	context->cb = commandBuffer;
+	context->commandPool = commandPool;
+
+	return reinterpret_cast<CommandContextHandle>(context);
+}
+
+void DestroyCommandContext(CommandContextHandle context)
+{
+	EG_ASSERT(context != nullptr);
+	VulkanCommandContext& vcc = UnwrapCC(context);
+	vkDestroyCommandPool(ctx.device, vcc.commandPool, nullptr);
+	commandContextPool.Delete(&vcc);
+}
+
+void BeginRecordingCommandContext(CommandContextHandle context, CommandContextBeginFlags flags)
+{
+	EG_ASSERT(context != nullptr);
+	VulkanCommandContext& vcc = UnwrapCC(context);
+
+	CheckRes(vkResetCommandPool(ctx.device, vcc.commandPool, 0));
+
+	VkCommandBufferUsageFlags usageFlags = 0;
+	if (HasFlag(flags, CommandContextBeginFlags::OneTimeSubmit))
+		usageFlags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	if (HasFlag(flags, CommandContextBeginFlags::SimultaneousUse))
+		usageFlags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+	VkCommandBufferBeginInfo beginInfo = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = usageFlags,
+	};
+
+	CheckRes(vkBeginCommandBuffer(vcc.cb, &beginInfo));
+}
+
+void FinishRecordingCommandContext(CommandContextHandle context)
+{
+	EG_ASSERT(context != nullptr);
+	vkEndCommandBuffer(UnwrapCC(context).cb);
+}
+
+void SubmitCommandContext(CommandContextHandle context, const CommandContextSubmitArgs& args)
+{
+	EG_ASSERT(context != nullptr);
+
+	VkSubmitInfo submitInfo{
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &UnwrapCC(context).cb,
+	};
+
+	vkQueueSubmit(ctx.mainQueue, 1, &submitInfo, reinterpret_cast<VkFence>(args.fence));
+}
+
 } // namespace eg::graphics_api::vk

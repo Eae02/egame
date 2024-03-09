@@ -218,4 +218,15 @@ void DebugLabelInsert(CommandContextHandle, const char* label, const float* colo
 			GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, -1, label);
 #endif
 }
+
+// clang-format off
+CommandContextHandle CreateCommandContext(Queue) { EG_PANIC("unsupported") }
+void DestroyCommandContext(CommandContextHandle) { EG_PANIC("unsupported") }
+void BeginRecordingCommandContext(CommandContextHandle, CommandContextBeginFlags) { EG_PANIC("unsupported") }
+void FinishRecordingCommandContext(CommandContextHandle context) { EG_PANIC("unsupported") }
+void SubmitCommandContext(CommandContextHandle context, const CommandContextSubmitArgs& args) { EG_PANIC("unsupported") }
+FenceHandle CreateFence() { EG_PANIC("unsupported") }
+void DestroyFence(FenceHandle) { EG_PANIC("unsupported") }
+FenceStatus WaitForFence(FenceHandle, uint64_t) { EG_PANIC("unsupported") }
+// clang-format on
 } // namespace eg::graphics_api::gl

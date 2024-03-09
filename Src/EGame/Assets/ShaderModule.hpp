@@ -15,6 +15,11 @@ public:
 	ShaderModuleAsset& operator=(const ShaderModuleAsset&) = delete;
 	ShaderModuleAsset& operator=(ShaderModuleAsset&&) = default;
 
+	ShaderStageInfo ToStageInfo(std::string_view variantName = {}) const
+	{
+		return ShaderStageInfo{ .shaderModule = variantName.empty() ? DefaultVariant() : GetVariant(variantName) };
+	}
+
 	ShaderModuleHandle DefaultVariant() const;
 
 	ShaderModuleHandle GetVariant(std::string_view name) const;

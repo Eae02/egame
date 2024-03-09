@@ -12,6 +12,8 @@ struct ParsedArguments
 	bool writeList = false;
 	bool dryRun = false;
 
+	bool updateCache = false;
+
 	std::vector<std::string_view> removeByName;
 };
 

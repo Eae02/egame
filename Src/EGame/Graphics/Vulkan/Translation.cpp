@@ -55,7 +55,7 @@ VkFormat TranslateFormat(Format format)
 	switch (format)
 	{
 	case Format::Undefined: return VK_FORMAT_UNDEFINED;
-	case Format::DefaultColor: return ctx.surfaceFormat.format;
+	case Format::DefaultColor: return ctx.swapchain.m_surfaceFormat.format;
 	case Format::DefaultDepthStencil: return ctx.defaultDSFormat;
 	case Format::R8_SNorm: return VK_FORMAT_R8_SNORM;
 	case Format::R8_UNorm: return VK_FORMAT_R8_UNORM;
@@ -201,9 +201,11 @@ VkDescriptorType TranslateBindingType(BindingType bindingType)
 	switch (bindingType)
 	{
 	case BindingType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	case BindingType::StorageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	case BindingType::UniformBufferDynamicOffset: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	case BindingType::StorageBufferDynamicOffset: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 	case BindingType::Texture: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	case BindingType::StorageImage: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	case BindingType::StorageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	}
 	EG_UNREACHABLE;
 }

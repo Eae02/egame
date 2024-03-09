@@ -1,5 +1,6 @@
 #ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
+#include "Buffer.hpp"
 #include "Pipeline.hpp"
 #include "ShaderModule.hpp"
 #include "VulkanCommandContext.hpp"
@@ -43,6 +44,21 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 	InitShaderStageCreateInfo(
 		pipelineCreateInfo.stage, pipeline->linearAllocator, createInfo.computeShader, VK_SHADER_STAGE_COMPUTE_BIT);
 
+	if (createInfo.allowVaryingSubgroupSize)
+		pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT;
+	if (createInfo.requireFullSubgroups)
+		pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
+
+	VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT requiredSubgroupSizeCreateInfo;
+	if (createInfo.requiredSubgroupSize.has_value())
+	{
+		requiredSubgroupSizeCreateInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT,
+			.requiredSubgroupSize = *createInfo.requiredSubgroupSize,
+		};
+		PushPNext(pipelineCreateInfo.stage, requiredSubgroupSizeCreateInfo);
+	}
+
 	pipeline->InitPipelineLayout(
 		pipeline->shaderModule->bindings, createInfo.setBindModes, pipeline->shaderModule->pushConstantBytes);
 	pipelineCreateInfo.layout = pipeline->pipelineLayout;
@@ -72,6 +88,13 @@ void DispatchCompute(CommandContextHandle cc, uint32_t sizeX, uint32_t sizeY, ui
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	vcc.FlushDescriptorUpdates();
 	vkCmdDispatch(vcc.cb, sizeX, sizeY, sizeZ);
+}
+
+void DispatchComputeIndirect(CommandContextHandle cc, BufferHandle argsBuffer, uint64_t argsBufferOffset)
+{
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+	vcc.FlushDescriptorUpdates();
+	vkCmdDispatchIndirect(vcc.cb, UnwrapBuffer(argsBuffer)->buffer, argsBufferOffset);
 }
 } // namespace eg::graphics_api::vk
 

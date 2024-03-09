@@ -22,236 +22,6 @@ namespace eg::graphics_api::vk
 {
 Context ctx;
 
-inline VkSurfaceFormatKHR SelectSurfaceFormat(bool useSRGB)
-{
-	uint32_t numSurfaceFormats;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physDevice, ctx.surface, &numSurfaceFormats, nullptr);
-	std::vector<VkSurfaceFormatKHR> surfaceFormats(numSurfaceFormats);
-	vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.physDevice, ctx.surface, &numSurfaceFormats, surfaceFormats.data());
-
-	// Selects a surface format
-	if (surfaceFormats.size() == 1 && surfaceFormats[0].format == VK_FORMAT_UNDEFINED)
-	{
-		return { useSRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
-	}
-
-	// Searches for a supported format
-	const VkFormat supportedFormats[] = { useSRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
-		                                  useSRGB ? VK_FORMAT_B8G8R8A8_SRGB : VK_FORMAT_B8G8R8A8_UNORM,
-		                                  useSRGB ? VK_FORMAT_R8G8B8_SRGB : VK_FORMAT_R8G8B8_UNORM,
-		                                  useSRGB ? VK_FORMAT_B8G8R8_SRGB : VK_FORMAT_B8G8R8_UNORM };
-
-	for (const VkSurfaceFormatKHR& format : surfaceFormats)
-	{
-		for (VkFormat supportedFormat : supportedFormats)
-		{
-			if (supportedFormat == format.format)
-				return format;
-		}
-	}
-
-	return { VK_FORMAT_UNDEFINED };
-}
-
-inline VkPresentModeKHR SelectPresentMode(bool vSync)
-{
-	uint32_t numPresentModes;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physDevice, ctx.surface, &numPresentModes, nullptr);
-	std::vector<VkPresentModeKHR> presentModes(numPresentModes);
-	vkGetPhysicalDeviceSurfacePresentModesKHR(ctx.physDevice, ctx.surface, &numPresentModes, presentModes.data());
-
-	auto CanUsePresentMode = [&](VkPresentModeKHR presentMode)
-	{ return std::find(presentModes.begin(), presentModes.end(), presentMode) != presentModes.end(); };
-
-	if (!vSync)
-	{
-		// Try to use immediate present mode if vsync is disabled.
-		if (CanUsePresentMode(VK_PRESENT_MODE_IMMEDIATE_KHR))
-		{
-			Log(LogLevel::Info, "vk", "Selected present mode: immediate");
-			return VK_PRESENT_MODE_IMMEDIATE_KHR;
-		}
-
-		Log(LogLevel::Warning, "vk",
-		    "Disabling V-Sync is not supported by this driver "
-		    "(it does not support immediate present mode).");
-	}
-
-	if (CanUsePresentMode(VK_PRESENT_MODE_MAILBOX_KHR))
-	{
-		Log(LogLevel::Info, "vk", "Selected present mode: mailbox");
-		return VK_PRESENT_MODE_MAILBOX_KHR;
-	}
-
-	if (CanUsePresentMode(VK_PRESENT_MODE_FIFO_RELAXED_KHR))
-	{
-		Log(LogLevel::Info, "vk", "Selected present mode: fifo_relaxed");
-		return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-	}
-
-	Log(LogLevel::Info, "vk", "Selected present mode: fifo");
-	return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-inline void DestroyDefaultFramebuffer()
-{
-	if (ctx.defaultDSImage != VK_NULL_HANDLE)
-	{
-		vkDestroyImageView(ctx.device, ctx.defaultDSImageView, nullptr);
-		vmaDestroyImage(ctx.allocator, ctx.defaultDSImage, ctx.defaultDSImageAllocation);
-		ctx.defaultDSImage = VK_NULL_HANDLE;
-	}
-
-	for (VkFramebuffer& framebuffer : ctx.defaultFramebuffers)
-	{
-		if (framebuffer != VK_NULL_HANDLE)
-		{
-			vkDestroyFramebuffer(ctx.device, framebuffer, nullptr);
-			framebuffer = VK_NULL_HANDLE;
-		}
-	}
-}
-
-static SDL_Window* vulkanWindow;
-
-static void CreateSwapchain()
-{
-	vkQueueWaitIdle(ctx.mainQueue);
-
-	VkSurfaceCapabilitiesKHR capabilities;
-	CheckRes(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.physDevice, ctx.surface, &capabilities));
-	ctx.surfaceExtent = capabilities.currentExtent;
-
-	if (ctx.surfaceExtent.width == 0xFFFFFFFF)
-	{
-		SDL_GetWindowSize(
-			vulkanWindow, reinterpret_cast<int*>(&ctx.surfaceExtent.width),
-			reinterpret_cast<int*>(&ctx.surfaceExtent.height));
-	}
-
-	VkSwapchainCreateInfoKHR swapchainCreateInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
-	swapchainCreateInfo.surface = ctx.surface;
-	swapchainCreateInfo.minImageCount = std::max<uint32_t>(capabilities.minImageCount, 3);
-	swapchainCreateInfo.imageFormat = ctx.surfaceFormat.format;
-	swapchainCreateInfo.imageColorSpace = ctx.surfaceFormat.colorSpace;
-	swapchainCreateInfo.imageExtent = ctx.surfaceExtent;
-	swapchainCreateInfo.imageArrayLayers = 1;
-	swapchainCreateInfo.preTransform = capabilities.currentTransform;
-	swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	swapchainCreateInfo.presentMode = ctx.presentMode;
-	swapchainCreateInfo.clipped = VK_TRUE;
-	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	swapchainCreateInfo.oldSwapchain = ctx.swapchain;
-
-	vkCreateSwapchainKHR(ctx.device, &swapchainCreateInfo, nullptr, &ctx.swapchain);
-
-	if (swapchainCreateInfo.oldSwapchain != VK_NULL_HANDLE)
-	{
-		vkDestroySwapchainKHR(ctx.device, swapchainCreateInfo.oldSwapchain, nullptr);
-	}
-
-	// Fetches swapchain images
-	uint32_t numSwapchainImages;
-	vkGetSwapchainImagesKHR(ctx.device, ctx.swapchain, &numSwapchainImages, nullptr);
-	if (numSwapchainImages > 16)
-	{
-		EG_PANIC("Too many swapchain images!");
-	}
-	vkGetSwapchainImagesKHR(ctx.device, ctx.swapchain, &numSwapchainImages, ctx.swapchainImages);
-
-	// Destroys old swapchain image views
-	for (uint32_t i = 0; i < numSwapchainImages; i++)
-	{
-		vkDestroyImageView(ctx.device, ctx.swapchainImageViews[i], nullptr);
-	}
-
-	// Creates new swapchain image views
-	VkImageViewCreateInfo viewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-	viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	viewCreateInfo.format = ctx.surfaceFormat.format;
-	viewCreateInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-	for (uint32_t i = 0; i < numSwapchainImages; i++)
-	{
-		viewCreateInfo.image = ctx.swapchainImages[i];
-		vkCreateImageView(ctx.device, &viewCreateInfo, nullptr, &ctx.swapchainImageViews[i]);
-	}
-
-	// Creates new image semaphores if the number of images has increased
-	for (uint32_t i = ctx.numSwapchainImages; i < numSwapchainImages; i++)
-	{
-		ctx.acquireSemaphores[i] = CreateSemaphore(ctx.device);
-	}
-
-	DestroyDefaultFramebuffer();
-
-	RenderPassDescription defaultFBRenderPassDesc;
-	defaultFBRenderPassDesc.numColorAttachments = 1;
-	defaultFBRenderPassDesc.numResolveColorAttachments = 0;
-	defaultFBRenderPassDesc.colorAttachments[0].format = ctx.surfaceFormat.format;
-	defaultFBRenderPassDesc.colorAttachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkImageView attachments[2];
-
-	VkFramebufferCreateInfo framebufferCreateInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-	framebufferCreateInfo.width = ctx.surfaceExtent.width;
-	framebufferCreateInfo.height = ctx.surfaceExtent.height;
-	framebufferCreateInfo.layers = 1;
-	framebufferCreateInfo.attachmentCount = 1;
-	framebufferCreateInfo.pAttachments = attachments;
-
-	// Creates a new default depth stencil image and view
-	if (ctx.defaultDSFormat != VK_FORMAT_UNDEFINED)
-	{
-		// Creates the image
-		VkImageCreateInfo dsImageCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-		dsImageCreateInfo.extent = { ctx.surfaceExtent.width, ctx.surfaceExtent.height, 1 };
-		dsImageCreateInfo.format = ctx.defaultDSFormat;
-		dsImageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		dsImageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-		dsImageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		dsImageCreateInfo.mipLevels = 1;
-		dsImageCreateInfo.arrayLayers = 1;
-
-		VmaAllocationCreateInfo allocationCreateInfo = {};
-		allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-		CheckRes(vmaCreateImage(
-			ctx.allocator, &dsImageCreateInfo, &allocationCreateInfo, &ctx.defaultDSImage,
-			&ctx.defaultDSImageAllocation, nullptr));
-
-		// Creates the image view
-		VkImageViewCreateInfo dsImageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-		dsImageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		dsImageViewCreateInfo.format = ctx.defaultDSFormat;
-		dsImageViewCreateInfo.image = ctx.defaultDSImage;
-		dsImageViewCreateInfo.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
-		CheckRes(vkCreateImageView(ctx.device, &dsImageViewCreateInfo, nullptr, &ctx.defaultDSImageView));
-		if (HasStencil(ctx.defaultDSFormat))
-			dsImageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-
-		SetObjectName(std::bit_cast<uint64_t>(ctx.defaultDSImage), VK_OBJECT_TYPE_IMAGE, "Default DepthStencil");
-		SetObjectName(
-			std::bit_cast<uint64_t>(ctx.defaultDSImageView), VK_OBJECT_TYPE_IMAGE_VIEW, "Default DepthStencil View");
-
-		defaultFBRenderPassDesc.depthAttachment.format = ctx.defaultDSFormat;
-		defaultFBRenderPassDesc.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		framebufferCreateInfo.attachmentCount = 2;
-		attachments[0] = ctx.defaultDSImageView;
-	}
-
-	framebufferCreateInfo.renderPass = GetRenderPass(defaultFBRenderPassDesc, true);
-
-	for (uint32_t i = 0; i < numSwapchainImages; i++)
-	{
-		attachments[framebufferCreateInfo.attachmentCount - 1] = ctx.swapchainImageViews[i];
-		CheckRes(vkCreateFramebuffer(ctx.device, &framebufferCreateInfo, nullptr, &ctx.defaultFramebuffers[i]));
-		SetObjectName(
-			std::bit_cast<uint64_t>(ctx.defaultFramebuffers[i]), VK_OBJECT_TYPE_FRAMEBUFFER, "Default Framebuffer");
-	}
-
-	ctx.acquireSemaphoreIndex = 0;
-	ctx.numSwapchainImages = numSwapchainImages;
-}
-
 static const char* REQUIRED_DEVICE_EXTENSIONS[] = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
@@ -262,6 +32,7 @@ static const char* OPTIONAL_DEVICE_EXTENSIONS[] = {
 	VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
 	VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME,
 	VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+	VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME,
 };
 
 static inline std::string_view GetVendorName(uint32_t id)
@@ -456,15 +227,8 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		VkPhysicalDeviceFeatures deviceFeatures;
 		vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
-		VkPhysicalDeviceSubgroupProperties subgroupProperties = {
-			VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES
-		};
-
-		VkPhysicalDeviceProperties2 deviceProperties = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-			.pNext = &subgroupProperties,
-		};
-		vkGetPhysicalDeviceProperties2(physicalDevice, &deviceProperties);
+		VkPhysicalDeviceProperties deviceProperties;
+		vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
 
 		// Enumerates the queue families exposed by this device
 		uint32_t numQueueFamilies;
@@ -496,7 +260,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 			Log(LogLevel::Info, "vk",
 			    "Cannot use vulkan device '{0}' because it does not have a queue family "
 			    " that supports graphics, compute and present.",
-			    deviceProperties.properties.deviceName);
+			    deviceProperties.deviceName);
 			continue;
 		}
 
@@ -538,7 +302,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 				Log(LogLevel::Info, "vk",
 				    "Cannot use vulkan device '{0}' because it does not support the "
 				    "{1} extension",
-				    deviceProperties.properties.deviceName, REQUIRED_DEVICE_EXTENSIONS[i]);
+				    deviceProperties.deviceName, REQUIRED_DEVICE_EXTENSIONS[i]);
 				hasAllExtensions = false;
 				break;
 			}
@@ -547,10 +311,9 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		if (!hasAllExtensions)
 			continue;
 
-		okDeviceNames.emplace_back(deviceProperties.properties.deviceName);
+		okDeviceNames.emplace_back(deviceProperties.deviceName);
 
-		if (ctx.physDevice != VK_NULL_HANDLE &&
-		    !IsDevicePreferredOver(deviceProperties.properties, currentDeviceProperties))
+		if (ctx.physDevice != VK_NULL_HANDLE && !IsDevicePreferredOver(deviceProperties, currentDeviceProperties))
 		{
 			continue;
 		}
@@ -559,11 +322,10 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		ctx.queueFamilyProperties = selectedQueueFamilyProperties;
 		ctx.physDevice = physicalDevice;
 		ctx.deviceFeatures = deviceFeatures;
-		ctx.deviceName = deviceProperties.properties.deviceName;
-		ctx.deviceVendorName = GetVendorName(deviceProperties.properties.vendorID);
-		ctx.deviceLimits = deviceProperties.properties.limits;
-		ctx.subgroupProperties = subgroupProperties;
-		currentDeviceProperties = deviceProperties.properties;
+		ctx.deviceName = deviceProperties.deviceName;
+		ctx.deviceVendorName = GetVendorName(deviceProperties.vendorID);
+		ctx.deviceLimits = deviceProperties.limits;
+		currentDeviceProperties = deviceProperties;
 	}
 
 	if (ctx.physDevice == VK_NULL_HANDLE)
@@ -571,8 +333,6 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		Log(LogLevel::Error, "vk", "No compatible vulkan device was found");
 		return false;
 	}
-
-	vulkanWindow = initArguments.window;
 
 	if (okDeviceNames.size() > 1)
 	{
@@ -587,17 +347,13 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 	vkGetPhysicalDeviceMemoryProperties(ctx.physDevice, &ctx.memoryProperties);
 
-	bool supportsMultipleGraphicsQueues = ctx.queueFamilyProperties.queueCount > 1;
-
 	// Creates the logical device
-	const float queuePriorities[] = { 1, 1 };
-	VkDeviceQueueCreateInfo queueCreateInfo = {
-		/* sType            */ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-		/* pNext            */ nullptr,
-		/* flags            */ 0,
-		/* queueFamilyIndex */ ctx.queueFamily,
-		/* queueCount       */ supportsMultipleGraphicsQueues ? 2U : 1U,
-		/* pQueuePriorities */ queuePriorities,
+	const float queuePriorities[] = { 1 };
+	const VkDeviceQueueCreateInfo queueCreateInfo = {
+		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+		.queueFamilyIndex = ctx.queueFamily,
+		.queueCount = 1,
+		.pQueuePriorities = queuePriorities,
 	};
 
 	VkPhysicalDeviceFeatures enabledDeviceFeatures = {};
@@ -667,7 +423,55 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	if (hasDynamicState3Extension)
 		PushPNext(physDeviceFeatures2, dynamicState3Features);
 
+	const bool hasSubgroupSizeControlExtension =
+		OptionalExtensionAvailable(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
+	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroupSizeControlFeatures = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT
+	};
+	if (hasSubgroupSizeControlExtension)
+		PushPNext(physDeviceFeatures2, subgroupSizeControlFeatures);
+
 	vkGetPhysicalDeviceFeatures2(ctx.physDevice, &physDeviceFeatures2);
+
+	// ** Queries physical device properties using VkPhysicalDeviceProperties2
+	VkPhysicalDeviceProperties2 deviceProperties2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+
+	VkPhysicalDeviceSubgroupProperties subgroupProperties = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES };
+	PushPNext(deviceProperties2, subgroupProperties);
+
+	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT subgroupSizeControlProperties = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT
+	};
+	if (hasSubgroupSizeControlExtension)
+		PushPNext(deviceProperties2, subgroupSizeControlProperties);
+
+	vkGetPhysicalDeviceProperties2(ctx.physDevice, &deviceProperties2);
+
+	// Sets up ctx.subgroupFeatures
+	const auto subgroupFeatureFlags = static_cast<SubgroupFeatureFlags>(subgroupProperties.supportedOperations);
+	if (hasSubgroupSizeControlExtension)
+	{
+		ctx.subgroupFeatures = SubgroupFeatures{
+			.minSubgroupSize = subgroupSizeControlProperties.minSubgroupSize,
+			.maxSubgroupSize = subgroupSizeControlProperties.maxSubgroupSize,
+			.maxWorkgroupSubgroups = subgroupSizeControlProperties.maxComputeWorkgroupSubgroups,
+			.supportsRequireFullSubgroups = subgroupSizeControlFeatures.computeFullSubgroups == VK_TRUE,
+			.supportsRequiredSubgroupSize =
+				(subgroupSizeControlProperties.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0,
+			.featureFlags = subgroupFeatureFlags,
+		};
+	}
+	else
+	{
+		ctx.subgroupFeatures = SubgroupFeatures{
+			.minSubgroupSize = subgroupProperties.subgroupSize,
+			.maxSubgroupSize = subgroupProperties.subgroupSize,
+			.maxWorkgroupSubgroups = 0xFF,
+			.supportsRequireFullSubgroups = false,
+			.supportsRequiredSubgroupSize = false,
+			.featureFlags = subgroupFeatureFlags,
+		};
+	}
 
 	// Enables support for dynamic state from extended dynamic state 3
 	VkPhysicalDeviceExtendedDynamicState3FeaturesEXT extendedDynamicState3EnabledFeatures = {
@@ -682,6 +486,14 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		}
 		PushPNext(deviceCreateInfo, extendedDynamicState3EnabledFeatures);
 	}
+
+	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroupSizeControlEnabledFeatures = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT,
+		.subgroupSizeControl = subgroupSizeControlFeatures.subgroupSizeControl,
+		.computeFullSubgroups = subgroupSizeControlFeatures.computeFullSubgroups,
+	};
+	if (hasSubgroupSizeControlExtension)
+		PushPNext(deviceCreateInfo, subgroupSizeControlEnabledFeatures);
 
 	ctx.hasPushDescriptorExtension = OptionalExtensionAvailable(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
@@ -698,14 +510,6 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 	// Gets queue handles
 	vkGetDeviceQueue(ctx.device, ctx.queueFamily, 0, &ctx.mainQueue);
-	if (supportsMultipleGraphicsQueues)
-	{
-		vkGetDeviceQueue(ctx.device, ctx.queueFamily, 1, &ctx.backgroundQueue);
-	}
-	else
-	{
-		ctx.backgroundQueue = ctx.mainQueue;
-	}
 
 	// Creates the main command pool
 	const VkCommandPoolCreateInfo mainCommandPoolCreateInfo = {
@@ -750,13 +554,11 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 	CheckRes(vmaCreateAllocator(&allocatorCreateInfo, &ctx.allocator));
 
-	ctx.surfaceFormat = SelectSurfaceFormat(initArguments.defaultFramebufferSRGB);
-	if (ctx.surfaceFormat.format == VK_FORMAT_UNDEFINED)
+	if (!ctx.swapchain.Init(initArguments))
 		return false;
 
-	ctx.presentMode = SelectPresentMode(true);
 	ctx.defaultDSFormat = TranslateFormat(initArguments.defaultDepthStencilFormat);
-	CreateSwapchain();
+	ctx.swapchain.Create();
 
 	// Creates frame queue resources
 	VkFenceCreateInfo frameQueueFenceCreateInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
@@ -815,23 +617,13 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	if (ctx.hasPushDescriptorExtension)
 		features |= DeviceFeatureFlags::DynamicResourceBind;
 
-	// Adds features for subgroup operations. This relies on the flags having the same order in DeviceFeatureFlags as in
-	// VkSubgroupFeatureFlags.
-	static_assert(
-		(VK_SUBGROUP_FEATURE_BASIC_BIT << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
-		static_cast<uint32_t>(DeviceFeatureFlags::SubgroupBasic));
-	static_assert(
-		(VK_SUBGROUP_FEATURE_QUAD_BIT << DEVICE_FEATURE_FLAGS_SUBGROUP_OPS_SHIFT) ==
-		static_cast<uint32_t>(DeviceFeatureFlags::SubgroupQuad));
-	features |= SubgroupOperationFlagsFromGlVk(ctx.subgroupProperties.supportedOperations);
-
 	deviceInfo = GraphicsDeviceInfo{
 		.uniformBufferOffsetAlignment = UnsignedNarrow<uint32_t>(ctx.deviceLimits.minUniformBufferOffsetAlignment),
 		.storageBufferOffsetAlignment = UnsignedNarrow<uint32_t>(ctx.deviceLimits.minStorageBufferOffsetAlignment),
 		.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize,
 		.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0,
 		.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations,
-		.subgroupSize = ctx.subgroupProperties.subgroupSize,
+		.subgroupFeatures = ctx.subgroupFeatures,
 		.depthRange = DepthRange::ZeroToOne,
 		.features = features,
 		.timerTicksPerNS = ctx.deviceLimits.timestampPeriod,
@@ -873,8 +665,7 @@ FormatCapabilities GetFormatCapabilities(Format format)
 
 void SetEnableVSync(bool enableVSync)
 {
-	ctx.presentMode = SelectPresentMode(enableVSync);
-	CreateSwapchain();
+	ctx.swapchain.SetEnableVSync(enableVSync);
 }
 
 GraphicsMemoryStat GetMemoryStat()
@@ -910,7 +701,6 @@ void Shutdown()
 	CachedDescriptorSetLayout::DestroyCached();
 	DestroySamplers();
 	DestroyRenderPasses();
-	DestroyDefaultFramebuffer();
 
 	for (uint32_t i = 0; i < MAX_CONCURRENT_FRAMES; i++)
 	{
@@ -921,19 +711,7 @@ void Shutdown()
 
 	vkDestroyCommandPool(ctx.device, ctx.mainCommandPool, nullptr);
 
-	for (VkSemaphore aquireSemaphore : ctx.acquireSemaphores)
-	{
-		if (aquireSemaphore != VK_NULL_HANDLE)
-			vkDestroySemaphore(ctx.device, aquireSemaphore, nullptr);
-	}
-
-	for (VkImageView swView : ctx.swapchainImageViews)
-	{
-		if (swView != VK_NULL_HANDLE)
-			vkDestroyImageView(ctx.device, swView, nullptr);
-	}
-
-	vkDestroySwapchainKHR(ctx.device, ctx.swapchain, nullptr);
+	ctx.swapchain.Destroy();
 
 	vmaDestroyAllocator(ctx.allocator);
 
@@ -975,30 +753,14 @@ static VkSemaphore acquireSemaphore = VK_NULL_HANDLE;
 
 void MaybeAcquireSwapchainImage()
 {
-	if (acquireSemaphore != VK_NULL_HANDLE)
-		return;
-
-	VkResult result = vkAcquireNextImageKHR(
-		ctx.device, ctx.swapchain, UINT64_MAX, ctx.acquireSemaphores[ctx.acquireSemaphoreIndex], VK_NULL_HANDLE,
-		&ctx.currentImage);
-
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-	{
-		CreateSwapchain();
-		MaybeAcquireSwapchainImage();
-	}
-	else
-	{
-		CheckRes(result);
-		acquireSemaphore = ctx.acquireSemaphores[ctx.acquireSemaphoreIndex];
-		ctx.acquireSemaphoreIndex = (ctx.acquireSemaphoreIndex + 1) % ctx.numSwapchainImages;
-	}
+	if (acquireSemaphore == VK_NULL_HANDLE)
+		acquireSemaphore = ctx.swapchain.AcquireImage();
 }
 
 void GetDrawableSize(int& width, int& height)
 {
-	width = ToInt(ctx.surfaceExtent.width);
-	height = ToInt(ctx.surfaceExtent.height);
+	width = ToInt(ctx.swapchain.m_surfaceExtent.width);
+	height = ToInt(ctx.swapchain.m_surfaceExtent.height);
 }
 
 void BeginFrame()
@@ -1037,7 +799,7 @@ void EndFrame()
 	if (!ctx.defaultFramebufferInPresentMode)
 	{
 		VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		barrier.image = ctx.swapchainImages[ctx.currentImage];
+		barrier.image = ctx.swapchain.CurrentImage();
 		barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
 		barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -1052,7 +814,7 @@ void EndFrame()
 	else
 	{
 		VkImageMemoryBarrier barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-		barrier.image = ctx.swapchainImages[ctx.currentImage];
+		barrier.image = ctx.swapchain.CurrentImage();
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1101,8 +863,8 @@ void EndFrame()
 		/* waitSemaphoreCount */ 1,
 		/* pWaitSemaphores    */ &ctx.frameQueueSemaphores[CFrameIdx()],
 		/* swapchainCount     */ 1,
-		/* pSwapchains        */ &ctx.swapchain,
-		/* pImageIndices      */ &ctx.currentImage,
+		/* pSwapchains        */ &ctx.swapchain.m_swapchain,
+		/* pImageIndices      */ &ctx.swapchain.m_currentImage,
 		/* pResults           */ &presentResult,
 	};
 
@@ -1112,11 +874,37 @@ void EndFrame()
 
 	if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
 	{
-		CreateSwapchain();
+		ctx.swapchain.Create();
 	}
 	else
 	{
 		CheckRes(presentResult);
+	}
+}
+
+FenceHandle CreateFence()
+{
+	VkFenceCreateInfo createInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+	VkFence fence;
+	CheckRes(vkCreateFence(ctx.device, &createInfo, nullptr, &fence));
+	return reinterpret_cast<FenceHandle>(fence);
+}
+
+void DestroyFence(FenceHandle handle)
+{
+	vkDestroyFence(ctx.device, reinterpret_cast<VkFence>(handle), nullptr);
+}
+
+FenceStatus WaitForFence(FenceHandle _fence, uint64_t timeout)
+{
+	VkFence fence = reinterpret_cast<VkFence>(_fence);
+	VkResult result = vkWaitForFences(ctx.device, 1, &fence, VK_TRUE, timeout);
+	switch (result)
+	{
+	case VK_TIMEOUT: return FenceStatus::Timeout;
+	case VK_SUCCESS: return FenceStatus::Signaled;
+	case VK_ERROR_DEVICE_LOST: return FenceStatus::Error;
+	default: EG_PANIC("unexpected result from vkWaitForFences: " << result);
 	}
 }
 

@@ -22,8 +22,8 @@ struct Game : public eg::IGame
 			EG_PANIC("Error loading assets");
 		}
 		eg::GraphicsPipelineCreateInfo pipelineCI;
-		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").DefaultVariant();
-		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").DefaultVariant();
+		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").ToStageInfo();
+		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").ToStageInfo();
 		pipelineCI.numColorAttachments = 1;
 		pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
 		pipelineCI.depthAttachmentFormat = eg::Format::DefaultDepthStencil;

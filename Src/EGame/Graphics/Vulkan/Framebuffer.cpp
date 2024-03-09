@@ -194,9 +194,9 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 	{
 		MaybeAcquireSwapchainImage();
 
-		extent = ctx.surfaceExtent;
-		framebuffer = ctx.defaultFramebuffers[ctx.currentImage];
-		colorFormats[0] = ctx.surfaceFormat.format;
+		extent = ctx.swapchain.m_surfaceExtent;
+		framebuffer = ctx.defaultFramebuffers[ctx.swapchain.m_currentImage];
+		colorFormats[0] = ctx.swapchain.m_surfaceFormat.format;
 		depthStencilFormat = ctx.defaultDSFormat;
 		colorImageInitialLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		colorImageFinalLayouts[0] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;

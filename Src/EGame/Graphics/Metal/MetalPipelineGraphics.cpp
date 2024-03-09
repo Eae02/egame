@@ -46,8 +46,9 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 			if (specConstIt != module.specializationConstants.end() &&
 			    specConstIt->constantID == specConstant.constantID)
 			{
-				const char* dataPtr = static_cast<const char*>(stageInfo.specConstantsData) + specConstant.offset;
-				constantValues->setConstantValue(dataPtr, specConstIt->dataType, specConstant.constantID);
+				const void* valuePtr =
+					std::visit([](const auto& value) -> const void* { return &value; }, specConstant.value);
+				constantValues->setConstantValue(valuePtr, specConstIt->dataType, specConstant.constantID);
 			}
 		}
 

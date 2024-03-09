@@ -159,32 +159,23 @@ static const std::pair<spirv_cross::SmallVector<spirv_cross::Resource> spirv_cro
 void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages)
 {
 	// Detects resources used in shaders
-	std::unordered_map<uint64_t, BindingType> foundBindings;
+	DescriptorSetBindings dsBindings;
 	for (auto [compiler, _] : shaderStages)
 	{
 		const spirv_cross::ShaderResources& resources = compiler->get_shader_resources();
-		for (auto [resourceFieldPtr, bindingType] : bindingTypes)
-		{
-			for (const spirv_cross::Resource& res : resources.*resourceFieldPtr)
-			{
-				const uint32_t set = compiler->get_decoration(res.id, spv::DecorationDescriptorSet);
-				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
+		dsBindings.AppendFromReflectionInfo({}, *compiler, resources);
+	}
 
-				const uint64_t key = static_cast<uint64_t>(set) | (static_cast<uint64_t>(binding) << 32ULL);
-				auto foundBindingIt = foundBindings.find(key);
-				if (foundBindingIt == foundBindings.end())
-				{
-					bindings.push_back({ set, binding, bindingType, 0 });
-					foundBindings.emplace(key, bindingType);
-				}
-				else if (foundBindingIt->second != bindingType)
-				{
-					EG_PANIC(
-						"Shader binding mismatch for " << set << "," << binding << "; used as both "
-													   << BindingTypeToString(bindingType) << " and "
-													   << BindingTypeToString(foundBindingIt->second));
-				}
-			}
+	for (uint32_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
+	{
+		for (DescriptorSetBinding& binding : dsBindings.sets[set])
+		{
+			bindings.push_back(MappedBinding{
+				.set = set,
+				.binding = binding.binding,
+				.type = binding.type,
+				.glBinding = 0,
+			});
 		}
 	}
 
@@ -211,10 +202,12 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 		switch (bindings[i].type)
 		{
 		case BindingType::UniformBuffer:
+		case BindingType::UniformBufferDynamicOffset:
 			sets[set].numUniformBuffers++;
 			bindings[i].glBinding = nextUniformBufferBinding++;
 			break;
 		case BindingType::StorageBuffer:
+		case BindingType::StorageBufferDynamicOffset:
 			sets[set].numStorageBuffers++;
 			bindings[i].glBinding = nextStorageBufferBinding++;
 			usesGL4Resources = true;
@@ -312,14 +305,14 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 				}
 				else
 				{
-					glUniform1i(location, binding);
+					glUniform1i(location, static_cast<GLint>(binding));
 				}
 			}
 			for (const spirv_cross::Resource& res : shResources.uniform_buffers)
 			{
 				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
-				int blockIndex = glGetUniformBlockIndex(program, res.name.c_str());
-				if (blockIndex == -1)
+				GLuint blockIndex = glGetUniformBlockIndex(program, res.name.c_str());
+				if (blockIndex == GL_INVALID_INDEX)
 				{
 					eg::Log(eg::LogLevel::Warning, "gl", "Uniform block not found: '{0}'", res.name);
 				}

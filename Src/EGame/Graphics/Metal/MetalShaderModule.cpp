@@ -91,6 +91,8 @@ ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::Pars
 			{
 			case BindingType::UniformBuffer:
 			case BindingType::StorageBuffer:
+			case BindingType::UniformBufferDynamicOffset:
+			case BindingType::StorageBufferDynamicOffset:
 				metalIndex = nextBufferIndex++;
 				resourceBinding.msl_buffer = metalIndex;
 				break;

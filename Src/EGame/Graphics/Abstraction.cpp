@@ -134,6 +134,8 @@ std::string_view BindingTypeToString(BindingType bindingType)
 	{
 	case BindingType::UniformBuffer: return "UniformBuffer";
 	case BindingType::StorageBuffer: return "StorageBuffer";
+	case BindingType::UniformBufferDynamicOffset: return "UniformBufferDynamicOffset";
+	case BindingType::StorageBufferDynamicOffset: return "StorageBufferDynamicOffset";
 	case BindingType::Texture: return "Texture";
 	case BindingType::StorageImage: return "StorageImage";
 	}

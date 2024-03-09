@@ -7,6 +7,7 @@
 #include "../Abstraction.hpp"
 #include "../Graphics.hpp"
 #include "VulkanMain.hpp"
+#include "Swapchain.hpp"
 
 #include <atomic>
 #include <mutex>
@@ -67,28 +68,19 @@ struct Context
 	VkPhysicalDeviceLimits deviceLimits;
 	VkPhysicalDeviceFeatures deviceFeatures;
 	VkPhysicalDevice physDevice;
-	VkPhysicalDeviceSubgroupProperties subgroupProperties;
 	bool hasDynamicStatePolygonMode = false;
 	std::string deviceName;
 	std::string_view deviceVendorName;
 	VkDevice device;
 	VkQueue mainQueue;
-	VkQueue backgroundQueue;
 	VkDebugUtilsMessengerEXT debugMessenger;
 	VmaAllocator allocator;
+	
+	SubgroupFeatures subgroupFeatures;
 
 	VkCommandPool mainCommandPool;
-
-	// ** Swapchain related fields **
-	VkSurfaceFormatKHR surfaceFormat;
-	VkExtent2D surfaceExtent;
-	VkPresentModeKHR presentMode;
-	VkSwapchainKHR swapchain;
-	uint32_t numSwapchainImages;
-	VkImage swapchainImages[16];
-	VkImageView swapchainImageViews[16];
-	uint32_t acquireSemaphoreIndex;
-	VkSemaphore acquireSemaphores[16];
+	
+	Swapchain swapchain;
 
 	VkImage defaultDSImage;
 	VmaAllocation defaultDSImageAllocation;
@@ -100,8 +92,6 @@ struct Context
 	// ** Frame queue related fields **
 	VkSemaphore frameQueueSemaphores[MAX_CONCURRENT_FRAMES];
 	VkFence frameQueueFences[MAX_CONCURRENT_FRAMES];
-
-	uint32_t currentImage;
 };
 
 extern Context ctx;
