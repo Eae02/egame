@@ -178,9 +178,8 @@ void RegisterConsoleCommands()
 		[&](std::span<const std::string_view> args, console::Writer& writer)
 		{
 			std::vector<std::pair<std::string_view, std::string_view>> lines;
-			lines.emplace_back("API", CurrentGraphicsAPIName());
+			lines.emplace_back("API", GetGraphicsDeviceInfo().apiName);
 			lines.emplace_back("Device", GetGraphicsDeviceInfo().deviceName);
-			lines.emplace_back("Vendor", GetGraphicsDeviceInfo().deviceVendorName);
 
 			char subgroupSizeValue[40];
 			if (const auto& subgroupFeatures = GetGraphicsDeviceInfo().subgroupFeatures)

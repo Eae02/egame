@@ -234,19 +234,6 @@ void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	deviceInfo.storageBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT));
 	deviceInfo.features |= DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceFeatureFlags::TextureCubeMapArray |
 	                       DeviceFeatureFlags::TessellationShader;
-
-	if (SDL_GL_ExtensionSupported("GL_KHR_shader_subgroup"))
-	{
-		const uint32_t subgroupSize = ToUnsigned(GetIntegerLimit(GL_SUBGROUP_SIZE_KHR));
-		const GLint subgroupFeatures = GetIntegerLimit(GL_SUBGROUP_SUPPORTED_FEATURES_KHR);
-
-		deviceInfo.subgroupFeatures = SubgroupFeatures{
-			.minSubgroupSize = subgroupSize,
-			.maxSubgroupSize = subgroupSize,
-			.maxWorkgroupSubgroups = 0xFF,
-			.featureFlags = static_cast<SubgroupFeatureFlags>(subgroupFeatures),
-		};
-	}
 #endif
 
 	deviceInfo.maxClipDistances = ToUnsigned(GetIntegerLimit(GL_MAX_CLIP_DISTANCES));
@@ -258,6 +245,8 @@ void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 		deviceInfo.features |= DeviceFeatureFlags::TextureCompressionASTC;
 	if (SDL_GL_ExtensionSupported("GL_ARB_texture_view"))
 		deviceInfo.features |= DeviceFeatureFlags::PartialTextureViews;
+
+	deviceInfo.apiName = useGLESPath ? "OpenGL (ES path)" : "OpenGL";
 }
 
 static GLsync loadFence;

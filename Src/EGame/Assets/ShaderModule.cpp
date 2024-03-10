@@ -3,6 +3,8 @@
 #include "../Graphics/AbstractionHL.hpp"
 #include "AssetLoad.hpp"
 
+#include <string>
+
 namespace eg
 {
 const eg::AssetFormat ShaderModuleAsset::AssetFormat{ "EG::Shader", 2 };
@@ -17,13 +19,18 @@ bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 	const uint32_t numVariants = reinterpret_cast<const uint32_t*>(data)[1];
 	data += sizeof(uint32_t) * 2;
 
+	std::string label(context.AssetPath());
+
 	for (uint32_t i = 0; i < numVariants; i++)
 	{
 		uint32_t variantHash = reinterpret_cast<const uint32_t*>(data)[0];
 		uint32_t codeSize = reinterpret_cast<const uint32_t*>(data)[1];
 		data += sizeof(uint32_t) * 2;
 
-		result.m_variants.emplace_back(variantHash, stage, std::span<const char>(data, codeSize));
+		result.m_variants.push_back(Variant{
+			.hash = variantHash,
+			.shaderModule = ShaderModule(stage, std::span<const char>(data, codeSize), label.c_str()),
+		});
 
 		data += codeSize;
 	}

@@ -8,14 +8,15 @@
 
 namespace eg::graphics_api::mtl
 {
+static constexpr uint32_t PUSH_CONSTANTS_BUFFER_INDEX = 30;
+	
 inline uint32_t GetVertexBindingBufferIndex(uint32_t binding)
 {
-	return 30 - binding;
+	return 29 - binding;
 }
 
 struct StageBindingsTable
 {
-	int pushConstantsBinding = -1;
 	uint32_t pushConstantBytes = 0;
 
 	std::array<std::vector<int>, MAX_DESCRIPTOR_SETS> bindingsMetalIndexTable;
@@ -61,12 +62,20 @@ struct GraphicsPipeline
 struct ComputePipeline
 {
 	MTL::ComputePipelineState* pso;
+	MTL::Size workGroupSize;
+
+	std::shared_ptr<StageBindingsTable> bindingsTable;
+
+	void Bind(struct MetalCommandContext& mcc) const;
 };
 
 struct Pipeline
 {
 	std::array<uint32_t, MAX_DESCRIPTOR_SETS> descriptorSetsMaxBindingPlusOne;
 	std::variant<GraphicsPipeline, ComputePipeline> variant;
+
+	static std::pair<MTL::Function*, std::shared_ptr<StageBindingsTable>> PrepareShaderModule(
+		const ShaderStageInfo& stageInfo);
 };
 
 inline Pipeline& UnwrapPipeline(PipelineHandle handle)

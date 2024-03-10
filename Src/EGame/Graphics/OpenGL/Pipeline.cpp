@@ -64,6 +64,11 @@ void BindPipeline(CommandContextHandle, PipelineHandle handle)
 	pipeline->Bind();
 }
 
+std::optional<uint32_t> GetPipelineSubgroupSize(PipelineHandle pipeline)
+{
+	return std::nullopt;
+}
+
 void CompileShaderStage(GLuint shader, std::string_view glslCode)
 {
 	const GLchar* glslCodeC = glslCode.data();

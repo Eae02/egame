@@ -44,8 +44,6 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 	InitShaderStageCreateInfo(
 		pipelineCreateInfo.stage, pipeline->linearAllocator, createInfo.computeShader, VK_SHADER_STAGE_COMPUTE_BIT);
 
-	if (createInfo.allowVaryingSubgroupSize)
-		pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT;
 	if (createInfo.requireFullSubgroups)
 		pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
 
@@ -57,6 +55,10 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 			.requiredSubgroupSize = *createInfo.requiredSubgroupSize,
 		};
 		PushPNext(pipelineCreateInfo.stage, requiredSubgroupSizeCreateInfo);
+	}
+	else
+	{
+		pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT;
 	}
 
 	pipeline->InitPipelineLayout(

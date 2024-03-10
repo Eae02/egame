@@ -67,10 +67,10 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnistropyF);
 	maxAnistropy = static_cast<int>(maxAnistropyF);
 
-	vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
-	if (strstr(vendorName.c_str(), "Intel"))
+	const char* vendorName = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+	if (strstr(vendorName, "Intel"))
 		glVendor = GLVendor::Intel;
-	else if (strstr(vendorName.c_str(), "NVIDIA"))
+	else if (strstr(vendorName, "NVIDIA"))
 		glVendor = GLVendor::Nvidia;
 	else
 		glVendor = GLVendor::Unknown;
@@ -90,7 +90,6 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 		.features = DeviceFeatureFlags::GeometryShader | DeviceFeatureFlags::DynamicResourceBind,
 		.timerTicksPerNS = 1.0f,
 		.deviceName = rendererName,
-		.deviceVendorName = vendorName,
 	};
 
 	PlatformSpecificGetDeviceInfo(deviceInfo);

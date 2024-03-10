@@ -23,51 +23,8 @@ static const std::pair<MTL::PrimitiveTopologyClass, MTL::PrimitiveType> topology
 
 PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
 {
-	MTL::RenderPipelineDescriptor* descriptor = MTL::RenderPipelineDescriptor::alloc()->init();
-
-	auto PrepareShaderModule =
-		[&](const ShaderStageInfo& stageInfo) -> std::pair<MTL::Function*, std::shared_ptr<StageBindingsTable>>
-	{
-		if (stageInfo.shaderModule == nullptr)
-			return { nullptr, nullptr };
-
-		const ShaderModule& module = *reinterpret_cast<const ShaderModule*>(stageInfo.shaderModule);
-
-		MTL::FunctionConstantValues* constantValues = MTL::FunctionConstantValues::alloc()->init();
-
-		static const uint32_t METAL_API_CONSTANT = 2;
-		constantValues->setConstantValue(&METAL_API_CONSTANT, MTL::DataTypeUInt, 500);
-
-		for (const SpecializationConstantEntry& specConstant : stageInfo.specConstants)
-		{
-			auto specConstIt = std::lower_bound(
-				module.specializationConstants.begin(), module.specializationConstants.end(), specConstant.constantID);
-
-			if (specConstIt != module.specializationConstants.end() &&
-			    specConstIt->constantID == specConstant.constantID)
-			{
-				const void* valuePtr =
-					std::visit([](const auto& value) -> const void* { return &value; }, specConstant.value);
-				constantValues->setConstantValue(valuePtr, specConstIt->dataType, specConstant.constantID);
-			}
-		}
-
-		NS::Error* error = nullptr;
-		MTL::Function* function =
-			module.mtlLibrary->newFunction(NS::String::string("main0", NS::UTF8StringEncoding), constantValues, &error);
-
-		if (function == nullptr)
-		{
-			EG_PANIC("Error creating shader function: " << error->localizedDescription()->utf8String());
-		}
-
-		constantValues->release();
-
-		return { function, module.bindingsTable };
-	};
-
-	auto [vsFunction, vsBindingTable] = PrepareShaderModule(createInfo.vertexShader);
-	auto [fsFunction, fsBindingTable] = PrepareShaderModule(createInfo.fragmentShader);
+	auto [vsFunction, vsBindingTable] = Pipeline::PrepareShaderModule(createInfo.vertexShader);
+	auto [fsFunction, fsBindingTable] = Pipeline::PrepareShaderModule(createInfo.fragmentShader);
 
 	EG_ASSERT(vsFunction != nullptr);
 
@@ -79,6 +36,8 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 			maxBindingPlusOne = std::max(maxBindingPlusOne, fsBindingTable->bindingsMetalIndexTable[set].size());
 		descriptorSetsMaxBindingPlusOne[set] = static_cast<uint32_t>(maxBindingPlusOne);
 	}
+
+	MTL::RenderPipelineDescriptor* descriptor = MTL::RenderPipelineDescriptor::alloc()->init();
 
 	descriptor->setVertexFunction(vsFunction);
 	descriptor->setFragmentFunction(fsFunction);
@@ -182,7 +141,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	pipeline->descriptorSetsMaxBindingPlusOne = descriptorSetsMaxBindingPlusOne;
 	pipeline->variant = GraphicsPipeline{
 		.pso = renderPipelineState,
-		.cullMode = createInfo.cullMode.transform([](auto cullMode) { return TranslateCullMode(cullMode); }),
+		.cullMode = createInfo.cullMode.has_value() ? std::optional(TranslateCullMode(*createInfo.cullMode)) : std::nullopt,
 		.enableWireframeRasterization = createInfo.enableWireframeRasterization,
 		.enableDepthClamp = createInfo.enableDepthClamp,
 		.frontFaceCCW = createInfo.frontFaceCCW,

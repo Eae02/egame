@@ -4,6 +4,9 @@
 #define APIENTRY __stdcall
 #endif
 
+#define OPENGL_LEVEL_WEBGL 0
+#define OPENGL_LEVEL_WEBGL 0
+
 #include <cstddef>
 #include <cstdint>
 

@@ -99,6 +99,7 @@ void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 	deviceInfo.maxTessellationPatchSize = 0;
 	deviceInfo.maxClipDistances = 0;
 	deviceInfo.computeShader = false;
+	deviceInfo.apiName = "WebGL2";
 }
 
 void EndLoading() {}

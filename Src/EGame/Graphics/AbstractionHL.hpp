@@ -44,6 +44,8 @@ public:
 		}
 	}
 
+	std::optional<uint32_t> TryGetSubgroupSize() const { return gal::GetPipelineSubgroupSize(handle); }
+
 	PipelineHandle handle;
 };
 
@@ -73,14 +75,15 @@ class EG_API ShaderModule
 public:
 	ShaderModule() = default;
 
-	ShaderModule(ShaderStage stage, std::span<const char> code)
+	ShaderModule(ShaderStage stage, std::span<const char> code, const char* label = nullptr)
 		: ShaderModule(
 			  stage,
-			  std::span<const uint32_t>(reinterpret_cast<const uint32_t*>(code.data()), code.size() / sizeof(uint32_t)))
+			  std::span<const uint32_t>(reinterpret_cast<const uint32_t*>(code.data()), code.size() / sizeof(uint32_t)),
+			  label)
 	{
 	}
 
-	ShaderModule(ShaderStage stage, std::span<const uint32_t> code);
+	ShaderModule(ShaderStage stage, std::span<const uint32_t> code, const char* label = nullptr);
 
 	static ShaderModule CreateFromFile(const std::string& path);
 
@@ -495,21 +498,6 @@ public:
 		gal::GetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
 	}
 
-	void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const glm::ivec4& color)
-	{
-		gal::ClearColorTexture(Handle(), texture.handle, mipLevel, &color);
-	}
-
-	void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const glm::vec4& color)
-	{
-		gal::ClearColorTexture(Handle(), texture.handle, mipLevel, &color);
-	}
-
-	void ClearColorTexture(TextureRef texture, uint32_t mipLevel, const Color& color)
-	{
-		gal::ClearColorTexture(Handle(), texture.handle, mipLevel, &color);
-	}
-
 	void GenerateMipmaps(TextureRef texture) { gal::GenerateMipmaps(Handle(), texture.handle); }
 
 	void ResolveTexture(TextureRef src, TextureRef dst, const ResolveRegion& region)
@@ -542,6 +530,11 @@ public:
 	void DispatchCompute(uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)
 	{
 		gal::DispatchCompute(Handle(), sizeX, sizeY, sizeZ);
+	}
+
+	void DispatchComputeIndirect(BufferRef argsBuffer, uint64_t argsBufferOffset)
+	{
+		gal::DispatchComputeIndirect(Handle(), argsBuffer.handle, argsBufferOffset);
 	}
 
 	void UpdateBuffer(BufferRef buffer, uint64_t offset, uint64_t size, const void* data)

@@ -34,10 +34,6 @@ private:
 		uint32_t hash;
 		ShaderModule shaderModule;
 
-		Variant(uint32_t _hash, ShaderStage stage, std::span<const char> code) : hash(_hash), shaderModule(stage, code)
-		{
-		}
-
 		bool operator<(const Variant& other) const { return hash < other.hash; }
 
 		bool operator<(uint32_t otherHash) const { return hash < otherHash; }

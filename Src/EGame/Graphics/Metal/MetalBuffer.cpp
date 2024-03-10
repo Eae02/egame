@@ -40,7 +40,15 @@ void DestroyBuffer(BufferHandle buffer)
 
 void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags) {}
 
-void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier) {}
+void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier)
+{
+	if (barrier.newUsage == BufferUsage::HostRead)
+	{
+		auto& mcc = MetalCommandContext::Unwrap(ctx);
+		mcc.FlushComputeCommands();
+		mcc.GetBlitCmdEncoder().synchronizeResource(UnwrapBuffer(handle));
+	}
+}
 
 void* MapBuffer(BufferHandle handle, uint64_t offset, std::optional<uint64_t> _range)
 {

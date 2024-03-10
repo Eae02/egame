@@ -51,23 +51,10 @@ GraphicsMemoryStat (*GetMemoryStat)();
 } // namespace gal
 
 GraphicsAPI detail::graphicsAPI;
-std::string_view detail::graphicsAPIName;
 
 bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments)
 {
 	detail::graphicsAPI = api;
-
-	switch (api)
-	{
-	case GraphicsAPI::OpenGL:
-		if (initArguments.preferGLESPath)
-			detail::graphicsAPIName = "GLES3";
-		else
-			detail::graphicsAPIName = "GL4";
-		break;
-	case GraphicsAPI::Vulkan: detail::graphicsAPIName = "Vulkan"; break;
-	case GraphicsAPI::Metal: detail::graphicsAPIName = "Metal"; break;
-	}
 
 	switch (api)
 	{
@@ -140,6 +127,15 @@ std::string_view BindingTypeToString(BindingType bindingType)
 	case BindingType::StorageImage: return "StorageImage";
 	}
 	EG_UNREACHABLE
+}
+
+std::optional<std::variant<uint32_t, int32_t, float>> GetSpecConstantValueByID(
+	std::span<const SpecializationConstantEntry> specConstants, uint32_t id)
+{
+	for (const SpecializationConstantEntry& entry : specConstants)
+		if (entry.constantID == id)
+			return entry.value;
+	return std::nullopt;
 }
 
 TextureSubresource TextureSubresource::ResolveRem(uint32_t maxMipLevels, uint32_t maxArrayLayers) const

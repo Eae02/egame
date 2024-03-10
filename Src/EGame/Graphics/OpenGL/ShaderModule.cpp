@@ -7,7 +7,7 @@ namespace eg::graphics_api::gl
 {
 static ConcurrentObjectPool<ShaderModule> shaderModulePool;
 
-ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::ParsedIR& parsedIR)
+ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::ParsedIR& parsedIR, const char* label)
 {
 	ShaderModule* module = shaderModulePool.New();
 	module->stage = stage;

@@ -198,8 +198,8 @@ void TextureRef::DCUpdateData(const TextureRange& range, size_t dataLen, const v
 	DC.SetTextureData(*this, range, uploadBuffer.buffer, uploadBuffer.offset);
 }
 
-ShaderModule::ShaderModule(ShaderStage stage, std::span<const uint32_t> code)
-	: m_parsedIR(ParseSpirV(code)), m_handle(gal::CreateShaderModule(stage, *m_parsedIR))
+ShaderModule::ShaderModule(ShaderStage stage, std::span<const uint32_t> code, const char* label)
+	: m_parsedIR(ParseSpirV(code)), m_handle(gal::CreateShaderModule(stage, *m_parsedIR, label))
 {
 }
 

@@ -286,6 +286,8 @@ struct SpecializationConstantEntry
 	std::variant<uint32_t, int32_t, float> value;
 };
 
+EG_API std::optional<std::variant<uint32_t, int32_t, float>> GetSpecConstantValueByID(std::span<const SpecializationConstantEntry> specConstants, uint32_t id);
+
 struct ShaderStageInfo
 {
 	ShaderModuleHandle shaderModule = nullptr;
@@ -453,7 +455,6 @@ struct ComputePipelineCreateInfo
 {
 	ShaderStageInfo computeShader;
 	BindMode setBindModes[MAX_DESCRIPTOR_SETS] = {};
-	bool allowVaryingSubgroupSize = false;
 	bool requireFullSubgroups = false;
 	std::optional<uint32_t> requiredSubgroupSize;
 	const char* label = nullptr;
@@ -724,15 +725,13 @@ struct RenderPassColorAttachment
 
 struct RenderPassBeginInfo
 {
-	FramebufferHandle framebuffer;
+	FramebufferHandle framebuffer = nullptr;
 	AttachmentLoadOp depthLoadOp = AttachmentLoadOp::Discard;
 	AttachmentLoadOp stencilLoadOp = AttachmentLoadOp::Discard;
 	bool sampledDepthStencil = false;
 	float depthClearValue = 1.0f;
 	uint8_t stencilClearValue = 0;
 	RenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
-
-	explicit RenderPassBeginInfo(FramebufferHandle _framebuffer = nullptr) : framebuffer(_framebuffer) {}
 };
 
 enum class DepthRange
@@ -760,15 +759,17 @@ EG_BIT_FIELD(DeviceFeatureFlags)
 enum class SubgroupFeatureFlags
 {
 	// Subgroup flags must have the same values as in VkSubgroupFeatureFlags
-	SubgroupBasic = 1 << 0,
-	SubgroupVote = 1 << 1,
-	SubgroupArithmetic = 1 << 2,
-	SubgroupBallot = 1 << 3,
-	SubgroupShuffle = 1 << 4,
-	SubgroupShuffleRelative = 1 << 5,
-	SubgroupClustered = 1 << 6,
-	SubgroupQuad = 1 << 7,
+	Basic = 1 << 0,
+	Vote = 1 << 1,
+	Arithmetic = 1 << 2,
+	Ballot = 1 << 3,
+	Shuffle = 1 << 4,
+	ShuffleRelative = 1 << 5,
+	Clustered = 1 << 6,
+	Quad = 1 << 7,
 };
+
+EG_BIT_FIELD(SubgroupFeatureFlags)
 
 struct SubgroupFeatures
 {
@@ -778,6 +779,7 @@ struct SubgroupFeatures
 	bool supportsRequireFullSubgroups;
 	bool supportsRequiredSubgroupSize;
 	bool subgroupUniformControlFlow;
+	bool supportsGetPipelineSubgroupSize;
 	SubgroupFeatureFlags featureFlags;
 };
 
@@ -796,7 +798,7 @@ struct GraphicsDeviceInfo
 	float timerTicksPerNS;
 
 	std::string_view deviceName;
-	std::string_view deviceVendorName;
+	std::string_view apiName;
 };
 
 template <>
@@ -816,17 +818,11 @@ struct GraphicsAPIInitArguments
 namespace detail
 {
 EG_API extern GraphicsAPI graphicsAPI;
-EG_API extern std::string_view graphicsAPIName;
 } // namespace detail
 
 inline GraphicsAPI CurrentGraphicsAPI()
 {
 	return detail::graphicsAPI;
-}
-
-inline std::string_view CurrentGraphicsAPIName()
-{
-	return detail::graphicsAPIName;
 }
 
 bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments);

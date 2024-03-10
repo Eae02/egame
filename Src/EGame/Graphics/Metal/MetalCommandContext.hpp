@@ -32,6 +32,9 @@ public:
 	void FlushDrawState();
 
 	MTL::BlitCommandEncoder& GetBlitCmdEncoder();
+	
+	MTL::ComputeCommandEncoder& GetComputeCmdEncoder();
+	void FlushPushConstantsForCompute();
 
 	MTL::RenderCommandEncoder& RenderCmdEncoder() const
 	{
@@ -56,7 +59,9 @@ public:
 
 	static MetalCommandContext main;
 
-	const struct BoundGraphicsPipelineState* boundGraphicsPipelineState;
+	const struct BoundGraphicsPipelineState* boundGraphicsPipelineState = nullptr;
+	
+	const struct ComputePipeline* currentComputePipeline = nullptr;
 
 	uint32_t boundIndexBufferOffset = 0;
 	MTL::Buffer* boundIndexBuffer = nullptr;
@@ -71,6 +76,8 @@ public:
 	MTL::CommandBuffer* m_commandBuffer = nullptr;
 
 private:
+	std::optional<uint32_t> GetComputePipelineMetalResourceIndex(uint32_t set, uint32_t binding) const;
+
 	MTL::RenderCommandEncoder* m_renderEncoder = nullptr;
 	MTL::BlitCommandEncoder* m_blitEncoder = nullptr;
 	MTL::ComputeCommandEncoder* m_computeEncoder = nullptr;

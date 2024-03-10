@@ -8,13 +8,18 @@ namespace eg::graphics_api::gl
 #ifdef EG_GLES
 PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo)
 {
-	Log(LogLevel::Error, "gl", "Compute shaders are not supported in WebGL");
+	Log(LogLevel::Error, "gl", "Compute shaders are not supported in GLES");
 	return nullptr;
 }
 
 void DispatchCompute(CommandContextHandle, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)
 {
-	Log(LogLevel::Error, "gl", "Compute shaders are not supported in WebGL");
+	Log(LogLevel::Error, "gl", "Compute shaders are not supported in GLES");
+}
+
+void DispatchComputeIndirect(CommandContextHandle, BufferHandle argsBuffer, uint64_t argsBufferOffset)
+{
+	Log(LogLevel::Error, "gl", "Compute shaders are not supported in GLES");
 }
 #else
 struct ComputePipeline : public AbstractPipeline

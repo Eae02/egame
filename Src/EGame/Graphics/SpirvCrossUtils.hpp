@@ -14,7 +14,10 @@ EG_API void SetSpecializationConstants(const struct ShaderStageInfo& stageInfo, 
 EG_API uint32_t
 GetPushConstantBytes(const spirv_cross::Compiler& compiler, const spirv_cross::ShaderResources* shaderResources);
 
-std::unique_ptr<spirv_cross::ParsedIR, SpirvCrossParsedIRDeleter> ParseSpirV(std::span<const uint32_t> spirv);
+EG_API std::unique_ptr<spirv_cross::ParsedIR, SpirvCrossParsedIRDeleter> ParseSpirV(std::span<const uint32_t> spirv);
+
+EG_API std::optional<glm::uvec3> GetWorkGroupSizeFromSpirV(
+	const spirv_cross::Compiler& compiler, std::span<const SpecializationConstantEntry> specConstants);
 
 struct EG_API DescriptorSetBindings
 {

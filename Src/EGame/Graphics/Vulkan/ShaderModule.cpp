@@ -28,7 +28,7 @@ static const std::array<VkShaderStageFlags, 6> shaderStageFlags = {
 	VK_SHADER_STAGE_COMPUTE_BIT,
 };
 
-ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::ParsedIR& parsedIR)
+ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::ParsedIR& parsedIR, const char* label)
 {
 	ShaderModule* module = shaderModulesPool.New();
 	module->ref = 1;

@@ -70,7 +70,6 @@ struct Context
 	VkPhysicalDevice physDevice;
 	bool hasDynamicStatePolygonMode = false;
 	std::string deviceName;
-	std::string_view deviceVendorName;
 	VkDevice device;
 	VkQueue mainQueue;
 	VkDebugUtilsMessengerEXT debugMessenger;

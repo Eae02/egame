@@ -9,6 +9,8 @@ MetalCommandContext MetalCommandContext::main;
 
 void MetalCommandContext::Commit()
 {
+	FlushBlitCommands();
+	FlushComputeCommands();
 	m_commandBuffer->commit();
 }
 
@@ -81,19 +83,26 @@ void MetalCommandContext::FlushDrawState()
 		const StageBindingsTable* vsBindingsTable = boundGraphicsPipelineState->bindingsTableVS.get();
 		const StageBindingsTable* fsBindingsTable = boundGraphicsPipelineState->bindingsTableFS.get();
 
-		if (vsBindingsTable != nullptr && vsBindingsTable->pushConstantsBinding != -1)
+		if (vsBindingsTable != nullptr && vsBindingsTable->pushConstantBytes > 0)
 		{
 			m_renderEncoder->setVertexBytes(
-				pushConstantData.data(), pushConstantData.size(), vsBindingsTable->pushConstantsBinding);
+				pushConstantData.data(), pushConstantData.size(), PUSH_CONSTANTS_BUFFER_INDEX);
 		}
-		if (fsBindingsTable != nullptr && fsBindingsTable->pushConstantsBinding != -1)
+		if (fsBindingsTable != nullptr && fsBindingsTable->pushConstantBytes > 0)
 		{
 			m_renderEncoder->setFragmentBytes(
-				pushConstantData.data(), pushConstantData.size(), fsBindingsTable->pushConstantsBinding);
+				pushConstantData.data(), pushConstantData.size(), PUSH_CONSTANTS_BUFFER_INDEX);
 		}
 
 		pushConstantsChanged = false;
 	}
+}
+
+std::optional<uint32_t> MetalCommandContext::GetComputePipelineMetalResourceIndex(uint32_t set, uint32_t binding) const
+{
+	if (m_computeEncoder == nullptr || currentComputePipeline == nullptr)
+		return std::nullopt;
+	return currentComputePipeline->bindingsTable->GetResourceMetalIndex(set, binding);
 }
 
 void MetalCommandContext::BindTexture(MTL::Texture* texture, uint32_t set, uint32_t binding)
@@ -105,6 +114,9 @@ void MetalCommandContext::BindTexture(MTL::Texture* texture, uint32_t set, uint3
 		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexFS(set, binding))
 			m_renderEncoder->setFragmentTexture(texture, *location);
 	}
+
+	if (auto location = GetComputePipelineMetalResourceIndex(set, binding))
+		m_computeEncoder->setTexture(texture, *location);
 }
 
 void MetalCommandContext::BindSampler(MTL::SamplerState* sampler, uint32_t set, uint32_t binding)
@@ -116,6 +128,9 @@ void MetalCommandContext::BindSampler(MTL::SamplerState* sampler, uint32_t set, 
 		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexFS(set, binding))
 			m_renderEncoder->setFragmentSamplerState(sampler, *location);
 	}
+
+	if (auto location = GetComputePipelineMetalResourceIndex(set, binding))
+		m_computeEncoder->setSamplerState(sampler, *location);
 }
 
 void MetalCommandContext::BindBuffer(MTL::Buffer* buffer, uint64_t offset, uint32_t set, uint32_t binding)
@@ -127,6 +142,9 @@ void MetalCommandContext::BindBuffer(MTL::Buffer* buffer, uint64_t offset, uint3
 		if (auto location = boundGraphicsPipelineState->GetResourceMetalIndexFS(set, binding))
 			m_renderEncoder->setFragmentBuffer(buffer, offset, *location);
 	}
+
+	if (auto location = GetComputePipelineMetalResourceIndex(set, binding))
+		m_computeEncoder->setBuffer(buffer, offset, *location);
 }
 
 MTL::BlitCommandEncoder& MetalCommandContext::GetBlitCmdEncoder()
@@ -139,6 +157,29 @@ MTL::BlitCommandEncoder& MetalCommandContext::GetBlitCmdEncoder()
 	}
 
 	return *m_blitEncoder;
+}
+
+MTL::ComputeCommandEncoder& MetalCommandContext::GetComputeCmdEncoder()
+{
+	EG_ASSERT(m_renderEncoder == nullptr);
+
+	FlushBlitCommands();
+
+	if (m_computeEncoder == nullptr)
+	{
+		m_computeEncoder = m_commandBuffer->computeCommandEncoder();
+	}
+
+	return *m_computeEncoder;
+}
+
+void MetalCommandContext::FlushPushConstantsForCompute()
+{
+	if (pushConstantsChanged)
+	{
+		pushConstantsChanged = false;
+		m_computeEncoder->setBytes(pushConstantData.data(), pushConstantData.size(), PUSH_CONSTANTS_BUFFER_INDEX);
+	}
 }
 
 void MetalCommandContext::SetViewport(const MTL::Viewport& viewport)
@@ -201,5 +242,67 @@ void MetalCommandContext::SetBlendColor(const std::array<float, 4>& blendColor)
 		m_renderEncoder->setBlendColor(blendColor[0], blendColor[1], blendColor[2], blendColor[3]);
 		m_renderState.currentBlendColor = blendColor;
 	}
+}
+
+CommandContextHandle CreateCommandContext(Queue queue)
+{
+	return reinterpret_cast<CommandContextHandle>(new MetalCommandContext(nullptr));
+}
+
+void DestroyCommandContext(CommandContextHandle cc)
+{
+	MetalCommandContext* mcc = &MetalCommandContext::Unwrap(cc);
+	if (mcc->m_commandBuffer != nullptr)
+	{
+		mcc->m_commandBuffer->release();
+		mcc->m_commandBuffer = nullptr;
+	}
+	delete mcc;
+}
+
+void BeginRecordingCommandContext(CommandContextHandle cc, CommandContextBeginFlags flags)
+{
+	EG_ASSERT(cc != nullptr);
+	MetalCommandContext& mcc = MetalCommandContext::Unwrap(cc);
+	EG_ASSERT(mcc.m_commandBuffer == nullptr);
+	mcc.m_commandBuffer = mainCommandQueue->commandBuffer();
+}
+
+void FinishRecordingCommandContext(CommandContextHandle context) {}
+
+void SubmitCommandContext(CommandContextHandle cc, const CommandContextSubmitArgs& args)
+{
+	EG_ASSERT(cc != nullptr);
+	MetalCommandContext& mcc = MetalCommandContext::Unwrap(cc);
+
+	if (args.fence != nullptr)
+	{
+		dispatch_semaphore_t signal = reinterpret_cast<dispatch_semaphore_t>(args.fence);
+		mcc.m_commandBuffer->addCompletedHandler(^void(MTL::CommandBuffer* pCmd) {
+		  dispatch_semaphore_signal(signal);
+		});
+	}
+
+	mcc.Commit();
+}
+
+static_assert(sizeof(dispatch_semaphore_t) == sizeof(FenceHandle));
+
+FenceHandle CreateFence()
+{
+	return reinterpret_cast<FenceHandle>(dispatch_semaphore_create(0));
+}
+
+void DestroyFence(FenceHandle fence)
+{
+	dispatch_release(reinterpret_cast<dispatch_semaphore_t>(fence));
+}
+
+FenceStatus WaitForFence(FenceHandle fence, uint64_t timeout)
+{
+	if (dispatch_semaphore_wait(reinterpret_cast<dispatch_semaphore_t>(fence), timeout) == 0)
+		return FenceStatus::Signaled;
+	else
+		return FenceStatus::Timeout;
 }
 } // namespace eg::graphics_api::mtl

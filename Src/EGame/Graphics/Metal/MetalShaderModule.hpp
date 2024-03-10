@@ -16,9 +16,17 @@ struct SpecializationConstant
 	bool operator<(uint32_t other) const { return constantID < other; }
 };
 
+struct WorkGroupSizeDimension
+{
+	bool isSpecializationConstant = false;
+	uint32_t valueOrID = 0;
+};
+
 struct ShaderModule
 {
 	ShaderStage stage;
+
+	std::array<WorkGroupSizeDimension, 3> workGroupSize;
 
 	uint32_t usedBufferLocations;
 

@@ -42,8 +42,6 @@ void BindStorageImageDS(TextureViewHandle textureView, DescriptorSetHandle set, 
 
 static void BindBufferDS(BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset)
 {
-	if (offset == BIND_BUFFER_OFFSET_DYNAMIC)
-		offset = 0;
 	DescriptorSetWrapper::Unwrap(set)->BindBuffer(binding, { .buffer = handle, .offset = offset });
 }
 
@@ -62,16 +60,24 @@ void BindStorageBufferDS(
 void BindDescriptorSet(
 	CommandContextHandle ctx, uint32_t set, DescriptorSetHandle handle, std::span<const uint32_t> dynamicOffsets)
 {
-	EG_ASSERT(dynamicOffsets.empty()); // not implemented
-
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
+	
+	size_t nextDynamicOffsetIndex = 0;
 
 	DescriptorSetWrapper::Unwrap(handle)->BindDescriptorSet(
 		[&]<typename T>(uint32_t binding, const T& resource)
 		{
 			if constexpr (std::is_same_v<T, DescriptorSetWrapper::BufferBinding>)
 			{
-				mcc.BindBuffer(UnwrapBuffer(resource.buffer), resource.offset, set, binding);
+				uint64_t offset = resource.offset;
+				if (offset == BIND_BUFFER_OFFSET_DYNAMIC)
+				{
+					EG_ASSERT(nextDynamicOffsetIndex < dynamicOffsets.size());
+					offset = dynamicOffsets[nextDynamicOffsetIndex];
+					nextDynamicOffsetIndex++;
+				}
+				
+				mcc.BindBuffer(UnwrapBuffer(resource.buffer), offset, set, binding);
 			}
 			else if constexpr (std::is_same_v<T, DescriptorSetWrapper::TextureBinding>)
 			{

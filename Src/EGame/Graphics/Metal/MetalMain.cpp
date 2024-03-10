@@ -71,9 +71,9 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
 	auto maxThreadsPerThreadgroup = metalDevice->maxThreadsPerThreadgroup();
 
-	DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShader | DeviceFeatureFlags::TextureCubeMapArray |
+	DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceFeatureFlags::TextureCubeMapArray |
 	                              DeviceFeatureFlags::DynamicResourceBind |
-	                              DeviceFeatureFlags::ConcurrentResourceCreation |
+	                              DeviceFeatureFlags::ConcurrentResourceCreation | DeviceFeatureFlags::DeferredContext |
 	                              DeviceFeatureFlags::PartialTextureViews | DeviceFeatureFlags::DeferredContext;
 
 	if (metalDevice->supportsBCTextureCompression())
@@ -89,11 +89,20 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 		                             static_cast<uint32_t>(maxThreadsPerThreadgroup.depth), },
 		.maxComputeWorkGroupCount = { UINT32_MAX, UINT32_MAX, UINT32_MAX },
 		.maxComputeWorkGroupInvocations = 1024, //?
+		.subgroupFeatures = SubgroupFeatures {
+			.minSubgroupSize = 8,
+			.maxSubgroupSize = 32,
+			.maxWorkgroupSubgroups = UINT32_MAX,
+			.supportsRequireFullSubgroups = true,
+			.supportsRequiredSubgroupSize = false,
+			.supportsGetPipelineSubgroupSize = true,
+			.featureFlags = SubgroupFeatureFlags::Basic | SubgroupFeatureFlags::Vote | SubgroupFeatureFlags::Arithmetic | SubgroupFeatureFlags::Ballot | SubgroupFeatureFlags::Shuffle,
+		},
 		.depthRange = DepthRange::ZeroToOne,
 		.features = features,
 		.timerTicksPerNS = 1.0f,
 		.deviceName = deviceName,
-		.deviceVendorName = "Apple",
+		.apiName = "Metal",
 	};
 }
 

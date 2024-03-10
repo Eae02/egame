@@ -49,7 +49,6 @@ XM_ABSCALLBACK(CopyTextureData, void, (CommandContextHandle ctx, TextureHandle s
 XM_ABSCALLBACK(GenerateMipmaps, void, (CommandContextHandle ctx, TextureHandle handle))
 XM_ABSCALLBACK(BindTexture, void, (CommandContextHandle ctx, TextureViewHandle textureView, SamplerHandle sampler, uint32_t set, uint32_t binding))
 XM_ABSCALLBACK(BindStorageImage, void, (CommandContextHandle ctx, TextureViewHandle texture, uint32_t set, uint32_t binding))
-XM_ABSCALLBACK(ClearColorTexture, void, (CommandContextHandle ctx, TextureHandle texture, uint32_t mipLevel, const void* color))
 XM_ABSCALLBACK(ResolveTexture, void, (CommandContextHandle ctx, TextureHandle src, TextureHandle dst, const ResolveRegion& region))
 XM_ABSCALLBACK(GetTextureView, TextureViewHandle, (TextureHandle texture, TextureViewType viewType, const TextureSubresource& subresource, Format format))
 
@@ -67,10 +66,11 @@ XM_ABSCALLBACK(DestroyFramebuffer, void, (FramebufferHandle framebuffer))
 
 XM_ABSCALLBACK(CreateSampler, SamplerHandle, (const SamplerDescription& description))
 
-XM_ABSCALLBACK(CreateShaderModule, ShaderModuleHandle, (ShaderStage stage, const spirv_cross::ParsedIR& parsedIR))
+XM_ABSCALLBACK(CreateShaderModule, ShaderModuleHandle, (ShaderStage stage, const spirv_cross::ParsedIR& parsedIR, const char* label))
 XM_ABSCALLBACK(DestroyShaderModule, void, (ShaderModuleHandle handle))
 XM_ABSCALLBACK(CreateGraphicsPipeline, PipelineHandle, (const GraphicsPipelineCreateInfo& createInfo))
 XM_ABSCALLBACK(CreateComputePipeline, PipelineHandle, (const ComputePipelineCreateInfo& createInfo))
+XM_ABSCALLBACK(GetPipelineSubgroupSize, std::optional<uint32_t>, (PipelineHandle pipeline))
 XM_ABSCALLBACK(DestroyPipeline, void, (PipelineHandle handle))
 XM_ABSCALLBACK(BindPipeline, void, (CommandContextHandle ctx, PipelineHandle handle))
 XM_ABSCALLBACK(PushConstants, void, (CommandContextHandle ctx, uint32_t offset, uint32_t range, const void* data))

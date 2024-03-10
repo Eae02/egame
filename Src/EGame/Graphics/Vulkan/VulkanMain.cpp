@@ -35,20 +35,6 @@ static const char* OPTIONAL_DEVICE_EXTENSIONS[] = {
 	VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME,
 };
 
-static inline std::string_view GetVendorName(uint32_t id)
-{
-	switch (id)
-	{
-	case 0x1002: return "AMD";
-	case 0x1010: return "ImgTec";
-	case 0x10DE: return "Nvidia";
-	case 0x13B5: return "ARM";
-	case 0x5143: return "Qualcomm";
-	case 0x8086: return "Intel";
-	default: return "Unknown";
-	}
-}
-
 static std::vector<const char*> instanceExtensionsToEnable;
 static std::vector<VkExtensionProperties> instanceExtensionProperties;
 
@@ -323,7 +309,6 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		ctx.physDevice = physicalDevice;
 		ctx.deviceFeatures = deviceFeatures;
 		ctx.deviceName = deviceProperties.deviceName;
-		ctx.deviceVendorName = GetVendorName(deviceProperties.vendorID);
 		ctx.deviceLimits = deviceProperties.limits;
 		currentDeviceProperties = deviceProperties;
 	}
@@ -458,17 +443,6 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 			.supportsRequireFullSubgroups = subgroupSizeControlFeatures.computeFullSubgroups == VK_TRUE,
 			.supportsRequiredSubgroupSize =
 				(subgroupSizeControlProperties.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0,
-			.featureFlags = subgroupFeatureFlags,
-		};
-	}
-	else
-	{
-		ctx.subgroupFeatures = SubgroupFeatures{
-			.minSubgroupSize = subgroupProperties.subgroupSize,
-			.maxSubgroupSize = subgroupProperties.subgroupSize,
-			.maxWorkgroupSubgroups = 0xFF,
-			.supportsRequireFullSubgroups = false,
-			.supportsRequiredSubgroupSize = false,
 			.featureFlags = subgroupFeatureFlags,
 		};
 	}
@@ -628,7 +602,7 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 		.features = features,
 		.timerTicksPerNS = ctx.deviceLimits.timestampPeriod,
 		.deviceName = ctx.deviceName,
-		.deviceVendorName = ctx.deviceVendorName,
+		.apiName = "Vulkan",
 	};
 
 	std::copy_n(ctx.deviceLimits.maxComputeWorkGroupCount, 3, deviceInfo.maxComputeWorkGroupCount);

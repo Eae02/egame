@@ -8,15 +8,6 @@ FormatCapabilities GetFormatCapabilities(Format format)
 	return (FormatCapabilities)0b11111111111;
 }
 
-PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo)
-{
-	EG_PANIC("Unimplemented: CreateComputePipeline")
-}
-
-void DispatchCompute(CommandContextHandle ctx, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ){
-	EG_PANIC("Unimplemented: DispatchCompute")
-}
-
 QueryPoolHandle CreateQueryPool(QueryType type, uint32_t queryCount)
 {
 	return nullptr;
