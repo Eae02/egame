@@ -70,8 +70,7 @@ Model::Model(ModelCreateArgs args)
 	const uint64_t totalBytesToUpload = verticesBytes + indicesBytes;
 	if (HasFlag(args.accessFlags, ModelAccessFlags::GPU) && totalBytesToUpload != 0)
 	{
-		Buffer uploadBuffer(
-			BufferFlags::HostAllocate | BufferFlags::MapWrite | BufferFlags::CopySrc, totalBytesToUpload, nullptr);
+		Buffer uploadBuffer(BufferFlags::MapWrite | BufferFlags::CopySrc, totalBytesToUpload, nullptr);
 		char* uploadBufferData = static_cast<char*>(uploadBuffer.Map(0, totalBytesToUpload));
 
 		std::memcpy(uploadBufferData, args.vertexData.data(), verticesBytes);

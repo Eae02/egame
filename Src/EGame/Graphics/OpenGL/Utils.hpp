@@ -41,7 +41,6 @@ enum class GLVendor
 };
 
 extern std::string rendererName;
-extern std::string vendorName;
 extern GLVendor glVendor;
 
 #ifdef EG_GLES

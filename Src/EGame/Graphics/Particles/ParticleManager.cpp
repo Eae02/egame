@@ -357,7 +357,7 @@ void ParticleManager::AddUploadBuffer()
 	ParticleUploadBuffer& buffer = m_particleUploadBuffers.emplace_back();
 
 	BufferCreateInfo createInfo;
-	createInfo.flags = BufferFlags::CopySrc | BufferFlags::HostAllocate | BufferFlags::MapWrite;
+	createInfo.flags = BufferFlags::CopySrc | BufferFlags::MapWrite;
 	createInfo.size = PARTICLES_PER_UPLOAD_BUFFER * sizeof(ParticleInstance);
 	createInfo.initialData = nullptr;
 	createInfo.label = "Particle Upload Buffer";

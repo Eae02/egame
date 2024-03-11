@@ -62,8 +62,6 @@ void ParseCommandLineArgs(RunConfig& runConfig, int argc, char** argv)
 			runConfig.flags |= RunFlags::VSync;
 		else if (arg == "--novs")
 			runConfig.flags &= ~RunFlags::VSync;
-		else
-			std::cerr << "Unknown command line argument '" << arg << "'.";
 	}
 }
 

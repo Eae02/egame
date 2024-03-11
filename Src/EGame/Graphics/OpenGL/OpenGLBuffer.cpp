@@ -31,7 +31,10 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	buffer->persistentMapping = nullptr;
 	buffer->isFakeHostBuffer = false;
 
-	if (useGLESPath && HasFlag(createInfo.flags, BufferFlags::HostAllocate))
+	const bool wantsMap =
+		HasFlag(createInfo.flags, BufferFlags::MapWrite) || HasFlag(createInfo.flags, BufferFlags::MapRead);
+
+	if (useGLESPath && wantsMap)
 	{
 		buffer->buffer = 0;
 		buffer->isFakeHostBuffer = true;
@@ -69,31 +72,32 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	else
 	{
 #ifndef EG_GLES
-		GLenum mapFlags = 0;
+		GLenum mapFlags = GL_MAP_PERSISTENT_BIT;
 
 		GLenum storageFlags = 0;
 		if (HasFlag(createInfo.flags, BufferFlags::MapWrite))
 		{
-			storageFlags |= GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT;
-			mapFlags |= GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT | GL_MAP_PERSISTENT_BIT;
+			storageFlags |= GL_MAP_WRITE_BIT;
+			mapFlags |= GL_MAP_WRITE_BIT | GL_MAP_FLUSH_EXPLICIT_BIT;
 		}
 		if (HasFlag(createInfo.flags, BufferFlags::MapRead))
 		{
-			storageFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
-			mapFlags |= GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+			storageFlags |= GL_MAP_READ_BIT;
+			mapFlags |= GL_MAP_READ_BIT;
 		}
+		if (wantsMap)
+		{
+			storageFlags |= GL_MAP_PERSISTENT_BIT | GL_CLIENT_STORAGE_BIT;
+		}
+
 		if (HasFlag(createInfo.flags, BufferFlags::Update))
 		{
 			storageFlags |= GL_DYNAMIC_STORAGE_BIT;
 		}
-		if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
-		{
-			storageFlags |= GL_CLIENT_STORAGE_BIT;
-		}
 
 		glBufferStorage(target, createInfo.size, createInfo.initialData, storageFlags);
 
-		if (mapFlags)
+		if (wantsMap)
 		{
 			buffer->persistentMapping = reinterpret_cast<char*>(glMapBufferRange(target, 0, createInfo.size, mapFlags));
 		}
@@ -195,7 +199,7 @@ void FillBuffer(CommandContextHandle, BufferHandle handle, uint64_t offset, uint
 	else
 	{
 #ifndef EG_GLES
-		glClearBufferData(TEMP_BUFFER_BINDING, GL_R32UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, &value);
+		glClearBufferData(TEMP_BUFFER_BINDING, GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, &value);
 #endif
 	}
 }
@@ -290,6 +294,10 @@ void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::Buff
 	{
 		MaybeBarrierAfterSSBO(barrier.newUsage);
 	}
+	if (barrier.newUsage == BufferUsage::HostRead)
+	{
+		glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+	}
 }
 
 void Buffer::ChangeUsage(BufferUsage newUsage)
@@ -301,7 +309,7 @@ void Buffer::ChangeUsage(BufferUsage newUsage)
 	}
 	if (newUsage == BufferUsage::HostRead)
 	{
-		MaybeInsertBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
+		glMemoryBarrier(GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 	}
 #endif
 	currentUsage = newUsage;

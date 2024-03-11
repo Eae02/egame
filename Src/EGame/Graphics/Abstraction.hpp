@@ -65,19 +65,17 @@ EG_BIT_FIELD(ShaderAccessFlags)
 enum class BufferFlags
 {
 	None = 0,
-	HostAllocate = 1 << 0,      // Allocate the buffer in host memory instead of device memory.
-	ManualBarrier = 1 << 1,     // Barriers will be inserted manually (also disables automatic barriers).
-	MapWrite = 1 << 2,          // The buffer can be mapped for writing.
-	MapRead = 1 << 3,           // The buffer can be mapped for reading.
-	Download = 1 << 4,          // The buffer can be used to download data from the GPU.
-	Update = 1 << 5,            // The buffer can be updated.
-	CopySrc = 1 << 6,           // Allows copy operations from the buffer to other buffers and textures.
-	CopyDst = 1 << 7,           // Allows copy operations to the buffer from other buffers.
-	VertexBuffer = 1 << 8,      // The buffer can be used as a vertex buffer.
-	IndexBuffer = 1 << 9,       // The buffer can be used as an index buffer.
-	UniformBuffer = 1 << 10,    // The buffer can be used as a uniform buffer.
-	StorageBuffer = 1 << 11,    // The buffer can be used as a shader storage buffer.
-	IndirectCommands = 1 << 12, // The buffer can be used for arguments to indirect draw / dispatch
+	ManualBarrier = 1 << 0,     // Barriers will be inserted manually (also disables automatic barriers).
+	MapWrite = 1 << 1,          // The buffer can be mapped for writing.
+	MapRead = 1 << 2,           // The buffer can be mapped for reading.
+	Update = 1 << 3,            // The buffer can be updated.
+	CopySrc = 1 << 4,           // Allows copy operations from the buffer to other buffers and textures.
+	CopyDst = 1 << 5,           // Allows copy operations to the buffer from other buffers.
+	VertexBuffer = 1 << 6,      // The buffer can be used as a vertex buffer.
+	IndexBuffer = 1 << 7,       // The buffer can be used as an index buffer.
+	UniformBuffer = 1 << 8,     // The buffer can be used as a uniform buffer.
+	StorageBuffer = 1 << 9,     // The buffer can be used as a shader storage buffer.
+	IndirectCommands = 1 << 10, // The buffer can be used for arguments to indirect draw / dispatch
 };
 
 EG_BIT_FIELD(BufferFlags)
@@ -286,7 +284,8 @@ struct SpecializationConstantEntry
 	std::variant<uint32_t, int32_t, float> value;
 };
 
-EG_API std::optional<std::variant<uint32_t, int32_t, float>> GetSpecConstantValueByID(std::span<const SpecializationConstantEntry> specConstants, uint32_t id);
+EG_API std::optional<std::variant<uint32_t, int32_t, float>> GetSpecConstantValueByID(
+	std::span<const SpecializationConstantEntry> specConstants, uint32_t id);
 
 struct ShaderStageInfo
 {

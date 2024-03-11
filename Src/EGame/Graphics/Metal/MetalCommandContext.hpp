@@ -32,7 +32,7 @@ public:
 	void FlushDrawState();
 
 	MTL::BlitCommandEncoder& GetBlitCmdEncoder();
-	
+
 	MTL::ComputeCommandEncoder& GetComputeCmdEncoder();
 	void FlushPushConstantsForCompute();
 
@@ -60,7 +60,7 @@ public:
 	static MetalCommandContext main;
 
 	const struct BoundGraphicsPipelineState* boundGraphicsPipelineState = nullptr;
-	
+
 	const struct ComputePipeline* currentComputePipeline = nullptr;
 
 	uint32_t boundIndexBufferOffset = 0;

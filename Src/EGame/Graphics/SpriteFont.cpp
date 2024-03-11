@@ -21,7 +21,7 @@ SpriteFont::SpriteFont(FontAtlas atlas) : FontAtlas(std::move(atlas))
 	m_texture = Texture::Create2D(texCreateInfo);
 
 	const size_t uploadBytes = AtlasWidth() * AtlasHeight();
-	Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite | BufferFlags::HostAllocate, uploadBytes, nullptr);
+	Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite, uploadBytes, nullptr);
 	void* uploadMem = uploadBuffer.Map(0, uploadBytes);
 	std::memcpy(uploadMem, AtlasData(), uploadBytes);
 	uploadBuffer.Flush(0, uploadBytes);

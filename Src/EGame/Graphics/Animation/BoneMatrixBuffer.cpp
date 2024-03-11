@@ -120,9 +120,7 @@ void BoneMatrixBuffer::End()
 			bufferFlags |= eg::BufferFlags::UniformBuffer;
 
 		m_deviceBuffer = Buffer(bufferFlags, m_size, nullptr);
-		m_stagingBuffer = Buffer(
-			BufferFlags::MapWrite | BufferFlags::CopySrc | BufferFlags::HostAllocate, m_size * MAX_CONCURRENT_FRAMES,
-			nullptr);
+		m_stagingBuffer = Buffer(BufferFlags::MapWrite | BufferFlags::CopySrc, m_size * MAX_CONCURRENT_FRAMES, nullptr);
 
 		m_stagingBufferMapping = static_cast<char*>(m_stagingBuffer.Map(0, m_size));
 

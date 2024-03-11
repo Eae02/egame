@@ -14,6 +14,7 @@ struct AbstractPipeline : public Resource
 {
 	LinearAllocator linearAllocator;
 
+	VkPipeline pipeline;
 	VkPipelineBindPoint bindPoint;
 	VkShaderStageFlags pushConstantStages;
 	VkPipelineLayout pipelineLayout;
@@ -25,7 +26,7 @@ struct AbstractPipeline : public Resource
 
 	virtual void Bind(CommandContextHandle cc) = 0;
 
-	virtual void Free() override = 0;
+	virtual void Free() override;
 };
 
 void InitShaderStageCreateInfo(

@@ -16,8 +16,6 @@ namespace eg::graphics_api::vk
 {
 struct GraphicsPipeline : AbstractPipeline
 {
-	VkPipeline pipeline;
-
 	bool enableScissorTest = false;
 	bool enableDynamicCullMode = false;
 	bool enableDynamicPolygonMode = false;
@@ -33,7 +31,9 @@ static ConcurrentObjectPool<GraphicsPipeline> gfxPipelinesPool;
 
 void GraphicsPipeline::Free()
 {
+	vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
 	vkDestroyPipeline(ctx.device, pipeline, nullptr);
+
 	gfxPipelinesPool.Delete(this);
 }
 

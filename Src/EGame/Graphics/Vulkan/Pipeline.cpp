@@ -22,11 +22,6 @@ void BindPipeline(CommandContextHandle cc, PipelineHandle handle)
 	pipeline->Bind(cc);
 }
 
-std::optional<uint32_t> GetPipelineSubgroupSize(PipelineHandle pipeline)
-{
-	return std::nullopt;
-}
-
 void PushConstants(CommandContextHandle cc, uint32_t offset, uint32_t range, const void* data)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
@@ -37,6 +32,12 @@ void PushConstants(CommandContextHandle cc, uint32_t offset, uint32_t range, con
 	}
 
 	vkCmdPushConstants(vcc.cb, vcc.pipeline->pipelineLayout, vcc.pipeline->pushConstantStages, offset, range, data);
+}
+
+void AbstractPipeline::Free()
+{
+	vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
+	vkDestroyPipeline(ctx.device, pipeline, nullptr);
 }
 
 void AbstractPipeline::InitPipelineLayout(

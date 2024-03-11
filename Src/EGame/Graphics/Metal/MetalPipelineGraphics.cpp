@@ -141,7 +141,8 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	pipeline->descriptorSetsMaxBindingPlusOne = descriptorSetsMaxBindingPlusOne;
 	pipeline->variant = GraphicsPipeline{
 		.pso = renderPipelineState,
-		.cullMode = createInfo.cullMode.has_value() ? std::optional(TranslateCullMode(*createInfo.cullMode)) : std::nullopt,
+		.cullMode =
+			createInfo.cullMode.has_value() ? std::optional(TranslateCullMode(*createInfo.cullMode)) : std::nullopt,
 		.enableWireframeRasterization = createInfo.enableWireframeRasterization,
 		.enableDepthClamp = createInfo.enableDepthClamp,
 		.frontFaceCCW = createInfo.frontFaceCCW,

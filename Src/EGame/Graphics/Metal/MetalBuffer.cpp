@@ -7,8 +7,8 @@ namespace eg::graphics_api::mtl
 BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 {
 	MTL::ResourceOptions resourceOptions = {};
-	if (HasFlag(createInfo.flags, BufferFlags::HostAllocate) || HasFlag(createInfo.flags, BufferFlags::MapWrite) ||
-	    HasFlag(createInfo.flags, BufferFlags::MapRead) || createInfo.initialData != nullptr)
+	if (HasFlag(createInfo.flags, BufferFlags::MapWrite) || HasFlag(createInfo.flags, BufferFlags::MapRead) ||
+	    createInfo.initialData != nullptr)
 	{
 		resourceOptions = MTL::ResourceStorageModeManaged;
 	}
@@ -38,16 +38,23 @@ void DestroyBuffer(BufferHandle buffer)
 	UnwrapBuffer(buffer)->release();
 }
 
-void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags shaderAccessFlags) {}
-
-void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier)
+static void SetBufferUsage(MetalCommandContext& mcc, BufferHandle handle, BufferUsage newUsage)
 {
-	if (barrier.newUsage == BufferUsage::HostRead)
+	if (newUsage == BufferUsage::HostRead)
 	{
-		auto& mcc = MetalCommandContext::Unwrap(ctx);
 		mcc.FlushComputeCommands();
 		mcc.GetBlitCmdEncoder().synchronizeResource(UnwrapBuffer(handle));
 	}
+}
+
+void BufferUsageHint(BufferHandle handle, BufferUsage newUsage, ShaderAccessFlags _shaderAccessFlags)
+{
+	SetBufferUsage(MetalCommandContext::main, handle, newUsage);
+}
+
+void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::BufferBarrier& barrier)
+{
+	SetBufferUsage(MetalCommandContext::Unwrap(ctx), handle, barrier.newUsage);
 }
 
 void* MapBuffer(BufferHandle handle, uint64_t offset, std::optional<uint64_t> _range)

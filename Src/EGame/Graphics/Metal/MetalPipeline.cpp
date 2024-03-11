@@ -21,7 +21,7 @@ void BindPipeline(CommandContextHandle ctx, PipelineHandle handle)
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
 	Pipeline& mpipeline = UnwrapPipeline(handle);
 
-	std::visit([&] (auto& pipeline) { pipeline.Bind(mcc); }, mpipeline.variant);
+	std::visit([&](auto& pipeline) { pipeline.Bind(mcc); }, mpipeline.variant);
 }
 
 std::optional<uint32_t> StageBindingsTable::GetResourceMetalIndex(uint32_t set, uint32_t binding) const

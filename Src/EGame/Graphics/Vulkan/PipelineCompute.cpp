@@ -9,9 +9,6 @@ namespace eg::graphics_api::vk
 {
 struct ComputePipeline : AbstractPipeline
 {
-	ShaderModule* shaderModule;
-	VkPipeline pipeline;
-
 	void Free() override;
 
 	void Bind(CommandContextHandle cc) override;
@@ -21,11 +18,7 @@ static ConcurrentObjectPool<ComputePipeline> computePipelinesPool;
 
 void ComputePipeline::Free()
 {
-	shaderModule->UnRef();
-
-	vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
-	vkDestroyPipeline(ctx.device, pipeline, nullptr);
-
+	AbstractPipeline::Free();
 	computePipelinesPool.Delete(this);
 }
 
@@ -39,30 +32,33 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 	VkComputePipelineCreateInfo pipelineCreateInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
 	pipelineCreateInfo.basePipelineIndex = -1;
 
-	pipeline->shaderModule = UnwrapShaderModule(createInfo.computeShader.shaderModule);
-	pipeline->shaderModule->ref++;
+	const ShaderModule* shaderModule = UnwrapShaderModule(createInfo.computeShader.shaderModule);
 	InitShaderStageCreateInfo(
 		pipelineCreateInfo.stage, pipeline->linearAllocator, createInfo.computeShader, VK_SHADER_STAGE_COMPUTE_BIT);
 
-	if (createInfo.requireFullSubgroups)
-		pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
-
 	VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT requiredSubgroupSizeCreateInfo;
-	if (createInfo.requiredSubgroupSize.has_value())
+	if (ctx.hasSubgroupSizeControlExtension)
 	{
-		requiredSubgroupSizeCreateInfo = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT,
-			.requiredSubgroupSize = *createInfo.requiredSubgroupSize,
-		};
-		PushPNext(pipelineCreateInfo.stage, requiredSubgroupSizeCreateInfo);
-	}
-	else
-	{
-		pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT;
+		if (createInfo.requireFullSubgroups)
+		{
+			pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
+		}
+
+		if (createInfo.requiredSubgroupSize.has_value())
+		{
+			requiredSubgroupSizeCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT,
+				.requiredSubgroupSize = *createInfo.requiredSubgroupSize,
+			};
+			PushPNext(pipelineCreateInfo.stage, requiredSubgroupSizeCreateInfo);
+		}
+		else
+		{
+			pipelineCreateInfo.stage.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT;
+		}
 	}
 
-	pipeline->InitPipelineLayout(
-		pipeline->shaderModule->bindings, createInfo.setBindModes, pipeline->shaderModule->pushConstantBytes);
+	pipeline->InitPipelineLayout(shaderModule->bindings, createInfo.setBindModes, shaderModule->pushConstantBytes);
 	pipelineCreateInfo.layout = pipeline->pipelineLayout;
 
 	CheckRes(
@@ -76,6 +72,45 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 	}
 
 	return WrapPipeline(pipeline);
+}
+
+std::optional<uint32_t> GetPipelineSubgroupSize(PipelineHandle pipeline)
+{
+	if (!ctx.subgroupFeatures.supportsGetPipelineSubgroupSize)
+		return std::nullopt;
+
+	const VkPipelineInfoKHR pipelineInfo = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
+		.pipeline = UnwrapPipeline(pipeline)->pipeline,
+	};
+
+	uint32_t numExecutables;
+	if (vkGetPipelineExecutablePropertiesKHR(ctx.device, &pipelineInfo, &numExecutables, nullptr) != VK_SUCCESS)
+		return std::nullopt;
+	if (numExecutables == 0)
+		return std::nullopt;
+
+	std::vector<VkPipelineExecutablePropertiesKHR> executableProperties(
+		numExecutables, { VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_PROPERTIES_KHR });
+	if (vkGetPipelineExecutablePropertiesKHR(ctx.device, &pipelineInfo, &numExecutables, executableProperties.data()) !=
+	    VK_SUCCESS)
+	{
+		return std::nullopt;
+	}
+
+	std::optional<uint32_t> subgroupSize;
+	for (const VkPipelineExecutablePropertiesKHR& properties : executableProperties)
+	{
+		if (properties.subgroupSize != 0)
+		{
+			if (!subgroupSize.has_value())
+				subgroupSize = properties.subgroupSize;
+			else if (*subgroupSize != properties.subgroupSize)
+				return std::nullopt;
+		}
+	}
+
+	return subgroupSize;
 }
 
 void ComputePipeline::Bind(CommandContextHandle cc)

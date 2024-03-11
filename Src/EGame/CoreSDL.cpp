@@ -52,13 +52,13 @@ int detail::PlatformInit(const RunConfig& runConfig, bool headless)
 	}
 
 	graphics_api::vk::EarlyInitializeMemoized();
-	
+
 	if (exeDirPathPtr == nullptr)
 	{
 		exeDirPathPtr = SDL_GetBasePath();
 		detail::exeDirPath = exeDirPathPtr;
 	}
-	
+
 	Format defaultDSFormat = runConfig.defaultDepthStencilFormat;
 	if (GetFormatType(defaultDSFormat) != FormatTypes::DepthStencil && defaultDSFormat != Format::Undefined)
 	{

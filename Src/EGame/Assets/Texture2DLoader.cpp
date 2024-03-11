@@ -94,8 +94,7 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 	const size_t uploadBufferSize = bytesPerLayer * header->numLayers;
 	EG_ASSERT(uploadBufferSize + sizeof(Header) <= loadContext.Data().size());
 
-	Buffer uploadBuffer(
-		BufferFlags::HostAllocate | BufferFlags::CopySrc | BufferFlags::MapWrite, uploadBufferSize, nullptr);
+	Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite, uploadBufferSize, nullptr);
 
 	void* uploadBufferMemory = uploadBuffer.Map(0, uploadBufferSize);
 	std::memcpy(uploadBufferMemory, loadContext.Data().data() + sizeof(Header), uploadBufferSize);

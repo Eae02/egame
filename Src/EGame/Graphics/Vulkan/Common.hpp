@@ -6,8 +6,8 @@
 #include "../../Log.hpp"
 #include "../Abstraction.hpp"
 #include "../Graphics.hpp"
-#include "VulkanMain.hpp"
 #include "Swapchain.hpp"
+#include "VulkanMain.hpp"
 
 #include <atomic>
 #include <mutex>
@@ -55,9 +55,6 @@ private:
 
 struct Context
 {
-	bool hasDebugUtils;
-	bool hasPushDescriptorExtension;
-
 	VkInstance instance;
 	VkSurfaceKHR surface;
 
@@ -68,17 +65,21 @@ struct Context
 	VkPhysicalDeviceLimits deviceLimits;
 	VkPhysicalDeviceFeatures deviceFeatures;
 	VkPhysicalDevice physDevice;
-	bool hasDynamicStatePolygonMode = false;
 	std::string deviceName;
 	VkDevice device;
 	VkQueue mainQueue;
 	VkDebugUtilsMessengerEXT debugMessenger;
 	VmaAllocator allocator;
-	
+
+	bool hasDebugUtils = false;
+	bool hasPushDescriptorExtension = false;
+	bool hasSubgroupSizeControlExtension = false;
+	bool hasDynamicStatePolygonMode = false;
+
 	SubgroupFeatures subgroupFeatures;
 
 	VkCommandPool mainCommandPool;
-	
+
 	Swapchain swapchain;
 
 	VkImage defaultDSImage;

@@ -61,7 +61,7 @@ void BindDescriptorSet(
 	CommandContextHandle ctx, uint32_t set, DescriptorSetHandle handle, std::span<const uint32_t> dynamicOffsets)
 {
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
-	
+
 	size_t nextDynamicOffsetIndex = 0;
 
 	DescriptorSetWrapper::Unwrap(handle)->BindDescriptorSet(
@@ -76,7 +76,7 @@ void BindDescriptorSet(
 					offset = dynamicOffsets[nextDynamicOffsetIndex];
 					nextDynamicOffsetIndex++;
 				}
-				
+
 				mcc.BindBuffer(UnwrapBuffer(resource.buffer), offset, set, binding);
 			}
 			else if constexpr (std::is_same_v<T, DescriptorSetWrapper::TextureBinding>)

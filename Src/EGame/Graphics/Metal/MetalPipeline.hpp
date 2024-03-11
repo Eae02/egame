@@ -9,7 +9,7 @@
 namespace eg::graphics_api::mtl
 {
 static constexpr uint32_t PUSH_CONSTANTS_BUFFER_INDEX = 30;
-	
+
 inline uint32_t GetVertexBindingBufferIndex(uint32_t binding)
 {
 	return 29 - binding;

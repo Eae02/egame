@@ -88,27 +88,15 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	const bool wantsMap =
 		HasFlag(createInfo.flags, BufferFlags::MapWrite) || HasFlag(createInfo.flags, BufferFlags::MapRead);
 
-	VmaAllocationCreateInfo allocationCreateInfo = {};
-
-	if (HasFlag(createInfo.flags, BufferFlags::HostAllocate))
-	{
-		if (HasFlag(createInfo.flags, BufferFlags::Download))
-			allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_TO_CPU;
-		else
-			allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-	}
-	else if (wantsMap)
-	{
-		allocationCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-	}
-	else
-	{
-		allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	}
+	VmaAllocationCreateInfo allocationCreateInfo = {
+		.usage = VMA_MEMORY_USAGE_AUTO,
+	};
 
 	if (wantsMap)
 	{
-		allocationCreateInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		allocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+		allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+		allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 	}
 
 	VmaAllocationInfo allocationInfo;

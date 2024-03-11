@@ -33,6 +33,7 @@ static const char* OPTIONAL_DEVICE_EXTENSIONS[] = {
 	VK_EXT_EXTENDED_DYNAMIC_STATE_3_EXTENSION_NAME,
 	VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
 	VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME,
+	VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME,
 };
 
 static std::vector<const char*> instanceExtensionsToEnable;
@@ -202,7 +203,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{ return GetDevicePreferenceIndex(candidate) < GetDevicePreferenceIndex(current); };
 
 	// Selects which physical device to use
-	bool optionalExtensionsSeen[std::size(OPTIONAL_DEVICE_EXTENSIONS)];
+	std::array<bool, std::size(OPTIONAL_DEVICE_EXTENSIONS)> optionalExtensionsSeen;
 	VkPhysicalDeviceProperties currentDeviceProperties;
 	okDeviceNames.clear();
 	for (VkPhysicalDevice physicalDevice : physicalDevices)
@@ -258,8 +259,8 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 			physicalDevice, nullptr, &availDevExtensions, devExtensionProperties.data());
 
 		// Checks which device extensions are supported
-		std::fill(std::begin(optionalExtensionsSeen), std::end(optionalExtensionsSeen), false);
-		bool requiredExtensionsSeen[std::size(REQUIRED_DEVICE_EXTENSIONS)] = {};
+		std::array<bool, std::size(OPTIONAL_DEVICE_EXTENSIONS)> optionalExtensionsSeenThisDevice;
+		std::array<bool, std::size(REQUIRED_DEVICE_EXTENSIONS)> requiredExtensionsSeen;
 		for (const VkExtensionProperties& extProperties : devExtensionProperties)
 		{
 			for (size_t i = 0; i < std::size(REQUIRED_DEVICE_EXTENSIONS); i++)
@@ -274,7 +275,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 			{
 				if (std::strcmp(OPTIONAL_DEVICE_EXTENSIONS[i], extProperties.extensionName) == 0)
 				{
-					optionalExtensionsSeen[i] = true;
+					optionalExtensionsSeenThisDevice[i] = true;
 					break;
 				}
 			}
@@ -310,6 +311,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		ctx.deviceFeatures = deviceFeatures;
 		ctx.deviceName = deviceProperties.deviceName;
 		ctx.deviceLimits = deviceProperties.limits;
+		optionalExtensionsSeen = optionalExtensionsSeenThisDevice;
 		currentDeviceProperties = deviceProperties;
 	}
 
@@ -358,16 +360,15 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	enabledDeviceFeatures.fragmentStoresAndAtomics = ctx.deviceFeatures.fragmentStoresAndAtomics;
 	enabledDeviceFeatures.wideLines = ctx.deviceFeatures.wideLines;
 
-	uint32_t numEnabledDeviceExtensions = std::size(REQUIRED_DEVICE_EXTENSIONS);
-	const char* enabledDeviceExtensions[32];
-	std::copy(std::begin(REQUIRED_DEVICE_EXTENSIONS), std::end(REQUIRED_DEVICE_EXTENSIONS), enabledDeviceExtensions);
+	std::vector<const char*> enabledDeviceExtensions(
+		std::begin(REQUIRED_DEVICE_EXTENSIONS), std::end(REQUIRED_DEVICE_EXTENSIONS));
 
 	// Enables optional device extensions
 	for (size_t i = 0; i < std::size(OPTIONAL_DEVICE_EXTENSIONS); i++)
 	{
 		if (optionalExtensionsSeen[i])
 		{
-			enabledDeviceExtensions[numEnabledDeviceExtensions++] = OPTIONAL_DEVICE_EXTENSIONS[i];
+			enabledDeviceExtensions.push_back(OPTIONAL_DEVICE_EXTENSIONS[i]);
 		}
 	}
 
@@ -385,8 +386,8 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 		.queueCreateInfoCount = 1,
 		.pQueueCreateInfos = &queueCreateInfo,
-		.enabledExtensionCount = numEnabledDeviceExtensions,
-		.ppEnabledExtensionNames = enabledDeviceExtensions,
+		.enabledExtensionCount = static_cast<uint32_t>(enabledDeviceExtensions.size()),
+		.ppEnabledExtensionNames = enabledDeviceExtensions.data(),
 		.pEnabledFeatures = &enabledDeviceFeatures,
 	};
 
@@ -408,13 +409,18 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	if (hasDynamicState3Extension)
 		PushPNext(physDeviceFeatures2, dynamicState3Features);
 
-	const bool hasSubgroupSizeControlExtension =
-		OptionalExtensionAvailable(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
+	ctx.hasSubgroupSizeControlExtension = OptionalExtensionAvailable(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
 	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroupSizeControlFeatures = {
 		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT
 	};
-	if (hasSubgroupSizeControlExtension)
+	if (ctx.hasSubgroupSizeControlExtension)
 		PushPNext(physDeviceFeatures2, subgroupSizeControlFeatures);
+
+	VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipelineExecutablePropertiesFeatures = {
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR
+	};
+	if (OptionalExtensionAvailable(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME))
+		PushPNext(physDeviceFeatures2, pipelineExecutablePropertiesFeatures);
 
 	vkGetPhysicalDeviceFeatures2(ctx.physDevice, &physDeviceFeatures2);
 
@@ -427,14 +433,14 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT subgroupSizeControlProperties = {
 		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT
 	};
-	if (hasSubgroupSizeControlExtension)
+	if (ctx.hasSubgroupSizeControlExtension)
 		PushPNext(deviceProperties2, subgroupSizeControlProperties);
 
 	vkGetPhysicalDeviceProperties2(ctx.physDevice, &deviceProperties2);
 
 	// Sets up ctx.subgroupFeatures
 	const auto subgroupFeatureFlags = static_cast<SubgroupFeatureFlags>(subgroupProperties.supportedOperations);
-	if (hasSubgroupSizeControlExtension)
+	if (ctx.hasSubgroupSizeControlExtension)
 	{
 		ctx.subgroupFeatures = SubgroupFeatures{
 			.minSubgroupSize = subgroupSizeControlProperties.minSubgroupSize,
@@ -443,6 +449,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 			.supportsRequireFullSubgroups = subgroupSizeControlFeatures.computeFullSubgroups == VK_TRUE,
 			.supportsRequiredSubgroupSize =
 				(subgroupSizeControlProperties.requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0,
+			.supportsGetPipelineSubgroupSize = pipelineExecutablePropertiesFeatures.pipelineExecutableInfo == VK_TRUE,
 			.featureFlags = subgroupFeatureFlags,
 		};
 	}
@@ -466,8 +473,15 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		.subgroupSizeControl = subgroupSizeControlFeatures.subgroupSizeControl,
 		.computeFullSubgroups = subgroupSizeControlFeatures.computeFullSubgroups,
 	};
-	if (hasSubgroupSizeControlExtension)
+	if (ctx.hasSubgroupSizeControlExtension)
 		PushPNext(deviceCreateInfo, subgroupSizeControlEnabledFeatures);
+
+	VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipelineExecutablePropertiesEnabledFeatures = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR,
+		.pipelineExecutableInfo = pipelineExecutablePropertiesFeatures.pipelineExecutableInfo,
+	};
+	if (OptionalExtensionAvailable(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME))
+		PushPNext(deviceCreateInfo, pipelineExecutablePropertiesEnabledFeatures);
 
 	ctx.hasPushDescriptorExtension = OptionalExtensionAvailable(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 

@@ -67,7 +67,7 @@ Texture Texture::Load(std::istream& stream, LoadFormat format, uint32_t mipLevel
 		return Texture();
 
 	size_t dataBytes = loader.Width() * loader.Height() * (format == LoadFormat::R_UNorm ? 1 : 4);
-	Buffer uploadBuffer(BufferFlags::HostAllocate | BufferFlags::CopySrc | BufferFlags::MapWrite, dataBytes, nullptr);
+	Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite, dataBytes, nullptr);
 
 	void* uploadBufferMem = uploadBuffer.Map(0, dataBytes);
 	std::memcpy(uploadBufferMem, data.get(), dataBytes);
@@ -100,7 +100,7 @@ struct UploadBufferEntry
 	explicit UploadBufferEntry(uint64_t _size) : size(_size), offset(0)
 	{
 		BufferCreateInfo createInfo;
-		createInfo.flags = BufferFlags::MapWrite | BufferFlags::CopySrc | BufferFlags::HostAllocate;
+		createInfo.flags = BufferFlags::MapWrite | BufferFlags::CopySrc;
 		createInfo.size = _size;
 		createInfo.label = "UploadBuffer";
 		buffer = Buffer(createInfo);

@@ -26,7 +26,7 @@ private:
 	VkDescriptorSetLayout m_layout;
 	BindMode m_bindMode;
 	uint32_t m_maxBinding;
-	
+
 	std::vector<uint32_t> m_bindingsWithDynamicOffset;
 
 	std::vector<VkDescriptorPoolSize> m_sizes;
