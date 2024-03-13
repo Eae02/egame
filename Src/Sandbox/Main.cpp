@@ -17,17 +17,26 @@ struct Game : public eg::IGame
 {
 	Game()
 	{
-		if (!eg::LoadAssets("SandboxAssets", "/"))
+		if (!eg::LoadAssets("SandboxAssets", "/", eg::GetDefaultEnabledAssetSideStreams()))
 		{
 			EG_PANIC("Error loading assets");
 		}
-		eg::GraphicsPipelineCreateInfo pipelineCI;
-		pipelineCI.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").ToStageInfo();
-		pipelineCI.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").ToStageInfo();
-		pipelineCI.numColorAttachments = 1;
-		pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
-		pipelineCI.depthAttachmentFormat = eg::Format::DefaultDepthStencil;
-		m_pipeline = eg::Pipeline::Create(pipelineCI);
+
+		m_pipeline = eg::Pipeline::Create(eg::GraphicsPipelineCreateInfo{
+			.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").ToStageInfo(),
+			.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").ToStageInfo(),
+			.setBindModes[0] = eg::BindMode::DescriptorSet,
+			.numColorAttachments = 1,
+			.colorAttachmentFormats = { eg::Format::DefaultColor },
+			.depthAttachmentFormat = eg::Format::DefaultDepthStencil,
+		});
+
+		m_parametersBuffer =
+			eg::Buffer(eg::BufferFlags::CopyDst | eg::BufferFlags::UniformBuffer, sizeof(glm::mat2), nullptr);
+
+		m_descriptorSet = eg::DescriptorSet(m_pipeline, 0);
+		m_descriptorSet.BindUniformBuffer(m_parametersBuffer, 0);
+
 #ifdef EG_HAS_IMGUI
 		if (useIMGUI)
 		{
@@ -38,18 +47,20 @@ struct Game : public eg::IGame
 
 	void RunFrame(float dt) override
 	{
+		const float SIZE = std::min(eg::CurrentResolutionX(), eg::CurrentResolutionY()) * 0.8f;
+		glm::vec2 scale(SIZE / eg::CurrentResolutionX(), SIZE / eg::CurrentResolutionY());
+		glm::mat2 transform = glm::scale(glm::mat3(1.0f), scale) * glm::rotate(glm::mat3(1.0f), m_rotation);
+
+		m_parametersBuffer.DCUpdateData(0, sizeof(glm::mat2), &transform);
+		m_parametersBuffer.UsageHint(eg::BufferUsage::UniformBuffer);
+
 		eg::RenderPassBeginInfo rpBeginInfo;
 		rpBeginInfo.colorAttachments[0].loadOp = eg::AttachmentLoadOp::Clear;
 		rpBeginInfo.colorAttachments[0].clearValue = eg::ColorLin(eg::ColorSRGB(0.2f, 1.0f, 1.0f));
 		eg::DC.BeginRenderPass(rpBeginInfo);
 
 		eg::DC.BindPipeline(m_pipeline);
-
-		const float SIZE = std::min(eg::CurrentResolutionX(), eg::CurrentResolutionY()) * 0.8f;
-		glm::vec2 scale(SIZE / eg::CurrentResolutionX(), SIZE / eg::CurrentResolutionY());
-
-		glm::mat2 transform = glm::scale(glm::mat3(1.0f), scale) * glm::rotate(glm::mat3(1.0f), m_rotation);
-		eg::DC.PushConstants(0, transform);
+		eg::DC.BindDescriptorSet(m_descriptorSet, 0);
 
 		eg::DC.Draw(0, 3, 0, 1);
 
@@ -68,6 +79,8 @@ struct Game : public eg::IGame
 	float m_rotationSpeed = 1.0f;
 	float m_rotation = 0.0f;
 	eg::Pipeline m_pipeline;
+	eg::Buffer m_parametersBuffer;
+	eg::DescriptorSet m_descriptorSet;
 };
 
 #ifdef __EMSCRIPTEN__

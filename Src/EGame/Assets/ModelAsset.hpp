@@ -53,5 +53,5 @@ struct WriteModelAssetResult
 	EG_API void AssertOk() const;
 };
 
-[[nodiscard]] EG_API WriteModelAssetResult WriteModelAsset(std::ostream& stream, const WriteModelAssetArgs& args);
+[[nodiscard]] EG_API WriteModelAssetResult WriteModelAsset(MemoryWriter& writer, const WriteModelAssetArgs& args);
 } // namespace eg

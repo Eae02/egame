@@ -9,32 +9,32 @@
 
 namespace eg
 {
-void Animation::Serialize(std::ostream& stream) const
+void Animation::Serialize(MemoryWriter& writer) const
 {
-	BinWrite(stream, UnsignedNarrow<uint32_t>(m_targets.size()));
-	BinWriteString(stream, name);
+	writer.Write(UnsignedNarrow<uint32_t>(m_targets.size()));
+	writer.WriteString(name);
 
 	for (const TargetKeyFrames& targetKF : m_targets)
 	{
-		targetKF.scale.Write(stream);
-		targetKF.rotation.Write(stream);
-		targetKF.translation.Write(stream);
+		targetKF.scale.Write(writer);
+		targetKF.rotation.Write(writer);
+		targetKF.translation.Write(writer);
 	}
 }
 
-void Animation::Deserialize(std::istream& stream)
+void Animation::Deserialize(MemoryReader& reader)
 {
-	uint32_t numTargets = BinRead<uint32_t>(stream);
+	uint32_t numTargets = reader.Read<uint32_t>();
 	if (numTargets != m_targets.size())
 		EG_PANIC("Animation::Deserialize called with wrong number of targets");
 
-	name = BinReadString(stream);
+	name = reader.ReadString();
 
 	for (TargetKeyFrames& targetKF : m_targets)
 	{
-		targetKF.scale.Read(stream);
-		targetKF.rotation.Read(stream);
-		targetKF.translation.Read(stream);
+		targetKF.scale.Read(reader);
+		targetKF.rotation.Read(reader);
+		targetKF.translation.Read(reader);
 	}
 
 	UpdateLength();

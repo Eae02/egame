@@ -72,16 +72,16 @@ namespace detail
 {
 EG_API int Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)());
 
-extern EG_API bool shouldClose;
-extern EG_API std::string gameName;
-extern EG_API std::string_view exeDirPath;
-extern EG_API uint64_t frameIndex;
-extern EG_API std::vector<FullscreenDisplayMode> fullscreenDisplayModes;
-extern EG_API int64_t nativeDisplayModeIndex;
-extern EG_API float displayScaleFactor;
+EG_API extern bool shouldClose;
+EG_API extern std::string gameName;
+EG_API extern std::string_view exeDirPath;
+EG_API extern uint64_t frameIndex;
+EG_API extern std::vector<FullscreenDisplayMode> fullscreenDisplayModes;
+EG_API extern int64_t nativeDisplayModeIndex;
+EG_API extern float displayScaleFactor;
 
-extern EG_API void (*imguiBeginFrame)(float dt);
-extern EG_API void (*imguiEndFrame)();
+EG_API extern void (*imguiBeginFrame)(float dt);
+EG_API extern void (*imguiEndFrame)();
 
 void ButtonDownEvent(Button button, bool isRepeat);
 void ButtonUpEvent(Button button, bool isRepeat);

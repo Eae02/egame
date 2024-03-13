@@ -1,8 +1,6 @@
 #include "Vec3Generator.hpp"
+#include "../../IOUtils.hpp"
 #include "../../Utils.hpp"
-
-#include <istream>
-#include <ostream>
 
 namespace eg
 {
@@ -21,16 +19,19 @@ glm::vec3 SphereVec3Generator::operator()(std::mt19937& rand) const
 	return sphere.position + (r * sphere.radius) * glm::vec3(sinPhi * cosTheta, sinPhi * sinTheta, cosPhi);
 }
 
-void SphereVec3Generator::Read(std::istream& stream)
+void SphereVec3Generator::Read(MemoryReader& reader)
 {
-	float data[4];
-	stream.read(reinterpret_cast<char*>(data), sizeof(data));
-	sphere = Sphere({ data[0], data[1], data[2] }, data[3]);
+	sphere.position.x = reader.Read<float>();
+	sphere.position.y = reader.Read<float>();
+	sphere.position.z = reader.Read<float>();
+	sphere.radius = reader.Read<float>();
 }
 
-void SphereVec3Generator::Write(std::ostream& stream) const
+void SphereVec3Generator::Write(MemoryWriter& writer) const
 {
-	float data[4] = { sphere.position.x, sphere.position.y, sphere.position.z, sphere.radius };
-	stream.write(reinterpret_cast<const char*>(data), sizeof(data));
+	writer.Write(sphere.position.x);
+	writer.Write(sphere.position.y);
+	writer.Write(sphere.position.z);
+	writer.Write(sphere.radius);
 }
 } // namespace eg

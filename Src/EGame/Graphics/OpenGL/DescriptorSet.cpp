@@ -11,7 +11,7 @@ struct Binding
 {
 	TextureView* textureView;
 	GLuint bufferOrSampler;
-	GLsizeiptr offset;
+	uint64_t offset;
 	GLsizeiptr range;
 	bool assigned;
 };
@@ -88,16 +88,23 @@ static inline void BindBuffer(
 	BufferHandle bufferHandle, DescriptorSetHandle setHandle, uint32_t binding, uint64_t offset,
 	std::optional<uint64_t> range)
 {
-	if (offset == BIND_BUFFER_OFFSET_DYNAMIC)
-		offset = 0;
-
 	DescriptorSet* set = UnwrapDescriptorSet(setHandle);
 	set->CheckBinding(binding);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
-	uint64_t resolvedRange = range.value_or(buffer->size - offset);
-	buffer->AssertRange(offset, resolvedRange);
+
+	uint64_t resolvedRange;
+	if (offset != BIND_BUFFER_OFFSET_DYNAMIC)
+	{
+		resolvedRange = range.value_or(buffer->size - offset);
+		buffer->AssertRange(offset, resolvedRange);
+	}
+	else
+	{
+		resolvedRange = range.value();
+	}
+
 	set->bindings[binding].bufferOrSampler = buffer->buffer;
-	set->bindings[binding].offset = static_cast<GLsizeiptr>(offset);
+	set->bindings[binding].offset = offset;
 	set->bindings[binding].range = static_cast<GLsizeiptr>(resolvedRange);
 	set->bindings[binding].assigned = true;
 }
@@ -134,10 +141,10 @@ void BindDescriptorSet(
 			EG_PANIC("Descriptor set binding not updated before binding descriptor set");
 
 		GLsizeiptr bufferOffset = dsBinding.offset;
-		if (BindingTypeHasDynamicOffset(binding.type))
+		if (dsBinding.offset == BIND_BUFFER_OFFSET_DYNAMIC)
 		{
 			EG_ASSERT(nextDynamicOffsetIndex < dynamicOffsets.size());
-			bufferOffset += dynamicOffsets[nextDynamicOffsetIndex];
+			bufferOffset = dynamicOffsets[nextDynamicOffsetIndex];
 			nextDynamicOffsetIndex++;
 		}
 

@@ -353,7 +353,7 @@ bool Texture2DWriter::AddLayer(std::istream& imageStream, std::string_view fileN
 	return true;
 }
 
-bool Texture2DWriter::Write(std::ostream& stream) const
+bool Texture2DWriter::Write(MemoryWriter& writer) const
 {
 	Format realFormat = m_format;
 	if (m_isSRGB)
@@ -379,24 +379,24 @@ bool Texture2DWriter::Write(std::ostream& stream) const
 		return false;
 	}
 
-	BinWrite<uint32_t>(stream, ToUnsigned(m_numLayers));
-	BinWrite<uint32_t>(stream, static_cast<uint32_t>(realFormat));
+	const uint32_t flags = static_cast<uint32_t>(m_useGlobalDownscale) << 2U |
+	                       static_cast<uint32_t>(m_isArrayTexture) << 3U | static_cast<uint32_t>(m_isCubeMap) << 4U |
+	                       static_cast<uint32_t>(m_is3D) << 5U;
 
-	uint32_t flags = static_cast<uint32_t>(m_useGlobalDownscale) << 2U | static_cast<uint32_t>(m_isArrayTexture) << 3U |
-	                 static_cast<uint32_t>(m_isCubeMap) << 4U | static_cast<uint32_t>(m_is3D) << 5U;
-	BinWrite<uint32_t>(stream, flags);
-
-	BinWrite<uint32_t>(stream, m_mipShiftLow);
-	BinWrite<uint32_t>(stream, m_mipShiftMedium);
-	BinWrite<uint32_t>(stream, m_mipShiftHigh);
-
-	BinWrite<uint32_t>(stream, m_numMipLevels);
-	BinWrite<uint32_t>(stream, m_width);
-	BinWrite<uint32_t>(stream, m_height);
+	writer.Write(Texture2DHeader {
+		.flags = flags,
+		.format = realFormat,
+		.mipShifts = { eg::ToUnsigned(m_mipShiftLow), eg::ToUnsigned(m_mipShiftMedium),
+		               eg::ToUnsigned(m_mipShiftHigh), },
+		.numMipLevels = eg::ToUnsigned(m_numMipLevels),
+		.numLayers = ToUnsigned(m_numLayers),
+		.width = eg::ToUnsigned(m_width),
+		.height = eg::ToUnsigned(m_height),
+	});
 
 	for (std::span<const uint8_t> data : m_data)
 	{
-		stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+		writer.WriteBytes({ reinterpret_cast<const char*>(data.data()), data.size() });
 	}
 
 	return true;

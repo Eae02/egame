@@ -49,7 +49,6 @@ struct ModelCreateArgs
 	ModelVertexFormat vertexFormat;
 	std::vector<std::string> materialNames;
 	std::vector<Animation> animations;
-	std::unique_ptr<char[]> memoryForCpuAccess;
 };
 
 struct EG_API MeshBuffersDescriptor
@@ -75,8 +74,6 @@ public:
 
 	std::variant<std::span<const uint32_t>, std::span<const uint16_t>> GetIndices() const;
 	std::variant<std::span<const uint32_t>, std::span<const uint16_t>> GetMeshIndices(size_t meshIndex) const;
-
-	std::span<const char> GetVertexData() const { return m_dataForCPUAccess->vertexData; }
 
 	std::optional<std::pair<uint32_t, uint32_t>> GetVertexAttributeOffsetAndStride(
 		ModelVertexAttributeType attributeType, uint32_t typeIndex) const;
@@ -120,9 +117,8 @@ private:
 
 	struct DataForCPUAccess
 	{
-		std::unique_ptr<char[]> meshData;
-		const void* indexDataPtr;
-		std::span<const char> vertexData;
+		std::unique_ptr<char[]> indexData;
+		std::unique_ptr<char[]> vertexData;
 	};
 
 	std::optional<DataForCPUAccess> m_dataForCPUAccess; // nullopt if accessFlags does not include cpu

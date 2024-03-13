@@ -3,6 +3,8 @@
 #include "../API.hpp"
 
 #include <chrono>
+#include <cstdint>
+#include <span>
 #include <string_view>
 
 namespace eg
@@ -30,4 +32,50 @@ EG_API void CreateDirectory(const char* path);
 EG_API void CreateDirectories(std::string_view path);
 
 EG_API bool IsRegularFile(const char* path);
+
+class EG_API MemoryMappedFile
+{
+public:
+	MemoryMappedFile() = default;
+
+	~MemoryMappedFile() { Close(); }
+
+	MemoryMappedFile(const MemoryMappedFile& other) = delete;
+	MemoryMappedFile& operator=(const MemoryMappedFile& other) = delete;
+
+	MemoryMappedFile(MemoryMappedFile&& other)
+	{
+		std::swap(other.data, data);
+		std::swap(other.fileHandle, fileHandle);
+	}
+
+	MemoryMappedFile& operator=(MemoryMappedFile&& other)
+	{
+		Close();
+		std::swap(other.data, data);
+		std::swap(other.fileHandle, fileHandle);
+		return *this;
+	}
+
+	static std::optional<MemoryMappedFile> OpenRead(const char* path);
+
+	std::span<const char> data;
+
+	void Close()
+	{
+		if (fileHandle != FILE_HANDLE_NULL)
+		{
+			CloseImpl();
+			data = {};
+			fileHandle = FILE_HANDLE_NULL;
+		}
+	}
+
+private:
+	void CloseImpl();
+
+	static const intptr_t FILE_HANDLE_NULL;
+
+	intptr_t fileHandle = FILE_HANDLE_NULL;
+};
 } // namespace eg

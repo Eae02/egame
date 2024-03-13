@@ -38,7 +38,8 @@ bool ReadCompressedSection(std::istream& input, void* output, size_t outputSize,
 		int64_t charsToRead = std::min<int64_t>(inBuffer.size(), charsLeft);
 		input.read(inBuffer.data(), charsToRead);
 
-		EG_ASSERT(input.gcount() == charsToRead);
+		if (input.fail() || input.gcount() != charsToRead)
+			return false;
 
 		charsLeft -= charsToRead;
 

@@ -698,13 +698,13 @@ private:
 	std::unique_ptr<_CommandContext, CommandContextDel> m_context;
 };
 
-extern EG_API CommandContext DC;
+EG_API extern CommandContext DC;
 
-extern EG_API const BlendState AlphaBlend;
+EG_API extern const BlendState AlphaBlend;
 
 namespace detail
 {
-extern EG_API GraphicsDeviceInfo graphicsDeviceInfo;
+EG_API extern GraphicsDeviceInfo graphicsDeviceInfo;
 }
 
 inline const GraphicsDeviceInfo& GetGraphicsDeviceInfo()

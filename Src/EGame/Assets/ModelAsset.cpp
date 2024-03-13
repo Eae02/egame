@@ -8,10 +8,9 @@ const AssetFormat ModelAssetFormat{ "EG::Model", 5 };
 
 bool ModelAssetLoader(const AssetLoadContext& loadContext)
 {
-	MemoryStreambuf streamBuf(loadContext.Data());
-	std::istream stream(&streamBuf);
+	MemoryReader reader(loadContext.Data());
 
-	const std::string vertexFormatName = BinReadString(stream);
+	const std::string_view vertexFormatName = reader.ReadString();
 	const ModelVertexFormat* format = ModelVertexFormat::FindFormatByName(vertexFormatName);
 	if (format == nullptr)
 	{
@@ -19,7 +18,7 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 		return false;
 	}
 
-	const uint64_t vertexFormatHash = BinRead<uint64_t>(stream);
+	const uint64_t vertexFormatHash = reader.Read<uint64_t>();
 	if (vertexFormatHash != format->Hash())
 	{
 		Log(LogLevel::Error, "as", "Vertex format hash mismatch for format: {0}. Model may be out of date",
@@ -27,7 +26,7 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 		return false;
 	}
 
-	const uint32_t numVertexStreams = BinRead<uint32_t>(stream);
+	const uint32_t numVertexStreams = reader.Read<uint32_t>();
 	if (numVertexStreams != format->streamsBytesPerVertex.size())
 	{
 		Log(LogLevel::Error, "as", "Vertex format stream count mismatch for format: {0}. Model may be out of date",
@@ -35,9 +34,9 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 		return false;
 	}
 
-	const uint32_t numMeshes = BinRead<uint32_t>(stream);
-	const uint32_t numAnimations = BinRead<uint32_t>(stream);
-	const ModelAccessFlags accessFlags = static_cast<ModelAccessFlags>(BinRead<uint8_t>(stream));
+	const uint32_t numMeshes = reader.Read<uint32_t>();
+	const uint32_t numAnimations = reader.Read<uint32_t>();
+	const ModelAccessFlags accessFlags = static_cast<ModelAccessFlags>(reader.Read<uint8_t>());
 
 	std::vector<std::string> materialNames;
 
@@ -48,24 +47,24 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 	meshes.reserve(numMeshes);
 	for (uint32_t m = 0; m < numMeshes; m++)
 	{
-		const uint32_t numVertices = BinRead<uint32_t>(stream);
-		const uint32_t numIndices = BinRead<uint32_t>(stream);
-		const std::string materialName = BinReadString(stream);
-		const std::string meshName = BinReadString(stream);
+		const uint32_t numVertices = reader.Read<uint32_t>();
+		const uint32_t numIndices = reader.Read<uint32_t>();
+		const std::string_view materialName = reader.ReadString();
+		const std::string_view meshName = reader.ReadString();
 
 		Sphere sphere;
-		sphere.position.x = BinRead<float>(stream);
-		sphere.position.y = BinRead<float>(stream);
-		sphere.position.z = BinRead<float>(stream);
-		sphere.radius = BinRead<float>(stream);
+		sphere.position.x = reader.Read<float>();
+		sphere.position.y = reader.Read<float>();
+		sphere.position.z = reader.Read<float>();
+		sphere.radius = reader.Read<float>();
 
 		eg::AABB aabb;
-		aabb.min.x = BinRead<float>(stream);
-		aabb.min.y = BinRead<float>(stream);
-		aabb.min.z = BinRead<float>(stream);
-		aabb.max.x = BinRead<float>(stream);
-		aabb.max.y = BinRead<float>(stream);
-		aabb.max.z = BinRead<float>(stream);
+		aabb.min.x = reader.Read<float>();
+		aabb.min.y = reader.Read<float>();
+		aabb.min.z = reader.Read<float>();
+		aabb.max.x = reader.Read<float>();
+		aabb.max.y = reader.Read<float>();
+		aabb.max.z = reader.Read<float>();
 
 		uint64_t materialIndex;
 		auto materialIt = std::find(materialNames.begin(), materialNames.end(), materialName);
@@ -76,11 +75,11 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 		else
 		{
 			materialIndex = materialNames.size();
-			materialNames.push_back(std::move(materialName));
+			materialNames.emplace_back(materialName);
 		}
 
 		meshes.push_back(MeshDescriptor{
-			.name = std::move(meshName),
+			.name = std::string(meshName),
 			.materialIndex = UnsignedNarrow<uint32_t>(materialIndex),
 			.firstVertex = nextMeshFirstVertex,
 			.firstIndex = nextMeshFirstIndex,
@@ -100,29 +99,30 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 	const size_t totalIndexBytes = sizeof(uint32_t) * totalIndices;
 	const size_t totalVertexBytes = format->CalculateBytesPerVertex() * static_cast<size_t>(totalVertices);
 
-	std::unique_ptr<char[]> meshData = std::make_unique<char[]>(totalIndexBytes + totalVertexBytes);
-	stream.read(meshData.get(), totalIndexBytes + totalVertexBytes);
+	std::span<const char> meshData = reader.ReadBytes(totalIndexBytes + totalVertexBytes);
 
-	Skeleton skeleton = Skeleton::Deserialize(stream);
+	Skeleton skeleton = Skeleton::Deserialize(reader);
 
 	const size_t numAnimationTargets = skeleton.NumBones() + numMeshes;
 	std::vector<Animation> animations;
 	animations.reserve(numAnimations);
 	for (uint32_t i = 1; i < numAnimations; i++)
 	{
-		animations.emplace_back(numAnimationTargets).Deserialize(stream);
+		animations.emplace_back(numAnimationTargets).Deserialize(reader);
 	}
 
 	ModelCreateArgs modelCreateArgs = {
 		.accessFlags = accessFlags,
 		.meshes = std::move(meshes),
-		.vertexData = std::span<const char>(meshData.get() + totalIndexBytes, totalVertexBytes),
+		.vertexData = meshData.subspan(totalIndexBytes),
 		.numVertices = totalVertices,
-		.indices = std::span<const uint32_t>(reinterpret_cast<const uint32_t*>(meshData.get()), totalIndices),
+		// indices might not be aligned for uint32/uint16, but that is probably not needed since the model constructor
+		// just casts this buffer to char* and performs copies on it. But maybe this code should be changed to not use a
+		// span of uint32/uint16
+		.indices = std::span<const uint32_t>(reinterpret_cast<const uint32_t*>(meshData.data()), totalIndices),
 		.vertexFormat = *format,
 		.materialNames = std::move(materialNames),
 		.animations = std::move(animations),
-		.memoryForCpuAccess = std::move(meshData),
 	};
 
 	Model& model = loadContext.CreateResult<Model>(std::move(modelCreateArgs));
@@ -306,7 +306,7 @@ static std::pair<std::unique_ptr<char, FreeDel>, size_t> SerializeVertices(
 	return { std::move(vertexData), totalVertexBytes };
 }
 
-WriteModelAssetResult WriteModelAsset(std::ostream& stream, const WriteModelAssetArgs& args)
+WriteModelAssetResult WriteModelAsset(MemoryWriter& writer, const WriteModelAssetArgs& args)
 {
 	if (!std::is_sorted(args.animations.begin(), args.animations.end(), AnimationNameCompare()))
 		return WriteModelAssetResult{ .error = "animations not sorted by name" };
@@ -317,19 +317,19 @@ WriteModelAssetResult WriteModelAsset(std::ostream& stream, const WriteModelAsse
 
 	uint32_t numVertexStreams = UnsignedNarrow<uint32_t>(vertexFormat->streamsBytesPerVertex.size());
 
-	BinWriteString(stream, args.vertexFormatName);
-	BinWrite<uint64_t>(stream, vertexFormat->Hash());
-	BinWrite<uint32_t>(stream, numVertexStreams);
-	BinWrite<uint32_t>(stream, UnsignedNarrow<uint32_t>(args.meshes.size()));
-	BinWrite<uint32_t>(stream, UnsignedNarrow<uint32_t>(args.animations.size()));
-	BinWrite(stream, static_cast<uint8_t>(args.accessFlags));
+	writer.WriteString(args.vertexFormatName);
+	writer.Write<uint64_t>(vertexFormat->Hash());
+	writer.Write<uint32_t>(numVertexStreams);
+	writer.Write<uint32_t>(UnsignedNarrow<uint32_t>(args.meshes.size()));
+	writer.Write<uint32_t>(UnsignedNarrow<uint32_t>(args.animations.size()));
+	writer.Write(static_cast<uint8_t>(args.accessFlags));
 
 	for (const WriteModelAssetMesh& mesh : args.meshes)
 	{
-		BinWrite<uint32_t>(stream, UnsignedNarrow<uint32_t>(mesh.positions.size()));
-		BinWrite<uint32_t>(stream, UnsignedNarrow<uint32_t>(mesh.indices.size()));
-		BinWriteString(stream, mesh.materialName);
-		BinWriteString(stream, mesh.name);
+		writer.Write<uint32_t>(UnsignedNarrow<uint32_t>(mesh.positions.size()));
+		writer.Write<uint32_t>(UnsignedNarrow<uint32_t>(mesh.indices.size()));
+		writer.WriteString(mesh.materialName);
+		writer.WriteString(mesh.name);
 
 		Sphere boundingSphere;
 		if (mesh.boundingSphere.has_value())
@@ -343,31 +343,31 @@ WriteModelAssetResult WriteModelAsset(std::ostream& stream, const WriteModelAsse
 		else
 			boundingBox = AABB::CreateEnclosing(mesh.positions);
 
-		BinWrite<float>(stream, boundingSphere.position.x);
-		BinWrite<float>(stream, boundingSphere.position.y);
-		BinWrite<float>(stream, boundingSphere.position.z);
-		BinWrite<float>(stream, boundingSphere.radius);
-		BinWrite<float>(stream, boundingBox.min.x);
-		BinWrite<float>(stream, boundingBox.min.y);
-		BinWrite<float>(stream, boundingBox.min.z);
-		BinWrite<float>(stream, boundingBox.max.x);
-		BinWrite<float>(stream, boundingBox.max.y);
-		BinWrite<float>(stream, boundingBox.max.z);
+		writer.Write(boundingSphere.position.x);
+		writer.Write(boundingSphere.position.y);
+		writer.Write(boundingSphere.position.z);
+		writer.Write(boundingSphere.radius);
+		writer.Write(boundingBox.min.x);
+		writer.Write(boundingBox.min.y);
+		writer.Write(boundingBox.min.z);
+		writer.Write(boundingBox.max.x);
+		writer.Write(boundingBox.max.y);
+		writer.Write(boundingBox.max.z);
 	}
 
 	for (const WriteModelAssetMesh& mesh : args.meshes)
 	{
-		stream.write(reinterpret_cast<const char*>(mesh.indices.data()), mesh.indices.size_bytes());
+		writer.WriteMultiple(mesh.indices);
 	}
 
 	auto [vertexData, vertexDataBytes] = SerializeVertices(args.meshes, *vertexFormat);
-	stream.write(vertexData.get(), vertexDataBytes);
+	writer.WriteBytes({ vertexData.get(), vertexDataBytes });
 
 	static Skeleton emptySkeleton;
-	(args.skeleton ? args.skeleton : &emptySkeleton)->Serialize(stream);
+	(args.skeleton ? args.skeleton : &emptySkeleton)->Serialize(writer);
 
 	for (const Animation& animation : args.animations)
-		animation.Serialize(stream);
+		animation.Serialize(writer);
 
 	return WriteModelAssetResult{ .successful = true };
 }

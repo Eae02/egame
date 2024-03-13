@@ -245,6 +245,10 @@ int includeCallbackFree(void* ctx, glsl_include_result_t* result)
 	return 0;
 }
 
+#ifdef EG_WGSL
+std::optional<std::string> GenerateShaderWGSL(std::span<const char> spirv);
+#endif
+
 class ShaderGenerator : public AssetGenerator
 {
 public:
@@ -323,15 +327,25 @@ public:
 		case GLSLANG_STAGE_TESSEVALUATION: egStage = ShaderStage::TessEvaluation; break;
 		default: EG_UNREACHABLE break;
 		}
-		BinWrite(generateContext.outputStream, static_cast<uint32_t>(egStage));
+		generateContext.writer.Write(static_cast<uint32_t>(egStage));
 
-		eg::BinWrite(generateContext.outputStream, UnsignedNarrow<uint32_t>(variants.size()));
+		generateContext.writer.Write(UnsignedNarrow<uint32_t>(variants.size()));
+		for (std::string_view variant : variants)
+		{
+			generateContext.writer.WriteString(variant);
+		}
 
 		glsl_include_callbacks_s includeCallbacks = {
 			.include_system = includeCallbackSystem,
 			.include_local = includeCallbackLocal,
 			.free_include_result = includeCallbackFree,
 		};
+
+		MemoryWriter spirvStreamWriter;
+
+#ifdef EG_WGSL
+		MemoryWriter wgslStreamWriter;
+#endif
 
 		// Compiles each shader variant
 		for (std::string_view variant : variants)
@@ -356,7 +370,7 @@ public:
 				.default_version = 450,
 				.default_profile = GLSLANG_NO_PROFILE,
 				.force_default_version_and_profile = false,
-				.forward_compatible = false,
+				.forward_compatible = true,
 				.messages = GLSLANG_MSG_DEFAULT_BIT,
 				.resource = &DefaultTBuiltInResource,
 				.callbacks = includeCallbacks,
@@ -405,12 +419,27 @@ public:
 				    spirv_messages);
 			}
 
-			uint32_t codeSize = UnsignedNarrow<uint32_t>(glslang::program_SPIRV_get_size(program) * sizeof(uint32_t));
-			BinWrite(generateContext.outputStream, eg::HashFNV1a32(variant));
-			BinWrite(generateContext.outputStream, codeSize);
-			generateContext.outputStream.write(
-				reinterpret_cast<char*>(glslang::program_SPIRV_get_ptr(program)), codeSize);
+			const uint64_t codeSize = glslang::program_SPIRV_get_size(program) * sizeof(uint32_t);
+			std::span<char> spirvData(reinterpret_cast<char*>(glslang::program_SPIRV_get_ptr(program)), codeSize);
+
+			spirvStreamWriter.Write<uint64_t>(codeSize);
+			spirvStreamWriter.WriteBytes(spirvData);
+
+			eg::Log(eg::LogLevel::Info, "sh", "Compiling shader: {0}", generateContext.AssetName());
+
+#ifdef EG_WGSL
+			std::optional<std::string> wgsl = GenerateShaderWGSL(spirvData);
+			std::string wgslCode = wgsl.value_or("");
+			wgslStreamWriter.Write<uint64_t>(wgslCode.size());
+			wgslStreamWriter.WriteBytes(std::span<char>(wgslCode));
+#endif
 		}
+
+		generateContext.SetSideStreamData(ShaderModuleAsset::SideStreamNameSpirV, spirvStreamWriter.ToVector());
+
+#ifdef EG_WGSL
+		generateContext.SetSideStreamData(ShaderModuleAsset::SideStreamNameWGSL, wgslStreamWriter.ToVector());
+#endif
 
 		return true;
 	}

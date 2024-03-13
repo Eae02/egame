@@ -22,11 +22,11 @@ struct EG_API ParticleEmitterType
 {
 	struct TextureVariant
 	{
-		int x;
-		int y;
-		int width;
-		int height;
-		int numFrames;
+		int32_t x;
+		int32_t y;
+		int32_t width;
+		int32_t height;
+		int32_t numFrames;
 	};
 
 	float emissionRate;

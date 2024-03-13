@@ -192,15 +192,12 @@ void Initialize(const InitializeArgs& args)
 #ifdef __EMSCRIPTEN__
 	io.Fonts->AddFontDefault();
 #else
-	const char* fontPaths[] = {
-		args.fontPath,
+	const char* fontPaths[] = { args.fontPath,
 #if defined(__linux__)
-		"/usr/share/fonts/TTF/DejaVuSans.ttf",
-		"/usr/share/fonts/TTF/DroidSans.ttf",
-		"/usr/share/fonts/droid/DroidSans.ttf",
-		"/usr/share/fonts/TTF/arial.ttf"
+		                        "/usr/share/fonts/TTF/DejaVuSans.ttf", "/usr/share/fonts/TTF/DroidSans.ttf",
+		                        "/usr/share/fonts/droid/DroidSans.ttf", "/usr/share/fonts/TTF/arial.ttf"
 #elif defined(_WIN32)
-		"C:\\Windows\\Fonts\\arial.ttf"
+		                        "C:\\Windows\\Fonts\\arial.ttf"
 #endif
 	};
 

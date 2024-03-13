@@ -1,5 +1,6 @@
 #include "DefaultAssetGenerator.hpp"
 #include "../Log.hpp"
+#include "../Platform/FileSystem.hpp"
 #include "AssetGenerator.hpp"
 
 #include <fstream>
@@ -14,21 +15,19 @@ public:
 	bool Generate(AssetGenerateContext& context) override
 	{
 		std::string path = context.FileDependency(context.RelSourcePath());
-		std::ifstream stream(path, std::ios::binary);
-		if (!stream)
+
+		std::optional<MemoryMappedFile> mappedFile = MemoryMappedFile::OpenRead(path.c_str());
+		if (!mappedFile.has_value())
 		{
 			Log(LogLevel::Error, "as", "Error opening asset file for reading: '{0}'", path);
 			return false;
 		}
 
-		char readBuffer[4096];
-		while (!stream.eof())
-		{
-			stream.read(readBuffer, sizeof(readBuffer));
-			context.outputStream.write(readBuffer, stream.gcount());
-		}
-
+		context.writer.WriteBytes(mappedFile->data);
 		context.outputFlags = AssetFlags::NeverCache;
+
+		mappedFile->Close();
+
 		return true;
 	}
 };

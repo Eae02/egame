@@ -39,7 +39,7 @@ struct DownloadAssetPackageArgs
 	std::function<void(const DownloadProgress&)> progressCallback;
 };
 
-void EG_API DownloadAssetPackageASync(DownloadAssetPackageArgs args);
+EG_API void DownloadAssetPackageASync(DownloadAssetPackageArgs args);
 
 namespace detail
 {

@@ -3,6 +3,7 @@
 #include "../EGame/Assets/Texture2DLoader.hpp"
 #include "../EGame/Assets/YAMLUtils.hpp"
 #include "../EGame/Graphics/Format.hpp"
+#include "../EGame/IOUtils.hpp"
 #include "../EGame/Utils.hpp"
 
 #include <cstdint>
@@ -22,7 +23,7 @@ public:
 
 	bool AddLayer(std::istream& imageStream, std::string_view fileName = {});
 
-	[[nodiscard]] bool Write(std::ostream& stream) const;
+	[[nodiscard]] bool Write(MemoryWriter& writer) const;
 
 	void SetIsArrayTexture(bool isArrayTexture) { m_isArrayTexture = isArrayTexture; }
 

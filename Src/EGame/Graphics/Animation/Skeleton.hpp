@@ -35,8 +35,8 @@ public:
 
 	void InitDualBones();
 
-	void Serialize(std::ostream& stream) const;
-	static Skeleton Deserialize(std::istream& stream);
+	void Serialize(struct MemoryWriter& writer) const;
+	static Skeleton Deserialize(struct MemoryReader& reader);
 
 	glm::mat4 rootTransform;
 

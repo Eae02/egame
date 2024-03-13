@@ -1,14 +1,11 @@
 #pragma once
 
 #ifdef _WIN32
-#define EG_C_EXPORT extern "C" __declspec(dllexport)
-
 #ifdef EG_BUILDING_LIB
-#define EG_API __declspec(dllexport)
+#define EG_API [[gnu::dllexport]]
 #else
-#define EG_API __declspec(dllimport)
+#define EG_API [[gnu::dllimport]]
 #endif
 #else
-#define EG_API __attribute__((visibility("default")))
-#define EG_C_EXPORT extern "C" EG_API
+#define EG_API [[gnu::visibility("default")]]
 #endif

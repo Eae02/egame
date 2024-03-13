@@ -11,7 +11,7 @@
 
 namespace eg
 {
-struct __attribute__((__packed__)) ParticleInstance
+struct ParticleInstance
 {
 	float position[3];
 	float size;

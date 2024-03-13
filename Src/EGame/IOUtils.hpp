@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <list>
 #include <span>
 #include <vector>
 
@@ -67,4 +68,92 @@ inline std::string BinReadString(StreamTp& stream)
 	stream.read(string.data(), string.size());
 	return string;
 }
+
+class MemoryReader
+{
+public:
+	explicit MemoryReader(std::span<const char> _data) : data(_data) {}
+
+	template <typename T, bool SkipCheckTrivial = false>
+	T Read()
+	{
+		static_assert(std::is_trivial_v<T> || SkipCheckTrivial);
+		EG_ASSERT(dataOffset + sizeof(T) <= data.size());
+		T value;
+		std::memcpy(&value, data.data() + dataOffset, sizeof(T));
+		dataOffset += sizeof(T);
+		return value;
+	}
+
+	template <typename T, bool SkipCheckTrivial = false>
+	void ReadToSpan(std::span<T> values)
+	{
+		static_assert(std::is_trivial_v<T> || SkipCheckTrivial);
+		EG_ASSERT(dataOffset + values.size_bytes() <= data.size());
+		T value;
+		std::memcpy(values.data(), data.data() + dataOffset, values.size_bytes());
+		dataOffset += values.size_bytes();
+	}
+
+	std::string_view ReadString()
+	{
+		uint16_t len = Read<uint16_t>();
+		EG_ASSERT(dataOffset + len <= data.size());
+		std::string_view s(data.data() + dataOffset, len);
+		dataOffset += len;
+		return s;
+	}
+
+	std::span<const char> ReadBytes(size_t n)
+	{
+		auto result = data.subspan(dataOffset, n);
+		dataOffset += n;
+		return result;
+	}
+
+	size_t dataOffset = 0;
+	std::span<const char> data;
+};
+
+class MemoryWriter
+{
+public:
+	MemoryWriter() : m_blocks(1) {}
+
+	template <typename T, bool SkipCheckTrivial = false>
+	void Write(T value)
+	{
+		static_assert(std::is_trivial_v<T> || SkipCheckTrivial);
+		WriteBytes(std::span<const char>(reinterpret_cast<const char*>(&value), sizeof(T)));
+	}
+
+	template <typename T, bool SkipCheckTrivial = false>
+	void WriteMultiple(std::span<const T> value)
+	{
+		static_assert(std::is_trivial_v<T> || SkipCheckTrivial);
+		WriteBytes(std::span<const char>(reinterpret_cast<const char*>(value.data()), value.size_bytes()));
+	}
+
+	void WriteString(std::string_view string)
+	{
+		if (string.size() > UINT16_MAX)
+			EG_PANIC("String passed to WriteString was too long");
+		Write(static_cast<uint16_t>(string.size()));
+		WriteBytes(string);
+	}
+
+	void WriteBytes(std::span<const char> data);
+
+	void CopyToStream(std::ostream& stream) const;
+
+	std::vector<char> ToVector() const;
+
+private:
+	static constexpr size_t BYTES_PER_BLOCK = 16 * 1024;
+
+	std::list<std::array<char, BYTES_PER_BLOCK>> m_blocks;
+
+	size_t m_lastBlockLength = 0;
+	size_t m_length = 0;
+};
 } // namespace eg

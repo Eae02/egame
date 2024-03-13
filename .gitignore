@@ -13,3 +13,4 @@ Src/Shaders/**/*.h
 Bin
 *.gch
 /.clangd
+/Deps/tint/

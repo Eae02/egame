@@ -296,7 +296,7 @@ public:
 			.accessFlags = access,
 		};
 
-		WriteModelAssetResult result = WriteModelAsset(generateContext.outputStream, writeArgs);
+		WriteModelAssetResult result = WriteModelAsset(generateContext.writer, writeArgs);
 		result.AssertOk();
 
 		return result.successful;

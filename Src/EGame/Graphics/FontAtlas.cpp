@@ -591,40 +591,57 @@ FontAtlas::AtlasData::AtlasData(const struct FontAtlas::AtlasData& other) noexce
 	}
 }
 
-void FontAtlas::Serialize(std::ostream& stream) const
+struct AtlasHeader
 {
-	BinWrite<uint32_t>(stream, m_size);
-	BinWrite<float>(stream, m_lineHeight);
-	BinWrite<float>(stream, m_spaceAdvance);
-	BinWrite(stream, UnsignedNarrow<uint32_t>(m_characters.size()));
-	BinWrite(stream, UnsignedNarrow<uint32_t>(m_kerningPairs.size()));
-	BinWrite(stream, ToUnsigned(m_atlasData.width));
-	BinWrite(stream, ToUnsigned(m_atlasData.height));
+	uint32_t size;
+	float lineHeight;
+	float spaceAdvance;
+	uint32_t numCharacters;
+	uint32_t numKerningPairs;
+	uint32_t width;
+	uint32_t height;
+};
 
-	stream.write(reinterpret_cast<const char*>(m_characters.data()), m_characters.size() * sizeof(Character));
-	stream.write(reinterpret_cast<const char*>(m_kerningPairs.data()), m_kerningPairs.size() * sizeof(KerningPair));
-	stream.write(reinterpret_cast<const char*>(m_atlasData.data), m_atlasData.width * m_atlasData.height);
+void FontAtlas::Serialize(MemoryWriter& writer) const
+{
+	writer.Write(AtlasHeader{
+		.size = static_cast<uint32_t>(m_size),
+		.lineHeight = m_lineHeight,
+		.spaceAdvance = m_spaceAdvance,
+		.numCharacters = UnsignedNarrow<uint32_t>(m_characters.size()),
+		.numKerningPairs = UnsignedNarrow<uint32_t>(m_kerningPairs.size()),
+		.width = ToUnsigned(m_atlasData.width),
+		.height = ToUnsigned(m_atlasData.height),
+	});
+
+	writer.WriteMultiple<Character>(m_characters);
+	writer.WriteMultiple<KerningPair>(m_kerningPairs);
+	writer.WriteBytes({
+		reinterpret_cast<const char*>(m_atlasData.data),
+		static_cast<size_t>(m_atlasData.width * m_atlasData.height),
+	});
 }
 
-FontAtlas FontAtlas::Deserialize(std::istream& stream)
+FontAtlas FontAtlas::Deserialize(MemoryReader& reader)
 {
 	FontAtlas atlas;
-	atlas.m_size = BinRead<uint32_t>(stream);
-	atlas.m_lineHeight = BinRead<float>(stream);
-	atlas.m_spaceAdvance = BinRead<float>(stream);
-	uint32_t numChars = BinRead<uint32_t>(stream);
-	uint32_t numKerningPairs = BinRead<uint32_t>(stream);
-	atlas.m_atlasData.width = BinRead<uint32_t>(stream);
-	atlas.m_atlasData.height = BinRead<uint32_t>(stream);
+
+	AtlasHeader header = reader.Read<AtlasHeader>();
+	atlas.m_size = header.size;
+	atlas.m_lineHeight = header.lineHeight;
+	atlas.m_spaceAdvance = header.spaceAdvance;
+	atlas.m_atlasData.width = header.width;
+	atlas.m_atlasData.height = header.height;
 	size_t dataBytes = static_cast<size_t>(atlas.m_atlasData.width) * static_cast<size_t>(atlas.m_atlasData.height);
 
-	atlas.m_characters.resize(numChars);
-	atlas.m_kerningPairs.resize(numKerningPairs);
+	atlas.m_characters.resize(header.numCharacters);
+	atlas.m_kerningPairs.resize(header.numKerningPairs);
 	atlas.m_atlasData.data = static_cast<uint8_t*>(std::malloc(dataBytes));
 
-	stream.read(reinterpret_cast<char*>(atlas.m_characters.data()), numChars * sizeof(Character));
-	stream.read(reinterpret_cast<char*>(atlas.m_kerningPairs.data()), numKerningPairs * sizeof(KerningPair));
-	stream.read(reinterpret_cast<char*>(atlas.m_atlasData.data), dataBytes);
+	reader.ReadToSpan<Character>(atlas.m_characters);
+	reader.ReadToSpan<KerningPair>(atlas.m_kerningPairs);
+
+	std::copy_n(reader.ReadBytes(dataBytes).data(), dataBytes, reinterpret_cast<char*>(atlas.m_atlasData.data));
 
 	return atlas;
 }

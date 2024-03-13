@@ -53,9 +53,10 @@ std::optional<GeneratedAsset> GenerateAsset(
 		return {};
 
 	GeneratedAsset generatedAsset;
-	generatedAsset.data = context.outputStream.str();
+	generatedAsset.data = context.writer.ToVector();
 	generatedAsset.fileDependencies = context.FileDependencies();
 	generatedAsset.loadDependencies = context.LoadDependencies();
+	generatedAsset.sideStreamsData = context.SideStreamsData();
 	generatedAsset.flags = context.outputFlags;
 	generatedAsset.format = it->format;
 	return generatedAsset;
@@ -69,5 +70,22 @@ std::string AssetGenerateContext::RelSourcePath() const
 	}
 
 	return std::string(m_assetName);
+}
+
+void AssetGenerateContext::SetSideStreamData(std::string_view sideStreamName, std::vector<char> data)
+{
+	for (GeneratedAssetSideStreamData& sideStreamData : m_sideStreamsData)
+	{
+		if (sideStreamData.streamName == sideStreamName)
+		{
+			sideStreamData.data = std::move(data);
+			return;
+		}
+	}
+
+	m_sideStreamsData.push_back(GeneratedAssetSideStreamData{
+		.streamName = std::string(sideStreamName),
+		.data = std::move(data),
+	});
 }
 } // namespace eg

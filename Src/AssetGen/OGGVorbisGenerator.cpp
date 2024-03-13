@@ -81,12 +81,12 @@ public:
 		} while (bytes != 0);
 
 		generateContext.outputFlags |= eg::AssetFlags::DisableEAPCompression;
-		eg::BinWrite<uint32_t>(generateContext.outputStream, outputChannels);
-		eg::BinWrite<uint64_t>(generateContext.outputStream, info->rate);
-		eg::BinWrite<uint64_t>(generateContext.outputStream, samples.size());
+		generateContext.writer.Write<uint32_t>(outputChannels);
+		generateContext.writer.Write<uint64_t>(info->rate);
+		generateContext.writer.Write<uint64_t>(samples.size());
 
-		generateContext.outputStream.write(
-			reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t));
+		generateContext.writer.WriteBytes(
+			{ reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t) });
 
 		ov_clear(&oggFile);
 		return true;

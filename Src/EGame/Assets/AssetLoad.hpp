@@ -6,15 +6,24 @@
 #include "Asset.hpp"
 #include "AssetGenerator.hpp"
 #include "DefaultAssetGenerator.hpp"
+#include "EAPFile.hpp"
 
 #include <span>
 
 namespace eg
 {
+struct AssetLoadArgs
+{
+	Asset* asset;
+	std::string_view assetPath;
+	std::span<const char> generatedData;
+	std::span<const SideStreamData> sideStreamsData;
+};
+
 class EG_API AssetLoadContext
 {
 public:
-	AssetLoadContext(Asset* asset, std::string_view assetPath, std::span<const char> data);
+	explicit AssetLoadContext(const AssetLoadArgs& loadArgs);
 
 	/**
 	 * Creates the result asset. The loader must always call this function with the same type T.
@@ -54,11 +63,14 @@ public:
 
 	std::string_view DirPath() const { return m_dirPath; }
 
+	std::optional<std::span<const char>> FindSideStreamData(std::string_view streamName) const;
+
 private:
 	mutable Asset* m_asset = nullptr;
 	std::string_view m_assetPath;
 	std::string_view m_dirPath;
 	std::span<const char> m_data;
+	std::span<const SideStreamData> m_sideStreamsData;
 };
 
 using AssetLoaderCallback = std::function<bool(const AssetLoadContext&)>;
@@ -72,11 +84,12 @@ struct AssetLoader
 
 EG_API const AssetLoader* FindAssetLoader(std::string_view loader);
 
-EG_API Asset* LoadAsset(
-	const AssetLoader& loader, std::string_view assetPath, std::span<const char> data, Asset* asset);
+EG_API Asset* LoadAsset(const AssetLoader& loader, const AssetLoadArgs& loadArgs);
 
 EG_API void RegisterAssetLoader(
 	std::string name, AssetLoaderCallback loader, const AssetFormat& format = DefaultGeneratorFormat);
+
+EG_API void SetShouldLoadAssetSideStream(std::string_view sideStreamName, bool shouldLoad);
 
 namespace detail
 {

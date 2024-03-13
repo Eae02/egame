@@ -27,7 +27,7 @@ public:
 		if (!textureWriter.AddLayer(stream, sourcePath))
 			return false;
 
-		return textureWriter.Write(generateContext.outputStream);
+		return textureWriter.Write(generateContext.writer);
 	}
 };
 

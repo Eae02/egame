@@ -10,15 +10,6 @@ Model::Model(ModelCreateArgs args)
 {
 	EG_ASSERT(m_numVertices > 0);
 
-	if (HasFlag(args.accessFlags, ModelAccessFlags::CPU))
-	{
-		EG_ASSERT(args.memoryForCpuAccess != nullptr);
-		m_dataForCPUAccess = DataForCPUAccess{
-			.meshData = std::move(args.memoryForCpuAccess),
-			.vertexData = args.vertexData,
-		};
-	}
-
 	std::sort(m_animations.begin(), m_animations.end(), AnimationNameCompare());
 
 	m_buffersDescriptor = std::make_unique<MeshBuffersDescriptor>();
@@ -41,16 +32,23 @@ Model::Model(ModelCreateArgs args)
 		EG_ASSERT(verticesEnd <= args.vertexData.size_bytes());
 	}
 
-	std::span<const char> indexData;
-	std::visit(
+	std::span<const char> indexData = std::visit(
 		[&]<typename I>(std::span<const I> indices)
 		{
 			m_numIndices = indices.size();
-			indexData = { reinterpret_cast<const char*>(indices.data()), indices.size_bytes() };
-			if (m_dataForCPUAccess)
-				m_dataForCPUAccess->indexDataPtr = indices.data();
+			return std::span(reinterpret_cast<const char*>(indices.data()), indices.size_bytes());
 		},
 		args.indices);
+
+	if (HasFlag(args.accessFlags, ModelAccessFlags::CPU))
+	{
+		m_dataForCPUAccess = DataForCPUAccess{
+			.vertexData = std::make_unique<char[]>(args.vertexData.size()),
+			.indexData = std::make_unique<char[]>(indexData.size()),
+		};
+		std::memcpy(m_dataForCPUAccess->vertexData.get(), args.vertexData.data(), args.vertexData.size());
+		std::memcpy(m_dataForCPUAccess->indexData.get(), indexData.data(), indexData.size());
+	}
 
 	if (std::holds_alternative<std::span<const uint16_t>>(args.indices))
 		m_buffersDescriptor->indexType = IndexType::UInt16;
@@ -98,9 +96,9 @@ std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetInd
 	switch (m_buffersDescriptor->indexType)
 	{
 	case IndexType::UInt32:
-		return std::span<const uint32_t>(static_cast<const uint32_t*>(m_dataForCPUAccess->indexDataPtr), m_numIndices);
+		return std::span(reinterpret_cast<const uint32_t*>(m_dataForCPUAccess->indexData.get()), m_numIndices);
 	case IndexType::UInt16:
-		return std::span<const uint16_t>(static_cast<const uint16_t*>(m_dataForCPUAccess->indexDataPtr), m_numIndices);
+		return std::span(reinterpret_cast<const uint16_t*>(m_dataForCPUAccess->indexData.get()), m_numIndices);
 	}
 	EG_UNREACHABLE
 }
@@ -110,8 +108,7 @@ std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetMes
 	const MeshDescriptor& mesh = GetMesh(meshIndex);
 	return std::visit(
 		[&](auto indices) -> std::variant<std::span<const uint32_t>, std::span<const uint16_t>>
-		{ return indices.subspan(mesh.firstIndex, mesh.numIndices); },
-		GetIndices());
+		{ return indices.subspan(mesh.firstIndex, mesh.numIndices); }, GetIndices());
 }
 
 std::optional<std::pair<uint32_t, uint32_t>> Model::GetVertexAttributeOffsetAndStride(
@@ -135,7 +132,7 @@ std::optional<std::pair<const void*, uint32_t>> Model::GetMeshVertexAttributePtr
 	if (!offsetAndStride.has_value())
 		return std::nullopt;
 	auto [offset, stride] = *offsetAndStride;
-	const char* dataPtr = m_dataForCPUAccess->vertexData.data() + offset + stride * GetMesh(meshIndex).firstVertex;
+	const char* dataPtr = m_dataForCPUAccess->vertexData.get() + offset + stride * GetMesh(meshIndex).firstVertex;
 	return std::make_pair(dataPtr, stride);
 }
 

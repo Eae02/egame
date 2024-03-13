@@ -67,7 +67,7 @@ public:
 			}
 		}
 
-		return textureWriter.Write(generateContext.outputStream);
+		return textureWriter.Write(generateContext.writer);
 	}
 };
 

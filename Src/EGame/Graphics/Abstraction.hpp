@@ -838,10 +838,10 @@ struct GraphicsMemoryStat
 
 namespace gal
 {
-#define XM_ABSCALLBACK(name, ret, params) extern EG_API ret(*name) params;
+#define XM_ABSCALLBACK(name, ret, params) EG_API extern ret(*name) params;
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
 
-extern EG_API GraphicsMemoryStat (*GetMemoryStat)();
+EG_API extern GraphicsMemoryStat (*GetMemoryStat)();
 } // namespace gal
 } // namespace eg

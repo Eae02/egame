@@ -857,7 +857,7 @@ public:
 			.skeleton = &skeleton.skeleton,
 		};
 
-		WriteModelAssetResult writeResult = WriteModelAsset(generateContext.outputStream, writeAssetArgs);
+		WriteModelAssetResult writeResult = WriteModelAsset(generateContext.writer, writeAssetArgs);
 		writeResult.AssertOk();
 
 		return true;

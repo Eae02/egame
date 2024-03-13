@@ -129,19 +129,12 @@ public:
 
 		emitter.numTextureVariants = UnsignedNarrow<uint16_t>(textureVariants.size());
 
-		generateContext.outputStream.write(reinterpret_cast<const char*>(&emitter), sizeof(SerializedParticleEmitter));
+		generateContext.writer.Write(emitter);
 
-		std::visit([&](const auto& gen) { return gen.Write(generateContext.outputStream); }, positionGenerator);
-		std::visit([&](const auto& gen) { return gen.Write(generateContext.outputStream); }, velocityGenerator);
+		std::visit([&](const auto& gen) { return gen.Write(generateContext.writer); }, positionGenerator);
+		std::visit([&](const auto& gen) { return gen.Write(generateContext.writer); }, velocityGenerator);
 
-		for (const ParticleEmitterType::TextureVariant& textureVariant : textureVariants)
-		{
-			BinWrite<int32_t>(generateContext.outputStream, textureVariant.x);
-			BinWrite<int32_t>(generateContext.outputStream, textureVariant.y);
-			BinWrite<int32_t>(generateContext.outputStream, textureVariant.width);
-			BinWrite<int32_t>(generateContext.outputStream, textureVariant.height);
-			BinWrite<int32_t>(generateContext.outputStream, textureVariant.numFrames);
-		}
+		generateContext.writer.WriteMultiple<ParticleEmitterType::TextureVariant>(textureVariants);
 
 		return true;
 	}

@@ -21,9 +21,9 @@ enum class GraphicsAPI
 
 namespace detail
 {
-extern EG_API uint32_t cFrameIdx;
-extern EG_API int resolutionX;
-extern EG_API int resolutionY;
+EG_API extern uint32_t cFrameIdx;
+EG_API extern int resolutionX;
+EG_API extern int resolutionY;
 } // namespace detail
 
 inline uint32_t CFrameIdx()

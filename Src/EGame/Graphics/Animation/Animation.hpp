@@ -12,8 +12,8 @@ class EG_API Animation
 public:
 	inline explicit Animation(size_t numTargets) : m_length(0), m_targets(numTargets) {}
 
-	void Serialize(std::ostream& stream) const;
-	void Deserialize(std::istream& stream);
+	void Serialize(struct MemoryWriter& writer) const;
+	void Deserialize(struct MemoryReader& reader);
 
 	void SetScaleKeyFrames(int target, KeyFrameList<SKeyFrame> keyFrames)
 	{

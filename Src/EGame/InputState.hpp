@@ -138,9 +138,9 @@ class InputState;
 
 namespace detail
 {
-extern EG_API InputState* currentIS;
-extern EG_API InputState* previousIS;
-extern EG_API std::string inputtedText;
+EG_API extern InputState* currentIS;
+EG_API extern InputState* previousIS;
+EG_API extern std::string inputtedText;
 } // namespace detail
 
 class EG_API InputState

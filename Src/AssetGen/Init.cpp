@@ -12,7 +12,7 @@ void RegisterFontGenerator();
 void RegisterOGGVorbisGenerator();
 } // namespace eg::asset_gen
 
-EG_C_EXPORT void Init()
+extern "C" [[gnu::dllexport]] [[gnu::visibility("default")]] void Init()
 {
 	eg::asset_gen::RegisterShaderGenerator();
 	eg::asset_gen::RegisterTexture2DGenerator();

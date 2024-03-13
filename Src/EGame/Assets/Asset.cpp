@@ -7,6 +7,8 @@
 #include "AssetGenerator.hpp"
 #include "AssetLoad.hpp"
 #include "EAPFile.hpp"
+#include "ShaderModule.hpp"
+#include "Texture2DLoader.hpp"
 #include "WebAssetDownload.hpp"
 #include "YAMLUtils.hpp"
 
@@ -118,7 +120,7 @@ void BindAssetExtension(std::string_view extension, std::string_view loader, std
 	}
 }
 
-static const char cachedAssetMagic[] = { -1, 'E', 'A', 'C' };
+static const char cachedAssetMagic[] = { -2, 'E', 'A', 'C' };
 
 static void SaveAssetToCache(const GeneratedAsset& asset, uint64_t yamlParamsHash, const std::string& cachePath)
 {
@@ -141,8 +143,17 @@ static void SaveAssetToCache(const GeneratedAsset& asset, uint64_t yamlParamsHas
 	for (const std::string& dep : asset.loadDependencies)
 		BinWriteString(stream, dep);
 
-	BinWrite(stream, UnsignedNarrow<uint32_t>(asset.data.size()));
+	BinWrite(stream, UnsignedNarrow<uint32_t>(asset.sideStreamsData.size()));
+
+	BinWrite<uint64_t>(stream, asset.data.size());
 	stream.write(asset.data.data(), asset.data.size());
+
+	for (const GeneratedAssetSideStreamData& sideStreamData : asset.sideStreamsData)
+	{
+		BinWriteString(stream, sideStreamData.streamName);
+		BinWrite<uint64_t>(stream, sideStreamData.data.size());
+		stream.write(sideStreamData.data.data(), sideStreamData.data.size());
+	}
 }
 
 static std::optional<GeneratedAsset> TryReadAssetFromCache(
@@ -190,9 +201,20 @@ static std::optional<GeneratedAsset> TryReadAssetFromCache(
 		asset.loadDependencies.push_back(BinReadString(stream));
 	}
 
-	const uint32_t dataSize = BinRead<uint32_t>(stream);
+	const uint32_t numSideStreams = BinRead<uint32_t>(stream);
+
+	const uint64_t dataSize = BinRead<uint64_t>(stream);
 	asset.data.resize(dataSize);
 	stream.read(asset.data.data(), dataSize);
+
+	asset.sideStreamsData.resize(numSideStreams);
+	for (uint32_t i = 0; i < numSideStreams; i++)
+	{
+		asset.sideStreamsData[i].streamName = BinReadString(stream);
+		const uint64_t sideStreamDataSize = BinRead<uint64_t>(stream);
+		asset.sideStreamsData[i].data.resize(sideStreamDataSize);
+		stream.read(asset.sideStreamsData[i].data.data(), sideStreamDataSize);
+	}
 
 	return asset;
 }
@@ -268,8 +290,20 @@ static bool ProcessAsset(
 		}
 	}
 
+	std::vector<SideStreamData> sideStreamsData;
+	for (const GeneratedAssetSideStreamData& data : assetToLoad.generatedAsset.sideStreamsData)
+	{
+		sideStreamsData.push_back({ .streamName = data.streamName, .data = data.data });
+	}
+
 	// Loads the asset
-	Asset* asset = LoadAsset(*assetToLoad.loader, assetToLoad.name, assetToLoad.generatedAsset.data, nullptr);
+	const AssetLoadArgs assetLoadArgs = {
+		.assetPath = assetToLoad.name,
+		.asset = nullptr,
+		.generatedData = assetToLoad.generatedAsset.data,
+		.sideStreamsData = sideStreamsData,
+	};
+	Asset* asset = LoadAsset(*assetToLoad.loader, assetLoadArgs);
 	if (asset == nullptr)
 	{
 		// The asset failed to load
@@ -503,30 +537,26 @@ static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 				eapAsset.generatedAssetData = { asset->generatedAsset.data.data(), asset->generatedAsset.data.size() };
 				eapAsset.compress = !HasFlag(asset->generatedAsset.flags, AssetFlags::DisableEAPCompression) &&
 			                        !detail::disableAssetPackageCompression;
+
+				for (const GeneratedAssetSideStreamData& data : asset->generatedAsset.sideStreamsData)
+					eapAsset.sideStreamsData.push_back({ .streamName = data.streamName, .data = data.data });
+
 				return eapAsset;
 			});
 
-		std::ofstream eapStream(path + ".eap", std::ios::binary);
-		WriteEAPFile(eapAssets, eapStream);
+		std::string eapPath = path + ".eap";
+		WriteEAPFile(eapAssets, eapPath);
 	}
 
 	return true;
 #endif
 }
 
-bool LoadAssetsFromEAPStream(std::istream& stream, std::string_view mountPath)
+bool MountEAPAssets(std::span<const EAPAsset> assets, std::string_view mountPath)
 {
 	AssetDirectory& mountDir = *FindDirectory(&assetRootDir, mountPath, true);
 
-	LinearAllocator allocator;
-	auto eapReadResult = ReadEAPFile(stream, allocator);
-	if (!eapReadResult)
-	{
-		eg::Log(LogLevel::Error, "as", "Invalid EAP file");
-		return false;
-	}
-
-	for (const EAPAsset& eapAsset : *eapReadResult)
+	for (const EAPAsset& eapAsset : assets)
 	{
 		if (eapAsset.loader == nullptr)
 		{
@@ -544,7 +574,13 @@ bool LoadAssetsFromEAPStream(std::istream& stream, std::string_view mountPath)
 		}
 
 		// Loads the asset
-		Asset* asset = LoadAsset(*eapAsset.loader, eapAsset.assetName, eapAsset.generatedAssetData, nullptr);
+		const AssetLoadArgs loadArgs = {
+			.asset = nullptr,
+			.assetPath = eapAsset.assetName,
+			.generatedData = eapAsset.generatedAssetData,
+			.sideStreamsData = eapAsset.sideStreamsData,
+		};
+		Asset* asset = LoadAsset(*eapAsset.loader, loadArgs);
 		if (asset == nullptr)
 		{
 			eg::Log(
@@ -564,7 +600,8 @@ bool LoadAssetsFromEAPStream(std::istream& stream, std::string_view mountPath)
 	return true;
 }
 
-bool LoadAssets(const std::string& path, std::string_view mountPath)
+bool LoadAssets(
+	const std::string& path, std::string_view mountPath, std::span<const std::string_view> enabledSideStreams)
 {
 	// First, tries to load assets from a YAML list. If that fails, attempts to load from an EAP.
 	if (LoadAssetsYAML(path, mountPath))
@@ -573,30 +610,39 @@ bool LoadAssets(const std::string& path, std::string_view mountPath)
 		return true;
 	}
 
-	bool okEap = false;
+	LinearAllocator allocator;
+
+	std::vector<MemoryMappedFile> mappedFiles;
+	std::optional<std::vector<EAPAsset>> eapAssets;
 	std::string eapPath = path + ".eap";
 	if (std::istream* downloadedStream = detail::WebGetDownloadedAssetPackageStream(eapPath))
 	{
-		okEap = LoadAssetsFromEAPStream(*downloadedStream, mountPath);
+		// okEap = LoadAssetsFromEAPStream(*downloadedStream, mountPath);
 	}
 	else
 	{
-		std::ifstream stream(eapPath, std::ios::binary);
-		okEap = stream && LoadAssetsFromEAPStream(stream, mountPath);
+		auto readFromFSResult = ReadEAPFileFromFileSystem(
+			eapPath, [&](std::string_view sideStreamName) { return Contains(enabledSideStreams, sideStreamName); },
+			allocator);
+
+		if (readFromFSResult.has_value())
+		{
+			eapAssets = std::move(readFromFSResult->assets);
+			mappedFiles = std::move(readFromFSResult->mappedFiles);
+		}
 	}
 
-	if (okEap)
+	if (eapAssets.has_value() && MountEAPAssets(*eapAssets, mountPath))
 	{
 		Log(LogLevel::Info, "as", "Loaded asset package '{0}'.", eapPath);
+		return true;
 	}
 	else
 	{
-		Log(LogLevel::Error, "as",
-		    "Failed to load assets from '{0}'. "
-		    "Both '{1}' and '{0}/Assets.yaml' failed to load.",
+		Log(LogLevel::Error, "as", "Failed to load assets from '{0}'. Both '{1}' and '{0}/Assets.yaml' failed to load.",
 		    path, eapPath);
+		return false;
 	}
-	return okEap;
 }
 
 #ifdef __EMSCRIPTEN__
@@ -630,6 +676,11 @@ void LoadAssetGenLibrary()
 	reinterpret_cast<void (*)()>(initSym)();
 }
 #endif
+
+std::vector<std::string_view> GetDefaultEnabledAssetSideStreams()
+{
+	return { ShaderModuleAsset::GetAssetSideStreamName() };
+}
 
 const Asset* detail::FindAsset(std::string_view name)
 {

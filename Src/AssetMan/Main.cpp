@@ -47,26 +47,19 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	std::ifstream inStream(std::string(parsedArguments.inputFileName), std::ios::binary);
-	if (!inStream)
-	{
-		std::cout << "error opening file for reading: '" << parsedArguments.inputFileName << "'" << std::endl;
-		return 1;
-	}
-
 	eg::LinearAllocator allocator;
 	allocator.disableMultiPoolWarning = true;
-	auto readResult = eg::ReadEAPFile(inStream, allocator);
+	auto readResult = eg::ReadEAPFileFromFileSystem(
+		std::string(parsedArguments.inputFileName), [](std::string_view) { return true; }, allocator);
 	if (!readResult)
 	{
-		std::cout << "error reading eap from '" << parsedArguments.inputFileName << "', maybe the file is corrupt"
-				  << std::endl;
+		std::cout << "error reading eap from '" << parsedArguments.inputFileName << "'" << std::endl;
 		return 1;
 	}
 
-	inStream.close();
+	std::span<eg::EAPAsset> assets = readResult->assets;
 
-	if (readResult->empty())
+	if (assets.empty())
 	{
 		std::cout << "file ok, but contains no assets" << std::endl;
 		return 0;
@@ -75,7 +68,7 @@ int main(int argc, char** argv)
 	bool operationPerformed = false;
 	if (parsedArguments.writeList)
 	{
-		WriteListOutput(*readResult);
+		WriteListOutput(assets);
 		operationPerformed = true;
 	}
 

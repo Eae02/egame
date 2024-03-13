@@ -57,7 +57,7 @@ public:
 		if (!atlas.has_value())
 			return false;
 
-		atlas->Serialize(generateContext.outputStream);
+		atlas->Serialize(generateContext.writer);
 
 		return true;
 	}

@@ -83,6 +83,25 @@ inline int8_t FloatToSNorm(float x)
 	return static_cast<int8_t>(glm::clamp(x, -1.0f, 1.0f) * 127.0f);
 }
 
+template <typename T>
+T ReadFromPtr(const void* ptr)
+{
+	static_assert(std::is_trivial<T>::value);
+	T value;
+	std::memcpy(&value, ptr, sizeof(T));
+	return value;
+}
+
+template <typename T>
+T ReadFromSpan(std::span<const char> span, size_t offset)
+{
+	static_assert(std::is_trivial<T>::value);
+	EG_ASSERT(offset + sizeof(T) <= span.size());
+	T value;
+	std::memcpy(&value, span.data() + offset, sizeof(T));
+	return value;
+}
+
 EG_API int64_t NanoTime();
 
 template <typename T, typename U>

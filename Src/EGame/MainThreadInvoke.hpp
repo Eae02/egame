@@ -27,11 +27,11 @@ struct MTI : MTIBase
 	void Invoke() override { callback(); }
 };
 
-extern EG_API std::mutex mutexMTI;
-extern EG_API LinearAllocator allocMTI;
-extern EG_API MTIBase* firstMTI;
-extern EG_API MTIBase* lastMTI;
-extern EG_API std::thread::id mainThreadId;
+EG_API extern std::mutex mutexMTI;
+EG_API extern LinearAllocator allocMTI;
+EG_API extern MTIBase* firstMTI;
+EG_API extern MTIBase* lastMTI;
+EG_API extern std::thread::id mainThreadId;
 } // namespace detail
 
 template <typename CallbackTp>

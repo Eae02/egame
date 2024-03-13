@@ -16,7 +16,7 @@ namespace eg
 {
 namespace detail
 {
-extern EG_API LinearAllocator assetAllocator;
+EG_API extern LinearAllocator assetAllocator;
 
 extern bool createAssetPackage;
 extern bool disableAssetPackageCompression;
@@ -61,10 +61,12 @@ inline void BindAssetExtension(std::string_view extension, std::string_view load
 
 // Attempts to load assets from path, mounting these at mountPath.
 //  Returns true if assets loaded successfully, false otherwise.
-[[nodiscard]] EG_API bool LoadAssets(const std::string& path, std::string_view mountPath);
+[[nodiscard]] EG_API bool LoadAssets(
+	const std::string& path, std::string_view mountPath, std::span<const std::string_view> enabledSideStreams);
 
-// Similar to LoadAssets, but loads from an EAP stream
-[[nodiscard]] EG_API bool LoadAssetsFromEAPStream(std::istream& stream, std::string_view mountPath);
+[[nodiscard]] EG_API bool MountEAPAssets(std::span<const struct EAPAsset> assets, std::string_view mountPath);
+
+EG_API std::vector<std::string_view> GetDefaultEnabledAssetSideStreams();
 
 EG_API void LoadAssetGenLibrary();
 

@@ -5,6 +5,8 @@ option(EG_BUILD_ASSETGEN "Whether or not to build asset generator library" ON)
 option(EG_BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
 option(EG_BUILD_IMGUI "Whether or not to build imgui support library" ON)
 option(EG_VULKAN "Whether or not to enable vulkan support." ON)
+option(EG_USE_DAWN "Whether or not to enable webgpu via dawn." OFF)
+option(EG_WGSL "Whether or not to enable wgsl generation." OFF)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
@@ -23,6 +25,16 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross/ SYSTEM)
 option(YAML_BUILD_SHARED_LIBS "" OFF)
 option(YAML_CPP_BUILD_TESTS "" OFF)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/ SYSTEM)
+
+if (EG_WGSL)
+	set(TINT_BUILD_CMD_TOOLS OFF)
+	set(TINT_BUILD_WGSL_READER OFF)
+	set(TINT_BUILD_GLSL_WRITER OFF)
+	set(TINT_BUILD_HLSL_WRITER OFF)
+	set(TINT_BUILD_MSL_WRITER OFF)
+	set(TINT_BUILD_SPV_WRITER OFF)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/tint SYSTEM)
+endif()
 
 target_compile_options(yaml-cpp PRIVATE -fPIC)
 
@@ -143,6 +155,11 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		
 		target_link_options(EGameAssetGen PRIVATE ${OGG_VORBIS_LDFLAGS})
 		target_compile_options(EGameAssetGen PRIVATE ${OGG_VORBIS_CFLAGS_OTHER})
+		
+		if (EG_WGSL)
+			target_link_libraries(EGameAssetGen PRIVATE libtint)
+			target_compile_options(EGameAssetGen PRIVATE -DEG_WGSL)
+		endif()
 		
 		set_target_properties(EGameAssetGen PROPERTIES
 			CXX_STANDARD 20

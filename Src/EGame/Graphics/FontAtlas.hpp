@@ -94,8 +94,8 @@ public:
 
 	static std::optional<FontAtlas> FromFNTMemory(std::span<const char> fntData, std::span<const char> imgData);
 
-	void Serialize(std::ostream& stream) const;
-	static FontAtlas Deserialize(std::istream& stream);
+	void Serialize(class MemoryWriter& writer) const;
+	static FontAtlas Deserialize(class MemoryReader& reader);
 
 	float LineHeight() const { return m_lineHeight; }
 

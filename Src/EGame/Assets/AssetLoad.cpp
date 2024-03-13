@@ -42,9 +42,9 @@ const AssetLoader* FindAssetLoader(std::string_view loader)
 	return &*it;
 }
 
-Asset* LoadAsset(const AssetLoader& loader, std::string_view assetPath, std::span<const char> data, Asset* asset)
+Asset* LoadAsset(const AssetLoader& loader, const AssetLoadArgs& loadArgs)
 {
-	AssetLoadContext context(asset, assetPath, data);
+	AssetLoadContext context(loadArgs);
 	if (!loader.callback(context))
 		return nullptr;
 
@@ -56,9 +56,20 @@ Asset* LoadAsset(const AssetLoader& loader, std::string_view assetPath, std::spa
 	return context.GetAsset();
 }
 
-AssetLoadContext::AssetLoadContext(Asset* asset, std::string_view assetPath, std::span<const char> data)
-	: m_asset(asset), m_assetPath(assetPath), m_dirPath(ParentPath(assetPath, true)), m_data(data)
+AssetLoadContext::AssetLoadContext(const AssetLoadArgs& loadArgs)
+	: m_asset(loadArgs.asset), m_assetPath(loadArgs.assetPath), m_dirPath(ParentPath(loadArgs.assetPath, true)),
+	  m_data(loadArgs.generatedData), m_sideStreamsData(loadArgs.sideStreamsData)
 {
+}
+
+std::optional<std::span<const char>> AssetLoadContext::FindSideStreamData(std::string_view streamName) const
+{
+	auto it = std::find_if(
+		m_sideStreamsData.begin(), m_sideStreamsData.end(),
+		[&](const SideStreamData& data) { return data.streamName == streamName; });
+	if (it == m_sideStreamsData.end())
+		return std::nullopt;
+	return it->data;
 }
 
 void detail::RegisterAssetLoaders()
@@ -78,4 +89,8 @@ void detail::RegisterAssetLoaders()
 			return true;
 		});
 }
+
+static std::unordered_map<std::string, bool> shouldLoadAssetSideStream;
+
+void SetShouldLoadAssetSideStream(std::string_view sideStreamName, bool shouldLoad) {}
 } // namespace eg

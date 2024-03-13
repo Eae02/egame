@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../API.hpp"
+#include "../IOUtils.hpp"
 #include "../String.hpp"
 #include "../Utils.hpp"
 #include "AssetFormat.hpp"
@@ -25,11 +26,18 @@ enum class AssetFlags : uint32_t
 
 EG_BIT_FIELD(AssetFlags)
 
+struct GeneratedAssetSideStreamData
+{
+	std::string streamName;
+	std::vector<char> data;
+};
+
 struct GeneratedAsset
 {
-	std::string data;
+	std::vector<char> data;
 	std::vector<std::string> fileDependencies; // List of files that are referenced by this resource
 	std::vector<std::string> loadDependencies; // List of resources that must be loaded before this one
+	std::vector<GeneratedAssetSideStreamData> sideStreamsData;
 	AssetFlags flags;
 	AssetFormat format;
 };
@@ -66,14 +74,17 @@ public:
 
 	const std::vector<std::string>& LoadDependencies() const { return m_loadDependencies; }
 
-	void AddSecondaryStream();
+	const std::vector<GeneratedAssetSideStreamData>& SideStreamsData() const { return m_sideStreamsData; }
 
-	std::ostringstream outputStream;
+	void SetSideStreamData(std::string_view sideStreamName, std::vector<char> data);
+
+	MemoryWriter writer;
 	AssetFlags outputFlags = AssetFlags::None;
 
 private:
 	std::vector<std::string> m_fileDependencies;
 	std::vector<std::string> m_loadDependencies;
+	std::vector<GeneratedAssetSideStreamData> m_sideStreamsData;
 	std::string_view m_currentDir;
 	std::string_view m_assetName;
 	const YAML::Node* m_node;

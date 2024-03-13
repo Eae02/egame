@@ -13,21 +13,19 @@ struct KeyFrame
 {
 	using TransformTp = _TransformTp;
 
-	float time = 0;
-	TransformTp transform;
+	float time{};
+	TransformTp transform{};
 
-	KeyFrame() = default;
-
-	inline void Read(std::istream& stream)
+	inline void Read(MemoryReader& reader)
 	{
-		time = BinRead<float>(stream);
-		stream.read(reinterpret_cast<char*>(&transform), sizeof(TransformTp));
+		time = reader.Read<float>();
+		transform = reader.Read<TransformTp>();
 	}
 
-	inline void Write(std::ostream& stream) const
+	inline void Write(MemoryWriter& writer) const
 	{
-		BinWrite(stream, time);
-		stream.write(reinterpret_cast<const char*>(&transform), sizeof(TransformTp));
+		writer.Write(time);
+		writer.Write(transform);
 	}
 
 	inline static float GetInterpol(const KeyFrame<TransformTp>& a, const KeyFrame<TransformTp>& b, float t)

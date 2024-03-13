@@ -16,8 +16,8 @@ struct EG_API SphereVec3Generator
 
 	glm::vec3 operator()(std::mt19937& rand) const;
 
-	void Read(std::istream& stream);
-	void Write(std::ostream& stream) const;
+	void Read(struct MemoryReader& reader);
+	void Write(struct MemoryWriter& writer) const;
 
 	SphereVec3Generator() = default;
 	explicit SphereVec3Generator(const Sphere& _sphere) : sphere(_sphere) {}

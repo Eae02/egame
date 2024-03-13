@@ -102,10 +102,10 @@ std::optional<uint32_t> Skeleton::GetBoneIDByName(std::string_view name) const
 	return UnsignedNarrow<uint32_t>(static_cast<size_t>(it - m_boneNamesSorted.begin()));
 }
 
-void Skeleton::Serialize(std::ostream& stream) const
+void Skeleton::Serialize(MemoryWriter& writer) const
 {
-	BinWrite(stream, UnsignedNarrow<uint32_t>(m_bones.size()));
-	stream.write(reinterpret_cast<const char*>(&rootTransform), sizeof(glm::mat4));
+	writer.Write(UnsignedNarrow<uint32_t>(m_bones.size()));
+	writer.Write<glm::mat4, true>(rootTransform);
 
 	std::vector<uint8_t> hasParent((m_bones.size() + 7) / 8, 0);
 	for (size_t i = 0; i < m_bones.size(); i++)
@@ -113,43 +113,44 @@ void Skeleton::Serialize(std::ostream& stream) const
 		if (m_bones[i].parent != UINT32_MAX)
 			hasParent[i / 8] |= static_cast<uint8_t>(1 << (i % 8));
 	}
-	stream.write(reinterpret_cast<const char*>(hasParent.data()), hasParent.size());
+	writer.WriteMultiple<uint8_t>(hasParent);
 
 	for (const Bone& bone : m_bones)
 	{
-		BinWriteString(stream, bone.name);
+		writer.WriteString(bone.name);
 		if (bone.parent != UINT32_MAX)
 		{
-			BinWrite(stream, static_cast<uint8_t>(bone.parent));
+			writer.Write(static_cast<uint8_t>(bone.parent));
 		}
-		BinWrite(stream, static_cast<uint8_t>(bone.dual));
-		stream.write(reinterpret_cast<const char*>(&bone.inverseBindMatrix), sizeof(glm::mat4));
+		writer.Write(static_cast<uint8_t>(bone.dual));
+		writer.Write<glm::mat4, true>(bone.inverseBindMatrix);
 	}
 }
 
-Skeleton Skeleton::Deserialize(std::istream& stream)
+Skeleton Skeleton::Deserialize(MemoryReader& reader)
 {
 	Skeleton skeleton;
-	uint32_t numBones = BinRead<uint32_t>(stream);
+
+	const uint32_t numBones = reader.Read<uint32_t>();
 	skeleton.m_bones.resize(numBones);
 	skeleton.m_boneNamesSorted.resize(numBones);
 
-	stream.read(reinterpret_cast<char*>(&skeleton.rootTransform), sizeof(glm::mat4));
+	skeleton.rootTransform = reader.Read<glm::mat4, true>();
 
 	std::vector<uint8_t> hasParent((numBones + 7) / 8);
-	stream.read(reinterpret_cast<char*>(hasParent.data()), hasParent.size());
+	reader.ReadToSpan<uint8_t>(hasParent);
 
 	for (uint32_t i = 0; i < numBones; i++)
 	{
-		skeleton.m_bones[i].name = BinReadString(stream);
+		skeleton.m_bones[i].name = reader.ReadString();
 
 		if (hasParent[i / 8] & static_cast<uint8_t>(1 << (i % 8)))
-			skeleton.m_bones[i].parent = BinRead<uint8_t>(stream);
+			skeleton.m_bones[i].parent = reader.Read<uint8_t>();
 		else
 			skeleton.m_bones[i].parent = UINT32_MAX;
 
-		skeleton.m_bones[i].dual = BinRead<uint8_t>(stream);
-		stream.read(reinterpret_cast<char*>(&skeleton.m_bones[i].inverseBindMatrix), sizeof(glm::mat4));
+		skeleton.m_bones[i].dual = reader.Read<uint8_t>();
+		skeleton.m_bones[i].inverseBindMatrix = reader.Read<glm::mat4, true>();
 		skeleton.m_boneNamesSorted[i] = skeleton.m_bones[i].name;
 	}
 

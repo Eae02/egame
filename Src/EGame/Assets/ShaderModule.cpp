@@ -13,26 +13,38 @@ bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 {
 	ShaderModuleAsset& result = context.CreateResult<ShaderModuleAsset>();
 
-	const char* data = context.Data().data();
+	MemoryReader reader(context.Data());
 
-	const ShaderStage stage = static_cast<ShaderStage>(reinterpret_cast<const uint32_t*>(data)[0]);
-	const uint32_t numVariants = reinterpret_cast<const uint32_t*>(data)[1];
-	data += sizeof(uint32_t) * 2;
+	const ShaderStage stage = static_cast<ShaderStage>(reader.Read<uint32_t>());
+	const uint32_t numVariants = reader.Read<uint32_t>();
 
-	std::string label(context.AssetPath());
+	std::optional<std::span<const char>> sideStreamData = context.FindSideStreamData(GetAssetSideStreamName());
+	if (!sideStreamData.has_value())
+		EG_PANIC("required shader asset side stream not loaded: " << GetAssetSideStreamName());
+
+	MemoryReader sideStreamReader(*sideStreamData);
+
+	std::vector<char> codeBuffer;
 
 	for (uint32_t i = 0; i < numVariants; i++)
 	{
-		uint32_t variantHash = reinterpret_cast<const uint32_t*>(data)[0];
-		uint32_t codeSize = reinterpret_cast<const uint32_t*>(data)[1];
-		data += sizeof(uint32_t) * 2;
+		std::string variantName(reader.ReadString());
+
+		uint64_t codeLen = sideStreamReader.Read<uint64_t>();
+		if (codeBuffer.size() < codeLen)
+			codeBuffer.resize(codeLen);
+
+		std::span<char> codeSpan(codeBuffer.data(), codeLen);
+		sideStreamReader.ReadToSpan(codeSpan);
+
+		std::string label(context.AssetPath());
+		if (numVariants > 1)
+			label += " [" + variantName + "]";
 
 		result.m_variants.push_back(Variant{
-			.hash = variantHash,
-			.shaderModule = ShaderModule(stage, std::span<const char>(data, codeSize), label.c_str()),
+			.name = std::move(variantName),
+			.shaderModule = ShaderModule(stage, codeSpan, label.c_str()),
 		});
-
-		data += codeSize;
 	}
 
 	return true;
@@ -40,10 +52,9 @@ bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 
 ShaderModuleHandle ShaderModuleAsset::GetVariant(std::string_view name) const
 {
-	uint32_t hash = HashFNV1a32(name);
 	for (const Variant& variant : m_variants)
 	{
-		if (variant.hash == hash)
+		if (variant.name == name)
 		{
 			return variant.shaderModule.Handle();
 		}
@@ -54,5 +65,16 @@ ShaderModuleHandle ShaderModuleAsset::GetVariant(std::string_view name) const
 ShaderModuleHandle ShaderModuleAsset::DefaultVariant() const
 {
 	return GetVariant("_VDEFAULT");
+}
+
+std::string_view ShaderModuleAsset::GetAssetSideStreamName()
+{
+	return SideStreamNameSpirV;
+	switch (CurrentGraphicsAPI())
+	{
+	case GraphicsAPI::OpenGL: [[fallthrough]];
+	case GraphicsAPI::Vulkan: return SideStreamNameSpirV;
+	case GraphicsAPI::Metal: return SideStreamNameMetal;
+	}
 }
 } // namespace eg
