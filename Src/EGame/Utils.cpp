@@ -19,21 +19,23 @@ void ParseCommandLineArgs(RunConfig& runConfig, int argc, char** argv)
 		auto LineEndDefWithFlag = [&](RunFlags flag) { return LineEnd(HasFlag(runConfig.flags, flag)); };
 		auto LineEndDefWithoutFlag = [&](RunFlags flag) { return LineEnd(!HasFlag(runConfig.flags, flag)); };
 
-		std::cout << "EG Arguments: \n"
-					 "  --gl     Force rendering with OpenGL"
-				  << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::OpenGL)
-				  << "  --vk     Force rendering with Vulkan"
-				  << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::Vulkan) << "  --igpu   Prefer integrated GPU"
-				  << LineEndDefWithFlag(RunFlags::PreferIntegratedGPU) << "  --dgpu   Prefer dedicated GPU"
-				  << LineEndDefWithoutFlag(RunFlags::PreferIntegratedGPU)
-				  << "  --gles   Prefer GLES path when using OpenGL" << LineEndDefWithFlag(RunFlags::PreferGLESPath)
-				  << "  --eap    Create asset package" << LineEndDefWithFlag(RunFlags::CreateAssetPackage)
-				  << "  --eapf   Create asset package (faster, no compression)"
-				  << LineEndDefWithFlag(RunFlags::CreateAssetPackage | RunFlags::AssetPackageFast)
-				  << "  --dev    Run in dev mode" << LineEndDefWithFlag(RunFlags::DevMode)
-				  << "  --nodev  Do not run in dev mode" << LineEndDefWithoutFlag(RunFlags::DevMode)
-				  << "  --vs     Enable vertical sync" << LineEndDefWithFlag(RunFlags::VSync)
-				  << "  --novs   Disable vertical sync" << LineEndDefWithoutFlag(RunFlags::VSync) << std::flush;
+		// clang-format off
+		std::cout <<
+			"EG Arguments: \n"
+			"  --gl     Force rendering with OpenGL" << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::OpenGL) <<
+			"  --vk     Force rendering with Vulkan" << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::Vulkan) <<
+			"  --webgpu Force rendering with WebGPU" << LineEnd(runConfig.graphicsAPI == eg::GraphicsAPI::WebGPU) <<
+			"  --igpu   Prefer integrated GPU" << LineEndDefWithFlag(RunFlags::PreferIntegratedGPU) <<
+			"  --dgpu   Prefer dedicated GPU" << LineEndDefWithoutFlag(RunFlags::PreferIntegratedGPU) <<
+			"  --gles   Prefer GLES path when using OpenGL" << LineEndDefWithFlag(RunFlags::PreferGLESPath) <<
+			"  --eap    Create asset package" << LineEndDefWithFlag(RunFlags::CreateAssetPackage) <<
+			"  --eapf   Create asset package (faster, no compression)" << LineEndDefWithFlag(RunFlags::CreateAssetPackage | RunFlags::AssetPackageFast) <<
+			"  --dev    Run in dev mode" << LineEndDefWithFlag(RunFlags::DevMode) <<
+			"  --nodev  Do not run in dev mode" << LineEndDefWithoutFlag(RunFlags::DevMode) <<
+			"  --vs     Enable vertical sync" << LineEndDefWithFlag(RunFlags::VSync) <<
+			"  --novs   Disable vertical sync" << LineEndDefWithoutFlag(RunFlags::VSync) <<
+			std::flush;
+		// clang-format on
 		std::exit(0);
 	}
 
@@ -44,6 +46,8 @@ void ParseCommandLineArgs(RunConfig& runConfig, int argc, char** argv)
 			runConfig.graphicsAPI = eg::GraphicsAPI::OpenGL;
 		else if (arg == "--vk")
 			runConfig.graphicsAPI = eg::GraphicsAPI::Vulkan;
+		else if (arg == "--webgpu")
+			runConfig.graphicsAPI = eg::GraphicsAPI::WebGPU;
 		else if (arg == "--igpu")
 			runConfig.flags |= RunFlags::PreferIntegratedGPU;
 		else if (arg == "--dgpu")

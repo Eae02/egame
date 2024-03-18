@@ -3,6 +3,7 @@
 #include "../API.hpp"
 #include "../Geometry/Ray.hpp"
 #include "../Graphics/AbstractionHL.hpp"
+#include "GizmoCommon.hpp"
 
 namespace eg
 {
@@ -13,7 +14,7 @@ public:
 
 	void Update(glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix, const Ray& viewRay);
 
-	void Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFormat& framebufferFormat) const;
+	void Draw(const ColorAndDepthFormat& framebufferFormat) const;
 
 	bool HasInputFocus() const { return m_currentAxis != -1; }
 
@@ -27,10 +28,7 @@ public:
 	float size = 0.1f;
 
 private:
-	glm::vec3 m_lastPosition;
 	int m_axisDrawOrder[3];
-
-	float m_renderScale = 1;
 
 	int m_currentAxis = -1;
 	int m_hoveredAxis = -1;
@@ -38,5 +36,7 @@ private:
 	float m_initialDragDist = 0;
 
 	bool m_keyboardSelectingAxis = false;
+
+	detail::GizmoDrawParametersBuffer m_drawParametersBuffer;
 };
 } // namespace eg

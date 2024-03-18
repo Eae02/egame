@@ -37,7 +37,7 @@
 #define EG_PANIC(msg)                                                                                                  \
 	{                                                                                                                  \
 		std::ostringstream ps;                                                                                         \
-		ps << "P@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) "\n" << msg;                                                   \
+		ps << "EG_PANIC " __FILE__ ":" EG_MACRO_ITOS(__LINE__) "\n" << msg;                                            \
 		::eg::detail::PanicImpl(ps.str());                                                                             \
 	}
 

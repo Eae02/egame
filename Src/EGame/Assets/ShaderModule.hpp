@@ -28,12 +28,6 @@ public:
 
 	static bool AssetLoader(const class AssetLoadContext& context);
 
-	static std::string_view GetAssetSideStreamName();
-
-	static constexpr std::string_view SideStreamNameSpirV = "ShSPV";
-	static constexpr std::string_view SideStreamNameMetal = "ShMTL";
-	static constexpr std::string_view SideStreamNameWGSL = "ShWGSL";
-
 private:
 	struct Variant
 	{

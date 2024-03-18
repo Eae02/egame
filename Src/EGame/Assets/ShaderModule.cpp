@@ -18,24 +18,18 @@ bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 	const ShaderStage stage = static_cast<ShaderStage>(reader.Read<uint32_t>());
 	const uint32_t numVariants = reader.Read<uint32_t>();
 
-	std::optional<std::span<const char>> sideStreamData = context.FindSideStreamData(GetAssetSideStreamName());
-	if (!sideStreamData.has_value())
-		EG_PANIC("required shader asset side stream not loaded: " << GetAssetSideStreamName());
-
-	MemoryReader sideStreamReader(*sideStreamData);
-
 	std::vector<char> codeBuffer;
 
 	for (uint32_t i = 0; i < numVariants; i++)
 	{
 		std::string variantName(reader.ReadString());
 
-		uint64_t codeLen = sideStreamReader.Read<uint64_t>();
+		uint64_t codeLen = reader.Read<uint64_t>();
 		if (codeBuffer.size() < codeLen)
 			codeBuffer.resize(codeLen);
 
 		std::span<char> codeSpan(codeBuffer.data(), codeLen);
-		sideStreamReader.ReadToSpan(codeSpan);
+		reader.ReadToSpan(codeSpan);
 
 		std::string label(context.AssetPath());
 		if (numVariants > 1)
@@ -65,16 +59,5 @@ ShaderModuleHandle ShaderModuleAsset::GetVariant(std::string_view name) const
 ShaderModuleHandle ShaderModuleAsset::DefaultVariant() const
 {
 	return GetVariant("_VDEFAULT");
-}
-
-std::string_view ShaderModuleAsset::GetAssetSideStreamName()
-{
-	return SideStreamNameSpirV;
-	switch (CurrentGraphicsAPI())
-	{
-	case GraphicsAPI::OpenGL: [[fallthrough]];
-	case GraphicsAPI::Vulkan: return SideStreamNameSpirV;
-	case GraphicsAPI::Metal: return SideStreamNameMetal;
-	}
 }
 } // namespace eg

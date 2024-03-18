@@ -489,23 +489,12 @@ enum class WrapMode
 	Repeat,
 	MirroredRepeat,
 	ClampToEdge,
-	ClampToBorder
 };
 
 enum class TextureFilter
 {
 	Linear,
 	Nearest
-};
-
-enum class BorderColor
-{
-	F0000,
-	I0000,
-	F0001,
-	I0001,
-	F1111,
-	I1111
 };
 
 struct SamplerDescription
@@ -517,8 +506,9 @@ struct SamplerDescription
 	TextureFilter magFilter = TextureFilter::Linear;
 	TextureFilter mipFilter = TextureFilter::Linear;
 	float mipLodBias = 0;
+	float minLod = -1000.0f;
+	float maxLod = 1000.0f;
 	int maxAnistropy = 0;
-	BorderColor borderColor = BorderColor::F0000;
 	bool enableCompare = false;
 	CompareOp compareOp = CompareOp::Less;
 
@@ -569,11 +559,9 @@ enum class TextureFlags
 enum class TextureViewType
 {
 	SameAsTexture,
-	Flat1D,
 	Flat2D,
 	Flat3D,
 	Cube,
-	Array1D,
 	Array2D,
 	ArrayCube,
 };
@@ -665,6 +653,18 @@ struct TextureSubresourceLayers
 	}
 
 	bool operator!=(const TextureSubresourceLayers& rhs) const { return !(rhs == *this); }
+
+	size_t Hash() const;
+};
+
+struct TextureViewKey
+{
+	TextureViewType type;
+	Format format;
+	TextureSubresource subresource;
+
+	bool operator==(const TextureViewKey&) const = default;
+	bool operator!=(const TextureViewKey&) const = default;
 
 	size_t Hash() const;
 };

@@ -198,6 +198,32 @@ void TextureRef::DCUpdateData(const TextureRange& range, size_t dataLen, const v
 	DC.SetTextureData(*this, range, uploadBuffer.buffer, uploadBuffer.offset);
 }
 
+DescriptorSetRef Texture::GetFragmentShaderSampleDescriptorSet() const
+{
+	if (!m_fragmentShaderSampleDescriptorSet.has_value())
+	{
+		Sampler sampler(eg::SamplerDescription{
+			.wrapU = eg::WrapMode::ClampToEdge,
+			.wrapV = eg::WrapMode::ClampToEdge,
+			.wrapW = eg::WrapMode::ClampToEdge,
+			.minFilter = eg::TextureFilter::Linear,
+			.magFilter = eg::TextureFilter::Linear,
+			.mipFilter = eg::TextureFilter::Linear,
+		});
+
+		static const DescriptorSetBinding binding = {
+			.binding = 0,
+			.type = BindingType::Texture,
+			.shaderAccess = ShaderAccessFlags::Fragment,
+			.rwMode = ReadWriteMode::ReadOnly,
+		};
+
+		m_fragmentShaderSampleDescriptorSet = DescriptorSet({ &binding, 1 });
+		m_fragmentShaderSampleDescriptorSet->BindTexture(*this, 0, &sampler);
+	}
+	return *m_fragmentShaderSampleDescriptorSet;
+}
+
 ShaderModule::ShaderModule(ShaderStage stage, std::span<const uint32_t> code, const char* label)
 	: m_parsedIR(ParseSpirV(code)), m_handle(gal::CreateShaderModule(stage, *m_parsedIR, label))
 {

@@ -29,22 +29,11 @@ void RotationGizmo::Destroy()
 	s_torusIB.Destroy();
 }
 
-static inline glm::mat4 GetAxisTransform(const glm::vec3& position, float scale, int axis)
-{
-	glm::mat4 rotationAndScale(0.0f);
-	rotationAndScale[0][(axis + 1) % 3] = scale;
-	rotationAndScale[1][axis] = scale;
-	rotationAndScale[2][(axis + 2) % 3] = scale;
-	rotationAndScale[3][3] = 1;
-
-	return glm::translate(glm::mat4(), position) * rotationAndScale;
-}
-
 void RotationGizmo::Update(
 	glm::quat& rotation, const glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix,
 	const Ray& viewRay)
 {
-	m_renderScale = glm::distance(cameraPos, position) * size * TORUS_SCALE;
+	const float renderScale = glm::distance(cameraPos, position) * size * TORUS_SCALE;
 
 	auto GetPlaneIntersectPos = [&](int axis) -> std::optional<glm::vec3>
 	{
@@ -72,7 +61,7 @@ void RotationGizmo::Update(
 		}
 	};
 
-	bool select = m_currentAxis == -1 && IsButtonDown(Button::MouseLeft) && !WasButtonDown(Button::MouseLeft);
+	const bool select = m_currentAxis == -1 && IsButtonDown(Button::MouseLeft) && !WasButtonDown(Button::MouseLeft);
 
 	// Resets the current axis if the mouse button was released.
 	if (WasButtonDown(Button::MouseLeft) && !IsButtonDown(Button::MouseLeft))
@@ -110,6 +99,17 @@ void RotationGizmo::Update(
 		}
 	}
 
+	glm::mat4 axisWorldMatrices[3];
+	for (int axis = 0; axis < 3; axis++)
+	{
+		glm::mat4 rotationAndScale(0.0f);
+		rotationAndScale[0][(axis + 1) % 3] = renderScale;
+		rotationAndScale[1][axis] = renderScale;
+		rotationAndScale[2][(axis + 2) % 3] = renderScale;
+		rotationAndScale[3][3] = 1;
+		axisWorldMatrices[axis] = glm::translate(glm::mat4(), position) * rotationAndScale;
+	}
+
 	m_hoveredAxis = -1;
 	float minIntersectDist = INFINITY;
 	for (int axis = 0; axis < 3; axis++)
@@ -118,7 +118,7 @@ void RotationGizmo::Update(
 			continue;
 
 		std::optional<float> intersect = detail::RayIntersectGizmoMesh(
-			GetAxisTransform(position, m_renderScale, axis), viewRay, detail::TORUS_VERTICES, detail::TORUS_INDICES);
+			axisWorldMatrices[axis], viewRay, detail::TORUS_VERTICES, detail::TORUS_INDICES);
 
 		if (intersect.has_value() && *intersect < minIntersectDist)
 		{
@@ -132,17 +132,19 @@ void RotationGizmo::Update(
 	if (select && m_currentAxis != -1)
 	{
 		BeginDragAxis(m_currentAxis);
-		select = false;
 	}
 
 	m_onlyAxisToDraw = onlyAxis;
 	if (m_currentAxis != -1)
 		m_onlyAxisToDraw = m_currentAxis;
 
-	m_lastPosition = position;
+	glm::mat4 axisTransforms[3];
+	for (int axis = 0; axis < 3; axis++)
+		axisTransforms[axis] = viewProjMatrix * axisWorldMatrices[axis];
+	m_drawParametersBuffer.SetParameters(axisTransforms, m_currentAxis, m_hoveredAxis);
 }
 
-void RotationGizmo::Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFormat& framebufferFormat) const
+void RotationGizmo::Draw(const ColorAndDepthFormat& framebufferFormat) const
 {
 	detail::gizmoPipeline.BindPipeline(framebufferFormat);
 	DC.BindVertexBuffer(0, s_torusVB, 0);
@@ -153,9 +155,8 @@ void RotationGizmo::Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFor
 		if (m_onlyAxisToDraw != -1 && axis != m_onlyAxisToDraw)
 			continue;
 
-		detail::DrawGizmoAxis(
-			axis, m_currentAxis, m_hoveredAxis, std::size(detail::TORUS_INDICES),
-			viewProjMatrix * GetAxisTransform(m_lastPosition, m_renderScale, axis));
+		m_drawParametersBuffer.Bind(axis);
+		DC.DrawIndexed(0, std::size(detail::TORUS_INDICES), 0, 0, 1);
 	}
 }
 } // namespace eg

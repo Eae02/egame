@@ -145,8 +145,8 @@ static inline std::optional<VkImageViewType> TranslateViewType(TextureViewType v
 	case TextureViewType::Cube: return VK_IMAGE_VIEW_TYPE_CUBE;
 	case TextureViewType::Array2D: return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 	case TextureViewType::ArrayCube: return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-	default: EG_UNREACHABLE
 	}
+	EG_UNREACHABLE
 }
 
 TextureViewHandle GetTextureView(

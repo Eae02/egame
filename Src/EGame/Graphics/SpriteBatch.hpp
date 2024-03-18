@@ -102,16 +102,19 @@ public:
 
 	struct RenderArgs
 	{
-		int screenWidth = 0;
-		int screenHeight = 0;
+		std::optional<int> screenWidth;
+		std::optional<int> screenHeight;
 		ColorAndDepthFormat framebufferFormat;
-		std::optional<glm::mat3> matrix;
 	};
 
 	void Reset();
-	void Upload();
+	void Upload(const glm::mat3& matrix);
+	void Upload(float screenWidth, float screenHeight);
 	void Render(const RenderArgs& renderArgs) const;
-	void UploadAndRender(const RenderArgs& renderArgs, const RenderPassBeginInfo& rpBeginInfo);
+
+	void UploadAndRender(
+		const RenderArgs& renderArgs, const RenderPassBeginInfo& rpBeginInfo,
+		std::optional<glm::mat3> matrix = std::nullopt);
 
 	bool Empty() const { return m_batches.empty(); }
 
@@ -155,7 +158,7 @@ private:
 
 	struct Batch
 	{
-		TextureRef texture;
+		DescriptorSetRef textureDescriptorSet;
 		bool redToAlpha;
 		uint32_t mipLevel;
 		uint32_t firstIndex;
@@ -176,6 +179,9 @@ private:
 	uint32_t m_indexBufferCapacity = 0;
 	Buffer m_vertexBuffer;
 	Buffer m_indexBuffer;
+
+	Buffer m_transformUniformBuffer;
+	DescriptorSet m_uniformBuffersDescriptorSet;
 
 	bool m_canRender = false;
 };

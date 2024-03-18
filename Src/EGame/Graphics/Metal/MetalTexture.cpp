@@ -194,11 +194,9 @@ void ResolveTexture(CommandContextHandle ctx, TextureHandle src, TextureHandle d
 }
 
 static MTL::TextureType textureViewTypeTranslationTable[] = {
-	[(int)TextureViewType::Flat1D] = MTL::TextureType1D,
 	[(int)TextureViewType::Flat2D] = MTL::TextureType2D,
 	[(int)TextureViewType::Flat3D] = MTL::TextureType3D,
 	[(int)TextureViewType::Cube] = MTL::TextureTypeCube,
-	[(int)TextureViewType::Array1D] = MTL::TextureType1DArray,
 	[(int)TextureViewType::Array2D] = MTL::TextureType2DArray,
 	[(int)TextureViewType::ArrayCube] = MTL::TextureTypeCubeArray,
 };
@@ -272,20 +270,6 @@ static inline MTL::SamplerAddressMode TranslateSamplerWrapMode(WrapMode mode)
 	case WrapMode::Repeat: return MTL::SamplerAddressModeRepeat;
 	case WrapMode::MirroredRepeat: return MTL::SamplerAddressModeMirrorRepeat;
 	case WrapMode::ClampToEdge: return MTL::SamplerAddressModeClampToEdge;
-	case WrapMode::ClampToBorder: return MTL::SamplerAddressModeClampToBorderColor;
-	}
-}
-
-static inline MTL::SamplerBorderColor TranslateBorderColor(BorderColor color)
-{
-	switch (color)
-	{
-	case BorderColor::F0000:
-	case BorderColor::I0000: return MTL::SamplerBorderColorTransparentBlack;
-	case BorderColor::F0001:
-	case BorderColor::I0001: return MTL::SamplerBorderColorOpaqueBlack;
-	case BorderColor::F1111:
-	case BorderColor::I1111: return MTL::SamplerBorderColorOpaqueWhite;
 	}
 }
 
@@ -303,6 +287,9 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 	descriptor->setTAddressMode(TranslateSamplerWrapMode(description.wrapV));
 	descriptor->setRAddressMode(TranslateSamplerWrapMode(description.wrapW));
 
+	descriptor->setLodMinClamp(description.minLod);
+	descriptor->setLodMaxClamp(description.maxLod);
+
 	descriptor->setMinFilter(static_cast<MTL::SamplerMinMagFilter>(description.minFilter == TextureFilter::Linear));
 	descriptor->setMagFilter(static_cast<MTL::SamplerMinMagFilter>(description.magFilter == TextureFilter::Linear));
 
@@ -310,8 +297,6 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 		description.mipFilter == TextureFilter::Linear ? MTL::SamplerMipFilterLinear : MTL::SamplerMipFilterNearest);
 
 	descriptor->setMaxAnisotropy(glm::clamp(description.maxAnistropy, 1, 16));
-
-	descriptor->setBorderColor(TranslateBorderColor(description.borderColor));
 
 	descriptor->setSupportArgumentBuffers(true);
 

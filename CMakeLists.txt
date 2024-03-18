@@ -5,8 +5,8 @@ option(EG_BUILD_ASSETGEN "Whether or not to build asset generator library" ON)
 option(EG_BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
 option(EG_BUILD_IMGUI "Whether or not to build imgui support library" ON)
 option(EG_VULKAN "Whether or not to enable vulkan support." ON)
-option(EG_USE_DAWN "Whether or not to enable webgpu via dawn." OFF)
-option(EG_WGSL "Whether or not to enable wgsl generation." OFF)
+option(EG_WEBGPU "Whether or not to enable webgpu support." OFF)
+option(EG_WEBGPU_INCLUDE_PATH "Include path for webgpu.h." "")
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
@@ -26,16 +26,6 @@ option(YAML_BUILD_SHARED_LIBS "" OFF)
 option(YAML_CPP_BUILD_TESTS "" OFF)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/ SYSTEM)
 
-if (EG_WGSL)
-	set(TINT_BUILD_CMD_TOOLS OFF)
-	set(TINT_BUILD_WGSL_READER OFF)
-	set(TINT_BUILD_GLSL_WRITER OFF)
-	set(TINT_BUILD_HLSL_WRITER OFF)
-	set(TINT_BUILD_MSL_WRITER OFF)
-	set(TINT_BUILD_SPV_WRITER OFF)
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/tint SYSTEM)
-endif()
-
 target_compile_options(yaml-cpp PRIVATE -fPIC)
 
 file(GLOB_RECURSE EGAME_SOURCE_FILES Src/EGame/*.cpp Src/EGame/*.mm)
@@ -45,6 +35,18 @@ file(GLOB_RECURSE ASSET_MAN_SOURCE_FILES Src/AssetMan/*.cpp)
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/Metal/*")
 	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX ".*\\.mm")
+endif()
+
+if (EG_WEBGPU)
+	set(TINT_BUILD_CMD_TOOLS OFF)
+	set(TINT_BUILD_WGSL_READER OFF)
+	set(TINT_BUILD_GLSL_WRITER OFF)
+	set(TINT_BUILD_HLSL_WRITER OFF)
+	set(TINT_BUILD_MSL_WRITER OFF)
+	set(TINT_BUILD_SPV_WRITER OFF)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/tint SYSTEM)
+else()
+	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/WebGPU/*")
 endif()
 
 #Adds compile options for warnings
@@ -74,7 +76,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		$<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast>
 	)
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  set(WARNING_FLAGS /wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
+	set(WARNING_FLAGS /wd4250 /wd4251 /wd4068 /wd4996 /wd4275 /D_CRT_SECURE_NO_WARNINGS)
 endif()
 
 add_library(EGame SHARED ${EGAME_SOURCE_FILES} Deps/volk/volk.c Assets/DevFont.png.h Assets/DevFont.fnt.h)
@@ -156,11 +158,6 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		target_link_options(EGameAssetGen PRIVATE ${OGG_VORBIS_LDFLAGS})
 		target_compile_options(EGameAssetGen PRIVATE ${OGG_VORBIS_CFLAGS_OTHER})
 		
-		if (EG_WGSL)
-			target_link_libraries(EGameAssetGen PRIVATE libtint)
-			target_compile_options(EGameAssetGen PRIVATE -DEG_WGSL)
-		endif()
-		
 		set_target_properties(EGameAssetGen PROPERTIES
 			CXX_STANDARD 20
 			LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}
@@ -237,11 +234,20 @@ target_include_directories(EGame SYSTEM
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/metal-cpp/
 )
 
+if (EG_WEBGPU_INCLUDE_PATH)
+	target_include_directories(EGame SYSTEM PRIVATE ${EG_WEBGPU_INCLUDE_PATH})
+endif()
+
+if (EG_WEBGPU)
+	target_link_libraries(EGame PRIVATE libtint)
+	target_compile_options(EGame PRIVATE -DEG_ENABLE_WEBGPU)
+endif()
+
 target_compile_options(EGame
 	PUBLIC
 		-DGLM_FORCE_RADIANS -DGLM_FORCE_CTOR_INIT -DGLM_ENABLE_EXPERIMENTAL
 	PRIVATE
-		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
+		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES -DWGPU_SKIP_DECLARATIONS)
 
 set_target_properties(EGame EGSandbox PROPERTIES
 	CXX_STANDARD 20

@@ -11,6 +11,7 @@ enum class GraphicsAPI
 	OpenGL,
 	Vulkan,
 	Metal,
+	WebGPU,
 
 #ifdef __APPLE__
 	Preferred = Metal,

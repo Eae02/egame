@@ -16,9 +16,14 @@ struct InitializeArgs
 void Initialize(const InitializeArgs& args);
 void Uninitialize(); // Called automatically on shutdown
 
-inline ImTextureID MakeImTextureID(TextureViewHandle viewHandle)
+static_assert(sizeof(ImTextureID) == sizeof(DescriptorSetHandle));
+
+inline ImTextureID MakeImTextureID(const eg::Texture& texture)
 {
-	static_assert(sizeof(ImTextureID) == sizeof(TextureViewHandle));
-	return reinterpret_cast<ImTextureID>(viewHandle);
+	return reinterpret_cast<ImTextureID>(texture.GetFragmentShaderSampleDescriptorSet().handle);
+}
+inline ImTextureID MakeImTextureID(eg::DescriptorSetRef descriptorSet)
+{
+	return reinterpret_cast<ImTextureID>(descriptorSet.handle);
 }
 } // namespace eg::imgui

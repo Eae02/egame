@@ -26,8 +26,21 @@ void DestroyGizmoPipelines();
 
 void InitGizmoPipeline();
 
+class GizmoDrawParametersBuffer
+{
+public:
+	explicit GizmoDrawParametersBuffer();
+
+	void SetParameters(std::span<const glm::mat4> axisTransforms, int currentAxis, int hoveredAxis);
+
+	void Bind(uint32_t axis) const;
+
+private:
+	uint32_t m_parametersStride;
+	Buffer m_buffer;
+	DescriptorSet m_descriptorSet;
+};
+
 std::optional<float> RayIntersectGizmoMesh(
 	const glm::mat4& worldMatrix, const Ray& ray, std::span<const float> vertices, std::span<const uint16_t> indices);
-
-void DrawGizmoAxis(int axis, int currentAxis, int hoveredAxis, uint32_t numIndices, const glm::mat4& transform);
 } // namespace eg::detail

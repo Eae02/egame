@@ -22,6 +22,12 @@ FramebufferLazyPipeline gizmoPipeline;
 ShaderModule gizmoVertexShader;
 ShaderModule gizmoFragmentShader;
 
+static const eg::DescriptorSetBinding GIZMO_DS_BINDINGS[] = { {
+	.binding = 0,
+	.type = BindingType::UniformBuffer,
+	.shaderAccess = ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment,
+} };
+
 void DestroyGizmoPipelines()
 {
 	gizmoVertexShader.Destroy();
@@ -40,6 +46,8 @@ void InitGizmoPipeline()
 	GraphicsPipelineCreateInfo pipelineCI;
 	pipelineCI.vertexShader = { .shaderModule = gizmoVertexShader.Handle() };
 	pipelineCI.fragmentShader = { .shaderModule = gizmoFragmentShader.Handle() };
+	pipelineCI.setBindModes[0] = eg::BindMode::DescriptorSet;
+	pipelineCI.descriptorSetBindings[0] = GIZMO_DS_BINDINGS;
 	pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };
 
@@ -79,28 +87,53 @@ std::optional<float> RayIntersectGizmoMesh(
 	return result;
 }
 
-void DrawGizmoAxis(int axis, int currentAxis, int hoveredAxis, uint32_t numIndices, const glm::mat4& transform)
+struct GizmoParameters
 {
-	glm::vec3 color = AXIS_COLORS.at(axis);
-	if (currentAxis == axis)
+	glm::mat4 transform;
+	glm::vec4 color;
+};
+
+GizmoDrawParametersBuffer::GizmoDrawParametersBuffer()
+{
+	m_parametersStride =
+		RoundToNextMultiple(sizeof(GizmoParameters), GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
+
+	m_buffer = Buffer(BufferFlags::CopyDst | BufferFlags::UniformBuffer, m_parametersStride * 3, nullptr);
+	m_descriptorSet = DescriptorSet(GIZMO_DS_BINDINGS);
+	m_descriptorSet.BindUniformBuffer(m_buffer, 0, BIND_BUFFER_OFFSET_DYNAMIC, sizeof(GizmoParameters));
+}
+
+void GizmoDrawParametersBuffer::SetParameters(
+	std::span<const glm::mat4> axisTransforms, int currentAxis, int hoveredAxis)
+{
+	EG_ASSERT(axisTransforms.size() == 3);
+
+	eg::UploadBuffer uploadBuffer = eg::GetTemporaryUploadBuffer(m_parametersStride * 3);
+	char* uploadBufferMemory = static_cast<char*>(uploadBuffer.Map());
+
+	for (int axis = 0; axis < 3; axis++)
 	{
-		color = CURRENT_AXIS_COLOR;
+		glm::vec3 color = AXIS_COLORS.at(axis);
+		if (currentAxis == axis)
+			color = CURRENT_AXIS_COLOR;
+		else if (currentAxis == -1 && hoveredAxis == axis)
+			color *= 2.0f;
+
+		*reinterpret_cast<GizmoParameters*>(uploadBufferMemory + axis * m_parametersStride) = {
+			.transform = axisTransforms[axis],
+			.color = glm::vec4(color, 1.0f),
+		};
 	}
-	else if (currentAxis == -1 && hoveredAxis == axis)
-	{
-		color *= 2.0f;
-	}
 
-	struct PC
-	{
-		glm::mat4 transform;
-		glm::vec4 color;
-	} pc;
-	pc.transform = transform;
-	pc.color = glm::vec4(color, 1.0f);
+	uploadBuffer.Flush();
 
-	DC.PushConstants(0, pc);
+	eg::DC.CopyBuffer(uploadBuffer.buffer, m_buffer, uploadBuffer.offset, 0, uploadBuffer.range);
+	m_buffer.UsageHint(BufferUsage::UniformBuffer, ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment);
+}
 
-	DC.DrawIndexed(0, numIndices, 0, 0, 1);
+void GizmoDrawParametersBuffer::Bind(uint32_t axis) const
+{
+	uint32_t offset = axis * m_parametersStride;
+	eg::DC.BindDescriptorSet(m_descriptorSet, 0, { &offset, 1 });
 }
 } // namespace eg::detail

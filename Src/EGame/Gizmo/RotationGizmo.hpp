@@ -3,6 +3,7 @@
 #include "../API.hpp"
 #include "../Geometry/Ray.hpp"
 #include "../Graphics/AbstractionHL.hpp"
+#include "GizmoCommon.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -18,7 +19,7 @@ public:
 		glm::quat& rotation, const glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix,
 		const Ray& viewRay);
 
-	void Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFormat& framebufferFormat) const;
+	void Draw(const ColorAndDepthFormat& framebufferFormat) const;
 
 	bool HasInputFocus() const { return m_currentAxis != -1; }
 
@@ -34,10 +35,6 @@ public:
 	static void Destroy();
 
 private:
-	glm::vec3 m_lastPosition;
-
-	float m_renderScale = 1;
-
 	int m_currentAxis = -1;
 	int m_hoveredAxis = -1;
 	int m_onlyAxisToDraw = -1;
@@ -46,5 +43,7 @@ private:
 	float m_rotationAmount = 0;
 
 	bool m_keyboardSelectingAxis = false;
+
+	detail::GizmoDrawParametersBuffer m_drawParametersBuffer;
 };
 } // namespace eg

@@ -223,6 +223,84 @@ public:
 	TextureHandle handle;
 };
 
+class EG_API Sampler
+{
+public:
+	Sampler() = default;
+	explicit Sampler(const SamplerDescription& description);
+
+	/**
+	 * Gets the GAL handle for this sampler.
+	 */
+	SamplerHandle Handle() const { return m_handle; }
+
+private:
+	SamplerHandle m_handle;
+};
+
+class EG_API DescriptorSetRef
+{
+public:
+	DescriptorSetRef(DescriptorSetHandle _handle = nullptr) : handle(_handle) {}
+
+	void Destroy()
+	{
+		if (handle)
+		{
+			gal::DestroyDescriptorSet(handle);
+			handle = nullptr;
+		}
+	}
+
+	void BindTexture(
+		TextureRef texture, uint32_t binding, const Sampler* sampler, const TextureSubresource& subresource = {})
+	{
+		BindTextureView(texture.GetView(subresource), binding, sampler);
+	}
+
+	void BindTextureView(TextureViewHandle textureView, uint32_t binding, const Sampler* sampler)
+	{
+		gal::BindTextureDS(textureView, sampler ? sampler->Handle() : nullptr, handle, binding);
+	}
+
+	void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresource& subresource = {})
+	{
+		BindStorageImageView(texture.GetView(subresource), binding);
+	}
+
+	void BindStorageImageView(TextureViewHandle textureView, uint32_t binding)
+	{
+		gal::BindStorageImageDS(textureView, handle, binding);
+	}
+
+	void BindUniformBuffer(
+		BufferRef buffer, uint32_t binding, uint64_t offset = 0, std::optional<uint64_t> range = std::nullopt)
+	{
+		gal::BindUniformBufferDS(buffer.handle, handle, binding, offset, range);
+	}
+
+	void BindStorageBuffer(
+		BufferRef buffer, uint32_t binding, uint64_t offset = 0, std::optional<uint64_t> range = std::nullopt)
+	{
+		gal::BindStorageBufferDS(buffer.handle, handle, binding, offset, range);
+	}
+
+	DescriptorSetHandle handle;
+};
+
+class EG_API DescriptorSet : public OwningRef<DescriptorSetRef>
+{
+public:
+	DescriptorSet() = default;
+
+	DescriptorSet(eg::PipelineRef pipeline, uint32_t set) { handle = gal::CreateDescriptorSetP(pipeline.handle, set); }
+
+	explicit DescriptorSet(std::span<const DescriptorSetBinding> bindings)
+	{
+		handle = gal::CreateDescriptorSetB(bindings);
+	}
+};
+
 class EG_API Texture : public OwningRef<TextureRef>
 {
 public:
@@ -322,6 +400,14 @@ public:
 
 	eg::Format Format() const { return m_format; }
 
+	DescriptorSetRef GetFragmentShaderSampleDescriptorSet() const;
+
+	void Destroy()
+	{
+		TextureRef::Destroy();
+		m_fragmentShaderSampleDescriptorSet = std::nullopt;
+	}
+
 private:
 	explicit Texture(TextureHandle _handle) : OwningRef(_handle) {}
 
@@ -331,6 +417,8 @@ private:
 	uint32_t m_mipLevels;
 	uint32_t m_arrayLayers;
 	eg::Format m_format;
+
+	mutable std::optional<DescriptorSet> m_fragmentShaderSampleDescriptorSet;
 };
 
 class EG_API FramebufferRef
@@ -371,84 +459,6 @@ public:
 		ci.colorAttachments = colorAttachments;
 		ci.depthStencilAttachment = depthStencilAttachment;
 		handle = gal::CreateFramebuffer(ci);
-	}
-};
-
-class EG_API Sampler
-{
-public:
-	Sampler() = default;
-	explicit Sampler(const SamplerDescription& description);
-
-	/**
-	 * Gets the GAL handle for this sampler.
-	 */
-	SamplerHandle Handle() const { return m_handle; }
-
-private:
-	SamplerHandle m_handle;
-};
-
-class EG_API DescriptorSetRef
-{
-public:
-	DescriptorSetRef(DescriptorSetHandle _handle = nullptr) : handle(_handle) {}
-
-	void Destroy()
-	{
-		if (handle)
-		{
-			gal::DestroyDescriptorSet(handle);
-			handle = nullptr;
-		}
-	}
-
-	void BindTexture(
-		TextureRef texture, uint32_t binding, const Sampler* sampler, const TextureSubresource& subresource = {})
-	{
-		BindTextureView(texture.GetView(subresource), binding, sampler);
-	}
-
-	void BindTextureView(TextureViewHandle textureView, uint32_t binding, const Sampler* sampler)
-	{
-		gal::BindTextureDS(textureView, sampler ? sampler->Handle() : nullptr, handle, binding);
-	}
-
-	void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresource& subresource = {})
-	{
-		BindStorageImageView(texture.GetView(subresource), binding);
-	}
-
-	void BindStorageImageView(TextureViewHandle textureView, uint32_t binding)
-	{
-		gal::BindStorageImageDS(textureView, handle, binding);
-	}
-
-	void BindUniformBuffer(
-		BufferRef buffer, uint32_t binding, uint64_t offset = 0, std::optional<uint64_t> range = std::nullopt)
-	{
-		gal::BindUniformBufferDS(buffer.handle, handle, binding, offset, range);
-	}
-
-	void BindStorageBuffer(
-		BufferRef buffer, uint32_t binding, uint64_t offset = 0, std::optional<uint64_t> range = std::nullopt)
-	{
-		gal::BindStorageBufferDS(buffer.handle, handle, binding, offset, range);
-	}
-
-	DescriptorSetHandle handle;
-};
-
-class EG_API DescriptorSet : public OwningRef<DescriptorSetRef>
-{
-public:
-	DescriptorSet() = default;
-
-	DescriptorSet(eg::PipelineRef pipeline, uint32_t set) { handle = gal::CreateDescriptorSetP(pipeline.handle, set); }
-
-	explicit DescriptorSet(std::span<const DescriptorSetBinding> bindings)
-	{
-		handle = gal::CreateDescriptorSetB(bindings);
 	}
 };
 

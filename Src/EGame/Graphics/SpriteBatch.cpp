@@ -21,41 +21,60 @@ static Sampler spriteBatchSampler;
 static ShaderModule spriteBatchVS;
 static ShaderModule spriteBatchFS;
 
+static Buffer flagsUniformBuffer;
+static uint32_t flagsUniformBufferBytesPerFlag;
+
+static constexpr uint32_t NUM_FLAG_COMBINATIONS = 1 << 3;
+
+static const DescriptorSetBinding bindingsSet0[] = {
+	{
+		.binding = 0,
+		.type = BindingType::UniformBuffer,
+		.shaderAccess = ShaderAccessFlags::Vertex,
+	},
+	{
+		.binding = 1,
+		.type = BindingType::UniformBufferDynamicOffset,
+		.shaderAccess = ShaderAccessFlags::Fragment,
+	},
+};
+
 void SpriteBatch::InitStatic()
 {
 	spriteBatchVS = ShaderModule(ShaderStage::Vertex, Sprite_vs_glsl);
 	spriteBatchFS = ShaderModule(ShaderStage::Fragment, Sprite_fs_glsl);
 
-	GraphicsPipelineCreateInfo pipelineCI;
-	pipelineCI.vertexShader.shaderModule = spriteBatchVS.Handle();
-	pipelineCI.fragmentShader.shaderModule = spriteBatchFS.Handle();
-	pipelineCI.enableScissorTest = true;
-	pipelineCI.blendStates[0] = eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha);
-	pipelineCI.vertexBindings[0] = VertexBinding(sizeof(Vertex), InputRate::Vertex);
-	pipelineCI.vertexAttributes[0] = VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, position));
-	pipelineCI.vertexAttributes[1] = VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, texCoord));
-	pipelineCI.vertexAttributes[2] = VertexAttribute(0, DataType::UInt8Norm, 4, offsetof(Vertex, color));
-	pipelineCI.label = "SpriteBatch";
-	spritePipeline = FramebufferLazyPipeline(pipelineCI);
+	spritePipeline = FramebufferLazyPipeline({
+		.vertexShader.shaderModule = spriteBatchVS.Handle(),
+		.fragmentShader.shaderModule = spriteBatchFS.Handle(),
+		.enableScissorTest = true,
+		.setBindModes = {eg::BindMode::DescriptorSet, eg::BindMode::DescriptorSet},
+		.descriptorSetBindings = { bindingsSet0 },
+		.blendStates = {eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha)},
+		.vertexBindings = {VertexBinding(sizeof(Vertex), InputRate::Vertex)},
+		.vertexAttributes = {
+			VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, position)),
+			VertexAttribute(0, DataType::Float32, 2, offsetof(Vertex, texCoord)),
+			VertexAttribute(0, DataType::UInt8Norm, 4, offsetof(Vertex, color)),
+		},
+		.label = "SpriteBatch"
+	});
 
-	TextureCreateInfo whiteTexCreateInfo;
-	whiteTexCreateInfo.width = 1;
-	whiteTexCreateInfo.height = 1;
-	whiteTexCreateInfo.mipLevels = 1;
-	whiteTexCreateInfo.format = Format::R8G8B8A8_UNorm;
-	whiteTexCreateInfo.flags = TextureFlags::ShaderSample | TextureFlags::CopyDst;
-	whitePixelTexture = Texture::Create2D(whiteTexCreateInfo);
+	whitePixelTexture = Texture::Create2D({
+		.flags = TextureFlags::ShaderSample | TextureFlags::CopyDst,
+		.mipLevels = 1,
+		.width = 1,
+		.height = 1,
+		.format = Format::R8G8B8A8_UNorm,
+	});
 
 	UploadBuffer uploadBuffer = GetTemporaryUploadBuffer(4);
 	uint8_t* uploadBufferMem = static_cast<uint8_t*>(uploadBuffer.Map());
 	std::fill_n(uploadBufferMem, 4, 255);
 	uploadBuffer.Flush();
 
-	TextureRange textureRange = {};
-	textureRange.sizeX = 1;
-	textureRange.sizeY = 1;
-	textureRange.sizeZ = 1;
-	DC.SetTextureData(whitePixelTexture, textureRange, uploadBuffer.buffer, uploadBuffer.offset);
+	DC.SetTextureData(
+		whitePixelTexture, { .sizeX = 1, .sizeY = 1, .sizeZ = 1 }, uploadBuffer.buffer, uploadBuffer.offset);
 
 	whitePixelTexture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Fragment);
 
@@ -67,6 +86,15 @@ void SpriteBatch::InitStatic()
 		.magFilter = eg::TextureFilter::Linear,
 		.mipFilter = eg::TextureFilter::Linear,
 	});
+
+	flagsUniformBufferBytesPerFlag =
+		std::max((uint32_t)sizeof(uint32_t), GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
+	uint32_t wordsPerFlag = flagsUniformBufferBytesPerFlag / sizeof(uint32_t);
+	std::vector<uint32_t> flagsBufferData(wordsPerFlag * NUM_FLAG_COMBINATIONS);
+	for (uint32_t i = 0; i < NUM_FLAG_COMBINATIONS; i++)
+		flagsBufferData[i * wordsPerFlag] = i;
+	flagsUniformBuffer = eg::Buffer(
+		eg::BufferFlags::UniformBuffer, flagsUniformBufferBytesPerFlag * NUM_FLAG_COMBINATIONS, flagsBufferData.data());
 }
 
 void SpriteBatch::DestroyStatic()
@@ -75,6 +103,7 @@ void SpriteBatch::DestroyStatic()
 	spriteBatchFS.Destroy();
 	whitePixelTexture.Destroy();
 	spritePipeline.DestroyPipelines();
+	flagsUniformBuffer.Destroy();
 }
 
 void SpriteBatch::PushBlendState(SpriteBlend blendState)
@@ -96,8 +125,10 @@ void SpriteBatch::InitBatch(const Texture& texture, SpriteFlags flags)
 	bool redToAlpha = HasFlag(flags, SpriteFlags::RedToAlpha);
 	uint32_t mipLevel = HasFlag(flags, SpriteFlags::ForceLowestMipLevel) ? texture.MipLevels() - 1 : 0;
 
+	DescriptorSetRef textureDescriptorSet = texture.GetFragmentShaderSampleDescriptorSet();
+
 	bool needsNewBatch = true;
-	if (!m_batches.empty() && m_batches.back().texture.handle == texture.handle &&
+	if (!m_batches.empty() && m_batches.back().textureDescriptorSet.handle == textureDescriptorSet.handle &&
 	    m_batches.back().redToAlpha == redToAlpha && m_batches.back().mipLevel == mipLevel &&
 	    m_batches.back().blend == m_blendStateStack.back())
 	{
@@ -118,7 +149,7 @@ void SpriteBatch::InitBatch(const Texture& texture, SpriteFlags flags)
 		Batch& batch = m_batches.emplace_back();
 		batch.redToAlpha = redToAlpha;
 		batch.mipLevel = mipLevel;
-		batch.texture = texture;
+		batch.textureDescriptorSet = textureDescriptorSet;
 		batch.blend = m_blendStateStack.back();
 		batch.firstIndex = UnsignedNarrow<uint32_t>(m_indices.size());
 		batch.numIndices = 0;
@@ -424,10 +455,22 @@ void SpriteBatch::Reset()
 	m_canRender = false;
 }
 
-void SpriteBatch::Upload()
+void SpriteBatch::Upload(const glm::mat3& matrix)
 {
 	if (m_batches.empty())
 		return;
+
+	// Lazily initialize the transform uniform buffer and descriptor set
+	if (m_transformUniformBuffer.handle == nullptr)
+	{
+		m_transformUniformBuffer =
+			Buffer(BufferFlags::CopyDst | BufferFlags::UniformBuffer, sizeof(float) * 12, nullptr);
+
+		m_uniformBuffersDescriptorSet = DescriptorSet(bindingsSet0);
+		m_uniformBuffersDescriptorSet.BindUniformBuffer(m_transformUniformBuffer, 0);
+		m_uniformBuffersDescriptorSet.BindUniformBuffer(
+			flagsUniformBuffer, 1, BIND_BUFFER_OFFSET_DYNAMIC, sizeof(uint32_t));
+	}
 
 	// Reallocates the vertex buffer if it's too small
 	if (m_vertexBufferCapacity < m_vertices.size())
@@ -461,7 +504,23 @@ void SpriteBatch::Upload()
 	m_vertexBuffer.UsageHint(BufferUsage::VertexBuffer);
 	m_indexBuffer.UsageHint(BufferUsage::IndexBuffer);
 
+	float matrixPadded[4 * 3] = {};
+	for (int r = 0; r < 3; r++)
+	{
+		for (int c = 0; c < 3; c++)
+			matrixPadded[r * 4 + c] = matrix[r][c];
+	}
+	m_transformUniformBuffer.DCUpdateData<float>(0, matrixPadded);
+	m_transformUniformBuffer.UsageHint(BufferUsage::UniformBuffer, ShaderAccessFlags::Vertex);
+
 	m_canRender = true;
+}
+
+void SpriteBatch::Upload(float screenWidth, float screenHeight)
+{
+	glm::vec2 scale(2.0f / screenWidth, 2.0f / screenHeight);
+	glm::mat3 matrix = glm::translate(glm::mat3(1), glm::vec2(-1)) * glm::scale(glm::mat3(1), scale);
+	Upload(matrix);
 }
 
 void SpriteBatch::Render(const RenderArgs& renderArgs) const
@@ -476,65 +535,52 @@ void SpriteBatch::Render(const RenderArgs& renderArgs) const
 
 	spritePipeline.BindPipeline(renderArgs.framebufferFormat);
 
-	int screenWidth = renderArgs.screenWidth <= 0 ? CurrentResolutionX() : renderArgs.screenWidth;
-	int screenHeight = renderArgs.screenHeight <= 0 ? CurrentResolutionY() : renderArgs.screenHeight;
-
-	glm::mat3 matrix;
-	if (renderArgs.matrix.has_value())
-	{
-		matrix = *renderArgs.matrix;
-	}
-	else
-	{
-		glm::vec2 scale(2.0f / static_cast<float>(screenWidth), 2.0f / static_cast<float>(screenHeight));
-		matrix = glm::translate(glm::mat3(1), glm::vec2(-1)) * glm::scale(glm::mat3(1), scale);
-	}
-
-	float pcData[4 * 3];
-	for (int r = 0; r < 3; r++)
-	{
-		for (int c = 0; c < 3; c++)
-			pcData[r * 4 + c] = matrix[r][c];
-	}
-	DC.PushConstants(0, sizeof(pcData), pcData);
+	int screenWidth = renderArgs.screenWidth.value_or(CurrentResolutionX());
+	int screenHeight = renderArgs.screenHeight.value_or(CurrentResolutionY());
 
 	DC.BindIndexBuffer(IndexType::UInt32, m_indexBuffer, 0);
 	DC.BindVertexBuffer(0, m_vertexBuffer, 0);
 
 	for (const Batch& batch : m_batches)
 	{
-		uint32_t pcFlags = 0;
-		if (batch.redToAlpha)
-			pcFlags |= 1;
-		if (batch.blend == SpriteBlend::Alpha)
-			pcFlags |= 2;
+		uint32_t flags = static_cast<uint32_t>(batch.blend) | (static_cast<uint32_t>(batch.redToAlpha) << 2);
+		EG_ASSERT(flags < NUM_FLAG_COMBINATIONS);
 
-		float setAlpha = batch.blend == SpriteBlend::Additive ? 0.0f : 1.0f;
-
-		char pc[8];
-		*reinterpret_cast<uint32_t*>(&pc[0]) = pcFlags;
-		*reinterpret_cast<float*>(&pc[4]) = setAlpha;
-		DC.PushConstants(64, sizeof(pc), &pc);
+		uint32_t flagsUniformBufferOffset = flags * flagsUniformBufferBytesPerFlag;
+		DC.BindDescriptorSet(m_uniformBuffersDescriptorSet, 0, { &flagsUniformBufferOffset, 1 });
 
 		if (batch.enableScissor)
 			DC.SetScissor(batch.scissor.x, batch.scissor.y, batch.scissor.width, batch.scissor.height);
 		else
 			DC.SetScissor(0, 0, screenWidth, screenHeight);
 
+		// TODO: Deal with this now that the texture uses a descriptor set
 		eg::TextureSubresource subres;
 		if (HasFlag(GetGraphicsDeviceInfo().features, DeviceFeatureFlags::PartialTextureViews))
 			subres.firstMipLevel = batch.mipLevel;
-		DC.BindTexture(batch.texture, 0, 0, &spriteBatchSampler, subres);
+
+		DC.BindDescriptorSet(batch.textureDescriptorSet, 1);
 
 		DC.DrawIndexed(batch.firstIndex, batch.numIndices, 0, 0, 1);
 	}
 }
 
-void SpriteBatch::UploadAndRender(const RenderArgs& renderArgs, const RenderPassBeginInfo& rpBeginInfo)
+void SpriteBatch::UploadAndRender(
+	const RenderArgs& renderArgs, const RenderPassBeginInfo& rpBeginInfo, std::optional<glm::mat3> matrix)
 {
 	if (!m_batches.empty())
 	{
-		Upload();
+		if (matrix.has_value())
+		{
+			Upload(*matrix);
+		}
+		else
+		{
+			Upload(
+				renderArgs.screenWidth.value_or(CurrentResolutionX()),
+				renderArgs.screenHeight.value_or(CurrentResolutionX()));
+		}
+
 		DC.BeginRenderPass(rpBeginInfo);
 		Render(renderArgs);
 		DC.EndRenderPass();

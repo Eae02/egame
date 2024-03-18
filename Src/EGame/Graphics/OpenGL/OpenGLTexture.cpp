@@ -23,11 +23,6 @@ inline GLenum TranslateWrapMode(WrapMode wrapMode)
 	case WrapMode::Repeat: return GL_REPEAT;
 	case WrapMode::MirroredRepeat: return GL_MIRRORED_REPEAT;
 	case WrapMode::ClampToEdge: return GL_CLAMP_TO_EDGE;
-	case WrapMode::ClampToBorder:
-#ifdef __EMSCRIPTEN__
-		EG_PANIC("WrapMode::ClampToBorder is not supported in WebGL");
-#endif
-		return GL_CLAMP_TO_BORDER;
 	}
 
 	EG_UNREACHABLE
@@ -59,21 +54,6 @@ inline GLenum GetMagFilter(TextureFilter magFilter)
 		return GL_NEAREST;
 }
 
-inline std::array<float, 4> TranslateBorderColor(BorderColor color)
-{
-	switch (color)
-	{
-	case BorderColor::F0000:
-	case BorderColor::I0000: return { 0.0f, 0.0f, 0.0f, 0.0f };
-	case BorderColor::F0001:
-	case BorderColor::I0001: return { 0.0f, 0.0f, 0.0f, 1.0f };
-	case BorderColor::F1111:
-	case BorderColor::I1111: return { 1.0f, 1.0f, 1.0f, 1.0f };
-	}
-
-	EG_UNREACHABLE
-}
-
 inline int ClampMaxAnistropy(int _maxAnistropy)
 {
 	return glm::clamp(_maxAnistropy, 1, maxAnistropy);
@@ -81,8 +61,6 @@ inline int ClampMaxAnistropy(int _maxAnistropy)
 
 SamplerHandle CreateSampler(const SamplerDescription& description)
 {
-	auto borderColor = TranslateBorderColor(description.borderColor);
-
 	GLuint sampler;
 	glGenSamplers(1, &sampler);
 
@@ -91,11 +69,12 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 	glSamplerParameteri(sampler, GL_TEXTURE_WRAP_S, TranslateWrapMode(description.wrapU));
 	glSamplerParameteri(sampler, GL_TEXTURE_WRAP_T, TranslateWrapMode(description.wrapV));
 	glSamplerParameteri(sampler, GL_TEXTURE_WRAP_R, TranslateWrapMode(description.wrapW));
+	glSamplerParameterf(sampler, GL_TEXTURE_MIN_LOD, description.minLod);
+	glSamplerParameterf(sampler, GL_TEXTURE_MAX_LOD, description.maxLod);
 #ifndef __EMSCRIPTEN__
 	glSamplerParameterf(
 		sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<float>(ClampMaxAnistropy(description.maxAnistropy)));
 	glSamplerParameterf(sampler, GL_TEXTURE_LOD_BIAS, description.mipLodBias);
-	glSamplerParameterfv(sampler, GL_TEXTURE_BORDER_COLOR, borderColor.data());
 #endif
 
 	if (description.enableCompare)
@@ -285,8 +264,8 @@ static inline GLenum TranslateViewType(const Texture& texture, TextureViewType v
 	case TextureViewType::Cube: return GL_TEXTURE_CUBE_MAP;
 	case TextureViewType::Array2D: return GL_TEXTURE_2D_ARRAY;
 	case TextureViewType::ArrayCube: return GL_TEXTURE_CUBE_MAP_ARRAY;
-	default: EG_UNREACHABLE
 	}
+	EG_UNREACHABLE
 }
 
 TextureViewHandle GetTextureView(

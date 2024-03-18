@@ -30,3 +30,6 @@
 [submodule "Deps/metal-cpp"]
 	path = Deps/metal-cpp
 	url = https://github.com/bkaradzic/metal-cpp.git
+[submodule "Deps/webgpu-headers"]
+	path = Deps/webgpu-headers
+	url = https://github.com/webgpu-native/webgpu-headers.git

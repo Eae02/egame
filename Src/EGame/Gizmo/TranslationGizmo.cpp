@@ -34,28 +34,17 @@ void TranslationGizmo::Destroy()
 	s_arrowIB.Destroy();
 }
 
-static inline glm::mat4 GetAxisTransform(const glm::vec3& position, float scale, int axis)
-{
-	glm::mat4 rotation(0.0f);
-	for (int i = 0; i < 3; i++)
-		rotation[i][(axis + i) % 3] = 1;
-	rotation[3][3] = 1;
-
-	return glm::translate(glm::mat4(), position) * rotation * glm::translate(glm::mat4(), ARROW_OFFSET * scale) *
-	       glm::scale(glm::mat4(), ARROW_SCALE * scale);
-}
-
 void TranslationGizmo::Update(
 	glm::vec3& position, const glm::vec3& cameraPos, const glm::mat4& viewProjMatrix, const Ray& viewRay)
 {
-	m_renderScale = glm::distance(cameraPos, position) * size;
+	const float renderScale = glm::distance(cameraPos, position) * size;
 
 	// Calculates the depth of the end of each arrow
 	float arrowDepths[3];
 	for (int i = 0; i < 3; i++)
 	{
 		glm::vec3 endPos = position;
-		endPos[i] += ARROW_SCALE.x * m_renderScale;
+		endPos[i] += ARROW_SCALE.x * renderScale;
 
 		glm::vec4 endPosPPS = viewProjMatrix * glm::vec4(endPos, 1.0f);
 		arrowDepths[i] = endPosPPS.z / endPosPPS.w;
@@ -95,7 +84,7 @@ void TranslationGizmo::Update(
 			m_keyboardSelectingAxis = false;
 	}
 
-	bool select = m_currentAxis == -1 && IsButtonDown(Button::MouseLeft) && !WasButtonDown(Button::MouseLeft);
+	const bool select = m_currentAxis == -1 && IsButtonDown(Button::MouseLeft) && !WasButtonDown(Button::MouseLeft);
 
 	// Resets the current axis if the mouse button was released.
 	if (WasButtonDown(Button::MouseLeft) && !IsButtonDown(Button::MouseLeft))
@@ -113,11 +102,24 @@ void TranslationGizmo::Update(
 		}
 	}
 
+	glm::mat4 axisWorldMatrices[3];
+	for (int axis = 0; axis < 3; axis++)
+	{
+		glm::mat4 rotation(0.0f);
+		for (int i = 0; i < 3; i++)
+			rotation[i][(axis + i) % 3] = 1;
+		rotation[3][3] = 1;
+
+		axisWorldMatrices[axis] = glm::translate(glm::mat4(), position) * rotation *
+		                          glm::translate(glm::mat4(), ARROW_OFFSET * renderScale) *
+		                          glm::scale(glm::mat4(), ARROW_SCALE * renderScale);
+	}
+
 	m_hoveredAxis = -1;
 	for (int axis : m_axisDrawOrder)
 	{
-		const glm::mat4 worldMatrix = GetAxisTransform(position, m_renderScale, axis);
-		if (detail::RayIntersectGizmoMesh(worldMatrix, viewRay, detail::ARROW_VERTICES, detail::ARROW_INDICES))
+		if (detail::RayIntersectGizmoMesh(
+				axisWorldMatrices[axis], viewRay, detail::ARROW_VERTICES, detail::ARROW_INDICES))
 		{
 			m_hoveredAxis = axis;
 			if (select)
@@ -128,13 +130,15 @@ void TranslationGizmo::Update(
 	if (select && m_currentAxis != -1)
 	{
 		BeginDragAxis(m_currentAxis);
-		select = false;
 	}
 
-	m_lastPosition = position;
+	glm::mat4 axisTransforms[3];
+	for (int axis = 0; axis < 3; axis++)
+		axisTransforms[axis] = viewProjMatrix * axisWorldMatrices[axis];
+	m_drawParametersBuffer.SetParameters(axisTransforms, m_currentAxis, m_hoveredAxis);
 }
 
-void TranslationGizmo::Draw(const glm::mat4& viewProjMatrix, const ColorAndDepthFormat& framebufferFormat) const
+void TranslationGizmo::Draw(const ColorAndDepthFormat& framebufferFormat) const
 {
 	detail::gizmoPipeline.BindPipeline(framebufferFormat);
 	DC.BindVertexBuffer(0, s_arrowVB, 0);
@@ -142,9 +146,8 @@ void TranslationGizmo::Draw(const glm::mat4& viewProjMatrix, const ColorAndDepth
 
 	for (int axis : m_axisDrawOrder)
 	{
-		detail::DrawGizmoAxis(
-			axis, m_currentAxis, m_hoveredAxis, std::size(detail::ARROW_INDICES),
-			viewProjMatrix * GetAxisTransform(m_lastPosition, m_renderScale, axis));
+		m_drawParametersBuffer.Bind(axis);
+		DC.DrawIndexed(0, std::size(detail::ARROW_INDICES), 0, 0, 1);
 	}
 }
 } // namespace eg

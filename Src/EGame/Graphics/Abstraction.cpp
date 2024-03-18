@@ -4,6 +4,7 @@
 #include "../Log.hpp"
 #include "OpenGL/OpenGL.hpp"
 #include "Vulkan/VulkanMain.hpp"
+#include "WebGPU/WGPUMain.hpp"
 
 #ifdef __APPLE__
 #include "Metal/MetalMain.hpp"
@@ -20,12 +21,13 @@ size_t SamplerDescription::Hash() const
 	h |= static_cast<size_t>(minFilter) << 6;
 	h |= static_cast<size_t>(magFilter) << 7;
 	h |= static_cast<size_t>(mipFilter) << 8;
-	h |= static_cast<size_t>(borderColor) << 9;
-	h |= static_cast<size_t>(enableCompare) << 12;
-	h |= static_cast<size_t>(compareOp) << 13;
+	h |= static_cast<size_t>(enableCompare) << 9;
+	h |= static_cast<size_t>(compareOp) << 10;
 
 	HashAppend(h, maxAnistropy);
 	HashAppend(h, mipLodBias);
+	HashAppend(h, minLod);
+	HashAppend(h, maxLod);
 
 	return h;
 }
@@ -38,6 +40,14 @@ size_t DescriptorSetBinding::Hash() const
 	h |= static_cast<size_t>(rwMode) << 15;
 	h |= static_cast<size_t>(count) << 18;
 	h |= static_cast<size_t>(binding) << 32;
+	return h;
+}
+
+size_t TextureViewKey::Hash() const
+{
+	size_t h = subresource.Hash();
+	HashAppend(h, static_cast<uint32_t>(type));
+	HashAppend(h, static_cast<uint32_t>(format));
 	return h;
 }
 
@@ -79,6 +89,14 @@ bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& init
 #include "AbstractionCallbacks.inl"
 #undef XM_ABSCALLBACK
 		return eg::graphics_api::mtl::Initialize(initArguments);
+#endif
+
+#ifdef EG_ENABLE_WEBGPU
+	case GraphicsAPI::WebGPU:
+#define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::webgpu::name;
+#include "AbstractionCallbacks.inl"
+#undef XM_ABSCALLBACK
+		return eg::graphics_api::webgpu::Initialize(initArguments);
 #endif
 
 	default: break;

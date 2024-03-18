@@ -7,6 +7,7 @@
 
 #include "../Shaders/Build/ImGui.fs.h"
 #include "../Shaders/Build/ImGui.vs.h"
+#include "EGame/Platform/FontConfig.hpp"
 
 namespace eg::imgui
 {
@@ -27,6 +28,9 @@ static Buffer vertexBuffer;
 
 static int indexBufferCapacity;
 static Buffer indexBuffer;
+
+static Buffer scaleUniformBuffer;
+static DescriptorSet scaleUniformBufferDescriptorSet;
 
 static ImGuiKey buttonRemapTable[NUM_BUTTONS];
 
@@ -179,6 +183,8 @@ void Initialize(const InitializeArgs& args)
 	pipelineCI.enableScissorTest = true;
 	pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
 	pipelineCI.depthAttachmentFormat = eg::Format::DefaultDepthStencil;
+	pipelineCI.setBindModes[0] = eg::BindMode::DescriptorSet;
+	pipelineCI.setBindModes[1] = eg::BindMode::DescriptorSet;
 	pipelineCI.blendStates[0] = eg::AlphaBlend;
 	pipelineCI.vertexBindings[0] = { sizeof(ImDrawVert), eg::InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, eg::DataType::Float32, 2, static_cast<uint32_t>(offsetof(ImDrawVert, pos)) };
@@ -189,27 +195,31 @@ void Initialize(const InitializeArgs& args)
 	pipeline = eg::Pipeline::Create(pipelineCI);
 
 	// ** Creates the font texture **
-#ifdef __EMSCRIPTEN__
-	io.Fonts->AddFontDefault();
-#else
-	const char* fontPaths[] = { args.fontPath,
-#if defined(__linux__)
-		                        "/usr/share/fonts/TTF/DejaVuSans.ttf", "/usr/share/fonts/TTF/DroidSans.ttf",
-		                        "/usr/share/fonts/droid/DroidSans.ttf", "/usr/share/fonts/TTF/arial.ttf"
-#elif defined(_WIN32)
-		                        "C:\\Windows\\Fonts\\arial.ttf"
-#endif
+	bool fontFound = false;
+
+#ifndef __EMSCRIPTEN__
+	static const char* FONT_NAMES[] = {
+		"DejaVuSans",
+		"DroidSans",
+		"Arial",
 	};
 
-	auto fontIt = std::find_if(
-		std::begin(fontPaths), std::end(fontPaths),
-		[](const char* path) { return path != nullptr && eg::FileExists(path); });
-
-	if (fontIt != std::end(fontPaths))
-		io.Fonts->AddFontFromFileTTF(*fontIt, args.fontSize);
-	else
-		io.Fonts->AddFontDefault();
+	for (const char* fontName : FONT_NAMES)
+	{
+		std::string path = GetFontPathByName(fontName);
+		if (!path.empty())
+		{
+			io.Fonts->AddFontFromFileTTF(path.c_str(), args.fontSize * eg::DisplayScaleFactor());
+			fontFound = true;
+		}
+	}
 #endif
+
+	if (!fontFound)
+	{
+		io.Fonts->AddFontDefault();
+		io.FontGlobalScale = eg::DisplayScaleFactor();
+	}
 
 	unsigned char* fontTexPixels;
 	int fontTexWidth, fontTexHeight;
@@ -236,11 +246,16 @@ void Initialize(const InitializeArgs& args)
 	fontTexture = eg::Texture::Create2D(fontTexCreateInfo);
 	eg::DC.SetTextureData(
 		fontTexture, { 0, 0, 0, ToUnsigned(fontTexWidth), ToUnsigned(fontTexHeight), 1, 0 }, fontUploadBuffer, 0);
-	io.Fonts->TexID = MakeImTextureID(fontTexture.GetView());
+	io.Fonts->TexID = MakeImTextureID(fontTexture);
 
 	fontTexture.UsageHint(eg::TextureUsage::ShaderSample, eg::ShaderAccessFlags::Fragment);
 
 	buttonEventListener = new eg::EventListener<eg::ButtonEvent>;
+
+	scaleUniformBuffer =
+		eg::Buffer(eg::BufferFlags::UniformBuffer | eg::BufferFlags::CopyDst, sizeof(float) * 2, nullptr);
+	scaleUniformBufferDescriptorSet = eg::DescriptorSet(pipeline, 0);
+	scaleUniformBufferDescriptorSet.BindUniformBuffer(scaleUniformBuffer, 0);
 
 	detail::imguiBeginFrame = &StartFrame;
 	detail::imguiEndFrame = &EndFrame;
@@ -263,6 +278,8 @@ void Uninitialize()
 	detail::imguiBeginFrame = nullptr;
 	detail::imguiEndFrame = nullptr;
 	ImGui::DestroyContext();
+	scaleUniformBuffer.Destroy();
+	scaleUniformBufferDescriptorSet.Destroy();
 }
 
 EG_ON_SHUTDOWN(Uninitialize);
@@ -273,7 +290,6 @@ void StartFrame(float dt)
 
 	io.DisplaySize.x = eg::CurrentResolutionX();
 	io.DisplaySize.y = eg::CurrentResolutionY();
-	io.FontGlobalScale = eg::DisplayScaleFactor();
 	io.DeltaTime = dt;
 	io.MousePos = ImVec2(eg::CursorPos().x, eg::CursorPos().y);
 	io.MouseWheel = eg::InputState::Current().scrollY - eg::InputState::Previous().scrollY;
@@ -374,6 +390,10 @@ void EndFrame()
 	vertexBuffer.UsageHint(eg::BufferUsage::VertexBuffer);
 	indexBuffer.UsageHint(eg::BufferUsage::IndexBuffer);
 
+	const float scale[] = { 2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y };
+	scaleUniformBuffer.DCUpdateData<float>(0, scale);
+	scaleUniformBuffer.UsageHint(eg::BufferUsage::UniformBuffer, eg::ShaderAccessFlags::Vertex);
+
 	eg::RenderPassBeginInfo rpBeginInfo;
 	rpBeginInfo.depthLoadOp = eg::AttachmentLoadOp::Load;
 	rpBeginInfo.colorAttachments[0].loadOp = eg::AttachmentLoadOp::Load;
@@ -381,9 +401,7 @@ void EndFrame()
 
 	eg::DC.BindPipeline(pipeline);
 
-	float scale[] = { 2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y };
-	eg::DC.PushConstants(0, scale);
-
+	eg::DC.BindDescriptorSet(scaleUniformBufferDescriptorSet, 0);
 	eg::DC.BindVertexBuffer(0, vertexBuffer, 0);
 	eg::DC.BindIndexBuffer(eg::IndexType::UInt16, indexBuffer, 0);
 
@@ -396,8 +414,7 @@ void EndFrame()
 
 		for (const ImDrawCmd& drawCommand : commandList->CmdBuffer)
 		{
-			eg::DC.BindTextureView(
-				reinterpret_cast<eg::TextureViewHandle>(drawCommand.TextureId), 0, 0, &textureSampler);
+			eg::DC.BindDescriptorSet(reinterpret_cast<eg::DescriptorSetHandle>(drawCommand.TextureId), 1);
 
 			if (drawCommand.UserCallback != nullptr)
 			{

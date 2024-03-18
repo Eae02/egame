@@ -679,7 +679,7 @@ void LoadAssetGenLibrary()
 
 std::vector<std::string_view> GetDefaultEnabledAssetSideStreams()
 {
-	return { ShaderModuleAsset::GetAssetSideStreamName() };
+	return {};
 }
 
 const Asset* detail::FindAsset(std::string_view name)
