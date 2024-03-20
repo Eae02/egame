@@ -27,7 +27,6 @@ struct EG_API DescriptorSetBindings
 	{
 		Ok,
 		TypeMismatch,
-		CountMismatch,
 	};
 
 	static void AssertAppendOk(AppendResult result, uint32_t set, uint32_t binding);

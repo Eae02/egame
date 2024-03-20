@@ -14,11 +14,8 @@ FormatTypes GetFormatType(Format format)
 	case Format::R8G8_UNorm:
 	case Format::R8G8B8A8_UNorm:
 	case Format::R8G8B8A8_sRGB:
-	case Format::R8G8B8_sRGB:
 	case Format::R16_UNorm:
 	case Format::R16G16_UNorm:
-	case Format::R8G8B8_UNorm:
-	case Format::R16G16B16_UNorm:
 	case Format::R16G16B16A16_UNorm:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
@@ -33,8 +30,6 @@ FormatTypes GetFormatType(Format format)
 	case Format::R16_SNorm:
 	case Format::R8G8_SNorm:
 	case Format::R16G16_SNorm:
-	case Format::R8G8B8_SNorm:
-	case Format::R16G16B16_SNorm:
 	case Format::R8G8B8A8_SNorm:
 	case Format::R16G16B16A16_SNorm:
 	case Format::A2R10G10B10_SNorm: return FormatTypes::SNorm;
@@ -44,8 +39,6 @@ FormatTypes GetFormatType(Format format)
 	case Format::R8G8_UInt:
 	case Format::R16G16_UInt:
 	case Format::R32G32_UInt:
-	case Format::R8G8B8_UInt:
-	case Format::R16G16B16_UInt:
 	case Format::R32G32B32_UInt:
 	case Format::R8G8B8A8_UInt:
 	case Format::R16G16B16A16_UInt:
@@ -55,7 +48,6 @@ FormatTypes GetFormatType(Format format)
 	case Format::R32_Float:
 	case Format::R16G16_Float:
 	case Format::R32G32_Float:
-	case Format::R16G16B16_Float:
 	case Format::R32G32B32_Float:
 	case Format::R16G16B16A16_Float:
 	case Format::B10G11R11_UFloat:
@@ -66,8 +58,6 @@ FormatTypes GetFormatType(Format format)
 	case Format::R8G8_SInt:
 	case Format::R16G16_SInt:
 	case Format::R32G32_SInt:
-	case Format::R8G8B8_SInt:
-	case Format::R16G16B16_SInt:
 	case Format::R32G32B32_SInt:
 	case Format::R8G8B8A8_SInt:
 	case Format::R16G16B16A16_SInt:
@@ -120,16 +110,6 @@ int GetFormatComponentCount(Format format)
 	case Format::R32G32_SInt:
 	case Format::R32G32_Float:
 	case Format::BC5_UNorm: return 2;
-	case Format::R8G8B8_sRGB:
-	case Format::R8G8B8_UNorm:
-	case Format::R8G8B8_SNorm:
-	case Format::R8G8B8_UInt:
-	case Format::R8G8B8_SInt:
-	case Format::R16G16B16_UNorm:
-	case Format::R16G16B16_SNorm:
-	case Format::R16G16B16_UInt:
-	case Format::R16G16B16_SInt:
-	case Format::R16G16B16_Float:
 	case Format::R32G32B32_UInt:
 	case Format::R32G32B32_SInt:
 	case Format::R32G32B32_Float:
@@ -197,16 +177,6 @@ int GetFormatSize(Format format)
 	case Format::R32G32_UInt: return 8;
 	case Format::R32G32_SInt: return 8;
 	case Format::R32G32_Float: return 8;
-	case Format::R8G8B8_UNorm: return 3;
-	case Format::R8G8B8_SNorm: return 3;
-	case Format::R8G8B8_UInt: return 3;
-	case Format::R8G8B8_SInt: return 3;
-	case Format::R8G8B8_sRGB: return 3;
-	case Format::R16G16B16_UNorm: return 6;
-	case Format::R16G16B16_SNorm: return 6;
-	case Format::R16G16B16_UInt: return 6;
-	case Format::R16G16B16_SInt: return 6;
-	case Format::R16G16B16_Float: return 6;
 	case Format::R32G32B32_UInt: return 12;
 	case Format::R32G32B32_SInt: return 12;
 	case Format::R32G32B32_Float: return 12;
@@ -243,8 +213,8 @@ int GetFormatSize(Format format)
 
 bool IsSRGBFormat(Format format)
 {
-	return format == Format::R8G8B8A8_sRGB || format == Format::R8G8B8_sRGB || format == Format::BC1_RGB_sRGB ||
-	       format == Format::BC1_RGBA_sRGB || format == Format::BC3_sRGB;
+	return format == Format::R8G8B8A8_sRGB || format == Format::BC1_RGB_sRGB || format == Format::BC1_RGBA_sRGB ||
+	       format == Format::BC3_sRGB;
 }
 
 static const Format compressedFormats[] = { Format::BC1_RGBA_UNorm, Format::BC1_RGBA_sRGB, Format::BC1_RGB_UNorm,
@@ -305,16 +275,6 @@ std::string_view FormatToString(Format format)
 	case Format::R32G32_UInt: return "R32G32_UInt";
 	case Format::R32G32_SInt: return "R32G32_SInt";
 	case Format::R32G32_Float: return "R32G32_Float";
-	case Format::R8G8B8_UNorm: return "R8G8B8_UNorm";
-	case Format::R8G8B8_SNorm: return "R8G8B8_SNorm";
-	case Format::R8G8B8_UInt: return "R8G8B8_UInt";
-	case Format::R8G8B8_SInt: return "R8G8B8_SInt";
-	case Format::R8G8B8_sRGB: return "R8G8B8_sRGB";
-	case Format::R16G16B16_UNorm: return "R16G16B16_UNorm";
-	case Format::R16G16B16_SNorm: return "R16G16B16_SNorm";
-	case Format::R16G16B16_UInt: return "R16G16B16_UInt";
-	case Format::R16G16B16_SInt: return "R16G16B16_SInt";
-	case Format::R16G16B16_Float: return "R16G16B16_Float";
 	case Format::R32G32B32_UInt: return "R32G32B32_UInt";
 	case Format::R32G32B32_SInt: return "R32G32B32_SInt";
 	case Format::R32G32B32_Float: return "R32G32B32_Float";
@@ -356,23 +316,23 @@ const std::array<std::array<Format, 4>, 11> detail::formatFromDataTypeAndCompone
 	// Float32
 	{ Format::R32_Float, Format::R32G32_Float, Format::R32G32B32_Float, Format::R32G32B32A32_Float },
 	// UInt8Norm
-	{ Format::R8_UNorm, Format::R8G8_UNorm, Format::R8G8B8_UNorm, Format::R8G8B8A8_UNorm },
+	{ Format::R8_UNorm, Format::R8G8_UNorm, Format::Undefined, Format::R8G8B8A8_UNorm },
 	// UInt16Norm
-	{ Format::R16_UNorm, Format::R16G16_UNorm, Format::R16G16B16_UNorm, Format::R16G16B16A16_UNorm },
+	{ Format::R16_UNorm, Format::R16G16_UNorm, Format::Undefined, Format::R16G16B16A16_UNorm },
 	// SInt8Norm
-	{ Format::R8_SNorm, Format::R8G8_SNorm, Format::R8G8B8_SNorm, Format::R8G8B8A8_SNorm },
+	{ Format::R8_SNorm, Format::R8G8_SNorm, Format::Undefined, Format::R8G8B8A8_SNorm },
 	// SInt16Norm
-	{ Format::R16_SNorm, Format::R16G16_SNorm, Format::R16G16B16_SNorm, Format::R16G16B16A16_SNorm },
+	{ Format::R16_SNorm, Format::R16G16_SNorm, Format::Undefined, Format::R16G16B16A16_SNorm },
 	// UInt8
-	{ Format::R8_UNorm, Format::R8G8_UNorm, Format::R8G8B8_UNorm, Format::R8G8B8A8_UNorm },
+	{ Format::R8_UNorm, Format::R8G8_UNorm, Format::Undefined, Format::R8G8B8A8_UNorm },
 	// UInt16
-	{ Format::R16_UInt, Format::R16G16_UInt, Format::R16G16B16_UInt, Format::R16G16B16A16_UInt },
+	{ Format::R16_UInt, Format::R16G16_UInt, Format::Undefined, Format::R16G16B16A16_UInt },
 	// UInt32
-	{ Format::R32_UInt, Format::R16G16_UInt, Format::R16G16B16_UInt, Format::R16G16B16A16_UInt },
+	{ Format::R32_UInt, Format::R16G16_UInt, Format::Undefined, Format::R16G16B16A16_UInt },
 	// SInt8
-	{ Format::R8_SInt, Format::R8G8_SInt, Format::R8G8B8_SInt, Format::R8G8B8A8_SInt },
+	{ Format::R8_SInt, Format::R8G8_SInt, Format::Undefined, Format::R8G8B8A8_SInt },
 	// SInt16
-	{ Format::R16_SInt, Format::R16G16_SInt, Format::R16G16B16_SInt, Format::R16G16B16A16_SInt },
+	{ Format::R16_SInt, Format::R16G16_SInt, Format::Undefined, Format::R16G16B16A16_SInt },
 	// SInt32
 	{ Format::R32_SInt, Format::R32G32_SInt, Format::R32G32B32_SInt, Format::R32G32B32A32_SInt },
 } };

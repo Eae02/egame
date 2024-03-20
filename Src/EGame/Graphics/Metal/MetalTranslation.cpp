@@ -40,19 +40,9 @@ MTL::PixelFormat TranslatePixelFormat(Format format)
 	case Format::R32G32_UInt:          return MTL::PixelFormatRG32Uint;
 	case Format::R32G32_SInt:          return MTL::PixelFormatRG32Sint;
 	case Format::R32G32_Float:         return MTL::PixelFormatRG32Float;
-	case Format::R8G8B8_UNorm:         return MTL::PixelFormatRGBA8Unorm;
-	case Format::R8G8B8_SNorm:         return MTL::PixelFormatRGBA8Snorm;
-	case Format::R8G8B8_UInt:          return MTL::PixelFormatRGBA8Uint;
-	case Format::R8G8B8_SInt:          return MTL::PixelFormatRGBA8Sint;
-	// case Format::R8G8B8_sRGB:       return MTL::PixelFormatRGBA8sRGB;
-	// case Format::R16G16B16_UNorm:   return MTL::PixelFormatRGB16Unorm;
-	// case Format::R16G16B16_SNorm:   return MTL::PixelFormatRGB16Snorm;
-	// case Format::R16G16B16_UInt:    return MTL::PixelFormatRGB16UInt;
-	// case Format::R16G16B16_SInt:    return MTL::PixelFormatRGB16SInt;
-	// case Format::R16G16B16_Float:   return MTL::PixelFormatRGB16Float;
-	// case Format::R32G32B32_UInt:    return MTL::PixelFormatRGB32UInt;
-	// case Format::R32G32B32_SInt:    return MTL::PixelFormatRGB32SInt;
-	// case Format::R32G32B32_Float:   return MTL::PixelFormatRGB32Float;
+	case Format::R32G32B32_UInt:       return MTL::PixelFormatRGBA32Uint;
+	case Format::R32G32B32_SInt:       return MTL::PixelFormatRGBA32Sint;
+	case Format::R32G32B32_Float:      return MTL::PixelFormatRGBA32Float;
 	case Format::R8G8B8A8_sRGB:        return MTL::PixelFormatRGBA8Unorm_sRGB;
 	case Format::R8G8B8A8_UNorm:       return MTL::PixelFormatRGBA8Unorm;
 	case Format::R8G8B8A8_SNorm:       return MTL::PixelFormatRGBA8Snorm;
@@ -66,10 +56,9 @@ MTL::PixelFormat TranslatePixelFormat(Format format)
 	case Format::R32G32B32A32_UInt:    return MTL::PixelFormatRGBA32Uint;
 	case Format::R32G32B32A32_SInt:    return MTL::PixelFormatRGBA32Sint;
 	case Format::R32G32B32A32_Float:   return MTL::PixelFormatRGBA32Float;
-	// case Format::A2R10G10B10_UInt:  return MTL::PixelFormatA2R10G10B10UInt;
-	// case Format::A2R10G10B10_SInt:  return MTL::PixelFormatA2R10G10B10SInt;
-	// case Format::A2R10G10B10_UNorm: return MTL::PixelFormatA2R10G10B10Unorm;
-	// case Format::A2R10G10B10_SNorm: return MTL::PixelFormatA2R10G10B10Snorm;
+	case Format::A2R10G10B10_UInt:     return MTL::PixelFormatRGB10A2Uint;
+	case Format::A2R10G10B10_UNorm:    return MTL::PixelFormatRGB10A2Unorm;
+	case Format::B10G11R11_UFloat:     return MTL::PixelFormatRG11B10Float;
 	case Format::BC1_RGBA_UNorm:       return MTL::PixelFormatBC1_RGBA;
 	case Format::BC1_RGBA_sRGB:        return MTL::PixelFormatBC1_RGBA_sRGB;
 	case Format::BC1_RGB_UNorm:        return MTL::PixelFormatBC1_RGBA;     //?
@@ -82,12 +71,14 @@ MTL::PixelFormat TranslatePixelFormat(Format format)
 	case Format::Depth32:              return MTL::PixelFormatDepth32Float;
 	case Format::Depth24Stencil8:      return MTL::PixelFormatDepth24Unorm_Stencil8;
 	case Format::Depth32Stencil8:      return MTL::PixelFormatDepth32Float_Stencil8;
-	}
+	
+	case Format::A2R10G10B10_SInt:
+	case Format::A2R10G10B10_SNorm:
+	case Format::Undefined:
+		eg::Log(eg::LogLevel::Warning, "mtl", "Attempted to translate an unknown format: {0}", FormatToString(format));
+		return MTL::PixelFormatInvalid;
+}
 	// clang-format on
-
-	eg::Log(eg::LogLevel::Warning, "mtl", "Attempted to translate an unknown format: {0}", FormatToString(format));
-
-	return MTL::PixelFormatInvalid;
 }
 
 MTL::VertexFormat TranslateVertexFormat(Format format)
@@ -119,15 +110,6 @@ MTL::VertexFormat TranslateVertexFormat(Format format)
 	case Format::R32G32_UInt:          return MTL::VertexFormatUInt2;
 	case Format::R32G32_SInt:          return MTL::VertexFormatInt2;
 	case Format::R32G32_Float:         return MTL::VertexFormatFloat2;
-	case Format::R8G8B8_UNorm:         return MTL::VertexFormatUChar4Normalized;
-	case Format::R8G8B8_SNorm:         return MTL::VertexFormatChar4Normalized;
-	case Format::R8G8B8_UInt:          return MTL::VertexFormatUChar4;
-	case Format::R8G8B8_SInt:          return MTL::VertexFormatChar4;
-	case Format::R16G16B16_UNorm:      return MTL::VertexFormatUShort3Normalized;
-	case Format::R16G16B16_SNorm:      return MTL::VertexFormatShort3Normalized;
-	case Format::R16G16B16_UInt:       return MTL::VertexFormatUShort3;
-	case Format::R16G16B16_SInt:       return MTL::VertexFormatShort3;
-	case Format::R16G16B16_Float:      return MTL::VertexFormatHalf3;
 	case Format::R32G32B32_UInt:       return MTL::VertexFormatUInt3;
 	case Format::R32G32B32_SInt:       return MTL::VertexFormatInt3;
 	case Format::R32G32B32_Float:      return MTL::VertexFormatFloat3;
@@ -143,12 +125,12 @@ MTL::VertexFormat TranslateVertexFormat(Format format)
 	case Format::R32G32B32A32_UInt:    return MTL::VertexFormatUInt4;
 	case Format::R32G32B32A32_SInt:    return MTL::VertexFormatInt4;
 	case Format::R32G32B32A32_Float:   return MTL::VertexFormatFloat4;
-	case Format::A2R10G10B10_UNorm: return MTL::VertexFormatUInt1010102Normalized;
-	case Format::A2R10G10B10_SNorm: return MTL::VertexFormatInt1010102Normalized;
+	case Format::A2R10G10B10_UNorm:    return MTL::VertexFormatUInt1010102Normalized;
+	case Format::A2R10G10B10_SNorm:    return MTL::VertexFormatInt1010102Normalized;
+	case Format::B10G11R11_UFloat:     return MTL::VertexFormatFloatRG11B10;
 	
 	case Format::A2R10G10B10_UInt:
 	case Format::A2R10G10B10_SInt:
-	case Format::R8G8B8_sRGB:
 	case Format::R8G8B8A8_sRGB:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
@@ -162,8 +144,11 @@ MTL::VertexFormat TranslateVertexFormat(Format format)
 	case Format::Depth32:
 	case Format::Depth24Stencil8:
 	case Format::Depth32Stencil8:
+	case Format::Undefined:
+	case Format::DefaultColor:
+	case Format::DefaultDepthStencil:
 		EG_PANIC("Unsupported vertex format");
-	}
+}
 	// clang-format on
 
 	EG_UNREACHABLE

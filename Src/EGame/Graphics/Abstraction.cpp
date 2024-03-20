@@ -38,8 +38,7 @@ size_t DescriptorSetBinding::Hash() const
 	h |= static_cast<size_t>(type);
 	h |= static_cast<size_t>(shaderAccess) << 3;
 	h |= static_cast<size_t>(rwMode) << 15;
-	h |= static_cast<size_t>(count) << 18;
-	h |= static_cast<size_t>(binding) << 32;
+	h |= static_cast<size_t>(binding) << 18;
 	return h;
 }
 

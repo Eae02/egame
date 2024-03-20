@@ -72,8 +72,6 @@ void DescriptorSetBindings::AssertAppendOk(AppendResult result, uint32_t set, ui
 	{
 	case AppendResult::Ok: break;
 	case AppendResult::TypeMismatch: EG_PANIC("Descriptor type mismatch for binding " << binding << " in set " << set);
-	case AppendResult::CountMismatch:
-		EG_PANIC("Descriptor count mismatch for binding " << binding << " in set " << set);
 	}
 }
 
@@ -87,8 +85,6 @@ DescriptorSetBindings::AppendResult DescriptorSetBindings::Append(uint32_t set, 
 	{
 		if (it->type != binding.type)
 			return AppendResult::TypeMismatch;
-		if (it->count != binding.count)
-			return AppendResult::CountMismatch;
 		if (it->rwMode != binding.rwMode)
 			it->rwMode = ReadWriteMode::ReadWrite;
 		it->shaderAccess |= binding.shaderAccess;

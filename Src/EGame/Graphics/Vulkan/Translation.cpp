@@ -81,16 +81,6 @@ VkFormat TranslateFormat(Format format)
 	case Format::R32G32_UInt: return VK_FORMAT_R32G32_UINT;
 	case Format::R32G32_SInt: return VK_FORMAT_R32G32_SINT;
 	case Format::R32G32_Float: return VK_FORMAT_R32G32_SFLOAT;
-	case Format::R8G8B8_UNorm: return VK_FORMAT_R8G8B8_UNORM;
-	case Format::R8G8B8_SNorm: return VK_FORMAT_R8G8B8_SNORM;
-	case Format::R8G8B8_UInt: return VK_FORMAT_R8G8B8_UINT;
-	case Format::R8G8B8_SInt: return VK_FORMAT_R8G8B8_SINT;
-	case Format::R8G8B8_sRGB: return VK_FORMAT_R8G8B8_SRGB;
-	case Format::R16G16B16_UNorm: return VK_FORMAT_R16G16B16_UNORM;
-	case Format::R16G16B16_SNorm: return VK_FORMAT_R16G16B16_SNORM;
-	case Format::R16G16B16_UInt: return VK_FORMAT_R16G16B16_UINT;
-	case Format::R16G16B16_SInt: return VK_FORMAT_R16G16B16_SINT;
-	case Format::R16G16B16_Float: return VK_FORMAT_R16G16B16_SFLOAT;
 	case Format::R32G32B32_UInt: return VK_FORMAT_R32G32B32_UINT;
 	case Format::R32G32B32_SInt: return VK_FORMAT_R32G32B32_SINT;
 	case Format::R32G32B32_Float: return VK_FORMAT_R32G32B32_SFLOAT;

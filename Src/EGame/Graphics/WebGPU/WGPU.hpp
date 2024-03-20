@@ -14,6 +14,7 @@ struct WebGPUCtx
 
 	WGPUSwapChain swapchain;
 	WGPUTextureFormat swapchainFormat;
+	WGPUTextureView currentSwapchainColorTexture;
 };
 
 extern WebGPUCtx wgpuctx;

@@ -20,6 +20,7 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 	case Format::DefaultColor: return GL_RGBA8;
 	case Format::DefaultDepthStencil: return GL_DEPTH_COMPONENT32F;
 	case Format::R8_UNorm: return GL_R8;
+	case Format::R8_SNorm: return GL_R8_SNORM;
 	case Format::R8_UInt: return GL_R8UI;
 	case Format::R8_SInt: return GL_R8I;
 	case Format::R16_UInt: return GL_R16UI;
@@ -29,6 +30,7 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 	case Format::R32_SInt: return GL_R32I;
 	case Format::R32_Float: return GL_R32F;
 	case Format::R8G8_UNorm: return GL_RG8;
+	case Format::R8G8_SNorm: return GL_RG8_SNORM;
 	case Format::R8G8_UInt: return GL_RG8UI;
 	case Format::R8G8_SInt: return GL_RG8I;
 	case Format::R16G16_UInt: return GL_RG16UI;
@@ -38,18 +40,12 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 	case Format::R32G32_SInt: return GL_RG32I;
 	case Format::R32G32_Float: return GL_RG32F;
 
-	case Format::R8G8B8_UNorm: return GL_RGB8;
-	case Format::R8G8B8_UInt: return GL_RGB8UI;
-	case Format::R8G8B8_SInt: return GL_RGB8I;
-	case Format::R8G8B8_sRGB: return GL_SRGB8;
-	case Format::R16G16B16_UInt: return GL_RGB16UI;
-	case Format::R16G16B16_SInt: return GL_RGB16I;
-	case Format::R16G16B16_Float: return GL_RGB16F;
 	case Format::R32G32B32_UInt: return GL_RGB32UI;
 	case Format::R32G32B32_SInt: return GL_RGB32I;
 	case Format::R32G32B32_Float: return GL_RGB32F;
 	case Format::R8G8B8A8_sRGB: return GL_SRGB8_ALPHA8;
 	case Format::R8G8B8A8_UNorm: return GL_RGBA8;
+	case Format::R8G8B8A8_SNorm: return GL_RGBA8_SNORM;
 	case Format::R8G8B8A8_UInt: return GL_RGBA8UI;
 	case Format::R8G8B8A8_SInt: return GL_RGBA8I;
 	case Format::R16G16B16A16_UInt: return GL_RGBA16UI;
@@ -79,12 +75,23 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 
 #ifndef __EMSCRIPTEN__
 	case Format::R16_UNorm: return GL_R16;
+	case Format::R16_SNorm: return GL_R16_SNORM;
 	case Format::R16G16_UNorm: return GL_RG16;
-	case Format::R16G16B16_UNorm: return GL_RGB16;
+	case Format::R16G16_SNorm: return GL_RG16_SNORM;
 	case Format::R16G16B16A16_UNorm: return GL_RGBA16;
+	case Format::R16G16B16A16_SNorm: return GL_RGBA16_SNORM;
+#else
+	case Format::R16_UNorm:
+	case Format::R16_SNorm:
+	case Format::R16G16_UNorm:
+	case Format::R16G16_SNorm:
+	case Format::R16G16B16A16_UNorm:
+	case Format::R16G16B16A16_SNorm:
 #endif
 
-	default:
+	case Format::Undefined:
+	case Format::A2R10G10B10_SInt:
+	case Format::A2R10G10B10_SNorm:
 		if (returnZeroOnFailure)
 			return 0;
 		EG_PANIC("Invalid texture format: " << FormatToString(format) << ".");
@@ -122,16 +129,6 @@ GLVertexAttribFormat TranslateFormatForVertexAttribute(Format format, bool retur
 	case Format::R32G32_SInt: return { 2, GL_INT, GLVertexAttribMode::Int };
 	case Format::R32G32_Float: return { 2, GL_FLOAT, GLVertexAttribMode::Other };
 
-	case Format::R8G8B8_UNorm: return { 3, GL_UNSIGNED_BYTE, GLVertexAttribMode::Norm };
-	case Format::R8G8B8_SNorm: return { 3, GL_BYTE, GLVertexAttribMode::Norm };
-	case Format::R8G8B8_UInt: return { 3, GL_UNSIGNED_BYTE, GLVertexAttribMode::Int };
-	case Format::R8G8B8_SInt: return { 3, GL_BYTE, GLVertexAttribMode::Int };
-	case Format::R8G8B8_sRGB: return { 3, GL_BYTE, GLVertexAttribMode::Norm };
-	case Format::R16G16B16_UNorm: return { 3, GL_UNSIGNED_SHORT, GLVertexAttribMode::Norm };
-	case Format::R16G16B16_SNorm: return { 3, GL_SHORT, GLVertexAttribMode::Norm };
-	case Format::R16G16B16_UInt: return { 3, GL_UNSIGNED_SHORT, GLVertexAttribMode::Int };
-	case Format::R16G16B16_SInt: return { 3, GL_SHORT, GLVertexAttribMode::Int };
-	case Format::R16G16B16_Float: return { 3, GL_FLOAT, GLVertexAttribMode::Other };
 	case Format::R32G32B32_UInt: return { 3, GL_UNSIGNED_INT, GLVertexAttribMode::Int };
 	case Format::R32G32B32_SInt: return { 3, GL_INT, GLVertexAttribMode::Int };
 	case Format::R32G32B32_Float: return { 3, GL_FLOAT, GLVertexAttribMode::Other };
@@ -155,7 +152,22 @@ GLVertexAttribFormat TranslateFormatForVertexAttribute(Format format, bool retur
 	case Format::A2R10G10B10_UNorm: return { 4, GL_UNSIGNED_INT_2_10_10_10_REV, GLVertexAttribMode::Norm };
 	case Format::A2R10G10B10_SNorm: return { 4, GL_INT_2_10_10_10_REV, GLVertexAttribMode::Norm };
 
-	default:
+	case Format::Undefined:
+	case Format::DefaultColor:
+	case Format::DefaultDepthStencil:
+	case Format::B10G11R11_UFloat:
+	case Format::BC1_RGBA_UNorm:
+	case Format::BC1_RGBA_sRGB:
+	case Format::BC1_RGB_UNorm:
+	case Format::BC1_RGB_sRGB:
+	case Format::BC3_UNorm:
+	case Format::BC3_sRGB:
+	case Format::BC4_UNorm:
+	case Format::BC5_UNorm:
+	case Format::Depth16:
+	case Format::Depth32:
+	case Format::Depth24Stencil8:
+	case Format::Depth32Stencil8:
 		if (returnZeroOnFailure)
 			return { 0 };
 		EG_PANIC("Invalid vertex attribute format: " << FormatToString(format) << ".");
