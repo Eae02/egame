@@ -2,18 +2,28 @@
 
 #ifndef EG_NO_VULKAN
 
+#include "../DescriptorSetLayoutCache.hpp"
 #include "Common.hpp"
 
 namespace eg::graphics_api::vk
 {
-class CachedDescriptorSetLayout
+class CachedDescriptorSetLayout : public ICachedDescriptorSetLayout
 {
 public:
+	CachedDescriptorSetLayout(std::span<const DescriptorSetBinding> bindings, BindMode bindMode);
+
+	~CachedDescriptorSetLayout();
+
+	CachedDescriptorSetLayout(CachedDescriptorSetLayout&&) = delete;
+	CachedDescriptorSetLayout(const CachedDescriptorSetLayout&) = delete;
+	CachedDescriptorSetLayout& operator=(CachedDescriptorSetLayout&&) = delete;
+	CachedDescriptorSetLayout& operator=(const CachedDescriptorSetLayout&) = delete;
+
 	static CachedDescriptorSetLayout& FindOrCreateNew(
 		std::span<const DescriptorSetBinding> bindings, BindMode bindMode);
 
-	static void DestroyCached();
-	static bool IsCacheEmpty();
+	static void DestroyCached() { descriptorSetLayoutCache.Clear(); }
+	static bool IsCacheEmpty() { return descriptorSetLayoutCache.IsEmpty(); }
 
 	std::tuple<VkDescriptorSet, VkDescriptorPool> AllocateDescriptorSet();
 
@@ -21,7 +31,7 @@ public:
 	uint32_t MaxBinding() const { return m_maxBinding; }
 
 private:
-	CachedDescriptorSetLayout() = default;
+	static DescriptorSetLayoutCache descriptorSetLayoutCache;
 
 	VkDescriptorSetLayout m_layout;
 	BindMode m_bindMode;

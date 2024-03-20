@@ -22,6 +22,8 @@ struct Fence
 	static Fence* CreateAndInsert();
 };
 
+class AbstractPipeline;
+
 class CommandContext
 {
 public:
@@ -29,6 +31,7 @@ public:
 
 	void BeginEncode();
 	void EndEncode();
+	Fence* Submit();
 
 	static CommandContext main;
 
@@ -44,6 +47,8 @@ public:
 	WGPUCommandEncoder encoder = nullptr;
 	WGPURenderPassEncoder renderPassEncoder = nullptr;
 	WGPUComputePassEncoder computePassEncoder = nullptr;
+	
+	AbstractPipeline* currentPipeline = nullptr;
 
 private:
 };

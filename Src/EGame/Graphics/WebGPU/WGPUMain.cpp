@@ -199,6 +199,8 @@ void BeginFrame()
 		frameFences[CFrameIdx()]->Wait();
 		frameFences[CFrameIdx()]->Deref();
 	}
+	
+	wgpuctx.currentSwapchainColorTexture = wgpuSwapChainGetCurrentTextureView(wgpuctx.swapchain);
 
 	CommandContext::main.BeginEncode();
 }
@@ -208,6 +210,9 @@ void EndFrame()
 	CommandContext::main.EndEncode();
 	wgpuQueueSubmit(wgpuctx.queue, 1, &CommandContext::main.commandBuffer);
 	frameFences[CFrameIdx()] = Fence::CreateAndInsert();
+	
+	wgpuTextureViewRelease(wgpuctx.currentSwapchainColorTexture);
+	wgpuSwapChainPresent(wgpuctx.swapchain);
 }
 
 void Shutdown() {}

@@ -72,6 +72,10 @@ ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::Pars
 
 	ShaderModule* module = new ShaderModule;
 	module->shaderModule = wgpuDeviceCreateShaderModule(wgpuctx.device, &shaderModuleDesc);
+	
+	spirv_cross::Compiler spvCrossCompiler(parsedIR);
+	const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
+	module->bindings.AppendFromReflectionInfo(stage, spvCrossCompiler, resources);
 
 	return reinterpret_cast<ShaderModuleHandle>(module);
 }

@@ -365,7 +365,6 @@ struct DescriptorSetBinding
 	uint32_t binding = 0;
 	BindingType type = BindingType::UniformBuffer;
 	ShaderAccessFlags shaderAccess = ShaderAccessFlags::None;
-	uint32_t count = 1;
 	ReadWriteMode rwMode = ReadWriteMode::ReadWrite;
 
 	bool operator==(const DescriptorSetBinding&) const = default;

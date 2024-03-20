@@ -50,14 +50,13 @@ inline void TranslateStencilState(const StencilState& in, VkStencilOpState& out)
 
 static const VkViewport g_dummyViewport = { 0, 0, 0, 1, 0, 1 };
 static const VkRect2D g_dummyScissor = { { 0, 0 }, { 1, 1 } };
+
 static const VkPipelineViewportStateCreateInfo g_viewportStateCI = {
-	/* sType         */ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-	/* pNext         */ nullptr,
-	/* flags         */ 0,
-	/* viewportCount */ 1,
-	/* pViewports    */ &g_dummyViewport,
-	/* scissorCount  */ 1,
-	/* pScissors     */ &g_dummyScissor
+	.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+	.viewportCount = 1,
+	.pViewports = &g_dummyViewport,
+	.scissorCount = 1,
+	.pScissors = &g_dummyScissor,
 };
 
 PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
@@ -107,11 +106,9 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	for (size_t set = 0; set < MAX_DESCRIPTOR_SETS; set++)
 	{
-		if (!createInfo.descriptorSetBindings[set].empty())
-		{
-			bindings.sets[set].assign(
-				createInfo.descriptorSetBindings[set].begin(), createInfo.descriptorSetBindings[set].end());
-		}
+		std::span<const eg::DescriptorSetBinding> forcedBindings = createInfo.descriptorSetBindings[set];
+		if (!forcedBindings.empty())
+			bindings.sets[set].assign(forcedBindings.begin(), forcedBindings.end());
 	}
 
 	bindings.SortByBinding();

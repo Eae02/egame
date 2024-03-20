@@ -10,63 +10,12 @@
 
 namespace eg::graphics_api::vk
 {
-struct DSLKey
+CachedDescriptorSetLayout::CachedDescriptorSetLayout(std::span<const DescriptorSetBinding> bindings, BindMode bindMode)
+	: m_bindMode(bindMode)
 {
-	BindMode bindMode;
-	std::span<const DescriptorSetBinding> bindings;
-	std::unique_ptr<DescriptorSetBinding[]> ownedBindings;
-
-	bool operator==(const DSLKey& o) const
-	{
-		return bindMode == o.bindMode &&
-		       std::equal(bindings.begin(), bindings.end(), o.bindings.begin(), o.bindings.end());
-	}
-
-	size_t Hash() const
-	{
-		size_t h = static_cast<size_t>(bindMode) | (bindings.size() << 1);
-		for (const DescriptorSetBinding& binding : bindings)
-		{
-			HashAppend(h, binding.Hash());
-		}
-		return h;
-	}
-
-	void CreateOwnedCopyOfBindings()
-	{
-		ownedBindings = std::make_unique<DescriptorSetBinding[]>(bindings.size());
-		std::copy(bindings.begin(), bindings.end(), ownedBindings.get());
-		bindings = { ownedBindings.get(), bindings.size() };
-	}
-};
-
-static std::unordered_map<DSLKey, CachedDescriptorSetLayout, MemberFunctionHash<DSLKey>> cachedSetLayouts;
-
-CachedDescriptorSetLayout& CachedDescriptorSetLayout::FindOrCreateNew(
-	std::span<const DescriptorSetBinding> bindings, BindMode bindMode)
-{
-	DSLKey dslKey;
-	dslKey.bindings = bindings;
-	dslKey.bindMode = bindMode;
-
-	if (!std::is_sorted(bindings.begin(), bindings.end(), DescriptorSetBinding::BindingCmp()))
-	{
-		dslKey.CreateOwnedCopyOfBindings();
-		std::sort(
-			dslKey.ownedBindings.get(), dslKey.ownedBindings.get() + dslKey.bindings.size(),
-			DescriptorSetBinding::BindingCmp());
-		bindings = dslKey.bindings;
-	}
-
-	// Searches for a matching descriptor set in the cache
-	auto cacheIt = cachedSetLayouts.find(dslKey);
-	if (cacheIt != cachedSetLayouts.end())
-		return cacheIt->second;
-
 	std::vector<VkDescriptorSetLayoutBinding> vkBindings(bindings.size());
 
-	std::vector<VkDescriptorPoolSize> poolSizes;
-	uint32_t maxBinding = 0;
+	m_maxBinding = 0;
 	for (size_t i = 0; i < bindings.size(); i++)
 	{
 		VkDescriptorType descriptorType = TranslateBindingType(bindings[i].type);
@@ -74,25 +23,25 @@ CachedDescriptorSetLayout& CachedDescriptorSetLayout::FindOrCreateNew(
 		vkBindings[i] = VkDescriptorSetLayoutBinding{
 			.binding = bindings[i].binding,
 			.descriptorType = descriptorType,
-			.descriptorCount = bindings[i].count,
+			.descriptorCount = 1,
 			.stageFlags = TranslateShaderStageFlags(bindings[i].shaderAccess),
 		};
 
-		maxBinding = std::max(maxBinding, bindings[i].binding);
+		m_maxBinding = std::max(m_maxBinding, bindings[i].binding);
 
 		bool found = false;
-		for (VkDescriptorPoolSize& poolSize : poolSizes)
+		for (VkDescriptorPoolSize& poolSize : m_sizes)
 		{
 			if (poolSize.type == descriptorType)
 			{
-				poolSize.descriptorCount += bindings[i].count;
+				poolSize.descriptorCount++;
 				found = true;
 				break;
 			}
 		}
 		if (!found)
 		{
-			poolSizes.push_back({ descriptorType, bindings[i].count });
+			m_sizes.push_back({ .type = descriptorType, .descriptorCount = 1 });
 		}
 	}
 
@@ -107,18 +56,26 @@ CachedDescriptorSetLayout& CachedDescriptorSetLayout::FindOrCreateNew(
 		createInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 	}
 
-	CachedDescriptorSetLayout dsl;
-	dsl.m_bindMode = bindMode;
-	dsl.m_maxBinding = maxBinding;
-	dsl.m_sizes = std::move(poolSizes);
+	CheckRes(vkCreateDescriptorSetLayout(ctx.device, &createInfo, nullptr, &m_layout));
+}
 
-	CheckRes(vkCreateDescriptorSetLayout(ctx.device, &createInfo, nullptr, &dsl.m_layout));
+CachedDescriptorSetLayout::~CachedDescriptorSetLayout()
+{
+	for (VkDescriptorPool pool : m_pools)
+	{
+		vkDestroyDescriptorPool(ctx.device, pool, nullptr);
+	}
+	vkDestroyDescriptorSetLayout(ctx.device, m_layout, nullptr);
+}
 
-	dslKey.ownedBindings = std::make_unique<DescriptorSetBinding[]>(bindings.size());
-	std::copy(bindings.begin(), bindings.end(), dslKey.ownedBindings.get());
-	dslKey.bindings = { dslKey.ownedBindings.get(), bindings.size() };
+DescriptorSetLayoutCache CachedDescriptorSetLayout::descriptorSetLayoutCache{
+	&DescriptorSetLayoutCache::ConstructorCreateLayoutCallback<CachedDescriptorSetLayout>
+};
 
-	return cachedSetLayouts.emplace(std::move(dslKey), std::move(dsl)).first->second;
+CachedDescriptorSetLayout& CachedDescriptorSetLayout::FindOrCreateNew(
+	std::span<const DescriptorSetBinding> bindings, BindMode bindMode)
+{
+	return static_cast<CachedDescriptorSetLayout&>(descriptorSetLayoutCache.Get(bindings, bindMode));
 }
 
 std::tuple<VkDescriptorSet, VkDescriptorPool> CachedDescriptorSetLayout::AllocateDescriptorSet()
@@ -163,24 +120,6 @@ std::tuple<VkDescriptorSet, VkDescriptorPool> CachedDescriptorSetLayout::Allocat
 	CheckRes(vkAllocateDescriptorSets(ctx.device, &allocateInfo, &set));
 
 	return { set, pool };
-}
-
-void CachedDescriptorSetLayout::DestroyCached()
-{
-	for (const auto& [dslKey, setLayout] : cachedSetLayouts)
-	{
-		for (VkDescriptorPool pool : setLayout.m_pools)
-		{
-			vkDestroyDescriptorPool(ctx.device, pool, nullptr);
-		}
-		vkDestroyDescriptorSetLayout(ctx.device, setLayout.m_layout, nullptr);
-	}
-	cachedSetLayouts.clear();
-}
-
-bool CachedDescriptorSetLayout::IsCacheEmpty()
-{
-	return cachedSetLayouts.empty();
 }
 } // namespace eg::graphics_api::vk
 

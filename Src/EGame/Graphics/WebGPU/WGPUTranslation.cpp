@@ -9,7 +9,7 @@ WGPUTextureFormat TranslateTextureFormat(Format format)
 	switch (format)
 	{
 	case Format::DefaultColor:         return wgpuctx.swapchainFormat;
-	//case Format::DefaultDepthStencil:  return defaultDepthPixelFormat;
+	case Format::DefaultDepthStencil:  return WGPUTextureFormat_Undefined;
 	case Format::R8_SNorm:             return WGPUTextureFormat_R8Snorm;
 	case Format::R8_UNorm:             return WGPUTextureFormat_R8Unorm;
 	case Format::R8_UInt:              return WGPUTextureFormat_R8Uint;
@@ -34,19 +34,6 @@ WGPUTextureFormat TranslateTextureFormat(Format format)
 	case Format::R32G32_UInt:          return WGPUTextureFormat_RG32Uint;
 	case Format::R32G32_SInt:          return WGPUTextureFormat_RG32Sint;
 	case Format::R32G32_Float:         return WGPUTextureFormat_RG32Float;
-	case Format::R8G8B8_UNorm:         return WGPUTextureFormat_RGBA8Unorm;
-	case Format::R8G8B8_SNorm:         return WGPUTextureFormat_RGBA8Snorm;
-	case Format::R8G8B8_UInt:          return WGPUTextureFormat_RGBA8Uint;
-	case Format::R8G8B8_SInt:          return WGPUTextureFormat_RGBA8Sint;
-	//case Format::R8G8B8_sRGB:       return WGPUTextureFormat_RGBA8sRGB;
-	//case Format::R16G16B16_UNorm:   return WGPUTextureFormat_RGB16Unorm;
-	//case Format::R16G16B16_SNorm:   return WGPUTextureFormat_RGB16Snorm;
-	//case Format::R16G16B16_UInt:    return WGPUTextureFormat_RGB16UInt;
-	//case Format::R16G16B16_SInt:    return WGPUTextureFormat_RGB16SInt;
-	//case Format::R16G16B16_Float:   return WGPUTextureFormat_RGB16Float;
-	//case Format::R32G32B32_UInt:    return WGPUTextureFormat_RGB32UInt;
-	//case Format::R32G32B32_SInt:    return WGPUTextureFormat_RGB32SInt;
-	//case Format::R32G32B32_Float:   return WGPUTextureFormat_RGB32Float;
 	case Format::R8G8B8A8_sRGB:        return WGPUTextureFormat_RGBA8UnormSrgb;
 	case Format::R8G8B8A8_UNorm:       return WGPUTextureFormat_RGBA8Unorm;
 	case Format::R8G8B8A8_SNorm:       return WGPUTextureFormat_RGBA8Snorm;
@@ -61,9 +48,7 @@ WGPUTextureFormat TranslateTextureFormat(Format format)
 	case Format::R32G32B32A32_SInt:    return WGPUTextureFormat_RGBA32Sint;
 	case Format::R32G32B32A32_Float:   return WGPUTextureFormat_RGBA32Float;
 	case Format::A2R10G10B10_UInt:     return WGPUTextureFormat_RGB10A2Uint;
-	//case Format::A2R10G10B10_SInt:     return WGPUTextureFormat_RGB10A2SInt;
 	case Format::A2R10G10B10_UNorm:    return WGPUTextureFormat_RGB10A2Unorm;
-	//case Format::A2R10G10B10_SNorm:    return WGPUTextureFormat_RGB10A2Snorm;
 	case Format::BC1_RGBA_UNorm:       return WGPUTextureFormat_BC1RGBAUnorm;
 	case Format::BC1_RGBA_sRGB:        return WGPUTextureFormat_BC1RGBAUnormSrgb;
 	case Format::BC1_RGB_UNorm:        return WGPUTextureFormat_BC1RGBAUnorm;
@@ -84,6 +69,76 @@ WGPUTextureFormat TranslateTextureFormat(Format format)
 	return WGPUTextureFormat_Undefined;
 }
 
+WGPUVertexFormat TranslateVertexFormat(Format format)
+{
+	// clang-format off
+	switch (format)
+	{
+	case Format::R32_UInt:             return WGPUVertexFormat_Uint32;
+	case Format::R32_SInt:             return WGPUVertexFormat_Sint32;
+	case Format::R32_Float:            return WGPUVertexFormat_Float32;
+	case Format::R8G8_UNorm:           return WGPUVertexFormat_Unorm8x2;
+	case Format::R8G8_SNorm:           return WGPUVertexFormat_Snorm8x2;
+	case Format::R8G8_UInt:            return WGPUVertexFormat_Uint8x2;
+	case Format::R8G8_SInt:            return WGPUVertexFormat_Sint8x2;
+	case Format::R16G16_UNorm:         return WGPUVertexFormat_Unorm16x2;
+	case Format::R16G16_SNorm:         return WGPUVertexFormat_Snorm16x2;
+	case Format::R16G16_UInt:          return WGPUVertexFormat_Uint16x2;
+	case Format::R16G16_SInt:          return WGPUVertexFormat_Sint16x2;
+	case Format::R16G16_Float:         return WGPUVertexFormat_Float16x2;
+	case Format::R32G32_UInt:          return WGPUVertexFormat_Uint32;
+	case Format::R32G32_SInt:          return WGPUVertexFormat_Sint32;
+	case Format::R32G32_Float:         return WGPUVertexFormat_Float32;
+	case Format::R32G32B32_UInt:       return WGPUVertexFormat_Uint32x3;
+	case Format::R32G32B32_SInt:       return WGPUVertexFormat_Sint32x3;
+	case Format::R32G32B32_Float:      return WGPUVertexFormat_Float32x3;
+	case Format::R8G8B8A8_UNorm:       return WGPUVertexFormat_Unorm8x4;
+	case Format::R8G8B8A8_SNorm:       return WGPUVertexFormat_Snorm8x4;
+	case Format::R8G8B8A8_UInt:        return WGPUVertexFormat_Uint8x4;
+	case Format::R8G8B8A8_SInt:        return WGPUVertexFormat_Sint8x4;
+	case Format::R16G16B16A16_UNorm:   return WGPUVertexFormat_Unorm16x4;
+	case Format::R16G16B16A16_SNorm:   return WGPUVertexFormat_Snorm16x4;
+	case Format::R16G16B16A16_UInt:    return WGPUVertexFormat_Uint16x4;
+	case Format::R16G16B16A16_SInt:    return WGPUVertexFormat_Sint16x4;
+	case Format::R16G16B16A16_Float:   return WGPUVertexFormat_Float16x4;
+	case Format::R32G32B32A32_UInt:    return WGPUVertexFormat_Uint32;
+	case Format::R32G32B32A32_SInt:    return WGPUVertexFormat_Sint32;
+	case Format::R32G32B32A32_Float:   return WGPUVertexFormat_Float32;
+	case Format::A2R10G10B10_UNorm:    return WGPUVertexFormat_Unorm10_10_10_2;
+	
+	case Format::R8_SNorm:
+	case Format::R8_UNorm:
+	case Format::R8_UInt:
+	case Format::R8_SInt:
+	case Format::R16_UNorm:
+	case Format::R16_SNorm:
+	case Format::R16_UInt:
+	case Format::R16_SInt:
+	case Format::R16_Float:
+	case Format::A2R10G10B10_SNorm:
+	case Format::A2R10G10B10_UInt:
+	case Format::A2R10G10B10_SInt:
+	case Format::B10G11R11_UFloat:
+	case Format::R8G8B8A8_sRGB:
+	case Format::BC1_RGBA_UNorm:
+	case Format::BC1_RGBA_sRGB:
+	case Format::BC1_RGB_UNorm:
+	case Format::BC1_RGB_sRGB:
+	case Format::BC3_UNorm:
+	case Format::BC3_sRGB:
+	case Format::BC4_UNorm:
+	case Format::BC5_UNorm:
+	case Format::Depth16:
+	case Format::Depth32:
+	case Format::Depth24Stencil8:
+	case Format::Depth32Stencil8:
+		EG_PANIC("Unsupported vertex format");
+	}
+	// clang-format on
+
+	EG_UNREACHABLE
+}
+
 WGPUCompareFunction TranslateCompareOp(CompareOp compareOp)
 {
 	switch (compareOp)
@@ -99,5 +154,27 @@ WGPUCompareFunction TranslateCompareOp(CompareOp compareOp)
 	}
 
 	EG_UNREACHABLE
+}
+
+WGPUShaderStageFlags TranslateShaderStageFlags(ShaderAccessFlags flags)
+{
+	WGPUShaderStageFlags result = 0;
+	if (HasFlag(ShaderAccessFlags::Vertex, flags))
+		result |= WGPUShaderStage_Vertex;
+	if (HasFlag(ShaderAccessFlags::Fragment, flags))
+		result |= WGPUShaderStage_Fragment;
+	if (HasFlag(ShaderAccessFlags::Compute, flags))
+		result |= WGPUShaderStage_Compute;
+	return result;
+}
+
+WGPUCullMode TranslateCullMode(CullMode cullMode)
+{
+	switch (cullMode)
+	{
+	case CullMode::None: return WGPUCullMode_None;
+	case CullMode::Front: return WGPUCullMode_Front;
+	case CullMode::Back: return WGPUCullMode_Back;
+	}
 }
 } // namespace eg::graphics_api::webgpu
