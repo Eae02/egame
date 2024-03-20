@@ -4,6 +4,7 @@
 #include "../Format.hpp"
 #include "GL.hpp"
 
+#include <vector>
 #include <optional>
 
 namespace eg::graphics_api::gl

@@ -685,6 +685,10 @@ inline void MaybeBarrierAfterILS(TextureUsage newUsage)
 	case TextureUsage::Undefined: break;
 	case TextureUsage::CopySrc:
 	case TextureUsage::CopyDst: MaybeInsertBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT); break;
+	case TextureUsage::DepthStencilReadOnly:
+		MaybeInsertBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+		MaybeInsertBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+		break;
 	case TextureUsage::ShaderSample: MaybeInsertBarrier(GL_TEXTURE_FETCH_BARRIER_BIT); break;
 	case TextureUsage::FramebufferAttachment: MaybeInsertBarrier(GL_FRAMEBUFFER_BARRIER_BIT); break;
 	case TextureUsage::ILSRead:

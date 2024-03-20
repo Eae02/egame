@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <map>
+#include <vector>
 
 namespace eg
 {

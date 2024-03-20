@@ -24,7 +24,7 @@ ShaderModule gizmoFragmentShader;
 
 static const eg::DescriptorSetBinding GIZMO_DS_BINDINGS[] = { {
 	.binding = 0,
-	.type = BindingType::UniformBuffer,
+	.type = BindingType::UniformBufferDynamicOffset,
 	.shaderAccess = ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment,
 } };
 
@@ -96,7 +96,7 @@ struct GizmoParameters
 GizmoDrawParametersBuffer::GizmoDrawParametersBuffer()
 {
 	m_parametersStride =
-		RoundToNextMultiple(sizeof(GizmoParameters), GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
+		RoundToNextMultiple<uint32_t>(sizeof(GizmoParameters), GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
 
 	m_buffer = Buffer(BufferFlags::CopyDst | BufferFlags::UniformBuffer, m_parametersStride * 3, nullptr);
 	m_descriptorSet = DescriptorSet(GIZMO_DS_BINDINGS);

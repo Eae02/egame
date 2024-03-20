@@ -1,13 +1,12 @@
-#include "../../Alloc/ObjectPool.hpp"
-#include "EGame/Graphics/Abstraction.hpp"
+#include "../Abstraction.hpp"
 #include "Framebuffer.hpp"
 #include "OpenGL.hpp"
 #include "PipelineGraphics.hpp"
 #include "PlatformSpecific.hpp"
 #include "Utils.hpp"
 
-#include <bitset>
 #include <sstream>
+#include <vector>
 
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
 #define GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT 0x84FF

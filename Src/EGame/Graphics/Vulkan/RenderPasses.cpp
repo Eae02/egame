@@ -12,7 +12,8 @@ bool RenderPassAttachment::Equals(const RenderPassAttachment& other, bool equalI
 		return true;
 	if (!equalIfCompatible)
 	{
-		if (loadOp != other.loadOp || storeOp != other.storeOp || finalLayout != other.finalLayout)
+		if (loadOp != other.loadOp || storeOp != other.storeOp || stencilLoadOp != other.stencilLoadOp ||
+		    stencilStoreOp != other.stencilStoreOp || finalLayout != other.finalLayout)
 			return false;
 		if (loadOp == VK_ATTACHMENT_LOAD_OP_LOAD && initialLayout != other.initialLayout)
 			return false;
@@ -84,7 +85,7 @@ VkRenderPass GetRenderPass(const RenderPassDescription& description, bool allowC
 		attachmentDesc.loadOp = attachment.loadOp;
 		attachmentDesc.stencilLoadOp = attachment.stencilLoadOp;
 		attachmentDesc.storeOp = attachment.storeOp;
-		attachmentDesc.stencilStoreOp = attachment.storeOp;
+		attachmentDesc.stencilStoreOp = attachment.stencilStoreOp;
 		attachmentDesc.finalLayout = attachment.finalLayout;
 
 		if (attachment.loadOp == VK_ATTACHMENT_LOAD_OP_LOAD)

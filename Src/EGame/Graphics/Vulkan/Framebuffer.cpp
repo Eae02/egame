@@ -170,6 +170,16 @@ inline VkAttachmentLoadOp TranslateLoadOp(AttachmentLoadOp loadOp)
 	EG_UNREACHABLE
 }
 
+inline VkAttachmentStoreOp TranslateStoreOp(AttachmentStoreOp storeOp)
+{
+	switch (storeOp)
+	{
+	case AttachmentStoreOp::Store: return VK_ATTACHMENT_STORE_OP_STORE;
+	case AttachmentStoreOp::Discard: return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	}
+	EG_UNREACHABLE
+}
+
 void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
@@ -274,11 +284,12 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 		if (framebufferS->depthStencilAttachment != nullptr)
 		{
 			depthStencilFormat = framebufferS->depthStencilAttachment->format;
-			if (beginInfo.sampledDepthStencil)
+			if (beginInfo.depthStencilReadOnly)
 			{
 				depthStencilImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 				if (framebufferS->depthStencilAttachment->autoBarrier)
 				{
+					framebufferS->depthStencilAttachment->currentUsage = TextureUsage::DepthStencilReadOnly;
 					framebufferS->depthStencilAttachment->currentStageFlags = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 				}
 			}
@@ -305,14 +316,20 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 	RenderPassDescription renderPassDescription;
 	if (depthStencilFormat != VK_FORMAT_UNDEFINED)
 	{
-		renderPassDescription.depthStencilReadOnly = beginInfo.sampledDepthStencil;
+		renderPassDescription.depthStencilReadOnly = beginInfo.depthStencilReadOnly;
 
 		renderPassDescription.depthAttachment.format = depthStencilFormat;
 		renderPassDescription.depthAttachment.samples = sampleCount;
 		renderPassDescription.depthAttachment.loadOp = TranslateLoadOp(beginInfo.depthLoadOp);
 		renderPassDescription.depthAttachment.stencilLoadOp = TranslateLoadOp(beginInfo.stencilLoadOp);
+		renderPassDescription.depthAttachment.storeOp = TranslateStoreOp(beginInfo.depthStoreOp);
+		renderPassDescription.depthAttachment.stencilStoreOp = TranslateStoreOp(beginInfo.stencilStoreOp);
 		renderPassDescription.depthAttachment.initialLayout = depthStencilImageLayout;
-		renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		if (beginInfo.depthStencilReadOnly)
+			renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		else
+			renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		if (beginInfo.depthLoadOp == AttachmentLoadOp::Load && changeLoadToClear)
 		{
@@ -339,15 +356,11 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 	for (uint32_t i = 0; i < numColorAttachments; i++)
 	{
 		renderPassDescription.colorAttachments[i].loadOp = TranslateLoadOp(beginInfo.colorAttachments[i].loadOp);
+		renderPassDescription.colorAttachments[i].storeOp = TranslateStoreOp(beginInfo.colorAttachments[i].storeOp);
 		renderPassDescription.colorAttachments[i].format = colorFormats[i];
 		renderPassDescription.colorAttachments[i].samples = sampleCount;
 		renderPassDescription.colorAttachments[i].initialLayout = colorImageInitialLayouts[i];
 		renderPassDescription.colorAttachments[i].finalLayout = colorImageFinalLayouts[i];
-
-		if (colorImageFinalLayouts[i] == VK_IMAGE_LAYOUT_UNDEFINED)
-			renderPassDescription.colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		else
-			renderPassDescription.colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
 		if (beginInfo.colorAttachments[i].loadOp == AttachmentLoadOp::Load && changeLoadToClear)
 		{
@@ -380,6 +393,7 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 
 	vcc.framebufferW = extent.width;
 	vcc.framebufferH = extent.height;
+	vcc.renderPassDepthStencilReadOnly = beginInfo.depthStencilReadOnly;
 
 	SetViewport(cc, 0.0f, 0.0f, static_cast<float>(extent.width), static_cast<float>(extent.height));
 	SetScissor(cc, 0, 0, extent.width, extent.height);

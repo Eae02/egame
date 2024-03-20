@@ -26,10 +26,10 @@ void DestroyGizmoPipelines();
 
 void InitGizmoPipeline();
 
-class GizmoDrawParametersBuffer
+class EG_API GizmoDrawParametersBuffer
 {
 public:
-	explicit GizmoDrawParametersBuffer();
+	GizmoDrawParametersBuffer();
 
 	void SetParameters(std::span<const glm::mat4> axisTransforms, int currentAxis, int hoveredAxis);
 

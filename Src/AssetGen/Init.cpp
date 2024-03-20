@@ -1,5 +1,3 @@
-#include "../EGame/API.hpp"
-
 namespace eg::asset_gen
 {
 void RegisterShaderGenerator();
@@ -12,7 +10,12 @@ void RegisterFontGenerator();
 void RegisterOGGVorbisGenerator();
 } // namespace eg::asset_gen
 
-extern "C" [[gnu::dllexport]] [[gnu::visibility("default")]] void Init()
+extern "C"
+#ifdef _WIN32
+	[[gnu::dllexport]]
+#endif
+	[[gnu::visibility("default")]] void
+	Init()
 {
 	eg::asset_gen::RegisterShaderGenerator();
 	eg::asset_gen::RegisterTexture2DGenerator();

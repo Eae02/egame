@@ -88,6 +88,11 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 		if (wantsMap)
 		{
 			storageFlags |= GL_MAP_PERSISTENT_BIT | GL_CLIENT_STORAGE_BIT;
+			if (HasFlag(createInfo.flags, BufferFlags::MapCoherent))
+			{
+				storageFlags |= GL_MAP_COHERENT_BIT;
+				mapFlags |= GL_MAP_COHERENT_BIT;
+			}
 		}
 
 		if (HasFlag(createInfo.flags, BufferFlags::Update))

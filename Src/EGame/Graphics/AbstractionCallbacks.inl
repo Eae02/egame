@@ -55,7 +55,7 @@ XM_ABSCALLBACK(GetTextureView, TextureViewHandle, (TextureHandle texture, Textur
 XM_ABSCALLBACK(CreateDescriptorSetP, DescriptorSetHandle, (PipelineHandle pipeline, uint32_t set))
 XM_ABSCALLBACK(CreateDescriptorSetB, DescriptorSetHandle, (std::span<const DescriptorSetBinding> bindings))
 XM_ABSCALLBACK(DestroyDescriptorSet, void, (DescriptorSetHandle set))
-XM_ABSCALLBACK(BindTextureDS, void, (TextureViewHandle textureView, SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding))
+XM_ABSCALLBACK(BindTextureDS, void, (TextureViewHandle textureView, SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding, eg::TextureUsage usage))
 XM_ABSCALLBACK(BindStorageImageDS, void, (TextureViewHandle textureView, DescriptorSetHandle set, uint32_t binding))
 XM_ABSCALLBACK(BindUniformBufferDS, void, (BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range))
 XM_ABSCALLBACK(BindStorageBufferDS, void, (BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range))

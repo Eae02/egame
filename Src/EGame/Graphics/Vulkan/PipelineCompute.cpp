@@ -115,9 +115,7 @@ std::optional<uint32_t> GetPipelineSubgroupSize(PipelineHandle pipeline)
 
 void ComputePipeline::Bind(CommandContextHandle cc)
 {
-	VulkanCommandContext& vcc = UnwrapCC(cc);
-	vcc.FlushDescriptorUpdates();
-	vkCmdBindPipeline(vcc.cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+	vkCmdBindPipeline(UnwrapCC(cc).cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 }
 
 void DispatchCompute(CommandContextHandle cc, uint32_t sizeX, uint32_t sizeY, uint32_t sizeZ)

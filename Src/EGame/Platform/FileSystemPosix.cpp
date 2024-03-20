@@ -52,9 +52,9 @@ std::optional<MemoryMappedFile> MemoryMappedFile::OpenRead(const char* path)
 		close(fd);
 		return std::nullopt;
 	}
-	off_t file_size = fileInfo.st_size;
+	size_t fileSize = static_cast<size_t>(fileInfo.st_size);
 
-	void* fileData = mmap(NULL, fileInfo.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	void* fileData = mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (fileData == nullptr)
 	{
 		close(fd);
@@ -62,14 +62,14 @@ std::optional<MemoryMappedFile> MemoryMappedFile::OpenRead(const char* path)
 	}
 
 	MemoryMappedFile file;
-	file.data = std::span<const char>(static_cast<char*>(fileData), fileInfo.st_size);
+	file.data = std::span<const char>(static_cast<char*>(fileData), fileSize);
 	file.fileHandle = fd;
 	return file;
 }
 
 void MemoryMappedFile::CloseImpl()
 {
-	close(fileHandle);
+	close(static_cast<int>(fileHandle));
 	munmap(const_cast<char*>(data.data()), data.size());
 }
 } // namespace eg

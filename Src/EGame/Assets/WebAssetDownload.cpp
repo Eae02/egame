@@ -2,6 +2,7 @@
 
 #include <iomanip>
 #include <sstream>
+#include <iosfwd>
 
 std::string eg::DownloadProgress::CreateMessage() const
 {

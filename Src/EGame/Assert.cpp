@@ -20,7 +20,7 @@ void detail::PanicImpl(const std::string& message)
 	if (releasePanicCallback)
 		releasePanicCallback(message);
 #else
-	PrintStackTraceToStdOut({});
+	//PrintStackTraceToStdOut({});
 	EG_DEBUG_BREAK;
 #endif
 

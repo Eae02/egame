@@ -46,4 +46,12 @@ void SplitString(std::string_view string, char delimiter, std::vector<std::strin
 {
 	IterateStringParts(string, delimiter, [&](std::string_view part) { partsOut.push_back(part); });
 }
+
+std::pair<std::string_view, std::string_view> SplitStringOnce(std::string_view string, char delimiter)
+{
+	size_t pos = string.find(delimiter);
+	if (pos == std::string_view::npos)
+		return { string, std::string_view() };
+	return { string.substr(0, pos), string.substr(pos + 1) };
+}
 } // namespace eg

@@ -95,8 +95,13 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	if (wantsMap)
 	{
 		allocationCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-		allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+		allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
 		allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+		if (HasFlag(createInfo.flags, BufferFlags::MapCoherent))
+			allocationCreateInfo.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+		else
+			allocationCreateInfo.preferredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	}
 
 	VmaAllocationInfo allocationInfo;

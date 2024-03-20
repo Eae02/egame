@@ -29,7 +29,9 @@ void DestroyDescriptorSet(DescriptorSetHandle set)
 	DescriptorSetWrapper::Unwrap(set);
 }
 
-void BindTextureDS(TextureViewHandle textureView, SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding)
+void BindTextureDS(
+	TextureViewHandle textureView, SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding,
+	eg::TextureUsage _usage)
 {
 	EG_ASSERT(sampler != nullptr);
 	DescriptorSetWrapper::Unwrap(set)->BindTexture(binding, { .textureView = textureView, .sampler = sampler });

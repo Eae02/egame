@@ -76,6 +76,7 @@ enum class BufferFlags
 	UniformBuffer = 1 << 8,     // The buffer can be used as a uniform buffer.
 	StorageBuffer = 1 << 9,     // The buffer can be used as a shader storage buffer.
 	IndirectCommands = 1 << 10, // The buffer can be used for arguments to indirect draw / dispatch
+	MapCoherent = 1 << 11,
 };
 
 EG_BIT_FIELD(BufferFlags)
@@ -162,6 +163,19 @@ inline IndexType GetIndexType()
 {
 	return IndexType::UInt16;
 }
+
+enum class TextureUsage
+{
+	Undefined,
+	CopySrc,
+	CopyDst,
+	ShaderSample,
+	FramebufferAttachment,
+	DepthStencilReadOnly,
+	ILSRead,
+	ILSWrite,
+	ILSReadWrite
+};
 
 enum class BlendFunc
 {
@@ -443,6 +457,7 @@ struct GraphicsPipelineCreateInfo
 	uint32_t sampleCount = 1;
 
 	Format depthAttachmentFormat = Format::Undefined;
+	TextureUsage depthStencilUsage = TextureUsage::FramebufferAttachment;
 
 	VertexBinding vertexBindings[MAX_VERTEX_BINDINGS];
 	VertexAttribute vertexAttributes[MAX_VERTEX_ATTRIBUTES];
@@ -518,42 +533,17 @@ struct SamplerDescription
 	size_t Hash() const;
 };
 
-enum class TextureUsage
-{
-	Undefined,
-	CopySrc,
-	CopyDst,
-	ShaderSample,
-	FramebufferAttachment,
-	ILSRead,
-	ILSWrite,
-	ILSReadWrite
-};
-
 enum class TextureFlags
 {
 	None = 0,
-
-	// Barriers will be inserted manually (also disables automatic barriers).
-	ManualBarrier = 1,
-
-	// Allows copy operations from the texture to other textures and buffers.
-	CopySrc = 2,
-
-	// Allows copy operations to the texture from other textures and buffers.
-	CopyDst = 4,
-
-	// Allows automatic mipmap generation for this texture.
-	GenerateMipmaps = 8,
-
-	// The texture can be sampled in a shader.
-	ShaderSample = 16,
-
-	// The texture can be bound as a storage image.
-	StorageImage = 32,
-
-	// The texture can be used as a framebuffer attachment.
-	FramebufferAttachment = 64,
+	ManualBarrier = 1 << 0, // Barriers will be inserted manually (also disables automatic barriers).
+	CopySrc = 1 << 1, // Allows copy operations from the texture to other textures and buffers.
+	CopyDst = 1 << 2, // Allows copy operations to the texture from other textures and buffers.
+	GenerateMipmaps = 1 << 3, // Allows automatic mipmap generation for this texture.
+	ShaderSample = 1 << 4, // The texture can be sampled in a shader.
+	StorageImage = 1 << 5, // The texture can be bound as a storage image.
+	FramebufferAttachment = 1 << 6, // The texture can be used as a framebuffer attachment.
+	TransientAttachment = 1 << 7, // The texture will only be used within a single render pass (no load / store)
 };
 
 enum class TextureViewType
@@ -695,6 +685,12 @@ enum class AttachmentLoadOp
 	Discard
 };
 
+enum class AttachmentStoreOp
+{
+	Store,
+	Discard,
+};
+
 struct FramebufferAttachment
 {
 	TextureHandle texture;
@@ -715,10 +711,8 @@ struct FramebufferCreateInfo
 struct RenderPassColorAttachment
 {
 	AttachmentLoadOp loadOp = AttachmentLoadOp::Discard;
-
-	// Set to undefined to discard the attachment data
+	AttachmentStoreOp storeOp = AttachmentStoreOp::Store;
 	TextureUsage finalUsage = TextureUsage::FramebufferAttachment;
-
 	std::variant<ColorLin, glm::ivec4, glm::uvec4> clearValue;
 };
 
@@ -727,7 +721,9 @@ struct RenderPassBeginInfo
 	FramebufferHandle framebuffer = nullptr;
 	AttachmentLoadOp depthLoadOp = AttachmentLoadOp::Discard;
 	AttachmentLoadOp stencilLoadOp = AttachmentLoadOp::Discard;
-	bool sampledDepthStencil = false;
+	AttachmentStoreOp depthStoreOp = AttachmentStoreOp::Store;
+	AttachmentStoreOp stencilStoreOp = AttachmentStoreOp::Store;
+	bool depthStencilReadOnly = false;
 	float depthClearValue = 1.0f;
 	uint8_t stencilClearValue = 0;
 	RenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
@@ -751,6 +747,7 @@ enum class DeviceFeatureFlags
 	ConcurrentResourceCreation = 1 << 7,
 	DynamicResourceBind = 1 << 8,
 	DeferredContext = 1 << 9,
+	MapCoherent = 1 << 10,
 };
 
 EG_BIT_FIELD(DeviceFeatureFlags)

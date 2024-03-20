@@ -298,8 +298,8 @@ static bool ProcessAsset(
 
 	// Loads the asset
 	const AssetLoadArgs assetLoadArgs = {
-		.assetPath = assetToLoad.name,
 		.asset = nullptr,
+		.assetPath = assetToLoad.name,
 		.generatedData = assetToLoad.generatedAsset.data,
 		.sideStreamsData = sideStreamsData,
 	};
@@ -615,7 +615,7 @@ bool LoadAssets(
 	std::vector<MemoryMappedFile> mappedFiles;
 	std::optional<std::vector<EAPAsset>> eapAssets;
 	std::string eapPath = path + ".eap";
-	if (std::istream* downloadedStream = detail::WebGetDownloadedAssetPackageStream(eapPath))
+	if ([[maybe_unused]] std::istream* downloadedStream = detail::WebGetDownloadedAssetPackageStream(eapPath))
 	{
 		// okEap = LoadAssetsFromEAPStream(*downloadedStream, mountPath);
 	}

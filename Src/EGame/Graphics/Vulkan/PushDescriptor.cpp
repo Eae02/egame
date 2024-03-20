@@ -57,9 +57,16 @@ void BindTexture(
 	TextureView* view = UnwrapTextureView(textureViewHandle);
 	vcc.referencedResources.Add(*view->texture);
 
-	if (view->texture->autoBarrier && view->texture->currentUsage != TextureUsage::ShaderSample)
+	TextureUsage currentUsage = TextureUsage::ShaderSample; // TODO: Support read only depth with manual barriers
+
+	if (view->texture->autoBarrier)
 	{
-		EG_PANIC("Texture passed to BindTexture not in the correct usage state, did you forget to call UsageHint?");
+		if (view->texture->currentUsage != TextureUsage::ShaderSample &&
+		    view->texture->currentUsage != TextureUsage::DepthStencilReadOnly)
+		{
+			EG_PANIC("Texture passed to BindTexture not in the correct usage state, did you forget to call UsageHint?");
+		}
+		currentUsage = view->texture->currentUsage;
 	}
 
 	VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
@@ -70,7 +77,7 @@ void BindTexture(
 		VkDescriptorImageInfo{
 			.sampler = sampler,
 			.imageView = view->view,
-			.imageLayout = ImageLayoutFromUsage(eg::TextureUsage::ShaderSample, view->texture->aspectFlags),
+			.imageLayout = ImageLayoutFromUsage(currentUsage, view->texture->aspectFlags),
 		});
 }
 

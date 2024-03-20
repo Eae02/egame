@@ -10,7 +10,10 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	if (HasFlag(createInfo.flags, BufferFlags::MapWrite) || HasFlag(createInfo.flags, BufferFlags::MapRead) ||
 	    createInfo.initialData != nullptr)
 	{
-		resourceOptions = MTL::ResourceStorageModeManaged;
+		if (HasFlag(createInfo.flags, BufferFlags::MapCoherent))
+			resourceOptions = MTL::ResourceStorageModeShared;
+		else
+			resourceOptions = MTL::ResourceStorageModeManaged;
 	}
 	else
 	{

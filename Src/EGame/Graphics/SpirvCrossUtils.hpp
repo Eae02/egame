@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <vector>
+#include <array>
 
 namespace eg
 {

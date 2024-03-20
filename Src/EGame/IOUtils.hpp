@@ -5,9 +5,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <list>
 #include <span>
 #include <vector>
+#include <array>
 
 namespace eg
 {
@@ -69,7 +71,7 @@ inline std::string BinReadString(StreamTp& stream)
 	return string;
 }
 
-class MemoryReader
+class EG_API MemoryReader
 {
 public:
 	explicit MemoryReader(std::span<const char> _data) : data(_data) {}
@@ -90,7 +92,6 @@ public:
 	{
 		static_assert(std::is_trivial_v<T> || SkipCheckTrivial);
 		EG_ASSERT(dataOffset + values.size_bytes() <= data.size());
-		T value;
 		std::memcpy(values.data(), data.data() + dataOffset, values.size_bytes());
 		dataOffset += values.size_bytes();
 	}
@@ -115,7 +116,7 @@ public:
 	std::span<const char> data;
 };
 
-class MemoryWriter
+class EG_API MemoryWriter
 {
 public:
 	MemoryWriter() : m_blocks(1) {}

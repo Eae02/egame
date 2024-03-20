@@ -2,6 +2,8 @@
 
 #include "../Abstraction.hpp"
 
+#include <vector>
+
 namespace eg::graphics_api::gl
 {
 bool InitializeGLPlatformSpecific(

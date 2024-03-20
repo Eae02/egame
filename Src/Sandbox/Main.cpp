@@ -25,7 +25,7 @@ struct Game : public eg::IGame
 		m_pipeline = eg::Pipeline::Create(eg::GraphicsPipelineCreateInfo{
 			.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").ToStageInfo(),
 			.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").ToStageInfo(),
-			.setBindModes[0] = eg::BindMode::DescriptorSet,
+			.setBindModes = { eg::BindMode::DescriptorSet },
 			.numColorAttachments = 1,
 			.colorAttachmentFormats = { eg::Format::DefaultColor },
 			.depthAttachmentFormat = eg::Format::DefaultDepthStencil,

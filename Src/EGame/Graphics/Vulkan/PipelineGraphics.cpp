@@ -19,6 +19,7 @@ struct GraphicsPipeline : AbstractPipeline
 	bool enableScissorTest = false;
 	bool enableDynamicCullMode = false;
 	bool enableDynamicPolygonMode = false;
+	bool readOnlyDepthStencil = false;
 
 	VkCullModeFlags staticCullMode{};
 
@@ -237,12 +238,25 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 			reinterpret_cast<uint64_t>(pipeline->pipelineLayout), VK_OBJECT_TYPE_PIPELINE_LAYOUT, createInfo.label);
 	}
 
+	EG_ASSERT(
+		createInfo.depthStencilUsage == TextureUsage::DepthStencilReadOnly ||
+		createInfo.depthStencilUsage == TextureUsage::FramebufferAttachment);
+	pipeline->readOnlyDepthStencil = createInfo.depthStencilUsage == TextureUsage::DepthStencilReadOnly;
+
 	RenderPassDescription renderPassDescription;
 	renderPassDescription.numResolveColorAttachments = 0;
 	renderPassDescription.numColorAttachments = 0;
 	renderPassDescription.depthAttachment.format = TranslateFormat(createInfo.depthAttachmentFormat);
 	renderPassDescription.depthAttachment.samples = createInfo.sampleCount;
 	renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	if (pipeline->readOnlyDepthStencil)
+	{
+		renderPassDescription.depthStencilReadOnly = true;
+		renderPassDescription.depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		renderPassDescription.depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		renderPassDescription.depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		renderPassDescription.depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+	}
 	for (uint32_t i = 0; i < createInfo.numColorAttachments; i++)
 	{
 		EG_ASSERT(createInfo.colorAttachmentFormats[i] != eg::Format::Undefined);
@@ -399,8 +413,9 @@ void SetCullMode(CommandContextHandle cc, CullMode cullMode)
 void GraphicsPipeline::Bind(CommandContextHandle cc)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
-	vcc.FlushDescriptorUpdates();
 	vkCmdBindPipeline(vcc.cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
+	EG_ASSERT(vcc.renderPassDepthStencilReadOnly == readOnlyDepthStencil);
 
 	if (!enableScissorTest)
 	{

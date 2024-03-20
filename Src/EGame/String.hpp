@@ -62,4 +62,6 @@ void IterateStringParts(std::string_view string, char delimiter, CallbackTp call
 }
 
 EG_API void SplitString(std::string_view string, char delimiter, std::vector<std::string_view>& partsOut);
+
+EG_API std::pair<std::string_view, std::string_view> SplitStringOnce(std::string_view string, char delimiter);
 } // namespace eg

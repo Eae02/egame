@@ -85,7 +85,7 @@ void WriteEAPFile(std::span<const EAPAsset> assets, std::string_view path)
 		EG_PANIC("Too many assets for WriteEAPFile")
 	}
 
-	std::ofstream stream(path, std::ios::binary);
+	std::ofstream stream(std::string(path), std::ios::binary);
 	stream.write(EAPMagic, sizeof(EAPMagic));
 	BinWrite(stream, UnsignedNarrow<uint32_t>(assets.size()));
 

@@ -253,14 +253,17 @@ public:
 	}
 
 	void BindTexture(
-		TextureRef texture, uint32_t binding, const Sampler* sampler, const TextureSubresource& subresource = {})
+		TextureRef texture, uint32_t binding, const Sampler* sampler, const TextureSubresource& subresource = {},
+		eg::TextureUsage usage = eg::TextureUsage::ShaderSample)
 	{
-		BindTextureView(texture.GetView(subresource), binding, sampler);
+		BindTextureView(texture.GetView(subresource), binding, sampler, usage);
 	}
 
-	void BindTextureView(TextureViewHandle textureView, uint32_t binding, const Sampler* sampler)
+	void BindTextureView(
+		TextureViewHandle textureView, uint32_t binding, const Sampler* sampler,
+		eg::TextureUsage usage = eg::TextureUsage::ShaderSample)
 	{
-		gal::BindTextureDS(textureView, sampler ? sampler->Handle() : nullptr, handle, binding);
+		gal::BindTextureDS(textureView, sampler ? sampler->Handle() : nullptr, handle, binding, usage);
 	}
 
 	void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresource& subresource = {})
@@ -459,6 +462,16 @@ public:
 		ci.colorAttachments = colorAttachments;
 		ci.depthStencilAttachment = depthStencilAttachment;
 		handle = gal::CreateFramebuffer(ci);
+	}
+
+	static Framebuffer CreateBasic(
+		eg::TextureRef colorAttachment, eg::TextureRef depthStencilAttachment = eg::TextureRef())
+	{
+		FramebufferAttachment attachment(colorAttachment.handle);
+		return Framebuffer(FramebufferCreateInfo{
+			.colorAttachments = { &attachment, 1 },
+			.depthStencilAttachment = depthStencilAttachment.handle,
+		});
 	}
 };
 

@@ -14,6 +14,8 @@ void DestroyPipeline(PipelineHandle handle)
 void BindPipeline(CommandContextHandle cc, PipelineHandle handle)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
+	vcc.FlushDescriptorUpdates();
+
 	AbstractPipeline* pipeline = UnwrapPipeline(handle);
 
 	vcc.referencedResources.Add(*pipeline);
@@ -43,6 +45,8 @@ void AbstractPipeline::Free()
 void AbstractPipeline::InitPipelineLayout(
 	const DescriptorSetBindings& bindings, const BindMode* setBindModes, uint32_t pushConstantBytes)
 {
+	std::copy_n(setBindModes, MAX_DESCRIPTOR_SETS, descriptorSetBindMode.data());
+
 	// Gets descriptor set layouts for each descriptor set
 	uint32_t numDS = 0;
 	VkDescriptorSetLayout vkSetLayouts[MAX_DESCRIPTOR_SETS] = {};

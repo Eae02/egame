@@ -31,8 +31,8 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 {
 	const VkSamplerCreateInfo samplerCreateInfo = {
 		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-		.minFilter = description.minFilter == TextureFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
 		.magFilter = description.magFilter == TextureFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
+		.minFilter = description.minFilter == TextureFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
 		.mipmapMode = description.mipFilter == TextureFilter::Linear ? VK_SAMPLER_MIPMAP_MODE_LINEAR
 		                                                             : VK_SAMPLER_MIPMAP_MODE_NEAREST,
 		.addressModeU = TranslateAddressMode(description.wrapU),
@@ -40,7 +40,8 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 		.addressModeW = TranslateAddressMode(description.wrapW),
 		.mipLodBias = description.mipLodBias,
 		.anisotropyEnable = static_cast<VkBool32>(description.maxAnistropy > 1),
-		.maxAnisotropy = glm::clamp((float)description.maxAnistropy, 1.0f, ctx.deviceLimits.maxSamplerAnisotropy),
+		.maxAnisotropy =
+			glm::clamp(static_cast<float>(description.maxAnistropy), 1.0f, ctx.deviceLimits.maxSamplerAnisotropy),
 		.compareEnable = static_cast<VkBool32>(description.enableCompare),
 		.compareOp = TranslateCompareOp(description.compareOp),
 		.minLod = description.minLod,

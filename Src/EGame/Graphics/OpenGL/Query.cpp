@@ -47,8 +47,11 @@ void DestroyQueryPool(QueryPoolHandle queryPoolHandle)
 template <bool CheckAvail>
 inline bool _GetQueryResults(QueryPoolHandle queryPoolHandle, uint32_t firstQuery, uint32_t numQueries, void* data)
 {
+	if (numQueries == 0)
+		return true;
+	
 	QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
-	CheckQueryIndex(*queryPool, firstQuery + numQueries);
+	CheckQueryIndex(*queryPool, firstQuery + numQueries - 1);
 	for (uint32_t i = 0; i < numQueries; i++)
 	{
 		uint32_t queryIndex = firstQuery + i;

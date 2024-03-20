@@ -19,6 +19,7 @@ struct AbstractPipeline : public Resource
 	VkShaderStageFlags pushConstantStages;
 	VkPipelineLayout pipelineLayout;
 	CachedDescriptorSetLayout* setLayouts[MAX_DESCRIPTOR_SETS];
+	std::array<BindMode, MAX_DESCRIPTOR_SETS> descriptorSetBindMode;
 
 	void InitPipelineLayout(
 		const DescriptorSetBindings& bindings, const BindMode setBindModes[MAX_DESCRIPTOR_SETS],

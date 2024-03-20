@@ -60,6 +60,9 @@ void DescriptorSet::Free()
 DescriptorSetHandle CreateDescriptorSetP(PipelineHandle pipelineHandle, uint32_t set)
 {
 	AbstractPipeline* pipeline = UnwrapPipeline(pipelineHandle);
+
+	EG_ASSERT(pipeline->descriptorSetBindMode[set] == BindMode::DescriptorSet);
+
 	auto [descriptorSet, pool] = pipeline->setLayouts[set]->AllocateDescriptorSet();
 
 	DescriptorSet* ds = descriptorSets.New();
@@ -92,7 +95,8 @@ void DestroyDescriptorSet(DescriptorSetHandle set)
 }
 
 void BindTextureDS(
-	TextureViewHandle textureViewHandle, SamplerHandle samplerHandle, DescriptorSetHandle setHandle, uint32_t binding)
+	TextureViewHandle textureViewHandle, SamplerHandle samplerHandle, DescriptorSetHandle setHandle, uint32_t binding,
+	eg::TextureUsage usage)
 {
 	DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
 	TextureView* view = UnwrapTextureView(textureViewHandle);
@@ -105,7 +109,7 @@ void BindTextureDS(
 	VkDescriptorImageInfo imageInfo = {
 		.sampler = sampler,
 		.imageView = view->view,
-		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		.imageLayout = ImageLayoutFromUsage(usage, view->texture->aspectFlags),
 	};
 
 	VkWriteDescriptorSet writeDS = {
@@ -191,6 +195,9 @@ void BindDescriptorSet(
 	CommandContextHandle cc, uint32_t set, DescriptorSetHandle handle, std::span<const uint32_t> dynamicOffsets)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
+
+	EG_ASSERT(vcc.pipeline && vcc.pipeline->descriptorSetBindMode[set] == BindMode::DescriptorSet);
+
 	DescriptorSet* ds = UnwrapDescriptorSet(handle);
 	vcc.referencedResources.Add(*ds);
 	vkCmdBindDescriptorSets(

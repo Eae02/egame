@@ -588,7 +588,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
-	DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO |
+DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceFeatureFlags::MapCoherent |
 	                              DeviceFeatureFlags::ConcurrentResourceCreation |
 	                              DeviceFeatureFlags::PartialTextureViews | DeviceFeatureFlags::DeferredContext;
 

@@ -69,8 +69,47 @@ std::optional<uint32_t> GetPipelineSubgroupSize(PipelineHandle pipeline)
 	return std::nullopt;
 }
 
+// There is a bug in spirv cross that can cause it to emit GLSL that uses gl_WorkGroupSize before declaring the size of
+// the workgroup using "layout(local_size...) in", which is not valid GLSL. This function fixes this by moving the
+// workgroup size declaration before the first use of gl_WorkGroupSize.
+std::optional<std::string> FixWorkGroupSizeUsedBeforeDeclared(std::string_view glslCode)
+{
+	size_t workGroupSizeDeclPosition = glslCode.find("layout(local_size");
+	size_t firstUseOfWorkGroupSize = glslCode.find("gl_WorkGroupSize");
+	if (workGroupSizeDeclPosition == std::string_view::npos || firstUseOfWorkGroupSize == std::string_view::npos ||
+	    firstUseOfWorkGroupSize > workGroupSizeDeclPosition)
+	{
+		return std::nullopt;
+	}
+
+	size_t workGroupSizeDeclLineBegin = glslCode.rfind('\n', workGroupSizeDeclPosition);
+	size_t workGroupSizeDeclLineEnd = glslCode.find('\n', workGroupSizeDeclPosition);
+
+	size_t firstUseOfWorkGroupSizeLineBegin = glslCode.rfind('\n', firstUseOfWorkGroupSize);
+
+	if (workGroupSizeDeclLineBegin == std::string_view::npos || workGroupSizeDeclLineEnd == std::string_view::npos ||
+	    firstUseOfWorkGroupSizeLineBegin == std::string_view::npos)
+	{
+		return std::nullopt;
+	}
+
+	std::ostringstream newCodeStream;
+	newCodeStream << glslCode.substr(0, firstUseOfWorkGroupSizeLineBegin);
+	newCodeStream << glslCode.substr(
+		workGroupSizeDeclLineBegin, workGroupSizeDeclLineEnd - workGroupSizeDeclLineBegin + 1);
+	newCodeStream << glslCode.substr(
+		firstUseOfWorkGroupSizeLineBegin, workGroupSizeDeclLineBegin - firstUseOfWorkGroupSizeLineBegin);
+	newCodeStream << glslCode.substr(workGroupSizeDeclLineEnd);
+
+	return newCodeStream.str();
+}
+
 void CompileShaderStage(GLuint shader, std::string_view glslCode)
 {
+	std::optional<std::string> fixedCode = FixWorkGroupSizeUsedBeforeDeclared(glslCode);
+	if (fixedCode.has_value())
+		glslCode = *fixedCode;
+
 	const GLchar* glslCodeC = glslCode.data();
 	const GLint glslCodeLen = ToInt(glslCode.size());
 	glShaderSource(shader, 1, &glslCodeC, &glslCodeLen);

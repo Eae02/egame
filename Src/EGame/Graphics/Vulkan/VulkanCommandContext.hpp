@@ -38,6 +38,7 @@ public:
 	struct AbstractPipeline* pipeline;
 	uint32_t framebufferW;
 	uint32_t framebufferH;
+	bool renderPassDepthStencilReadOnly = false;
 
 	void UpdateDynamicDescriptor(
 		uint32_t set, uint32_t binding, VkDescriptorType descriptorType, const VkDescriptorBufferInfo& info);

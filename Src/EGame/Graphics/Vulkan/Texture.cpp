@@ -62,6 +62,8 @@ static void InitializeImage(
 		imageCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 	if (HasFlag(createInfo.flags, TextureFlags::StorageImage))
 		imageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+	if (HasFlag(createInfo.flags, TextureFlags::TransientAttachment))
+		imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 	if (HasFlag(createInfo.flags, TextureFlags::FramebufferAttachment))
 	{
 		if (texture.aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
@@ -75,6 +77,10 @@ static void InitializeImage(
 
 	VmaAllocationCreateInfo allocationCreateInfo = {};
 	allocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+	if (HasFlag(createInfo.flags, TextureFlags::TransientAttachment))
+		allocationCreateInfo.preferredFlags |= VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED;
+
 	CheckRes(vmaCreateImage(
 		ctx.allocator, &imageCreateInfo, &allocationCreateInfo, &texture.image, &texture.allocation, nullptr));
 
@@ -233,6 +239,8 @@ inline VkAccessFlags GetBarrierAccess(TextureUsage usage, VkImageAspectFlags asp
 	case TextureUsage::ILSRead: return VK_ACCESS_SHADER_READ_BIT;
 	case TextureUsage::ILSWrite: return VK_ACCESS_SHADER_WRITE_BIT;
 	case TextureUsage::ILSReadWrite: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+	case TextureUsage::DepthStencilReadOnly:
+		return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
 	case TextureUsage::FramebufferAttachment:
 		if (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
 			return VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -252,6 +260,9 @@ VkPipelineStageFlags GetBarrierStageFlagsFromUsage(TextureUsage usage, ShaderAcc
 	case TextureUsage::FramebufferAttachment:
 		return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
 		       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	case TextureUsage::DepthStencilReadOnly:
+		return VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+		       TranslateShaderPipelineStage(shaderAccessFlags);
 	case TextureUsage::ILSRead:
 	case TextureUsage::ILSWrite:
 	case TextureUsage::ILSReadWrite:
@@ -270,11 +281,8 @@ VkImageLayout ImageLayoutFromUsage(TextureUsage usage, VkImageAspectFlags aspect
 	case TextureUsage::ILSRead: return VK_IMAGE_LAYOUT_GENERAL;
 	case TextureUsage::ILSWrite: return VK_IMAGE_LAYOUT_GENERAL;
 	case TextureUsage::ILSReadWrite: return VK_IMAGE_LAYOUT_GENERAL;
-	case TextureUsage::ShaderSample:
-		if (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
-			return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		else
-			return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+	case TextureUsage::ShaderSample: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	case TextureUsage::DepthStencilReadOnly: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 	case TextureUsage::FramebufferAttachment:
 		if (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT)
 			return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;

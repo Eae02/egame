@@ -43,8 +43,8 @@ Model::Model(ModelCreateArgs args)
 	if (HasFlag(args.accessFlags, ModelAccessFlags::CPU))
 	{
 		m_dataForCPUAccess = DataForCPUAccess{
-			.vertexData = std::make_unique<char[]>(args.vertexData.size()),
 			.indexData = std::make_unique<char[]>(indexData.size()),
+			.vertexData = std::make_unique<char[]>(args.vertexData.size()),
 		};
 		std::memcpy(m_dataForCPUAccess->vertexData.get(), args.vertexData.data(), args.vertexData.size());
 		std::memcpy(m_dataForCPUAccess->indexData.get(), indexData.data(), indexData.size());

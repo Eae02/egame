@@ -67,7 +67,9 @@ void DestroyDescriptorSet(DescriptorSetHandle set)
 	std::free(UnwrapDescriptorSet(set));
 }
 
-void BindTextureDS(TextureViewHandle viewHandle, SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding)
+void BindTextureDS(
+	TextureViewHandle viewHandle, SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding,
+	eg::TextureUsage _usage)
 {
 	DescriptorSet* set = UnwrapDescriptorSet(setHandle);
 	set->CheckBinding(binding);

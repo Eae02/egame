@@ -45,8 +45,8 @@ void SpriteBatch::InitStatic()
 	spriteBatchFS = ShaderModule(ShaderStage::Fragment, Sprite_fs_glsl);
 
 	spritePipeline = FramebufferLazyPipeline({
-		.vertexShader.shaderModule = spriteBatchVS.Handle(),
-		.fragmentShader.shaderModule = spriteBatchFS.Handle(),
+		.vertexShader = eg::ShaderStageInfo(spriteBatchVS.Handle()),
+		.fragmentShader = eg::ShaderStageInfo(spriteBatchFS.Handle()),
 		.enableScissorTest = true,
 		.setBindModes = {eg::BindMode::DescriptorSet, eg::BindMode::DescriptorSet},
 		.descriptorSetBindings = { bindingsSet0 },
@@ -88,7 +88,7 @@ void SpriteBatch::InitStatic()
 	});
 
 	flagsUniformBufferBytesPerFlag =
-		std::max((uint32_t)sizeof(uint32_t), GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
+		std::max<uint32_t>(sizeof(uint32_t), GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
 	uint32_t wordsPerFlag = flagsUniformBufferBytesPerFlag / sizeof(uint32_t);
 	std::vector<uint32_t> flagsBufferData(wordsPerFlag * NUM_FLAG_COMBINATIONS);
 	for (uint32_t i = 0; i < NUM_FLAG_COMBINATIONS; i++)
@@ -577,8 +577,8 @@ void SpriteBatch::UploadAndRender(
 		else
 		{
 			Upload(
-				renderArgs.screenWidth.value_or(CurrentResolutionX()),
-				renderArgs.screenHeight.value_or(CurrentResolutionX()));
+				static_cast<float>(renderArgs.screenWidth.value_or(CurrentResolutionX())),
+				static_cast<float>(renderArgs.screenHeight.value_or(CurrentResolutionX())));
 		}
 
 		DC.BeginRenderPass(rpBeginInfo);
