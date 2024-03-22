@@ -4,7 +4,7 @@
 
 namespace eg
 {
-FormatTypes GetFormatType(Format format)
+FormatType GetFormatType(Format format)
 {
 	switch (format)
 	{
@@ -19,20 +19,20 @@ FormatTypes GetFormatType(Format format)
 	case Format::R16G16B16A16_UNorm:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
-	case Format::BC1_RGB_UNorm:
-	case Format::BC1_RGB_sRGB:
-	case Format::BC3_UNorm:
-	case Format::BC3_sRGB:
-	case Format::BC4_UNorm:
-	case Format::BC5_UNorm:
-	case Format::A2R10G10B10_UNorm: return FormatTypes::UNorm;
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC4_R_UNorm:
+	case Format::BC5_RG_UNorm:
+	case Format::BC7_RGBA_UNorm:
+	case Format::BC7_RGBA_sRGB:
+	case Format::A2R10G10B10_UNorm: return FormatType::UNorm;
 	case Format::R8_SNorm:
 	case Format::R16_SNorm:
 	case Format::R8G8_SNorm:
 	case Format::R16G16_SNorm:
 	case Format::R8G8B8A8_SNorm:
 	case Format::R16G16B16A16_SNorm:
-	case Format::A2R10G10B10_SNorm: return FormatTypes::SNorm;
+	case Format::A2R10G10B10_SNorm: return FormatType::SNorm;
 	case Format::R8_UInt:
 	case Format::R16_UInt:
 	case Format::R32_UInt:
@@ -43,15 +43,17 @@ FormatTypes GetFormatType(Format format)
 	case Format::R8G8B8A8_UInt:
 	case Format::R16G16B16A16_UInt:
 	case Format::R32G32B32A32_UInt:
-	case Format::A2R10G10B10_UInt: return FormatTypes::UInt;
+	case Format::A2R10G10B10_UInt: return FormatType::UInt;
 	case Format::R16_Float:
 	case Format::R32_Float:
 	case Format::R16G16_Float:
 	case Format::R32G32_Float:
 	case Format::R32G32B32_Float:
 	case Format::R16G16B16A16_Float:
+	case Format::BC6H_RGB_UFloat:
+	case Format::BC6H_RGB_Float:
 	case Format::B10G11R11_UFloat:
-	case Format::R32G32B32A32_Float: return FormatTypes::Float;
+	case Format::R32G32B32A32_Float: return FormatType::Float;
 	case Format::R8_SInt:
 	case Format::R16_SInt:
 	case Format::R32_SInt:
@@ -62,18 +64,18 @@ FormatTypes GetFormatType(Format format)
 	case Format::R8G8B8A8_SInt:
 	case Format::R16G16B16A16_SInt:
 	case Format::R32G32B32A32_SInt:
-	case Format::A2R10G10B10_SInt: return FormatTypes::SInt;
+	case Format::A2R10G10B10_SInt: return FormatType::SInt;
 	case Format::Depth16:
 	case Format::Depth32:
 	case Format::Depth24Stencil8:
 	case Format::Depth32Stencil8:
-	case Format::DefaultDepthStencil: return FormatTypes::DepthStencil;
+	case Format::DefaultDepthStencil: return FormatType::DepthStencil;
 	}
 
 	EG_UNREACHABLE
 }
 
-int GetFormatComponentCount(Format format)
+uint32_t GetFormatComponentCount(Format format)
 {
 	switch (format)
 	{
@@ -92,7 +94,7 @@ int GetFormatComponentCount(Format format)
 	case Format::R32_UInt:
 	case Format::R32_SInt:
 	case Format::R32_Float:
-	case Format::BC4_UNorm:
+	case Format::BC4_R_UNorm:
 	case Format::Depth16:
 	case Format::Depth32:
 	case Format::Depth24Stencil8:
@@ -109,13 +111,13 @@ int GetFormatComponentCount(Format format)
 	case Format::R32G32_UInt:
 	case Format::R32G32_SInt:
 	case Format::R32G32_Float:
-	case Format::BC5_UNorm: return 2;
+	case Format::BC5_RG_UNorm: return 2;
 	case Format::R32G32B32_UInt:
 	case Format::R32G32B32_SInt:
 	case Format::R32G32B32_Float:
-	case Format::B10G11R11_UFloat:
-	case Format::BC1_RGB_UNorm:
-	case Format::BC1_RGB_sRGB: return 3;
+	case Format::BC6H_RGB_UFloat:
+	case Format::BC6H_RGB_Float:
+	case Format::B10G11R11_UFloat: return 3;
 	case Format::R8G8B8A8_sRGB:
 	case Format::R8G8B8A8_SNorm:
 	case Format::R8G8B8A8_UNorm:
@@ -131,8 +133,10 @@ int GetFormatComponentCount(Format format)
 	case Format::R32G32B32A32_Float:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
-	case Format::BC3_UNorm:
-	case Format::BC3_sRGB:
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC7_RGBA_UNorm:
+	case Format::BC7_RGBA_sRGB:
 	case Format::A2R10G10B10_UInt:
 	case Format::A2R10G10B10_SInt:
 	case Format::A2R10G10B10_UNorm:
@@ -142,7 +146,7 @@ int GetFormatComponentCount(Format format)
 	return 0;
 }
 
-int GetFormatSize(Format format)
+std::optional<uint32_t> GetFormatBytesPerPixel(Format format)
 {
 	switch (format)
 	{
@@ -199,49 +203,65 @@ int GetFormatSize(Format format)
 	case Format::A2R10G10B10_SNorm: return 4;
 	case Format::B10G11R11_UFloat: return 4;
 
-	case Format::BC4_UNorm:
-	case Format::BC5_UNorm:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
-	case Format::BC1_RGB_UNorm:
-	case Format::BC1_RGB_sRGB:
-	case Format::BC3_UNorm:
-	case Format::BC3_sRGB: return 0;
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC4_R_UNorm:
+	case Format::BC5_RG_UNorm:
+	case Format::BC6H_RGB_UFloat:
+	case Format::BC6H_RGB_Float:
+	case Format::BC7_RGBA_UNorm:
+	case Format::BC7_RGBA_sRGB: return std::nullopt;
 	}
 	EG_UNREACHABLE
 }
 
 bool IsSRGBFormat(Format format)
 {
-	return format == Format::R8G8B8A8_sRGB || format == Format::BC1_RGB_sRGB || format == Format::BC1_RGBA_sRGB ||
-	       format == Format::BC3_sRGB;
+	return format == Format::R8G8B8A8_sRGB || format == Format::BC1_RGBA_sRGB || format == Format::BC3_RGBA_sRGB;
 }
 
-static const Format compressedFormats[] = { Format::BC1_RGBA_UNorm, Format::BC1_RGBA_sRGB, Format::BC1_RGB_UNorm,
-	                                        Format::BC1_RGB_sRGB,   Format::BC3_UNorm,     Format::BC3_sRGB,
-	                                        Format::BC4_UNorm,      Format::BC5_UNorm };
-
-bool IsCompressedFormat(Format format)
+uint32_t GetFormatBlockWidth(Format format)
 {
-	return Contains(compressedFormats, format);
+	switch (format)
+	{
+	case Format::BC1_RGBA_UNorm:
+	case Format::BC1_RGBA_sRGB:
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC4_R_UNorm:
+	case Format::BC5_RG_UNorm: return 4;
+
+	default: return 1;
+	}
+}
+
+uint32_t GetFormatBytesPerBlock(Format format)
+{
+	switch (format)
+	{
+	case Format::BC1_RGBA_UNorm:
+	case Format::BC1_RGBA_sRGB:
+	case Format::BC4_R_UNorm: return 8;
+
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC5_RG_UNorm:
+	case Format::BC6H_RGB_UFloat:
+	case Format::BC6H_RGB_Float:
+	case Format::BC7_RGBA_UNorm:
+	case Format::BC7_RGBA_sRGB: return 16;
+
+	default: return GetFormatBytesPerPixel(format).value();
+	}
 }
 
 uint32_t GetImageByteSize(uint32_t width, uint32_t height, Format format)
 {
-	uint32_t numBlocks = ((width + 3) / 4) * ((height + 3) / 4);
-
-	switch (format)
-	{
-	case eg::Format::BC1_RGB_UNorm:
-	case eg::Format::BC1_RGB_sRGB:
-	case eg::Format::BC1_RGBA_UNorm:
-	case eg::Format::BC1_RGBA_sRGB:
-	case eg::Format::BC4_UNorm: return numBlocks * 8;
-	case eg::Format::BC3_UNorm:
-	case eg::Format::BC3_sRGB:
-	case eg::Format::BC5_UNorm: return numBlocks * 16;
-	default: return width * height * GetFormatSize(format);
-	}
+	uint32_t blockWidth = GetFormatBlockWidth(format);
+	uint32_t numBlocks = ((width + blockWidth - 1) / blockWidth) * ((height + blockWidth - 1) / blockWidth);
+	return GetFormatBytesPerBlock(format) * numBlocks;
 }
 
 std::string_view FormatToString(Format format)
@@ -298,12 +318,14 @@ std::string_view FormatToString(Format format)
 	case Format::B10G11R11_UFloat: return "B10G11R11_UFloat";
 	case Format::BC1_RGBA_UNorm: return "BC1_RGBA_UNorm";
 	case Format::BC1_RGBA_sRGB: return "BC1_RGBA_sRGB";
-	case Format::BC1_RGB_UNorm: return "BC1_RGB_UNorm";
-	case Format::BC1_RGB_sRGB: return "BC1_RGB_sRGB";
-	case Format::BC3_UNorm: return "BC3_UNorm";
-	case Format::BC3_sRGB: return "BC3_sRGB";
-	case Format::BC4_UNorm: return "BC4_UNorm";
-	case Format::BC5_UNorm: return "BC5_UNorm";
+	case Format::BC3_RGBA_UNorm: return "BC3_RGBA_UNorm";
+	case Format::BC3_RGBA_sRGB: return "BC3_RGBA_sRGB";
+	case Format::BC4_R_UNorm: return "BC4_R_UNorm";
+	case Format::BC5_RG_UNorm: return "BC5_RG_UNorm";
+	case Format::BC6H_RGB_UFloat: return "BC6H_RGB_UFloat";
+	case Format::BC6H_RGB_Float: return "BC6H_RGB_Float";
+	case Format::BC7_RGBA_UNorm: return "BC7_RGBA_UNorm";
+	case Format::BC7_RGBA_sRGB: return "BC7_RGBA_sRGB";
 	case Format::Depth16: return "Depth16";
 	case Format::Depth32: return "Depth32";
 	case Format::Depth24Stencil8: return "Depth24Stencil8";

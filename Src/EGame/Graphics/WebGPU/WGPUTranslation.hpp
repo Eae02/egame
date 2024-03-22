@@ -5,8 +5,10 @@
 
 namespace eg::graphics_api::webgpu
 {
-WGPUTextureFormat TranslateTextureFormat(Format format);
-WGPUVertexFormat TranslateVertexFormat(Format format);
+WGPUTextureFormat TranslateTextureFormat(Format format, bool undefinedIfUnsupported = false);
+WGPUVertexFormat TranslateVertexFormat(Format format, bool undefinedIfUnsupported = false);
+
+WGPUTextureViewDimension TranslateTextureViewType(TextureViewType viewType);
 
 WGPUCompareFunction TranslateCompareOp(CompareOp compareOp);
 

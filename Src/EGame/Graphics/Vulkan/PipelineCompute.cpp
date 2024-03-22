@@ -58,7 +58,8 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 		}
 	}
 
-	pipeline->InitPipelineLayout(shaderModule->bindings, createInfo.setBindModes, shaderModule->pushConstantBytes);
+	pipeline->InitPipelineLayout(
+		shaderModule->bindings, createInfo.dynamicDescriptorSetIndex, shaderModule->pushConstantBytes);
 	pipelineCreateInfo.layout = pipeline->pipelineLayout;
 
 	CheckRes(

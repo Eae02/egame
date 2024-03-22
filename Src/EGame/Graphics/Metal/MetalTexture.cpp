@@ -97,16 +97,14 @@ void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessF
 
 void TextureBarrier(CommandContextHandle ctx, TextureHandle handle, const eg::TextureBarrier& barrier) {}
 
-void SetTextureData(
-	CommandContextHandle cc, TextureHandle texture, const TextureRange& range, BufferHandle buffer, uint64_t offset)
+void CopyBufferToTexture(
+	CommandContextHandle cc, TextureHandle texture, const TextureRange& range, BufferHandle buffer,
+	const TextureBufferCopyLayout& copyLayout)
 {
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(cc);
 	mcc.FlushComputeCommands();
 
 	Texture& mtexture = Texture::Unwrap(texture);
-
-	uint32_t rowLen = GetImageByteSize(range.sizeX, 1, mtexture.format);
-	uint32_t layerLen = range.sizeZ > 1 ? GetImageByteSize(range.sizeX, range.sizeY, mtexture.format) : 0;
 
 	uint32_t slice = 0;
 	MTL::Size destSize = MTL::Size::Make(range.sizeX, range.sizeY, range.sizeZ);
@@ -120,13 +118,15 @@ void SetTextureData(
 	}
 
 	mcc.GetBlitCmdEncoder().copyFromBuffer(
-		UnwrapBuffer(buffer), offset, rowLen, layerLen, destSize, mtexture.texture, slice, range.mipLevel, destOrigin);
+		UnwrapBuffer(buffer), copyLayout.offset, copyLayout.rowByteStride, copyLayout.layerByteStride, destSize,
+		mtexture.texture, slice, range.mipLevel, destOrigin);
 }
 
-void GetTextureData(
-	CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset)
+void CopyTextureToBuffer(
+	CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer,
+	const TextureBufferCopyLayout& copyLayout)
 {
-	EG_PANIC("Unimplemented: GetTextureData")
+	EG_PANIC("Unimplemented: CopyTextureToBuffer")
 }
 
 void CopyTextureData(
@@ -214,11 +214,12 @@ bool TextureViewKey::operator==(const TextureViewKey& other) const
 	return type == other.type && format == other.format && subresource == other.subresource;
 }
 
-MTL::Texture* Texture::GetTextureView(TextureViewType viewType, const TextureSubresource& subresource, Format format)
+MTL::Texture* Texture::GetTextureView(
+	std::optional<TextureViewType> viewType, const TextureSubresource& subresource, Format format)
 {
 	TextureViewKey viewKey;
 
-	if (viewType == TextureViewType::SameAsTexture)
+	if (!viewType.has_value())
 	{
 		viewKey.type = texture->textureType();
 	}
@@ -258,7 +259,8 @@ MTL::Texture* Texture::GetTextureView(TextureViewType viewType, const TextureSub
 }
 
 TextureViewHandle GetTextureView(
-	TextureHandle texture, TextureViewType viewType, const TextureSubresource& subresource, Format format)
+	TextureHandle texture, std::optional<TextureViewType> viewType, const TextureSubresource& subresource,
+	Format format)
 {
 	return reinterpret_cast<TextureViewHandle>(Texture::Unwrap(texture).GetTextureView(viewType, subresource, format));
 }

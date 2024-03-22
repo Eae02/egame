@@ -49,9 +49,16 @@ void BindStorageBuffer(
 		});
 }
 
-void BindTexture(
-	CommandContextHandle cc, TextureViewHandle textureViewHandle, SamplerHandle samplerHandle, uint32_t set,
-	uint32_t binding)
+void BindSampler(CommandContextHandle cc, SamplerHandle sampler, uint32_t set, uint32_t binding)
+{
+	VulkanCommandContext& vcc = UnwrapCC(cc);
+
+	vcc.UpdateDynamicDescriptor(
+		set, binding, VK_DESCRIPTOR_TYPE_SAMPLER,
+		VkDescriptorImageInfo{ .sampler = reinterpret_cast<VkSampler>(sampler) });
+}
+
+void BindTexture(CommandContextHandle cc, TextureViewHandle textureViewHandle, uint32_t set, uint32_t binding)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	TextureView* view = UnwrapTextureView(textureViewHandle);
@@ -69,13 +76,9 @@ void BindTexture(
 		currentUsage = view->texture->currentUsage;
 	}
 
-	VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
-	EG_ASSERT(sampler != VK_NULL_HANDLE);
-
 	vcc.UpdateDynamicDescriptor(
-		set, binding, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		set, binding, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
 		VkDescriptorImageInfo{
-			.sampler = sampler,
 			.imageView = view->view,
 			.imageLayout = ImageLayoutFromUsage(currentUsage, view->texture->aspectFlags),
 		});

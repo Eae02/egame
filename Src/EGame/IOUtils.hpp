@@ -3,13 +3,13 @@
 #include "API.hpp"
 #include "Assert.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <list>
 #include <span>
 #include <vector>
-#include <array>
 
 namespace eg
 {

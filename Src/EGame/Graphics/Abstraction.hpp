@@ -21,6 +21,10 @@ constexpr uint32_t MAX_VERTEX_BINDINGS = 16;
 
 constexpr uint64_t BIND_BUFFER_OFFSET_DYNAMIC = UINT64_MAX;
 
+constexpr uint64_t BUFFER_TEXTURE_COPY_OFFSET_ALIGNMENT = 16;
+constexpr uint64_t BUFFER_BUFFER_COPY_OFFSET_ALIGNMENT = 4;
+constexpr uint64_t BUFFER_BUFFER_COPY_SIZE_ALIGNMENT = 4;
+
 typedef struct _Buffer* BufferHandle;
 typedef struct _Texture* TextureHandle;
 typedef struct _TextureView* TextureViewHandle;
@@ -280,16 +284,12 @@ struct VertexAttribute
 		: binding(_binding), format(_format), offset(_offset)
 	{
 	}
+
 	VertexAttribute(uint32_t _binding, DataType _type, uint32_t _components, uint32_t _offset)
 		: binding(_binding), format(FormatFromDataTypeAndComponentCount(_type, _components)), offset(_offset)
 	{
+		EG_ASSERT(format != Format::Undefined);
 	}
-};
-
-enum class BindMode : uint8_t
-{
-	Dynamic,
-	DescriptorSet
 };
 
 struct SpecializationConstantEntry
@@ -354,16 +354,10 @@ enum class BindingType
 {
 	UniformBuffer,
 	StorageBuffer,
-	UniformBufferDynamicOffset,
-	StorageBufferDynamicOffset,
 	Texture,
-	StorageImage
+	StorageImage,
+	Sampler,
 };
-
-inline bool BindingTypeHasDynamicOffset(BindingType type)
-{
-	return type == BindingType::StorageBufferDynamicOffset || type == BindingType::UniformBufferDynamicOffset;
-}
 
 std::string_view BindingTypeToString(BindingType bindingType);
 
@@ -374,12 +368,84 @@ enum class ReadWriteMode
 	WriteOnly,
 };
 
+enum class TextureViewType
+{
+	Flat2D,
+	Flat3D,
+	Cube,
+	Array2D,
+	ArrayCube,
+};
+
+enum class TextureSampleMode
+{
+	Float,
+	UnfilterableFloat,
+	UInt,
+	SInt,
+	Depth,
+};
+
+struct BindingTypeTexture
+{
+	TextureViewType viewType = TextureViewType::Flat2D;
+	TextureSampleMode sampleMode = TextureSampleMode::Float;
+	bool multisample = false;
+
+	bool operator==(const BindingTypeTexture&) const = default;
+	bool operator!=(const BindingTypeTexture&) const = default;
+	size_t Hash() const;
+};
+
+struct BindingTypeStorageImage
+{
+	TextureViewType viewType = TextureViewType::Flat2D;
+	Format format = Format::Undefined;
+	ReadWriteMode rwMode = ReadWriteMode::ReadOnly;
+
+	bool operator==(const BindingTypeStorageImage&) const = default;
+	bool operator!=(const BindingTypeStorageImage&) const = default;
+	size_t Hash() const;
+};
+
+struct BindingTypeUniformBuffer
+{
+	bool dynamicOffset = false;
+
+	bool operator==(const BindingTypeUniformBuffer&) const = default;
+	bool operator!=(const BindingTypeUniformBuffer&) const = default;
+	size_t Hash() const { return static_cast<size_t>(dynamicOffset); }
+};
+
+struct BindingTypeStorageBuffer
+{
+	bool dynamicOffset = false;
+	ReadWriteMode rwMode = ReadWriteMode::ReadOnly;
+
+	bool operator==(const BindingTypeStorageBuffer&) const = default;
+	bool operator!=(const BindingTypeStorageBuffer&) const = default;
+	size_t Hash() const { return static_cast<size_t>(dynamicOffset) | (static_cast<size_t>(rwMode) << 1); }
+};
+
+enum class BindingTypeSampler
+{
+	Default,
+	Nearest,
+	Compare,
+};
+
 struct DescriptorSetBinding
 {
 	uint32_t binding = 0;
-	BindingType type = BindingType::UniformBuffer;
+
+	std::variant<
+		BindingTypeTexture, BindingTypeStorageImage, BindingTypeStorageBuffer, BindingTypeUniformBuffer,
+		BindingTypeSampler>
+		type;
+
 	ShaderAccessFlags shaderAccess = ShaderAccessFlags::None;
-	ReadWriteMode rwMode = ReadWriteMode::ReadWrite;
+
+	BindingType GetBindingType() const;
 
 	bool operator==(const DescriptorSetBinding&) const = default;
 	bool operator!=(const DescriptorSetBinding&) const = default;
@@ -439,6 +505,9 @@ struct GraphicsPipelineCreateInfo
 	bool frontFaceCCW = false;
 	Topology topology = Topology::TriangleList;
 
+	// If the topology is TriangleStrip or LineStrip, this needs to be set to the index type of the index buffers used
+	IndexType stripIndexType = IndexType::UInt32;
+
 	// nullopt means that cull mode is set dynamically by calling SetCullMode
 	std::optional<CullMode> cullMode = CullMode::None;
 
@@ -446,7 +515,7 @@ struct GraphicsPipelineCreateInfo
 	bool enableWireframeRasterization = false;
 
 	std::array<float, 4> blendConstants = {};
-	BindMode setBindModes[MAX_DESCRIPTOR_SETS] = {};
+	std::optional<uint32_t> dynamicDescriptorSetIndex;
 	std::span<const eg::DescriptorSetBinding> descriptorSetBindings[MAX_DESCRIPTOR_SETS];
 
 	uint32_t numColorAttachments = 1;
@@ -467,7 +536,7 @@ struct GraphicsPipelineCreateInfo
 struct ComputePipelineCreateInfo
 {
 	ShaderStageInfo computeShader;
-	BindMode setBindModes[MAX_DESCRIPTOR_SETS] = {};
+	std::optional<uint32_t> dynamicDescriptorSetIndex;
 	bool requireFullSubgroups = false;
 	std::optional<uint32_t> requiredSubgroupSize;
 	const char* label = nullptr;
@@ -520,7 +589,7 @@ struct SamplerDescription
 	TextureFilter magFilter = TextureFilter::Linear;
 	TextureFilter mipFilter = TextureFilter::Linear;
 	float mipLodBias = 0;
-	float minLod = -1000.0f;
+	float minLod = 0.0f;
 	float maxLod = 1000.0f;
 	int maxAnistropy = 0;
 	bool enableCompare = false;
@@ -535,24 +604,14 @@ struct SamplerDescription
 enum class TextureFlags
 {
 	None = 0,
-	ManualBarrier = 1 << 0, // Barriers will be inserted manually (also disables automatic barriers).
-	CopySrc = 1 << 1, // Allows copy operations from the texture to other textures and buffers.
-	CopyDst = 1 << 2, // Allows copy operations to the texture from other textures and buffers.
-	GenerateMipmaps = 1 << 3, // Allows automatic mipmap generation for this texture.
-	ShaderSample = 1 << 4, // The texture can be sampled in a shader.
-	StorageImage = 1 << 5, // The texture can be bound as a storage image.
+	ManualBarrier = 1 << 0,         // Barriers will be inserted manually (also disables automatic barriers).
+	CopySrc = 1 << 1,               // Allows copy operations from the texture to other textures and buffers.
+	CopyDst = 1 << 2,               // Allows copy operations to the texture from other textures and buffers.
+	GenerateMipmaps = 1 << 3,       // Allows automatic mipmap generation for this texture.
+	ShaderSample = 1 << 4,          // The texture can be sampled in a shader.
+	StorageImage = 1 << 5,          // The texture can be bound as a storage image.
 	FramebufferAttachment = 1 << 6, // The texture can be used as a framebuffer attachment.
-	TransientAttachment = 1 << 7, // The texture will only be used within a single render pass (no load / store)
-};
-
-enum class TextureViewType
-{
-	SameAsTexture,
-	Flat2D,
-	Flat3D,
-	Cube,
-	Array2D,
-	ArrayCube,
+	TransientAttachment = 1 << 7,   // The texture will only be used within a single render pass (no load / store)
 };
 
 EG_BIT_FIELD(TextureFlags)
@@ -601,6 +660,13 @@ struct TextureOffset
 	uint32_t offsetY;
 	uint32_t offsetZ;
 	uint32_t mipLevel;
+};
+
+struct TextureBufferCopyLayout
+{
+	uint32_t offset;
+	uint32_t rowByteStride;   // must be a multiple of max(textureBufferCopyStrideAlignment, texture bpp)
+	uint32_t layerByteStride; // must be a multiple of rowByteStride
 };
 
 constexpr uint32_t REMAINING_SUBRESOURCE = UINT32_MAX;
@@ -787,6 +853,7 @@ struct GraphicsDeviceInfo
 	uint32_t maxComputeWorkGroupSize[3];
 	uint32_t maxComputeWorkGroupCount[3];
 	uint32_t maxComputeWorkGroupInvocations;
+	uint32_t textureBufferCopyStrideAlignment;
 	std::optional<SubgroupFeatures> subgroupFeatures;
 	DepthRange depthRange;
 	DeviceFeatureFlags features;

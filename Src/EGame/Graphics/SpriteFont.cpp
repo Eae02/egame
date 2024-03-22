@@ -20,17 +20,14 @@ SpriteFont::SpriteFont(FontAtlas atlas) : FontAtlas(std::move(atlas))
 	texCreateInfo.format = Format::R8_UNorm;
 	m_texture = Texture::Create2D(texCreateInfo);
 
-	const size_t uploadBytes = AtlasWidth() * AtlasHeight();
-	Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite, uploadBytes, nullptr);
-	void* uploadMem = uploadBuffer.Map(0, uploadBytes);
-	std::memcpy(uploadMem, AtlasData(), uploadBytes);
-	uploadBuffer.Flush(0, uploadBytes);
+	TextureRange textureRange = {
+		.sizeX = AtlasWidth(),
+		.sizeY = AtlasHeight(),
+		.sizeZ = 1,
+	};
 
-	TextureRange textureRange = {};
-	textureRange.sizeX = AtlasWidth();
-	textureRange.sizeY = AtlasHeight();
-	textureRange.sizeZ = 1;
-	DC.SetTextureData(m_texture, textureRange, uploadBuffer, 0);
+	size_t imageBytes = AtlasWidth() * AtlasHeight();
+	m_texture.SetData({ reinterpret_cast<const char*>(AtlasData()), imageBytes }, textureRange);
 
 	m_texture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Fragment);
 

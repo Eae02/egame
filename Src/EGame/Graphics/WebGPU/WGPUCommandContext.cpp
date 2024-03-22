@@ -1,5 +1,6 @@
 #include "WGPUCommandContext.hpp"
 #include "WGPUBuffer.hpp"
+#include "WGPUPipeline.hpp"
 
 namespace eg::graphics_api::webgpu
 {
@@ -7,102 +8,155 @@ CommandContext CommandContext::main;
 
 void CommandContext::BeginEncode()
 {
+	if (commandBuffer != nullptr)
+	{
+		wgpuCommandBufferRelease(commandBuffer);
+		commandBuffer = nullptr;
+	}
+
 	WGPUCommandEncoderDescriptor encoderDesc = {};
 	encoder = wgpuDeviceCreateCommandEncoder(wgpuctx.device, &encoderDesc);
 }
 
 void CommandContext::EndEncode()
 {
+	EndComputePass();
+
 	WGPUCommandBufferDescriptor commandBufferDesc = {};
 	commandBuffer = wgpuCommandEncoderFinish(encoder, &commandBufferDesc);
 	wgpuCommandEncoderRelease(encoder);
 	encoder = nullptr;
 }
 
-Fence* CommandContext::Submit()
+static void BufferMappedCallback(WGPUBufferMapAsyncStatus status, void* userdata)
+{
+	Buffer& buffer = *static_cast<Buffer*>(userdata);
+
+	if (status == WGPUBufferMapAsyncStatus_Success)
+	{
+		const void* mapPtr = wgpuBufferGetConstMappedRange(buffer.readbackBuffer, 0, buffer.size);
+		std::memcpy(buffer.mapMemory.get(), mapPtr, buffer.size);
+		wgpuBufferUnmap(buffer.readbackBuffer);
+	}
+
+	buffer.pendingReadback = false;
+	buffer.Deref();
+}
+
+void CommandContext::Submit()
 {
 	wgpuQueueSubmit(wgpuctx.queue, 1, &commandBuffer);
 
-	return Fence::CreateAndInsert();
+	for (Buffer* buffer : m_readbackBuffers)
+	{
+		wgpuBufferMapAsync(buffer->readbackBuffer, WGPUMapMode_Read, 0, buffer->size, BufferMappedCallback, buffer);
+	}
+	m_readbackBuffers.clear();
 }
 
-static inline WGPULoadOp TranslateLoadOp(AttachmentLoadOp loadOp)
+void CommandContext::AddReadbackBuffer(Buffer& buffer)
 {
-	if (loadOp == AttachmentLoadOp::Load)
-		return WGPULoadOp_Load;
-	else
-		return WGPULoadOp_Clear;
+	buffer.refCount++;
+	m_readbackBuffers.push_back(&buffer);
 }
 
-void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginInfo)
+void CommandContext::BeginRenderPass(
+	const WGPURenderPassDescriptor& descriptor, uint32_t framebufferWidth, uint32_t framebufferHeight)
 {
-	CommandContext& wcc = CommandContext::Unwrap(cc);
+	EndComputePass();
 
-	WGPURenderPassColorAttachment colorAttachments[MAX_COLOR_ATTACHMENTS];
+	EG_ASSERT(renderPassEncoder == nullptr);
 
-	WGPURenderPassDescriptor descriptor = { .colorAttachments = colorAttachments };
+	renderPassEncoder = wgpuCommandEncoderBeginRenderPass(encoder, &descriptor);
 
-	if (beginInfo.framebuffer == nullptr)
-	{
-		descriptor.colorAttachmentCount = 1;
-		colorAttachments[0].view = wgpuctx.currentSwapchainColorTexture;
-	}
-	else
-	{
-		EG_PANIC("Unimplemented");
-	}
+	m_framebufferWidth = framebufferWidth;
+	m_framebufferHeight = framebufferHeight;
 
-	for (size_t i = 0; i < descriptor.colorAttachmentCount; i++)
-	{
-		colorAttachments[i].loadOp = TranslateLoadOp(beginInfo.colorAttachments[i].loadOp);
-		colorAttachments[i].storeOp = WGPUStoreOp_Store;
-	}
-
-	wgpuCommandEncoderBeginRenderPass(wcc.encoder, &descriptor);
+	m_renderState = {};
+	m_renderState.viewport.w = static_cast<float>(framebufferWidth);
+	m_renderState.viewport.h = static_cast<float>(framebufferHeight);
+	m_renderState.scissorRect.w = framebufferWidth;
+	m_renderState.scissorRect.h = framebufferHeight;
 }
 
-void EndRenderPass(CommandContextHandle cc)
+void CommandContext::SetViewport(const Viewport& viewport)
 {
-	EG_PANIC("Unimplemented: EndRenderPass")
+	if (m_renderState.viewport != viewport)
+	{
+		m_renderState.viewport = viewport;
+		m_renderState.viewportChanged = true;
+	}
+}
+
+void CommandContext::SetScissor(const std::optional<ScissorRect>& scissorRect)
+{
+	ScissorRect scissorRectUnwrapped = scissorRect.value_or(ScissorRect{
+		.w = m_framebufferWidth,
+		.h = m_framebufferHeight,
+	});
+
+	if (m_renderState.scissorRect != scissorRectUnwrapped)
+	{
+		m_renderState.scissorRect = scissorRectUnwrapped;
+		m_renderState.scissorRectChanged = true;
+	}
+}
+
+void CommandContext::SetDynamicCullMode(CullMode cullMode)
+{
+	if (m_renderState.dynamicCullMode != cullMode)
+	{
+		m_renderState.dynamicCullMode = cullMode;
+		m_renderState.dynamiccullModeChanged = true;
+	}
+}
+
+void CommandContext::EndComputePass()
+{
+	if (computePassEncoder != nullptr)
+	{
+		wgpuComputePassEncoderEnd(computePassEncoder);
+		wgpuComputePassEncoderRelease(computePassEncoder);
+		computePassEncoder = nullptr;
+	}
+}
+
+void CommandContext::FlushDrawState()
+{
+	if (m_renderState.viewportChanged)
+	{
+		constexpr float MIN_DEPTH = 0.0f;
+		constexpr float MAX_DEPTH = 1.0f;
+		wgpuRenderPassEncoderSetViewport(
+			renderPassEncoder, m_renderState.viewport.x, m_renderState.viewport.y, m_renderState.viewport.w,
+			m_renderState.viewport.h, MIN_DEPTH, MAX_DEPTH);
+		m_renderState.viewportChanged = false;
+	}
+
+	if (m_renderState.scissorRectChanged)
+	{
+		wgpuRenderPassEncoderSetScissorRect(
+			renderPassEncoder, m_renderState.scissorRect.x, m_renderState.scissorRect.y, m_renderState.scissorRect.w,
+			m_renderState.scissorRect.h);
+		m_renderState.scissorRectChanged = false;
+	}
+
+	if (m_renderState.dynamiccullModeChanged)
+	{
+		GraphicsPipeline& graphicsPipeline = std::get<GraphicsPipeline>(currentPipeline->pipeline);
+		if (graphicsPipeline.HasDynamicCullMode())
+		{
+			WGPURenderPipeline pipeline =
+				graphicsPipeline.dynamicCullModePipelines.value()[static_cast<size_t>(m_renderState.dynamicCullMode)];
+
+			wgpuRenderPassEncoderSetPipeline(renderPassEncoder, pipeline);
+
+			m_renderState.dynamiccullModeChanged = false;
+		}
+	}
 }
 
 void DebugLabelBegin(CommandContextHandle cc, const char* label, const float* color) {}
 void DebugLabelEnd(CommandContextHandle cc) {}
 void DebugLabelInsert(CommandContextHandle cc, const char* label, const float* color) {}
-
-static void FenceOnSubmittedWorkDoneCallback(WGPUQueueWorkDoneStatus status, void* userdata)
-{
-	Fence* fence = static_cast<Fence*>(userdata);
-	fence->workDoneStatus = status;
-	fence->semaphore.release();
-	fence->Deref();
-}
-
-void Fence::Deref()
-{
-	if ((--refCount) <= 0)
-		delete this;
-}
-
-bool Fence::IsDone() const
-{
-	wgpuDeviceTick(wgpuctx.device);
-	return workDoneStatus.load() != WGPUQueueWorkDoneStatus_Force32;
-}
-
-void Fence::Wait()
-{
-	while (workDoneStatus.load() != WGPUQueueWorkDoneStatus_Force32)
-		wgpuDeviceTick(wgpuctx.device);
-}
-
-Fence* Fence::CreateAndInsert()
-{
-	Fence* fence = new Fence;
-	fence->refCount = 2;
-	fence->workDoneStatus = WGPUQueueWorkDoneStatus_Force32;
-	wgpuQueueOnSubmittedWorkDone(wgpuctx.queue, FenceOnSubmittedWorkDoneCallback, fence);
-
-	return fence;
-}
 } // namespace eg::graphics_api::webgpu

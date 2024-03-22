@@ -588,7 +588,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
-DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceFeatureFlags::MapCoherent |
+	DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceFeatureFlags::MapCoherent |
 	                              DeviceFeatureFlags::ConcurrentResourceCreation |
 	                              DeviceFeatureFlags::PartialTextureViews | DeviceFeatureFlags::DeferredContext;
 
@@ -611,6 +611,8 @@ DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceF
 		.maxTessellationPatchSize = ctx.deviceLimits.maxTessellationPatchSize,
 		.maxClipDistances = ctx.deviceFeatures.shaderClipDistance ? ctx.deviceLimits.maxClipDistances : 0,
 		.maxComputeWorkGroupInvocations = ctx.deviceLimits.maxComputeWorkGroupInvocations,
+		.textureBufferCopyStrideAlignment =
+			UnsignedNarrow<uint32_t>(ctx.deviceLimits.optimalBufferCopyRowPitchAlignment),
 		.subgroupFeatures = ctx.subgroupFeatures,
 		.depthRange = DepthRange::ZeroToOne,
 		.features = features,

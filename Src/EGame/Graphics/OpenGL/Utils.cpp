@@ -62,12 +62,14 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 
 	case Format::BC1_RGBA_UNorm: return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
 	case Format::BC1_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
-	case Format::BC1_RGB_UNorm: return GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
-	case Format::BC1_RGB_sRGB: return GL_COMPRESSED_SRGB_S3TC_DXT1_EXT;
-	case Format::BC3_UNorm: return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-	case Format::BC3_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
-	case Format::BC4_UNorm: return GL_COMPRESSED_RED_RGTC1;
-	case Format::BC5_UNorm: return GL_COMPRESSED_RG_RGTC2;
+	case Format::BC3_RGBA_UNorm: return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+	case Format::BC3_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
+	case Format::BC4_R_UNorm: return GL_COMPRESSED_RED_RGTC1;
+	case Format::BC5_RG_UNorm: return GL_COMPRESSED_RG_RGTC2;
+	case Format::BC6H_RGB_UFloat: return GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT;
+	case Format::BC6H_RGB_Float: return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT;
+	case Format::BC7_RGBA_UNorm: return GL_COMPRESSED_RGBA_BPTC_UNORM;
+	case Format::BC7_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM;
 	case Format::Depth16: return GL_DEPTH_COMPONENT16;
 	case Format::Depth32: return GL_DEPTH_COMPONENT32F;
 	case Format::Depth24Stencil8: return GL_DEPTH24_STENCIL8;
@@ -158,12 +160,14 @@ GLVertexAttribFormat TranslateFormatForVertexAttribute(Format format, bool retur
 	case Format::B10G11R11_UFloat:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
-	case Format::BC1_RGB_UNorm:
-	case Format::BC1_RGB_sRGB:
-	case Format::BC3_UNorm:
-	case Format::BC3_sRGB:
-	case Format::BC4_UNorm:
-	case Format::BC5_UNorm:
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC4_R_UNorm:
+	case Format::BC5_RG_UNorm:
+	case Format::BC6H_RGB_UFloat:
+	case Format::BC6H_RGB_Float:
+	case Format::BC7_RGBA_UNorm:
+	case Format::BC7_RGBA_sRGB:
 	case Format::Depth16:
 	case Format::Depth32:
 	case Format::Depth24Stencil8:

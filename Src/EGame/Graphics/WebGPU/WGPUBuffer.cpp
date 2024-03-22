@@ -2,14 +2,31 @@
 #include "EGame/Alloc/ObjectPool.hpp"
 #include "WGPUCommandContext.hpp"
 
+#include <memory>
+
 namespace eg::graphics_api::webgpu
 {
 static ConcurrentObjectPool<Buffer> bufferPool;
 
+void Buffer::Deref()
+{
+	if ((--refCount) == 0)
+	{
+		OnFrameEnd(
+			[b = buffer, rb = readbackBuffer]
+			{
+				wgpuBufferDestroy(b);
+				if (rb != nullptr)
+					wgpuBufferDestroy(rb);
+			});
+		bufferPool.Delete(this);
+	}
+}
+
 BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 {
 	WGPUBufferUsageFlags usageFlags = 0;
-	if (HasFlag(createInfo.flags, BufferFlags::CopySrc) || HasFlag(createInfo.flags, BufferFlags::MapRead))
+	if (HasFlag(createInfo.flags, BufferFlags::CopySrc))
 		usageFlags |= WGPUBufferUsage_CopySrc;
 	if (HasFlag(createInfo.flags, BufferFlags::CopyDst) || HasFlag(createInfo.flags, BufferFlags::Update) ||
 	    HasFlag(createInfo.flags, BufferFlags::MapWrite))
@@ -25,16 +42,33 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 	if (HasFlag(createInfo.flags, BufferFlags::IndirectCommands))
 		usageFlags |= WGPUBufferUsage_Indirect;
 
+	size_t paddedSize = createInfo.size;
+	if (HasFlag(createInfo.flags, BufferFlags::UniformBuffer))
+		paddedSize = RoundToNextMultiple(paddedSize, 16);
+
+	Buffer* buffer = bufferPool.New();
+
+	if (HasFlag(createInfo.flags, BufferFlags::MapRead))
+	{
+		usageFlags |= WGPUBufferUsage_CopySrc;
+
+		const WGPUBufferDescriptor readbackBufferDesc = {
+			.label = createInfo.label,
+			.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst,
+			.size = paddedSize,
+		};
+		buffer->readbackBuffer = wgpuDeviceCreateBuffer(wgpuctx.device, &readbackBufferDesc);
+	}
+
 	const WGPUBufferDescriptor bufferDesc = {
 		.label = createInfo.label,
-		.size = createInfo.size,
 		.usage = usageFlags,
+		.size = paddedSize,
 		.mappedAtCreation = createInfo.initialData != nullptr,
 	};
 
-	Buffer* buffer = bufferPool.New();
 	buffer->buffer = wgpuDeviceCreateBuffer(wgpuctx.device, &bufferDesc);
-	buffer->size = createInfo.size;
+	buffer->size = paddedSize;
 
 	if (createInfo.initialData != nullptr)
 	{
@@ -45,59 +79,30 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 
 	if (HasFlag(createInfo.flags, BufferFlags::MapWrite) || HasFlag(createInfo.flags, BufferFlags::MapRead))
 	{
-		buffer->mapData = BufferMapData::Alloc(createInfo.size);
+		buffer->mapMemory = std::make_unique<char[]>(createInfo.size);
 		if (createInfo.initialData != nullptr)
-			std::memcpy(buffer->mapData->memory.data(), createInfo.initialData, createInfo.size);
-	}
-
-	if (HasFlag(createInfo.flags, BufferFlags::MapRead))
-	{
-		const WGPUBufferDescriptor readbackBufferDesc = {
-			.label = createInfo.label,
-			.size = createInfo.size,
-			.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead,
-		};
-		buffer->mapData->readbackBuffer = wgpuDeviceCreateBuffer(wgpuctx.device, &readbackBufferDesc);
+			std::memcpy(buffer->mapMemory.get(), createInfo.initialData, createInfo.size);
 	}
 
 	return reinterpret_cast<BufferHandle>(buffer);
 }
 
-void BufferMapData::Deref()
-{
-	if (--refcount <= 0)
-	{
-		if (readbackBuffer != nullptr)
-			wgpuBufferDestroy(readbackBuffer);
-		free(this);
-	}
-}
-
-BufferMapData* BufferMapData::Alloc(uint64_t size)
-{
-	void* memory = malloc(sizeof(BufferMapData) + size);
-	BufferMapData* mapData = new (memory) BufferMapData;
-	mapData->memory = { static_cast<char*>(memory) + sizeof(BufferMapData), size };
-	return mapData;
-}
-
 void DestroyBuffer(BufferHandle handle)
 {
-	Buffer& buffer = Buffer::Unwrap(handle);
-	buffer.mapData->Deref();
-	wgpuBufferDestroy(buffer.buffer);
-	bufferPool.Delete(&buffer);
+	Buffer::Unwrap(handle).Deref();
 }
 
 static void SetBufferUsage(CommandContext& cc, BufferHandle handle, BufferUsage newUsage)
 {
 	Buffer& buffer = Buffer::Unwrap(handle);
-	if (newUsage == BufferUsage::HostRead && buffer.mapData != nullptr && buffer.mapData->readbackBuffer != nullptr)
+	if (newUsage == BufferUsage::HostRead && buffer.readbackBuffer != nullptr)
 	{
-		// wgpuCommandEncoderCopyBufferToBuffer(
-		// 	cc.encoder, buffer.buffer, 0, buffer.mapData->readbackBuffer, 0, buffer.size);
-		// buffer.mapData->refcount++;
-		// cc.readbackBuffers.push_back(buffer.mapData);
+		if (!buffer.pendingReadback.exchange(true))
+		{
+			cc.EndComputePass();
+			wgpuCommandEncoderCopyBufferToBuffer(cc.encoder, buffer.buffer, 0, buffer.readbackBuffer, 0, buffer.size);
+			cc.AddReadbackBuffer(buffer);
+		}
 	}
 }
 
@@ -113,16 +118,22 @@ void BufferBarrier(CommandContextHandle ctx, BufferHandle handle, const eg::Buff
 
 void* MapBuffer(BufferHandle handle, uint64_t offset, std::optional<uint64_t> _range)
 {
-	return Buffer::Unwrap(handle).mapData->memory.data() + offset;
+	return Buffer::Unwrap(handle).mapMemory.get() + offset;
 }
 
 void FlushBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange)
 {
 	Buffer& buffer = Buffer::Unwrap(handle);
-	uint64_t actualRange = modRange.value_or(buffer.size - modOffset);
+
+	constexpr uint64_t ALIGNMENT = 4;
+
+	uint64_t endOffset = modRange.has_value() ? (modOffset + *modRange) : buffer.size;
+	endOffset = (endOffset + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+
+	uint64_t startOffset = modOffset & ~(ALIGNMENT - 1);
 
 	wgpuQueueWriteBuffer(
-		wgpuctx.queue, buffer.buffer, modOffset, buffer.mapData->memory.data() + modOffset, actualRange);
+		wgpuctx.queue, buffer.buffer, startOffset, buffer.mapMemory.get() + startOffset, endOffset - startOffset);
 }
 
 void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange) {}
@@ -130,6 +141,8 @@ void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uin
 void UpdateBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 {
 	CommandContext& wcc = CommandContext::Unwrap(cc);
+	wcc.EndComputePass();
+
 	wgpuCommandEncoderWriteBuffer(
 		wcc.encoder, Buffer::Unwrap(handle).buffer, offset, static_cast<const uint8_t*>(data), size);
 }
@@ -137,6 +150,8 @@ void UpdateBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset,
 void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint8_t data)
 {
 	CommandContext& wcc = CommandContext::Unwrap(cc);
+	wcc.EndComputePass();
+
 	WGPUBuffer buffer = Buffer::Unwrap(handle).buffer;
 	if (data == 0)
 	{
@@ -154,6 +169,8 @@ void CopyBuffer(
 	CommandContextHandle cc, BufferHandle src, BufferHandle dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
 {
 	CommandContext& wcc = CommandContext::Unwrap(cc);
+	wcc.EndComputePass();
+
 	wgpuCommandEncoderCopyBufferToBuffer(
 		wcc.encoder, Buffer::Unwrap(src).buffer, srcOffset, Buffer::Unwrap(dst).buffer, dstOffset, size);
 }
@@ -162,13 +179,13 @@ void BindUniformBuffer(
 	CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset,
 	std::optional<uint64_t> range)
 {
-	EG_PANIC("WebGPU Not Available: BindUniformBuffer")
+	EG_PANIC("Unsupported: BindUniformBuffer")
 }
 
 void BindStorageBuffer(
 	CommandContextHandle, BufferHandle handle, uint32_t set, uint32_t binding, uint64_t offset,
 	std::optional<uint64_t> range)
 {
-	EG_PANIC("WebGPU Not Available: BindStorageBuffer")
+	EG_PANIC("Unsupported: BindStorageBuffer")
 }
 } // namespace eg::graphics_api::webgpu

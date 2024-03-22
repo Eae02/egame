@@ -13,8 +13,8 @@
 namespace eg::asset_gen
 {
 static const std::pair<std::string_view, Format> formatNames[] = {
-	{ "r8", Format::R8_UNorm },   { "rgba8", Format::R8G8B8A8_UNorm }, { "bc1", Format::BC1_RGBA_UNorm },
-	{ "bc3", Format::BC3_UNorm }, { "bc4", Format::BC4_UNorm },        { "bc5", Format::BC5_UNorm }
+	{ "r8", Format::R8_UNorm },        { "rgba8", Format::R8G8B8A8_UNorm }, { "bc1", Format::BC1_RGBA_UNorm },
+	{ "bc3", Format::BC3_RGBA_UNorm }, { "bc4", Format::BC4_R_UNorm },      { "bc5", Format::BC5_RG_UNorm }
 };
 
 void Texture2DWriter::ParseYAMLSettings(const YAML::Node& node)
@@ -61,38 +61,33 @@ void Texture2DWriter::ParseYAMLSettings(const YAML::Node& node)
 
 void Texture2DWriter::ProcessMipLevel(const uint8_t* imageData, int width, int height, int mode)
 {
-	const int alpha = m_format == eg::Format::BC3_UNorm;
-
-	int bytesPerBlock;
-	switch (m_format)
-	{
-	case eg::Format::BC1_RGBA_UNorm:
-	case eg::Format::BC4_UNorm: bytesPerBlock = 8; break;
-	case eg::Format::BC3_UNorm:
-	case eg::Format::BC5_UNorm: bytesPerBlock = 16; break;
-	case eg::Format::R8G8B8A8_UNorm:
+	if (m_format == eg::Format::R8G8B8A8_UNorm)
 	{
 		m_data.emplace_back(imageData, width * height * 4);
 		return;
 	}
-	case eg::Format::R8_UNorm:
+	if (m_format == eg::Format::R8_UNorm)
 	{
 		m_data.emplace_back(imageData, width * height);
 		return;
 	}
-	default: EG_PANIC("Unexpected format")
-	}
 
-	int numBlocks = ((width + 3) / 4) * ((height + 3) / 4);
+	EG_ASSERT(IsCompressedFormat(m_format));
 
-	const size_t outputBytes = numBlocks * bytesPerBlock;
+	const int alpha = m_format == eg::Format::BC3_RGBA_UNorm;
+
+	uint32_t bytesPerBlock = GetFormatBytesPerBlock(m_format);
+
+	uint32_t numBlocks = static_cast<uint32_t>(((width + 3) / 4) * ((height + 3) / 4));
+
+	const size_t outputBytes = static_cast<size_t>(numBlocks * bytesPerBlock);
 	std::unique_ptr<uint8_t, FreeDel> outputDataUP(static_cast<uint8_t*>(std::malloc(outputBytes)));
 	uint8_t* outputBuffer = outputDataUP.get();
 
 	switch (m_format)
 	{
 	case eg::Format::BC1_RGBA_UNorm:
-	case eg::Format::BC3_UNorm:
+	case eg::Format::BC3_RGBA_UNorm:
 	{
 		uint8_t inputBuffer[4][4][4];
 		for (int y = 0; y < height; y += 4)
@@ -124,7 +119,7 @@ void Texture2DWriter::ProcessMipLevel(const uint8_t* imageData, int width, int h
 
 		break;
 	}
-	case eg::Format::BC4_UNorm:
+	case eg::Format::BC4_R_UNorm:
 	{
 		uint8_t inputBuffer[4][4];
 
@@ -153,7 +148,7 @@ void Texture2DWriter::ProcessMipLevel(const uint8_t* imageData, int width, int h
 
 		break;
 	}
-	case eg::Format::BC5_UNorm:
+	case eg::Format::BC5_RG_UNorm:
 	{
 		uint8_t inputBuffer[4][4][2];
 
@@ -267,7 +262,7 @@ bool Texture2DWriter::AddLayer(std::istream& imageStream, std::string_view fileN
 	}
 
 	int loadChannels = 4;
-	if (m_format == Format::BC4_UNorm || m_format == Format::R8_UNorm)
+	if (m_format == Format::BC4_R_UNorm || m_format == Format::R8_UNorm)
 		loadChannels = 1;
 
 	// Loads the image
@@ -362,7 +357,7 @@ bool Texture2DWriter::Write(MemoryWriter& writer) const
 		{
 		case Format::R8G8B8A8_UNorm: realFormat = Format::R8G8B8A8_sRGB; break;
 		case Format::BC1_RGBA_UNorm: realFormat = Format::BC1_RGBA_sRGB; break;
-		case Format::BC3_UNorm: realFormat = Format::BC3_sRGB; break;
+		case Format::BC3_RGBA_UNorm: realFormat = Format::BC3_RGBA_sRGB; break;
 		default: Log(LogLevel::Error, "as", "sRGB is not supported for the selected format."); return false;
 		}
 	}

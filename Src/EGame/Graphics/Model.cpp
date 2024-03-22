@@ -108,7 +108,8 @@ std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetMes
 	const MeshDescriptor& mesh = GetMesh(meshIndex);
 	return std::visit(
 		[&](auto indices) -> std::variant<std::span<const uint32_t>, std::span<const uint16_t>>
-		{ return indices.subspan(mesh.firstIndex, mesh.numIndices); }, GetIndices());
+		{ return indices.subspan(mesh.firstIndex, mesh.numIndices); },
+		GetIndices());
 }
 
 std::optional<std::pair<uint32_t, uint32_t>> Model::GetVertexAttributeOffsetAndStride(

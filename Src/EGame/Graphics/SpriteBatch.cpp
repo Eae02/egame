@@ -15,8 +15,6 @@ namespace eg
 SpriteBatch SpriteBatch::overlay;
 
 static FramebufferLazyPipeline spritePipeline;
-static Texture whitePixelTexture;
-static Sampler spriteBatchSampler;
 
 static ShaderModule spriteBatchVS;
 static ShaderModule spriteBatchFS;
@@ -29,12 +27,17 @@ static constexpr uint32_t NUM_FLAG_COMBINATIONS = 1 << 3;
 static const DescriptorSetBinding bindingsSet0[] = {
 	{
 		.binding = 0,
-		.type = BindingType::UniformBuffer,
+		.type = eg::BindingTypeUniformBuffer{},
 		.shaderAccess = ShaderAccessFlags::Vertex,
 	},
 	{
 		.binding = 1,
-		.type = BindingType::UniformBufferDynamicOffset,
+		.type = eg::BindingTypeUniformBuffer{ .dynamicOffset = true },
+		.shaderAccess = ShaderAccessFlags::Fragment,
+	},
+	{
+		.binding = 2,
+		.type = eg::BindingTypeSampler{},
 		.shaderAccess = ShaderAccessFlags::Fragment,
 	},
 };
@@ -48,7 +51,6 @@ void SpriteBatch::InitStatic()
 		.vertexShader = eg::ShaderStageInfo(spriteBatchVS.Handle()),
 		.fragmentShader = eg::ShaderStageInfo(spriteBatchFS.Handle()),
 		.enableScissorTest = true,
-		.setBindModes = {eg::BindMode::DescriptorSet, eg::BindMode::DescriptorSet},
 		.descriptorSetBindings = { bindingsSet0 },
 		.blendStates = {eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha)},
 		.vertexBindings = {VertexBinding(sizeof(Vertex), InputRate::Vertex)},
@@ -58,33 +60,6 @@ void SpriteBatch::InitStatic()
 			VertexAttribute(0, DataType::UInt8Norm, 4, offsetof(Vertex, color)),
 		},
 		.label = "SpriteBatch"
-	});
-
-	whitePixelTexture = Texture::Create2D({
-		.flags = TextureFlags::ShaderSample | TextureFlags::CopyDst,
-		.mipLevels = 1,
-		.width = 1,
-		.height = 1,
-		.format = Format::R8G8B8A8_UNorm,
-	});
-
-	UploadBuffer uploadBuffer = GetTemporaryUploadBuffer(4);
-	uint8_t* uploadBufferMem = static_cast<uint8_t*>(uploadBuffer.Map());
-	std::fill_n(uploadBufferMem, 4, 255);
-	uploadBuffer.Flush();
-
-	DC.SetTextureData(
-		whitePixelTexture, { .sizeX = 1, .sizeY = 1, .sizeZ = 1 }, uploadBuffer.buffer, uploadBuffer.offset);
-
-	whitePixelTexture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Fragment);
-
-	spriteBatchSampler = eg::Sampler(eg::SamplerDescription{
-		.wrapU = eg::WrapMode::ClampToEdge,
-		.wrapV = eg::WrapMode::ClampToEdge,
-		.wrapW = eg::WrapMode::ClampToEdge,
-		.minFilter = eg::TextureFilter::Linear,
-		.magFilter = eg::TextureFilter::Linear,
-		.mipFilter = eg::TextureFilter::Linear,
 	});
 
 	flagsUniformBufferBytesPerFlag =
@@ -101,7 +76,6 @@ void SpriteBatch::DestroyStatic()
 {
 	spriteBatchVS.Destroy();
 	spriteBatchFS.Destroy();
-	whitePixelTexture.Destroy();
 	spritePipeline.DestroyPipelines();
 	flagsUniformBuffer.Destroy();
 }
@@ -120,17 +94,13 @@ void SpriteBatch::PopBlendState()
 	m_blendStateStack.pop_back();
 }
 
-void SpriteBatch::InitBatch(const Texture& texture, SpriteFlags flags)
+void SpriteBatch::InitBatch(DescriptorSetRef textureDescriptorSet, SpriteFlags flags)
 {
 	bool redToAlpha = HasFlag(flags, SpriteFlags::RedToAlpha);
-	uint32_t mipLevel = HasFlag(flags, SpriteFlags::ForceLowestMipLevel) ? texture.MipLevels() - 1 : 0;
-
-	DescriptorSetRef textureDescriptorSet = texture.GetFragmentShaderSampleDescriptorSet();
 
 	bool needsNewBatch = true;
 	if (!m_batches.empty() && m_batches.back().textureDescriptorSet.handle == textureDescriptorSet.handle &&
-	    m_batches.back().redToAlpha == redToAlpha && m_batches.back().mipLevel == mipLevel &&
-	    m_batches.back().blend == m_blendStateStack.back())
+	    m_batches.back().redToAlpha == redToAlpha && m_batches.back().blend == m_blendStateStack.back())
 	{
 		if (!m_batches.back().enableScissor && m_scissorStack.empty())
 		{
@@ -148,7 +118,6 @@ void SpriteBatch::InitBatch(const Texture& texture, SpriteFlags flags)
 	{
 		Batch& batch = m_batches.emplace_back();
 		batch.redToAlpha = redToAlpha;
-		batch.mipLevel = mipLevel;
 		batch.textureDescriptorSet = textureDescriptorSet;
 		batch.blend = m_blendStateStack.back();
 		batch.firstIndex = UnsignedNarrow<uint32_t>(m_indices.size());
@@ -186,7 +155,7 @@ void SpriteBatch::Draw(
 	const Texture& texture, const glm::vec2& position, const ColorLin& color, const Rectangle& texRectangle,
 	float scale, SpriteFlags spriteFlags, float rotation, glm::vec2 origin)
 {
-	InitBatch(texture, spriteFlags);
+	InitBatch(texture.GetFragmentShaderSampleDescriptorSet(), spriteFlags);
 
 	AddQuadIndices();
 
@@ -229,7 +198,7 @@ void SpriteBatch::Draw(
 	const Texture& texture, const Rectangle& rectangle, const ColorLin& color, const Rectangle& texRectangle,
 	SpriteFlags spriteFlags)
 {
-	InitBatch(texture, spriteFlags);
+	InitBatch(texture.GetFragmentShaderSampleDescriptorSet(), spriteFlags);
 
 	AddQuadIndices();
 
@@ -257,9 +226,9 @@ void SpriteBatch::Draw(
 }
 
 void SpriteBatch::Draw(
-	const Texture& texture, const Rectangle& rectangle, const ColorLin& color, SpriteFlags spriteFlags)
+	DescriptorSetRef textureDescriptorSet, const Rectangle& rectangle, const ColorLin& color, SpriteFlags spriteFlags)
 {
-	InitBatch(texture, spriteFlags);
+	InitBatch(textureDescriptorSet, spriteFlags);
 
 	AddQuadIndices();
 
@@ -295,7 +264,7 @@ void SpriteBatch::DrawRectBorder(const Rectangle& rectangle, const ColorLin& col
 
 void SpriteBatch::DrawLine(const glm::vec2& begin, const glm::vec2& end, const ColorLin& color, float width)
 {
-	InitBatch(whitePixelTexture, SpriteFlags::None);
+	InitBatch(Texture::WhitePixel().GetFragmentShaderSampleDescriptorSet(), SpriteFlags::None);
 
 	AddQuadIndices();
 
@@ -315,7 +284,7 @@ void SpriteBatch::DrawLine(const glm::vec2& begin, const glm::vec2& end, const C
 void SpriteBatch::DrawCustomShape(
 	std::span<const glm::vec2> positions, std::span<const uint32_t> indices, const ColorLin& color)
 {
-	InitBatch(whitePixelTexture, SpriteFlags::None);
+	InitBatch(Texture::WhitePixel().GetFragmentShaderSampleDescriptorSet(), SpriteFlags::None);
 
 	uint32_t i0 = UnsignedNarrow<uint32_t>(m_vertices.size());
 	for (uint32_t i : indices)
@@ -331,7 +300,7 @@ void SpriteBatch::DrawCustomShape(
 
 void SpriteBatch::DrawRect(const Rectangle& rectangle, const ColorLin& color)
 {
-	InitBatch(whitePixelTexture, SpriteFlags::None);
+	InitBatch(Texture::WhitePixel().GetFragmentShaderSampleDescriptorSet(), SpriteFlags::None);
 
 	AddQuadIndices();
 
@@ -466,10 +435,19 @@ void SpriteBatch::Upload(const glm::mat3& matrix)
 		m_transformUniformBuffer =
 			Buffer(BufferFlags::CopyDst | BufferFlags::UniformBuffer, sizeof(float) * 12, nullptr);
 
-		m_uniformBuffersDescriptorSet = DescriptorSet(bindingsSet0);
-		m_uniformBuffersDescriptorSet.BindUniformBuffer(m_transformUniformBuffer, 0);
-		m_uniformBuffersDescriptorSet.BindUniformBuffer(
-			flagsUniformBuffer, 1, BIND_BUFFER_OFFSET_DYNAMIC, sizeof(uint32_t));
+		m_commonDescriptorSet = DescriptorSet(bindingsSet0);
+		m_commonDescriptorSet.BindUniformBuffer(m_transformUniformBuffer, 0);
+		m_commonDescriptorSet.BindUniformBuffer(flagsUniformBuffer, 1, BIND_BUFFER_OFFSET_DYNAMIC, sizeof(uint32_t));
+		m_commonDescriptorSet.BindSampler(
+			GetSampler(eg::SamplerDescription{
+				.wrapU = eg::WrapMode::ClampToEdge,
+				.wrapV = eg::WrapMode::ClampToEdge,
+				.wrapW = eg::WrapMode::ClampToEdge,
+				.minFilter = eg::TextureFilter::Linear,
+				.magFilter = eg::TextureFilter::Linear,
+				.mipFilter = eg::TextureFilter::Linear,
+			}),
+			2);
 	}
 
 	// Reallocates the vertex buffer if it's too small
@@ -547,17 +525,12 @@ void SpriteBatch::Render(const RenderArgs& renderArgs) const
 		EG_ASSERT(flags < NUM_FLAG_COMBINATIONS);
 
 		uint32_t flagsUniformBufferOffset = flags * flagsUniformBufferBytesPerFlag;
-		DC.BindDescriptorSet(m_uniformBuffersDescriptorSet, 0, { &flagsUniformBufferOffset, 1 });
+		DC.BindDescriptorSet(m_commonDescriptorSet, 0, { &flagsUniformBufferOffset, 1 });
 
 		if (batch.enableScissor)
 			DC.SetScissor(batch.scissor.x, batch.scissor.y, batch.scissor.width, batch.scissor.height);
 		else
 			DC.SetScissor(0, 0, screenWidth, screenHeight);
-
-		// TODO: Deal with this now that the texture uses a descriptor set
-		eg::TextureSubresource subres;
-		if (HasFlag(GetGraphicsDeviceInfo().features, DeviceFeatureFlags::PartialTextureViews))
-			subres.firstMipLevel = batch.mipLevel;
 
 		DC.BindDescriptorSet(batch.textureDescriptorSet, 1);
 

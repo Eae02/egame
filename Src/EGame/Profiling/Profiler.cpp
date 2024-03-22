@@ -36,12 +36,22 @@ Profiler* Profiler::current = nullptr;
 Profiler::Profiler()
 {
 	m_queryPools.emplace_back(eg::QueryType::Timestamp, QUERIES_PER_POOL);
+	m_numQueryPoolsUsed = 1;
 }
 
 void Profiler::Reset()
 {
 	m_cpuTimers.clear();
 	m_gpuTimers.clear();
+}
+
+void Profiler::OnFrameBegin()
+{
+	for (size_t i = 0; i < m_numQueryPoolsUsed; i++)
+	{
+		eg::DC.ResetQueries(m_queryPools[i], 0, QUERIES_PER_POOL);
+	}
+	m_numQueryPoolsUsed = 0;
 }
 
 CPUTimer Profiler::StartCPUTimer(std::string name)
@@ -68,7 +78,7 @@ GPUTimer Profiler::StartGPUTimer(std::string name)
 
 	if ((index % TIMERS_PER_POOL) == 0)
 	{
-		eg::DC.ResetQueries(m_queryPools[poolIndex], 0, TIMERS_PER_POOL * 2);
+		m_numQueryPoolsUsed++;
 	}
 
 	TimerEntry& entry = m_gpuTimers.emplace_back();
@@ -141,6 +151,7 @@ std::optional<ProfilingResults> Profiler::GetResults()
 	{
 		m_addQueryPool = false;
 		m_queryPools.emplace_back(eg::QueryType::Timestamp, QUERIES_PER_POOL);
+		eg::DC.ResetQueries(m_queryPools.back(), 0, QUERIES_PER_POOL);
 	}
 
 	ProfilingResults results;

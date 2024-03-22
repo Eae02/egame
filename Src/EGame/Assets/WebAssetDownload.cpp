@@ -1,8 +1,8 @@
 #include "WebAssetDownload.hpp"
 
 #include <iomanip>
-#include <sstream>
 #include <iosfwd>
+#include <sstream>
 
 std::string eg::DownloadProgress::CreateMessage() const
 {
@@ -285,8 +285,8 @@ void detail::WebDownloadAssetPackages(std::function<void()> onComplete)
 
 	if (anyPackageCache)
 	{
-		EM_ASM(FS.mkdir('/asset_cache'); FS.mount(IDBFS, {}, '/asset_cache');
-		       FS.syncfs(true, function(err) { Module.cwrap("AssetCacheCreated", "", [])(); }););
+		EM_ASM(FS.mkdir('/asset_cache'); FS.mount(IDBFS, {}, '/asset_cache'); FS.syncfs(
+			true, function(err) { Module.cwrap("AssetCacheCreated", "", [])(); }););
 	}
 	else
 	{

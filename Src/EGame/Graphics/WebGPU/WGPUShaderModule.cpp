@@ -1,87 +1,118 @@
 #include "WGPUShaderModule.hpp"
-#include "../../String.hpp"
 #include "../Abstraction.hpp"
+#include "WGPUTint.hpp"
 
-#include <src/tint/lang/core/ir/module.h>
-#include <src/tint/lang/spirv/reader/ast_lower/pass_workgroup_id_as_argument.h>
-#include <src/tint/lang/wgsl/ast/transform/push_constant_helper.h>
-#include <src/tint/lang/wgsl/writer/ir_to_program/ir_to_program.h>
-#include <string>
-#include <tint/tint.h>
-
+#include <spirv-tools/optimizer.hpp>
 #include <spirv_cross.hpp>
 
 namespace eg::graphics_api::webgpu
 {
-void ShaderModule::InitializeTint()
+WGPUShaderModule CreateShaderModuleFromSpirV(std::span<const uint32_t> spirv, const char* label)
 {
-	tint::Initialize();
-	tint::SetInternalCompilerErrorReporter([](const tint::InternalCompilerError& e)
-	                                       { std::cerr << "Internal tint error: " << e.Message() << std::endl; });
+	WGPUShaderModuleWGSLDescriptor wgslDescriptor;
+	WGPUShaderModuleSPIRVDescriptor spirvDescriptor;
+
+	const void* languageDescriptor = nullptr;
+
+	std::optional<std::string> wgsl;
+
+	if (UseWGSL())
+	{
+		wgsl = GenerateShaderWGSL({ reinterpret_cast<const char*>(spirv.data()), spirv.size_bytes() }, label);
+		if (!wgsl.has_value())
+			return nullptr;
+		wgslDescriptor = {
+			.chain = { .sType = WGPUSType_ShaderModuleWGSLDescriptor },
+			.code = wgsl->c_str(),
+		};
+		languageDescriptor = &wgslDescriptor;
+	}
+	else
+	{
+		spirvDescriptor = {
+			.chain = { .sType = WGPUSType_ShaderModuleSPIRVDescriptor },
+			.codeSize = UnsignedNarrow<uint32_t>(spirv.size()),
+			.code = spirv.data(),
+		};
+		languageDescriptor = &spirvDescriptor;
+	}
+
+	const WGPUShaderModuleDescriptor shaderModuleDesc = {
+		.nextInChain = static_cast<const WGPUChainedStruct*>(languageDescriptor),
+		.label = label,
+	};
+
+	return wgpuDeviceCreateShaderModule(wgpuctx.device, &shaderModuleDesc);
 }
 
-std::optional<std::string> GenerateShaderWGSL(std::span<const char> spirv, const char* label)
+std::unique_ptr<WGPUShaderModuleImpl, ShaderModuleOptDeleter> ShaderModule::GetSpecializedShaderModule(
+	std::span<const SpecializationConstantEntry> specConstantEntries) const
 {
-	std::string labelWithParenthesis;
-	if (label != nullptr)
-		labelWithParenthesis = Concat({ " (", label, ")" });
+	if (shaderModule != nullptr)
+		return { shaderModule, ShaderModuleOptDeleter{ .shouldRelease = false } };
 
-	std::vector<uint32_t> spirvVectorCopy(
-		reinterpret_cast<const uint32_t*>(spirv.data()),
-		reinterpret_cast<const uint32_t*>(spirv.data()) + spirv.size() / sizeof(uint32_t));
+	EG_ASSERT(!spirvForLateCompile.empty());
 
-	tint::spirv::reader::PassWorkgroupIdAsArgument x;
-
-	tint::spirv::reader::Options spirvOptions;
-	auto program = tint::spirv::reader::Read(spirvVectorCopy, spirvOptions);
-	if (!program.IsValid() || program.Diagnostics().ContainsErrors())
+	std::unordered_map<uint32_t, std::string> specConstantIdToValue;
+	for (const SpecializationConstantEntry& entry : specConstantEntries)
 	{
-		std::ostringstream message;
-		message << "Failed to convert to WGSL" << labelWithParenthesis << ": " << program.Diagnostics();
-		eg::Log(eg::LogLevel::Error, "sh", "{0}", message.str());
-		return std::nullopt;
+		specConstantIdToValue.emplace(
+			entry.constantID, std::visit([&](auto v) { return std::to_string(v); }, entry.value));
 	}
 
-	tint::wgsl::writer::Options gen_options;
-	auto result = tint::wgsl::writer::Generate(program, gen_options);
-	if (result != tint::Success)
+	specConstantIdToValue[500] = "3"; // Identifier for webgpu
+
+	spvtools::Optimizer optimizer(SPV_ENV_VULKAN_1_1);
+	optimizer.RegisterPass(spvtools::CreateSetSpecConstantDefaultValuePass(specConstantIdToValue));
+	optimizer.RegisterPass(spvtools::CreateFreezeSpecConstantValuePass());
+	optimizer.RegisterPass(spvtools::CreateFoldSpecConstantOpAndCompositePass());
+
+	std::vector<uint32_t> specializedSpirV;
+	if (!optimizer.Run(spirvForLateCompile.data(), spirvForLateCompile.size(), &specializedSpirV))
 	{
-		std::ostringstream message;
-		message << "Failed to write WGSL" << labelWithParenthesis << ": " << result.Failure();
-		eg::Log(eg::LogLevel::Error, "sh", "{0}", message.str());
-		return std::nullopt;
+		EG_PANIC("Failed to specialize spirv for WGSL conversion");
 	}
 
-	return result->wgsl;
+	return { CreateShaderModuleFromSpirV(specializedSpirV, label.empty() ? nullptr : label.c_str()),
+		     ShaderModuleOptDeleter{ .shouldRelease = true } };
+}
+
+void ShaderModuleOptDeleter::operator()(WGPUShaderModule shaderModule) const
+{
+	if (shouldRelease)
+		wgpuShaderModuleRelease(shaderModule);
 }
 
 ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::ParsedIR& parsedIR, const char* label)
 {
 	std::span<const uint32_t> spirv(parsedIR.spirv);
-	std::optional<std::string> wgsl =
-		GenerateShaderWGSL({ reinterpret_cast<const char*>(spirv.data()), spirv.size_bytes() }, label);
-
-	if (!wgsl.has_value())
-		return nullptr;
-
-	const WGPUShaderModuleWGSLDescriptor wgslDescriptor = { .code = wgsl->c_str() };
-	const WGPUShaderModuleDescriptor shaderModuleDesc = {
-		.nextInChain = reinterpret_cast<const WGPUChainedStruct*>(&wgslDescriptor),
-		.label = label,
-	};
 
 	ShaderModule* module = new ShaderModule;
-	module->shaderModule = wgpuDeviceCreateShaderModule(wgpuctx.device, &shaderModuleDesc);
-	
+
 	spirv_cross::Compiler spvCrossCompiler(parsedIR);
 	const spirv_cross::ShaderResources& resources = spvCrossCompiler.get_shader_resources();
 	module->bindings.AppendFromReflectionInfo(stage, spvCrossCompiler, resources);
+
+	if (label != nullptr)
+		module->label = label;
+
+	if (spvCrossCompiler.get_specialization_constants().empty())
+	{
+		module->shaderModule = CreateShaderModuleFromSpirV(spirv, label);
+	}
+	else
+	{
+		module->spirvForLateCompile.assign(spirv.begin(), spirv.end());
+	}
 
 	return reinterpret_cast<ShaderModuleHandle>(module);
 }
 
 void DestroyShaderModule(ShaderModuleHandle handle)
 {
-	delete reinterpret_cast<ShaderModule*>(handle);
+	ShaderModule* module = reinterpret_cast<ShaderModule*>(handle);
+	if (module->shaderModule != nullptr)
+		wgpuShaderModuleRelease(module->shaderModule);
+	delete module;
 }
 } // namespace eg::graphics_api::webgpu

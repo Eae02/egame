@@ -254,11 +254,10 @@ TextureHandle CreateTexture3D(const TextureCreateInfo& createInfo)
 	return reinterpret_cast<TextureHandle>(texture);
 }
 
-static inline GLenum TranslateViewType(const Texture& texture, TextureViewType viewType)
+static inline GLenum TranslateViewType(TextureViewType viewType)
 {
 	switch (viewType)
 	{
-	case TextureViewType::SameAsTexture: return texture.type;
 	case TextureViewType::Flat2D: return GL_TEXTURE_2D;
 	case TextureViewType::Flat3D: return GL_TEXTURE_3D;
 	case TextureViewType::Cube: return GL_TEXTURE_CUBE_MAP;
@@ -269,12 +268,13 @@ static inline GLenum TranslateViewType(const Texture& texture, TextureViewType v
 }
 
 TextureViewHandle GetTextureView(
-	TextureHandle textureHandle, TextureViewType viewType, const TextureSubresource& subresource, Format format)
+	TextureHandle textureHandle, std::optional<TextureViewType> viewType, const TextureSubresource& subresource,
+	Format format)
 {
 	Texture* texture = UnwrapTexture(textureHandle);
 
 	TextureViewKey viewKey;
-	viewKey.type = TranslateViewType(*texture, viewType);
+	viewKey.type = viewType.has_value() ? TranslateViewType(*viewType) : texture->type;
 	viewKey.subresource = subresource.ResolveRem(texture->mipLevels, texture->arrayLayers);
 	viewKey.format = format == Format::Undefined ? texture->format : format;
 
@@ -336,12 +336,10 @@ bool TextureViewKey::operator==(const TextureViewKey& other) const
 static std::pair<Format, GLenum> compressedUploadFormats[] = {
 	{ Format::BC1_RGBA_UNorm, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT },
 	{ Format::BC1_RGBA_sRGB, GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT },
-	{ Format::BC1_RGB_UNorm, GL_COMPRESSED_RGB_S3TC_DXT1_EXT },
-	{ Format::BC1_RGB_sRGB, GL_COMPRESSED_SRGB_S3TC_DXT1_EXT },
-	{ Format::BC3_UNorm, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT },
-	{ Format::BC3_sRGB, GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT },
-	{ Format::BC4_UNorm, GL_COMPRESSED_RED_RGTC1 },
-	{ Format::BC5_UNorm, GL_COMPRESSED_RG_RGTC2 }
+	{ Format::BC3_RGBA_UNorm, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT },
+	{ Format::BC3_RGBA_sRGB, GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT },
+	{ Format::BC4_R_UNorm, GL_COMPRESSED_RED_RGTC1 },
+	{ Format::BC5_RG_UNorm, GL_COMPRESSED_RG_RGTC2 }
 };
 
 static std::tuple<GLenum, GLenum> GetUploadFormat(Format format)
@@ -353,7 +351,7 @@ static std::tuple<GLenum, GLenum> GetUploadFormat(Format format)
 	}
 
 	int componentCount = GetFormatComponentCount(format);
-	int componentSize = GetFormatSize(format) / componentCount;
+	int componentSize = GetFormatBytesPerPixel(format).value() / componentCount;
 
 	static const std::array<GLenum, 5> floatFormats = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
 	static const std::array<GLenum, 5> integerFormats = { 0, GL_RED_INTEGER, GL_RG_INTEGER, GL_RGB_INTEGER,
@@ -363,37 +361,55 @@ static std::tuple<GLenum, GLenum> GetUploadFormat(Format format)
 
 	switch (GetFormatType(format))
 	{
-	case FormatTypes::UNorm: return std::make_tuple(floatFormats.at(componentCount), uTypes.at(componentSize));
-	case FormatTypes::SNorm: return std::make_tuple(floatFormats.at(componentCount), sTypes.at(componentSize));
-	case FormatTypes::UInt: return std::make_tuple(integerFormats.at(componentCount), uTypes.at(componentSize));
-	case FormatTypes::SInt: return std::make_tuple(integerFormats.at(componentCount), sTypes.at(componentSize));
-	case FormatTypes::Float: return std::make_tuple(floatFormats.at(componentCount), GL_FLOAT);
-	case FormatTypes::DepthStencil: EG_PANIC("Attempted to set the texture data for a depth/stencil texture.")
+	case FormatType::UNorm: return std::make_tuple(floatFormats.at(componentCount), uTypes.at(componentSize));
+	case FormatType::SNorm: return std::make_tuple(floatFormats.at(componentCount), sTypes.at(componentSize));
+	case FormatType::UInt: return std::make_tuple(integerFormats.at(componentCount), uTypes.at(componentSize));
+	case FormatType::SInt: return std::make_tuple(integerFormats.at(componentCount), sTypes.at(componentSize));
+	case FormatType::Float: return std::make_tuple(floatFormats.at(componentCount), GL_FLOAT);
+	case FormatType::DepthStencil: EG_PANIC("Attempted to set the texture data for a depth/stencil texture.")
 	}
 
 	EG_UNREACHABLE
 }
 
-void SetTextureData(
-	CommandContextHandle, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle, uint64_t offset)
+void CopyBufferToTexture(
+	CommandContextHandle, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle,
+	const TextureBufferCopyLayout& copyLayout)
 {
-	AssertRenderPassNotActive("SetTextureData");
+	AssertRenderPassNotActive("CopyBufferToTexture");
 
 	const Buffer* buffer = UnwrapBuffer(bufferHandle);
 
 	char* offsetPtr;
 	if (buffer->isFakeHostBuffer)
 	{
-		offsetPtr = buffer->persistentMapping + offset;
+		offsetPtr = buffer->persistentMapping + copyLayout.offset;
 	}
 	else
 	{
-		offsetPtr = reinterpret_cast<char*>(static_cast<uintptr_t>(offset));
+		offsetPtr = reinterpret_cast<char*>(static_cast<uintptr_t>(copyLayout.offset));
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer->buffer);
 	}
 
 	Texture* texture = UnwrapTexture(handle);
 	auto [format, type] = GetUploadFormat(texture->format);
+
+	const uint32_t bytesPerBlock = GetFormatBytesPerBlock(texture->format);
+
+	EG_ASSERT((copyLayout.rowByteStride % bytesPerBlock) == 0);
+	uint32_t rowLength = copyLayout.rowByteStride / bytesPerBlock;
+	glPixelStorei(GL_UNPACK_ROW_LENGTH, rowLength);
+
+	if (rowLength != 0 && copyLayout.layerByteStride != 0)
+	{
+		EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
+		uint32_t pixelsPerLayer = copyLayout.layerByteStride / bytesPerBlock;
+		glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, pixelsPerLayer / rowLength);
+	}
+	else
+	{
+		glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+	}
 
 	texture->ChangeUsage(TextureUsage::CopyDst);
 
@@ -407,7 +423,7 @@ void SetTextureData(
 		for (int l = 0; l < ToInt(range.sizeZ); l++)
 		{
 			GLenum glLayer = GL_TEXTURE_CUBE_MAP_POSITIVE_X + l + range.offsetZ;
-			char* layerOffsetPtr = offsetPtr + imageBytes * l;
+			char* layerOffsetPtr = offsetPtr + copyLayout.layerByteStride * l;
 			if (isCompressed)
 			{
 				glCompressedTexSubImage2D(
@@ -459,25 +475,44 @@ void SetTextureData(
 	}
 }
 
-void GetTextureData(
-	CommandContextHandle, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle, uint64_t offset)
+void CopyTextureToBuffer(
+	CommandContextHandle, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle,
+	const TextureBufferCopyLayout& copyLayout)
 {
-	AssertRenderPassNotActive("GetTextureData");
+	AssertRenderPassNotActive("CopyTextureToBuffer");
+
+	Texture* texture = UnwrapTexture(handle);
+
+	const uint32_t bytesPerBlock = GetFormatBytesPerBlock(texture->format);
+
+	EG_ASSERT((copyLayout.rowByteStride % bytesPerBlock) == 0);
+	uint32_t rowLength = copyLayout.rowByteStride / bytesPerBlock;
+	glPixelStorei(GL_PACK_ROW_LENGTH, rowLength);
+
+	if (rowLength != 0 && copyLayout.layerByteStride != 0)
+	{
+		EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
+		uint32_t pixelsPerLayer = copyLayout.layerByteStride / bytesPerBlock;
+		glPixelStorei(GL_PACK_IMAGE_HEIGHT, pixelsPerLayer / rowLength);
+	}
+	else
+	{
+		glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0);
+	}
 
 	const Buffer* buffer = UnwrapBuffer(bufferHandle);
 
 	void* offsetPtr;
 	if (buffer->isFakeHostBuffer)
 	{
-		offsetPtr = buffer->persistentMapping + offset;
+		offsetPtr = buffer->persistentMapping + copyLayout.offset;
 	}
 	else
 	{
 		glBindBuffer(GL_PIXEL_PACK_BUFFER, buffer->buffer);
-		offsetPtr = reinterpret_cast<void*>(static_cast<uintptr_t>(offset));
+		offsetPtr = reinterpret_cast<void*>(static_cast<uintptr_t>(copyLayout.offset));
 	}
 
-	Texture* texture = UnwrapTexture(handle);
 	auto [format, type] = GetUploadFormat(texture->format);
 
 	texture->ChangeUsage(TextureUsage::CopySrc);
@@ -517,11 +552,10 @@ void DestroyTexture(TextureHandle handle)
 		});
 }
 
-void TextureView::Bind(GLuint sampler, uint32_t glBinding) const
+void TextureView::BindAsSampled(uint32_t glBinding) const
 {
 	GLESAssertTextureBindNotInCurrentFramebuffer(*texture);
 
-	glBindSampler(glBinding, sampler);
 	glActiveTexture(GL_TEXTURE0 + glBinding);
 	glBindTexture(key.type, handle);
 	/*
@@ -551,11 +585,17 @@ void TextureView::BindAsStorageImage(uint32_t glBinding) const
 #endif
 }
 
-void BindTexture(
-	CommandContextHandle, TextureViewHandle textureView, SamplerHandle sampler, uint32_t set, uint32_t binding)
+void BindSampler(CommandContextHandle, SamplerHandle samplerHandle, uint32_t set, uint32_t binding)
 {
-	UnwrapTextureView(textureView)
-		->Bind(UnsignedNarrow<GLuint>(reinterpret_cast<uintptr_t>(sampler)), ResolveBindingForBind(set, binding));
+	GLuint sampler = UnwrapSampler(samplerHandle);
+	for (uint32_t glBinding : ResolveBindingMulti(set, binding))
+		glBindSampler(glBinding, sampler);
+}
+
+void BindTexture(CommandContextHandle, TextureViewHandle textureView, uint32_t set, uint32_t binding)
+{
+	for (uint32_t glBinding : ResolveBindingMulti(set, binding))
+		UnwrapTextureView(textureView)->BindAsSampled(glBinding);
 }
 
 void Texture::LazyInitializeTextureFBO()
@@ -563,7 +603,7 @@ void Texture::LazyInitializeTextureFBO()
 	if (fbo.has_value())
 		return;
 
-	GLenum target = GetFormatType(format) == FormatTypes::DepthStencil ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
+	GLenum target = GetFormatType(format) == FormatType::DepthStencil ? GL_DEPTH_ATTACHMENT : GL_COLOR_ATTACHMENT0;
 
 	GLuint fboHandle;
 	glGenFramebuffers(1, &fboHandle);
@@ -575,7 +615,7 @@ void Texture::LazyInitializeTextureFBO()
 
 void BindStorageImage(CommandContextHandle, TextureViewHandle textureViewHandle, uint32_t set, uint32_t binding)
 {
-	UnwrapTextureView(textureViewHandle)->BindAsStorageImage(ResolveBindingForBind(set, binding));
+	UnwrapTextureView(textureViewHandle)->BindAsStorageImage(ResolveBindingSingle(set, binding));
 }
 
 void CopyTextureData(
@@ -633,12 +673,12 @@ void ClearColorTexture(CommandContextHandle, TextureHandle handle, uint32_t mipL
 
 		switch (GetFormatType(texture->format))
 		{
-		case FormatTypes::UInt: glClearBufferuiv(GL_COLOR, 0, static_cast<const GLuint*>(color)); break;
-		case FormatTypes::SInt: glClearBufferiv(GL_COLOR, 0, static_cast<const GLint*>(color)); break;
-		case FormatTypes::SNorm:
-		case FormatTypes::UNorm:
-		case FormatTypes::Float: glClearBufferfv(GL_COLOR, 0, static_cast<const float*>(color)); break;
-		case FormatTypes::DepthStencil: EG_PANIC("Cannot clear DepthStencil image using ClearColorTexture")
+		case FormatType::UInt: glClearBufferuiv(GL_COLOR, 0, static_cast<const GLuint*>(color)); break;
+		case FormatType::SInt: glClearBufferiv(GL_COLOR, 0, static_cast<const GLint*>(color)); break;
+		case FormatType::SNorm:
+		case FormatType::UNorm:
+		case FormatType::Float: glClearBufferfv(GL_COLOR, 0, static_cast<const float*>(color)); break;
+		case FormatType::DepthStencil: EG_PANIC("Cannot clear DepthStencil image using ClearColorTexture")
 		}
 
 		BindCorrectFramebuffer();
@@ -663,7 +703,7 @@ void ResolveTexture(CommandContextHandle, TextureHandle srcHandle, TextureHandle
 	dst->LazyInitializeTextureFBO();
 
 	GLenum blitBuffer = GL_COLOR_BUFFER_BIT;
-	if (GetFormatType(src->format) == FormatTypes::DepthStencil)
+	if (GetFormatType(src->format) == FormatType::DepthStencil)
 		blitBuffer = GL_DEPTH_BUFFER_BIT;
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, *src->fbo);

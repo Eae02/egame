@@ -67,14 +67,20 @@ void DestroyDescriptorSet(DescriptorSetHandle set)
 	std::free(UnwrapDescriptorSet(set));
 }
 
+void BindSamplerDS(SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding)
+{
+	DescriptorSet* set = UnwrapDescriptorSet(setHandle);
+	set->CheckBinding(binding);
+	set->bindings[binding].bufferOrSampler = UnwrapSampler(sampler);
+	set->bindings[binding].assigned = true;
+}
+
 void BindTextureDS(
-	TextureViewHandle viewHandle, SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding,
-	eg::TextureUsage _usage)
+	TextureViewHandle viewHandle, DescriptorSetHandle setHandle, uint32_t binding, eg::TextureUsage _usage)
 {
 	DescriptorSet* set = UnwrapDescriptorSet(setHandle);
 	set->CheckBinding(binding);
 	set->bindings[binding].textureView = UnwrapTextureView(viewHandle);
-	set->bindings[binding].bufferOrSampler = UnsignedNarrow<GLuint>(reinterpret_cast<uintptr_t>(sampler));
 	set->bindings[binding].assigned = true;
 }
 
@@ -150,22 +156,30 @@ void BindDescriptorSet(
 			nextDynamicOffsetIndex++;
 		}
 
+		std::optional<uint32_t> singleBinding = binding.GetSingleGLBinding();
+
 		switch (binding.type)
 		{
 		case BindingType::UniformBuffer:
-		case BindingType::UniformBufferDynamicOffset:
 			glBindBufferRange(
-				GL_UNIFORM_BUFFER, binding.glBinding, dsBinding.bufferOrSampler, bufferOffset, dsBinding.range);
+				GL_UNIFORM_BUFFER, singleBinding.value(), dsBinding.bufferOrSampler, bufferOffset, dsBinding.range);
 			break;
 		case BindingType::StorageBuffer:
-		case BindingType::StorageBufferDynamicOffset:
 #ifndef EG_GLES
 			glBindBufferRange(
-				GL_SHADER_STORAGE_BUFFER, binding.glBinding, dsBinding.bufferOrSampler, bufferOffset, dsBinding.range);
+				GL_SHADER_STORAGE_BUFFER, singleBinding.value(), dsBinding.bufferOrSampler, bufferOffset,
+				dsBinding.range);
 #endif
 			break;
-		case BindingType::Texture: dsBinding.textureView->Bind(dsBinding.bufferOrSampler, binding.glBinding); break;
-		case BindingType::StorageImage: dsBinding.textureView->BindAsStorageImage(binding.glBinding); break;
+		case BindingType::StorageImage: dsBinding.textureView->BindAsStorageImage(singleBinding.value()); break;
+		case BindingType::Texture:
+			for (uint32_t glBinding : binding.GetGLBindings())
+				dsBinding.textureView->BindAsSampled(glBinding);
+			break;
+		case BindingType::Sampler:
+			for (uint32_t glBinding : binding.GetGLBindings())
+				glBindSampler(glBinding, dsBinding.bufferOrSampler);
+			break;
 		}
 
 		curidx++;

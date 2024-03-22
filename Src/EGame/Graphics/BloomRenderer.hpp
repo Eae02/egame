@@ -17,7 +17,7 @@ public:
 	public:
 		RenderTarget(
 			uint32_t inputWidth, uint32_t inputHeight, uint32_t levels = 4,
-			eg::Format format = Format::R16G16B16A16_Float, RenderTargetFlags flags = {});
+			enum Format format = Format::R16G16B16A16_Float, RenderTargetFlags flags = {});
 
 		const Texture& OutputTexture() const { return m_levels[0].m_textures[2]; }
 
@@ -38,12 +38,15 @@ public:
 		uint32_t m_inputWidth;
 		uint32_t m_inputHeight;
 
-		eg::Format m_format;
+		enum Format m_format;
 
 		struct Level
 		{
 			Texture m_textures[3];
 			Framebuffer m_framebuffers[3];
+
+			DescriptorSet m_blurXDescriptorSet;
+			DescriptorSet m_blurYDescriptorSet;
 		};
 
 		std::vector<Level> m_levels;
@@ -51,22 +54,25 @@ public:
 
 	explicit BloomRenderer(eg::Format format);
 
-	void Render(const glm::vec3& threshold, eg::TextureRef inputTexture, RenderTarget& renderTarget) const;
+	void Render(const glm::vec3& threshold, DescriptorSetRef inputTextureDescriptorSet, RenderTarget& renderTarget);
 
-	void RenderNoBrightPass(RenderTarget& renderTarget) const;
+	void RenderNoBrightPass(RenderTarget& renderTarget);
 
-	eg::Format Format() const { return m_format; }
+	enum Format Format() const { return m_format; }
 
 private:
+	void SetBrightPassParameters();
+
 	Pipeline m_brightPassPipeline;
 	Pipeline m_blurPipelineX;
 	Pipeline m_blurPipelineY;
 
-	Sampler m_inputSampler;
+	Buffer m_brightPassParametersBuffer;
 
-	eg::Format m_format;
+	DescriptorSet m_brightPassDescriptorSet;
+	DescriptorSet m_noBrightPassDescriptorSet;
 
-	Texture m_blackPixelTexture;
+	enum Format m_format;
 };
 
 EG_BIT_FIELD(BloomRenderer::RenderTargetFlags)

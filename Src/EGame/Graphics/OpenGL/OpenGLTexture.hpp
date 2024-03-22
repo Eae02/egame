@@ -29,7 +29,7 @@ struct TextureView
 	GLenum glFormat;
 	struct Texture* texture;
 
-	void Bind(GLuint sampler, uint32_t glBinding) const;
+	void BindAsSampled(uint32_t glBinding) const;
 	void BindAsStorageImage(uint32_t glBinding) const;
 };
 
@@ -65,5 +65,10 @@ inline Texture* UnwrapTexture(TextureHandle handle)
 inline TextureView* UnwrapTextureView(TextureViewHandle handle)
 {
 	return reinterpret_cast<TextureView*>(handle);
+}
+
+inline GLuint UnwrapSampler(SamplerHandle handle)
+{
+	return static_cast<GLuint>(reinterpret_cast<uintptr_t>(handle));
 }
 } // namespace eg::graphics_api::gl

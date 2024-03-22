@@ -389,16 +389,16 @@ void BeginRenderPass(CommandContextHandle cc, const RenderPassBeginInfo& beginIn
 		const RenderPassColorAttachment& attachment = beginInfo.colorAttachments[i];
 		if (attachment.loadOp == AttachmentLoadOp::Clear || forceClear)
 		{
-			FormatTypes expectedFormatType = FormatTypes::Float;
+			FormatType expectedFormatType = FormatType::Float;
 			if (currentFramebuffer != nullptr)
 				expectedFormatType = GetFormatType(currentFramebuffer->colorAttachmentFormats[i]);
 
-			if (expectedFormatType == FormatTypes::UInt)
+			if (expectedFormatType == FormatType::UInt)
 			{
 				std::array<GLuint, 4> clearValue = GetClearValueAs<GLuint>(attachment.clearValue);
 				glClearBufferuiv(GL_COLOR, i, clearValue.data());
 			}
-			else if (expectedFormatType == FormatTypes::SInt)
+			else if (expectedFormatType == FormatType::SInt)
 			{
 				std::array<GLint, 4> clearValue = GetClearValueAs<GLint>(attachment.clearValue);
 				glClearBufferiv(GL_COLOR, i, clearValue.data());

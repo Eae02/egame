@@ -1,10 +1,12 @@
 #ifndef EG_GLH
 #define EG_GLH
 
-layout(constant_id=500) const uint _api = 0;
+layout(constant_id = 500) const uint _api = 0;
 #define EG_VULKAN (_api == 0)
 #define EG_OPENGL (_api == 1)
 #define EG_METAL (_api == 2)
+#define EG_WEBGPU (_api == 3)
+
 #define EG_FLIPGL(x) (EG_OPENGL ? 1.0 - (x) : (x))
 
 #endif

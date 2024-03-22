@@ -212,31 +212,16 @@ public:
 	}
 
 	TextureViewHandle GetView(
-		const TextureSubresource& subresource = {}, TextureViewType viewType = TextureViewType::SameAsTexture,
+		const TextureSubresource& subresource = {}, std::optional<TextureViewType> viewType = std::nullopt,
 		Format differentFormat = Format::Undefined) const
 	{
 		return gal::GetTextureView(handle, viewType, subresource, differentFormat);
 	}
 
-	void DCUpdateData(const TextureRange& range, size_t dataLen, const void* data);
-
 	TextureHandle handle;
 };
 
-class EG_API Sampler
-{
-public:
-	Sampler() = default;
-	explicit Sampler(const SamplerDescription& description);
-
-	/**
-	 * Gets the GAL handle for this sampler.
-	 */
-	SamplerHandle Handle() const { return m_handle; }
-
-private:
-	SamplerHandle m_handle;
-};
+EG_API SamplerHandle GetSampler(const SamplerDescription& description);
 
 class EG_API DescriptorSetRef
 {
@@ -252,18 +237,19 @@ public:
 		}
 	}
 
+	void BindSampler(SamplerHandle sampler, uint32_t binding) { gal::BindSamplerDS(sampler, handle, binding); }
+
 	void BindTexture(
-		TextureRef texture, uint32_t binding, const Sampler* sampler, const TextureSubresource& subresource = {},
+		TextureRef texture, uint32_t binding, const TextureSubresource& subresource = {},
 		eg::TextureUsage usage = eg::TextureUsage::ShaderSample)
 	{
-		BindTextureView(texture.GetView(subresource), binding, sampler, usage);
+		BindTextureView(texture.GetView(subresource), binding, usage);
 	}
 
 	void BindTextureView(
-		TextureViewHandle textureView, uint32_t binding, const Sampler* sampler,
-		eg::TextureUsage usage = eg::TextureUsage::ShaderSample)
+		TextureViewHandle textureView, uint32_t binding, eg::TextureUsage usage = eg::TextureUsage::ShaderSample)
 	{
-		gal::BindTextureDS(textureView, sampler ? sampler->Handle() : nullptr, handle, binding, usage);
+		gal::BindTextureDS(textureView, handle, binding, usage);
 	}
 
 	void BindStorageImage(TextureRef texture, uint32_t binding, const TextureSubresource& subresource = {})
@@ -328,6 +314,8 @@ public:
 	static Texture Load(
 		std::istream& stream, LoadFormat format, uint32_t mipLevels = 0,
 		class CommandContext* commandContext = nullptr);
+
+	void SetData(std::span<const char> packedData, const TextureRange& range, CommandContext* commandContext = nullptr);
 
 	static Texture Create2D(const TextureCreateInfo& createInfo)
 	{
@@ -403,13 +391,25 @@ public:
 
 	eg::Format Format() const { return m_format; }
 
-	DescriptorSetRef GetFragmentShaderSampleDescriptorSet() const;
+	eg::TextureRange WholeRange() const
+	{
+		return {
+			.sizeX = m_width,
+			.sizeY = m_height,
+			.sizeZ = m_depth,
+		};
+	}
+
+	DescriptorSetRef GetFragmentShaderSampleDescriptorSet(eg::BindingTypeTexture binding = {}) const;
 
 	void Destroy()
 	{
 		TextureRef::Destroy();
 		m_fragmentShaderSampleDescriptorSet = std::nullopt;
 	}
+
+	static const Texture& WhitePixel();
+	static const Texture& BlackPixel();
 
 private:
 	explicit Texture(TextureHandle _handle) : OwningRef(_handle) {}
@@ -423,6 +423,11 @@ private:
 
 	mutable std::optional<DescriptorSet> m_fragmentShaderSampleDescriptorSet;
 };
+
+namespace detail
+{
+void DestroyPixelTextures();
+}
 
 class EG_API FramebufferRef
 {
@@ -511,15 +516,11 @@ public:
 
 	static CommandContext CreateDeferred(Queue queue) { return CommandContext(gal::CreateCommandContext(queue)); }
 
-	void SetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
-	{
-		gal::SetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
-	}
+	void CopyBufferToTexture(
+		TextureRef texture, const TextureRange& range, BufferRef buffer, const TextureBufferCopyLayout& copyLayout);
 
-	void GetTextureData(TextureRef texture, const TextureRange& range, BufferRef buffer, uint64_t bufferOffset)
-	{
-		gal::GetTextureData(Handle(), texture.handle, range, buffer.handle, bufferOffset);
-	}
+	void CopyTextureToBuffer(
+		TextureRef texture, const TextureRange& range, BufferRef buffer, const TextureBufferCopyLayout& copyLayout);
 
 	void GenerateMipmaps(TextureRef texture) { gal::GenerateMipmaps(Handle(), texture.handle); }
 
@@ -528,10 +529,7 @@ public:
 		gal::ResolveTexture(Handle(), src.handle, dst.handle, region);
 	}
 
-	void CopyBuffer(BufferRef src, BufferRef dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size)
-	{
-		gal::CopyBuffer(Handle(), src.handle, dst.handle, srcOffset, dstOffset, size);
-	}
+	void CopyBuffer(BufferRef src, BufferRef dst, uint64_t srcOffset, uint64_t dstOffset, uint64_t size);
 
 	void CopyTexture(TextureRef src, TextureRef dst, const TextureRange& srcRange, const TextureOffset& dstOffset)
 	{
@@ -611,16 +609,19 @@ public:
 		gal::DrawIndexed(Handle(), firstIndex, numIndices, firstVertex, firstInstance, numInstances);
 	}
 
-	void BindTexture(
-		TextureRef texture, uint32_t set, uint32_t binding, const Sampler* sampler,
-		const TextureSubresource& subresource = {})
+	void BindSampler(SamplerHandle sampler, uint32_t set, uint32_t binding)
 	{
-		BindTextureView(texture.GetView(subresource), set, binding, sampler);
+		gal::BindSampler(Handle(), sampler, set, binding);
 	}
 
-	void BindTextureView(TextureViewHandle textureView, uint32_t set, uint32_t binding, const Sampler* sampler)
+	void BindTexture(TextureRef texture, uint32_t set, uint32_t binding, const TextureSubresource& subresource = {})
 	{
-		gal::BindTexture(Handle(), textureView, sampler ? sampler->Handle() : nullptr, set, binding);
+		BindTextureView(texture.GetView(subresource), set, binding);
+	}
+
+	void BindTextureView(TextureViewHandle textureView, uint32_t set, uint32_t binding)
+	{
+		gal::BindTexture(Handle(), textureView, set, binding);
 	}
 
 	void BindStorageImage(

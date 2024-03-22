@@ -7,7 +7,7 @@
 
 namespace eg
 {
-const eg::AssetFormat ShaderModuleAsset::AssetFormat{ "EG::Shader", 2 };
+const eg::AssetFormat ShaderModuleAsset::AssetFormat{ "EG::Shader", 3 };
 
 bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 {
@@ -15,8 +15,9 @@ bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 
 	MemoryReader reader(context.Data());
 
-	const ShaderStage stage = static_cast<ShaderStage>(reader.Read<uint32_t>());
+	result.m_stage = static_cast<ShaderStage>(reader.Read<uint32_t>());
 	const uint32_t numVariants = reader.Read<uint32_t>();
+	result.m_createOnDemand = reader.Read<uint8_t>() != 0;
 
 	std::vector<char> codeBuffer;
 
@@ -35,10 +36,19 @@ bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 		if (numVariants > 1)
 			label += " [" + variantName + "]";
 
-		result.m_variants.push_back(Variant{
-			.name = std::move(variantName),
-			.shaderModule = ShaderModule(stage, codeSpan, label.c_str()),
-		});
+		Variant variant = { .name = std::move(variantName) };
+
+		if (result.m_createOnDemand)
+		{
+			variant.code.assign(codeSpan.begin(), codeSpan.end());
+			variant.label = std::move(label);
+		}
+		else
+		{
+			variant.shaderModule = ShaderModule(result.m_stage, codeSpan, label.c_str());
+		}
+
+		result.m_variants.push_back(std::move(variant));
 	}
 
 	return true;
@@ -50,7 +60,17 @@ ShaderModuleHandle ShaderModuleAsset::GetVariant(std::string_view name) const
 	{
 		if (variant.name == name)
 		{
-			return variant.shaderModule.Handle();
+			if (!m_createOnDemand)
+				return variant.shaderModule->Handle();
+
+			std::lock_guard<std::mutex> lock(m_mutex);
+
+			if (!variant.shaderModule.has_value())
+			{
+				variant.shaderModule = ShaderModule(m_stage, variant.code, variant.label.c_str());
+			}
+
+			return variant.shaderModule->Handle();
 		}
 	}
 	EG_PANIC("Shader module variant not found: '" << name << "'");

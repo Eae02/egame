@@ -8,17 +8,31 @@ namespace eg::graphics_api::gl
 {
 struct MappedBinding
 {
-	uint32_t set;
-	uint32_t binding;
-	BindingType type;
-	uint32_t glBinding;
+	uint32_t set{};
+	uint32_t binding{};
+	BindingType type{};
+
+	// For textures and samplers there can be multiple bindings
+	std::variant<std::monostate, uint32_t, std::vector<uint32_t>> glBindings = std::monostate();
+
+	void PushGLBinding(uint32_t b);
+
+	std::span<const uint32_t> GetGLBindings() const;
+
+	std::optional<uint32_t> GetSingleGLBinding() const
+	{
+		std::span<const uint32_t> bindingsSpan = GetGLBindings();
+		if (bindingsSpan.size() == 1)
+			return bindingsSpan[0];
+		return std::nullopt;
+	}
 
 	bool operator<(const MappedBinding& other) const
 	{
-		if (set != other.set)
-			return set < other.set;
-		return binding < other.binding;
+		return std::make_pair(set, binding) < std::make_pair(other.set, other.binding);
 	}
+
+	bool operator<(const std::pair<uint32_t, uint32_t>& other) const { return std::make_pair(set, binding) < other; }
 };
 
 struct PipelineDescriptorSet
@@ -27,6 +41,7 @@ struct PipelineDescriptorSet
 	uint32_t numUniformBuffers;
 	uint32_t numStorageBuffers;
 	uint32_t numTextures;
+	uint32_t numSamplers;
 	uint32_t numStorageImages;
 	uint32_t firstUniformBuffer;
 	uint32_t firstStorageBuffer;
@@ -44,9 +59,11 @@ struct AbstractPipeline
 	std::vector<MappedBinding> bindings;
 	PipelineDescriptorSet sets[MAX_DESCRIPTOR_SETS];
 
-	std::optional<uint32_t> ResolveBinding(uint32_t set, uint32_t binding) const;
 	std::optional<size_t> FindBindingIndex(uint32_t set, uint32_t binding) const;
 	size_t FindBindingsSetStartIndex(uint32_t set) const;
+
+	std::span<const uint32_t> ResolveBindingMulti(uint32_t set, uint32_t binding) const;
+	std::optional<uint32_t> ResolveBindingSingle(uint32_t set, uint32_t binding) const;
 
 	void Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages);
 
@@ -63,7 +80,8 @@ void AssertAllBindingsSatisfied();
 void CompileShaderStage(GLuint shader, std::string_view glslCode);
 void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeStages);
 
-uint32_t ResolveBindingForBind(uint32_t set, uint32_t binding);
+std::span<const uint32_t> ResolveBindingMulti(uint32_t set, uint32_t binding);
+uint32_t ResolveBindingSingle(uint32_t set, uint32_t binding);
 
 inline AbstractPipeline* UnwrapPipeline(PipelineHandle handle)
 {

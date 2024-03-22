@@ -26,6 +26,9 @@ struct EG_API Color
 	Color(float _r, float _g, float _b, float _a = 1.0f) : r(_r), g(_g), b(_b), a(_a) {}
 
 	Color ScaleAlpha(float scale) const { return Color(r, g, b, a * scale); }
+
+	bool operator==(const Color&) const = default;
+	bool operator!=(const Color&) const = default;
 };
 
 /**
@@ -70,6 +73,9 @@ struct ColorLin : Color
 		return ColorLin(
 			glm::mix(c0.r, c1.r, a), glm::mix(c0.g, c1.g, a), glm::mix(c0.b, c1.b, a), glm::mix(c0.a, c1.a, a));
 	}
+
+	bool operator==(const ColorLin&) const = default;
+	bool operator!=(const ColorLin&) const = default;
 };
 
 /**
@@ -106,6 +112,9 @@ struct ColorSRGB : Color
 		color.a = static_cast<float>((hex & 0x000000FF) >> (8 * 0)) / 255.0f;
 		return color;
 	}
+
+	bool operator==(const ColorSRGB&) const = default;
+	bool operator!=(const ColorSRGB&) const = default;
 };
 
 inline ColorSRGB::ColorSRGB(const ColorLin& c) : Color(LinearToSRGB(c.r), LinearToSRGB(c.g), LinearToSRGB(c.b), c.a) {}

@@ -89,6 +89,7 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 		                             static_cast<uint32_t>(maxThreadsPerThreadgroup.depth), },
 		.maxComputeWorkGroupCount = { UINT32_MAX, UINT32_MAX, UINT32_MAX },
 		.maxComputeWorkGroupInvocations = 1024, //?
+		.textureBufferCopyStrideAlignment = 1,
 		.subgroupFeatures = SubgroupFeatures {
 			.minSubgroupSize = 8,
 			.maxSubgroupSize = 32,

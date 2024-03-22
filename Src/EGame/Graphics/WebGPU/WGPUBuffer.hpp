@@ -3,23 +3,24 @@
 #include "../Abstraction.hpp"
 #include "WGPU.hpp"
 
+#include <atomic>
+#include <memory>
+
 namespace eg::graphics_api::webgpu
 {
-struct BufferMapData
-{
-	std::atomic_int refcount{ 1 };
-	WGPUBuffer readbackBuffer{ nullptr };
-	std::span<char> memory;
-
-	void Deref();
-	static BufferMapData* Alloc(uint64_t size);
-};
-
 struct Buffer
 {
 	WGPUBuffer buffer;
 	uint64_t size;
-	BufferMapData* mapData = nullptr;
+
+	WGPUBuffer readbackBuffer = nullptr;
+
+	std::unique_ptr<char[]> mapMemory;
+
+	std::atomic_int32_t refCount{ 1 };
+	std::atomic_bool pendingReadback{ false };
+
+	void Deref();
 
 	static Buffer& Unwrap(BufferHandle handle) { return *reinterpret_cast<Buffer*>(handle); }
 };

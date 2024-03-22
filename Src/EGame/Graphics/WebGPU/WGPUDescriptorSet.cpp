@@ -3,7 +3,12 @@
 #include "WGPUBuffer.hpp"
 #include "WGPUCommandContext.hpp"
 #include "WGPUPipeline.hpp"
+#include "WGPUTexture.hpp"
 #include "WGPUTranslation.hpp"
+
+#include <bitset>
+#include <memory>
+#include <vector>
 
 namespace eg::graphics_api::webgpu
 {
@@ -12,8 +17,75 @@ CachedBindGroupLayout::~CachedBindGroupLayout()
 	wgpuBindGroupLayoutRelease(bindGroupLayout);
 }
 
+static inline WGPUStorageTextureAccess TranslateStorageTextureAccess(ReadWriteMode mode)
+{
+	switch (mode)
+	{
+	case ReadWriteMode::ReadWrite: return WGPUStorageTextureAccess_ReadWrite;
+	case ReadWriteMode::ReadOnly: return WGPUStorageTextureAccess_ReadOnly;
+	case ReadWriteMode::WriteOnly: return WGPUStorageTextureAccess_WriteOnly;
+	}
+	EG_UNREACHABLE
+}
+
+static void ProcessLayoutEntry(WGPUBindGroupLayoutEntry& entry, const BindingTypeUniformBuffer& bindingType)
+{
+	entry.buffer.type = WGPUBufferBindingType_Uniform;
+	entry.buffer.hasDynamicOffset = bindingType.dynamicOffset;
+}
+
+static void ProcessLayoutEntry(WGPUBindGroupLayoutEntry& entry, const BindingTypeStorageBuffer& bindingType)
+{
+	if (bindingType.rwMode == ReadWriteMode::ReadOnly)
+		entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+	else
+		entry.buffer.type = WGPUBufferBindingType_Storage;
+	entry.buffer.hasDynamicOffset = bindingType.dynamicOffset;
+}
+
+static WGPUTextureSampleType TranslateSampleType(TextureSampleMode sampleMode)
+{
+	switch (sampleMode)
+	{
+	case TextureSampleMode::Float: return WGPUTextureSampleType_Float;
+	case TextureSampleMode::UnfilterableFloat: return WGPUTextureSampleType_UnfilterableFloat;
+	case TextureSampleMode::UInt: return WGPUTextureSampleType_Uint;
+	case TextureSampleMode::SInt: return WGPUTextureSampleType_Sint;
+	case TextureSampleMode::Depth: return WGPUTextureSampleType_Depth;
+	}
+	EG_UNREACHABLE
+}
+
+static void ProcessLayoutEntry(WGPUBindGroupLayoutEntry& entry, const BindingTypeTexture& bindingType)
+{
+	entry.texture = {
+		.sampleType = TranslateSampleType(bindingType.sampleMode),
+		.viewDimension = TranslateTextureViewType(bindingType.viewType),
+		.multisampled = bindingType.multisample,
+	};
+}
+
+static void ProcessLayoutEntry(WGPUBindGroupLayoutEntry& entry, const BindingTypeStorageImage& bindingType)
+{
+	entry.storageTexture = {
+		.access = TranslateStorageTextureAccess(bindingType.rwMode),
+		.format = TranslateTextureFormat(bindingType.format),
+		.viewDimension = TranslateTextureViewType(bindingType.viewType),
+	};
+}
+
+static void ProcessLayoutEntry(WGPUBindGroupLayoutEntry& entry, const BindingTypeSampler& bindingType)
+{
+	switch (bindingType)
+	{
+	case BindingTypeSampler::Default: entry.sampler.type = WGPUSamplerBindingType_Filtering; break;
+	case BindingTypeSampler::Nearest: entry.sampler.type = WGPUSamplerBindingType_NonFiltering; break;
+	case BindingTypeSampler::Compare: entry.sampler.type = WGPUSamplerBindingType_Comparison; break;
+	}
+}
+
 static std::unique_ptr<ICachedDescriptorSetLayout> CreateCachedDescriptorSetLayout(
-	std::span<const DescriptorSetBinding> bindings, BindMode)
+	std::span<const DescriptorSetBinding> bindings, bool _dynamic)
 {
 	std::unique_ptr<CachedBindGroupLayout> result = std::make_unique<CachedBindGroupLayout>();
 
@@ -26,30 +98,15 @@ static std::unique_ptr<ICachedDescriptorSetLayout> CreateCachedDescriptorSetLayo
 			.visibility = TranslateShaderStageFlags(bindings[i].shaderAccess),
 		};
 
-		switch (bindings[i].type)
-		{
-		case BindingType::UniformBufferDynamicOffset: layoutEntries[i].buffer.hasDynamicOffset = true; [[fallthrough]];
-		case BindingType::UniformBuffer: layoutEntries[i].buffer.type = WGPUBufferBindingType_Uniform; break;
-
-		case BindingType::StorageBufferDynamicOffset: layoutEntries[i].buffer.hasDynamicOffset = true; [[fallthrough]];
-		case BindingType::StorageBuffer:
-			if (bindings[i].rwMode == ReadWriteMode::ReadOnly)
-				layoutEntries[i].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-			else
-				layoutEntries[i].buffer.type = WGPUBufferBindingType_Storage;
-			break;
-
-		case BindingType::Texture:
-		case BindingType::StorageImage: EG_PANIC("Unimplemented");
-		}
+		std::visit([&](const auto& type) { ProcessLayoutEntry(layoutEntries[i], type); }, bindings[i].type);
 
 		// The bindings passed in are guaranteed to be sorted by DescriptorSetLayoutCache
 		result->activeBindingIndicesSorted.push_back(bindings[i].binding);
 	}
 
 	const WGPUBindGroupLayoutDescriptor descriptor = {
-		.entries = layoutEntries.data(),
 		.entryCount = layoutEntries.size(),
+		.entries = layoutEntries.data(),
 	};
 	result->bindGroupLayout = wgpuDeviceCreateBindGroupLayout(wgpuctx.device, &descriptor);
 
@@ -61,6 +118,11 @@ static DescriptorSetLayoutCache descriptorSetLayoutCache{ &CreateCachedDescripto
 const CachedBindGroupLayout& GetBindGroupLayout(std::span<const DescriptorSetBinding> bindings)
 {
 	return static_cast<CachedBindGroupLayout&>(descriptorSetLayoutCache.Get(bindings, {}));
+}
+
+void ClearBindGroupLayoutCache()
+{
+	descriptorSetLayoutCache.Clear();
 }
 
 struct DescriptorSet
@@ -76,7 +138,7 @@ struct DescriptorSet
 	{
 		if (bindGroup != nullptr)
 		{
-			wgpuBindGroupRelease(bindGroup);
+			OnFrameEnd([bindGroupCopy = bindGroup] { wgpuBindGroupRelease(bindGroupCopy); });
 			bindGroup = nullptr;
 		}
 	}
@@ -125,7 +187,7 @@ struct DescriptorSet
 			// clang-format on
 		}
 
-		entriesNotBoundMask.reset(entryIt - entries.begin());
+		entriesNotBoundMask.reset(ToUnsigned(entryIt - entries.begin()));
 		dirty = true;
 		*entryIt = entry;
 	}
@@ -169,14 +231,28 @@ void DestroyDescriptorSet(DescriptorSetHandle handle)
 	descriptorSetObjectPool.Delete(&descriptorSet);
 }
 
-void BindTextureDS(TextureViewHandle textureView, SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding)
+void BindSamplerDS(SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding)
 {
-	EG_PANIC("Unimplemented: BindTextureDS")
+	DescriptorSet::Unwrap(set).SetBinding(WGPUBindGroupEntry{
+		.binding = binding,
+		.sampler = UnwrapSampler(sampler),
+	});
+}
+
+void BindTextureDS(TextureViewHandle textureView, DescriptorSetHandle set, uint32_t binding, TextureUsage usage)
+{
+	DescriptorSet::Unwrap(set).SetBinding(WGPUBindGroupEntry{
+		.binding = binding,
+		.textureView = UnwrapTextureView(textureView),
+	});
 }
 
 void BindStorageImageDS(TextureViewHandle textureView, DescriptorSetHandle set, uint32_t binding)
 {
-	EG_PANIC("Unimplemented: BindStorageImageDS")
+	DescriptorSet::Unwrap(set).SetBinding(WGPUBindGroupEntry{
+		.binding = binding,
+		.textureView = UnwrapTextureView(textureView),
+	});
 }
 
 static void BindBufferDS(
@@ -206,7 +282,9 @@ static void BindBufferDS(
 void BindUniformBufferDS(
 	BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> range)
 {
-	BindBufferDS(handle, set, binding, offset, range);
+	BindBufferDS(
+		handle, set, binding, offset,
+		range.has_value() ? std::optional<uint64_t>(RoundToNextMultiple(*range, 16)) : std::nullopt);
 }
 
 void BindStorageBufferDS(

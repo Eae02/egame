@@ -13,8 +13,7 @@ enum class SpriteFlags
 	FlipX = 1,
 	FlipY = 2,
 	RedToAlpha = 4,
-	ForceLowestMipLevel = 8,
-	FlipYIfOpenGL = 16
+	FlipYIfOpenGL = 8
 };
 
 enum class SpriteBlend
@@ -75,11 +74,18 @@ public:
 
 	void Draw(
 		const Texture& texture, const Rectangle& rectangle, const ColorLin& color,
-		SpriteFlags flags = SpriteFlags::None);
+		SpriteFlags flags = SpriteFlags::None)
+	{
+		Draw(texture.GetFragmentShaderSampleDescriptorSet(), rectangle, color, flags);
+	}
 
 	void Draw(
 		const Texture& texture, const Rectangle& rectangle, const ColorLin& color, const Rectangle& texRectangle,
 		SpriteFlags flags = SpriteFlags::None);
+
+	void Draw(
+		DescriptorSetRef textureDescriptorSet, const Rectangle& rectangle, const ColorLin& color,
+		SpriteFlags spriteFlags = SpriteFlags::None);
 
 	void DrawTextMultiline(
 		const class SpriteFont& font, std::string_view text, const glm::vec2& position, const ColorLin& color,
@@ -126,7 +132,7 @@ public:
 	float opacityScale = 1;
 
 private:
-	void InitBatch(const Texture& texture, SpriteFlags flags);
+	void InitBatch(DescriptorSetRef textureDescriptorSet, SpriteFlags flags);
 	void AddQuadIndices();
 
 	struct Vertex
@@ -160,7 +166,6 @@ private:
 	{
 		DescriptorSetRef textureDescriptorSet;
 		bool redToAlpha;
-		uint32_t mipLevel;
 		uint32_t firstIndex;
 		uint32_t numIndices;
 		bool enableScissor;
@@ -181,7 +186,7 @@ private:
 	Buffer m_indexBuffer;
 
 	Buffer m_transformUniformBuffer;
-	DescriptorSet m_uniformBuffersDescriptorSet;
+	DescriptorSet m_commonDescriptorSet;
 
 	bool m_canRender = false;
 };

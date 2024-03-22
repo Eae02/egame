@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string_view>
 #include <variant>
 
@@ -69,19 +70,22 @@ enum class Format
 
 	BC1_RGBA_UNorm,
 	BC1_RGBA_sRGB,
-	BC1_RGB_UNorm,
-	BC1_RGB_sRGB,
-	BC3_UNorm,
-	BC3_sRGB,
-	BC4_UNorm,
-	BC5_UNorm,
+	BC3_RGBA_UNorm,
+	BC3_RGBA_sRGB,
+	BC4_R_UNorm,
+	BC5_RG_UNorm,
+	BC6H_RGB_UFloat,
+	BC6H_RGB_Float,
+	BC7_RGBA_UNorm,
+	BC7_RGBA_sRGB,
+
 	Depth16,
 	Depth32,
 	Depth24Stencil8,
 	Depth32Stencil8,
 };
 
-enum class FormatTypes
+enum class FormatType
 {
 	UNorm,
 	SNorm,
@@ -91,11 +95,17 @@ enum class FormatTypes
 	DepthStencil
 };
 
-EG_API FormatTypes GetFormatType(Format format);
-EG_API bool IsCompressedFormat(Format format);
-EG_API int GetFormatComponentCount(Format format);
-EG_API int GetFormatSize(Format format);
+EG_API FormatType GetFormatType(Format format);
+EG_API uint32_t GetFormatComponentCount(Format format);
+EG_API uint32_t GetFormatBlockWidth(Format format);
+EG_API std::optional<uint32_t> GetFormatBytesPerPixel(Format format);
+EG_API uint32_t GetFormatBytesPerBlock(Format format);
 EG_API bool IsSRGBFormat(Format format);
+
+inline bool IsCompressedFormat(Format format)
+{
+	return GetFormatBlockWidth(format) > 1;
+}
 
 EG_API uint32_t GetImageByteSize(uint32_t width, uint32_t height, Format format);
 
@@ -149,7 +159,7 @@ inline Format FormatFromDataTypeAndComponentCount(DataType dataType, uint32_t nu
 {
 	if (numComponents == 0 || numComponents > 4)
 		return Format::Undefined;
-	return detail::formatFromDataTypeAndComponentCount.at(static_cast<int>(dataType)).at(numComponents - 1);
+	return detail::formatFromDataTypeAndComponentCount.at(static_cast<size_t>(dataType)).at(numComponents - 1);
 }
 
 enum class FormatCapabilities

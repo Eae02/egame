@@ -251,7 +251,7 @@ void BindUniformBuffer(
 {
 	Buffer* buffer = UnwrapBuffer(handle);
 	uint64_t resolvedRange = range.value_or(buffer->size - offset);
-	glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, resolvedRange);
+	glBindBufferRange(GL_UNIFORM_BUFFER, ResolveBindingSingle(set, binding), buffer->buffer, offset, resolvedRange);
 }
 
 void BindStorageBuffer(
@@ -264,7 +264,7 @@ void BindStorageBuffer(
 	Buffer* buffer = UnwrapBuffer(handle);
 	uint64_t resolvedRange = range.value_or(buffer->size - offset);
 	glBindBufferRange(
-		GL_SHADER_STORAGE_BUFFER, ResolveBindingForBind(set, binding), buffer->buffer, offset, resolvedRange);
+		GL_SHADER_STORAGE_BUFFER, ResolveBindingSingle(set, binding), buffer->buffer, offset, resolvedRange);
 #endif
 }
 

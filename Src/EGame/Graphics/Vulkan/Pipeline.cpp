@@ -43,9 +43,10 @@ void AbstractPipeline::Free()
 }
 
 void AbstractPipeline::InitPipelineLayout(
-	const DescriptorSetBindings& bindings, const BindMode* setBindModes, uint32_t pushConstantBytes)
+	const DescriptorSetBindings& bindings, std::optional<uint32_t> _dynamicDescriptorSetIndex,
+	uint32_t pushConstantBytes)
 {
-	std::copy_n(setBindModes, MAX_DESCRIPTOR_SETS, descriptorSetBindMode.data());
+	dynamicDescriptorSetIndex = _dynamicDescriptorSetIndex;
 
 	// Gets descriptor set layouts for each descriptor set
 	uint32_t numDS = 0;
@@ -53,7 +54,8 @@ void AbstractPipeline::InitPipelineLayout(
 	std::fill_n(setLayouts, MAX_DESCRIPTOR_SETS, nullptr);
 	for (; numDS < MAX_DESCRIPTOR_SETS && !bindings.sets[numDS].empty(); numDS++)
 	{
-		setLayouts[numDS] = &CachedDescriptorSetLayout::FindOrCreateNew(bindings.sets[numDS], setBindModes[numDS]);
+		const bool isDynamic = dynamicDescriptorSetIndex == numDS;
+		setLayouts[numDS] = &CachedDescriptorSetLayout::FindOrCreateNew(bindings.sets[numDS], isDynamic);
 		vkSetLayouts[numDS] = setLayouts[numDS]->Layout();
 	}
 

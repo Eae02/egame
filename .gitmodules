@@ -33,3 +33,10 @@
 [submodule "Deps/webgpu-headers"]
 	path = Deps/webgpu-headers
 	url = https://github.com/webgpu-native/webgpu-headers.git
+[submodule "Deps/spirv_tools"]
+	path = Deps/spirv_tools
+	url = https://github.com/KhronosGroup/SPIRV-Tools.git
+	shallow = true
+[submodule "Deps/spirv_headers"]
+	path = Deps/spirv_headers
+	url = https://github.com/KhronosGroup/SPIRV-Headers.git

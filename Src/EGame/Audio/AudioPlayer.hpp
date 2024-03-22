@@ -5,8 +5,8 @@
 #include "AudioClip.hpp"
 
 #include <cstdint>
-#include <vector>
 #include <glm/vec3.hpp>
+#include <vector>
 
 namespace eg
 {

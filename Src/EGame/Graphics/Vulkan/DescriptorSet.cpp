@@ -7,7 +7,6 @@
 #include "Common.hpp"
 #include "Pipeline.hpp"
 #include "Texture.hpp"
-#include "Translation.hpp"
 #include "VulkanCommandContext.hpp"
 
 namespace eg::graphics_api::vk
@@ -61,7 +60,7 @@ DescriptorSetHandle CreateDescriptorSetP(PipelineHandle pipelineHandle, uint32_t
 {
 	AbstractPipeline* pipeline = UnwrapPipeline(pipelineHandle);
 
-	EG_ASSERT(pipeline->descriptorSetBindMode[set] == BindMode::DescriptorSet);
+	EG_ASSERT(pipeline->dynamicDescriptorSetIndex != set);
 
 	auto [descriptorSet, pool] = pipeline->setLayouts[set]->AllocateDescriptorSet();
 
@@ -76,7 +75,7 @@ DescriptorSetHandle CreateDescriptorSetP(PipelineHandle pipelineHandle, uint32_t
 
 DescriptorSetHandle CreateDescriptorSetB(std::span<const DescriptorSetBinding> bindings)
 {
-	CachedDescriptorSetLayout& dsl = CachedDescriptorSetLayout::FindOrCreateNew(bindings, BindMode::DescriptorSet);
+	CachedDescriptorSetLayout& dsl = CachedDescriptorSetLayout::FindOrCreateNew(bindings, false);
 
 	auto [descriptorSet, pool] = dsl.AllocateDescriptorSet();
 
@@ -95,19 +94,14 @@ void DestroyDescriptorSet(DescriptorSetHandle set)
 }
 
 void BindTextureDS(
-	TextureViewHandle textureViewHandle, SamplerHandle samplerHandle, DescriptorSetHandle setHandle, uint32_t binding,
-	eg::TextureUsage usage)
+	TextureViewHandle textureViewHandle, DescriptorSetHandle setHandle, uint32_t binding, eg::TextureUsage usage)
 {
 	DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
 	TextureView* view = UnwrapTextureView(textureViewHandle);
 
 	ds->AssignResource(binding, view->texture);
 
-	VkSampler sampler = reinterpret_cast<VkSampler>(samplerHandle);
-	EG_ASSERT(sampler != VK_NULL_HANDLE);
-
 	VkDescriptorImageInfo imageInfo = {
-		.sampler = sampler,
 		.imageView = view->view,
 		.imageLayout = ImageLayoutFromUsage(usage, view->texture->aspectFlags),
 	};
@@ -117,7 +111,25 @@ void BindTextureDS(
 		.dstSet = ds->descriptorSet,
 		.dstBinding = binding,
 		.descriptorCount = 1,
-		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+		.pImageInfo = &imageInfo,
+	};
+
+	vkUpdateDescriptorSets(ctx.device, 1, &writeDS, 0, nullptr);
+}
+
+void BindSamplerDS(SamplerHandle sampler, DescriptorSetHandle setHandle, uint32_t binding)
+{
+	DescriptorSet* ds = UnwrapDescriptorSet(setHandle);
+
+	VkDescriptorImageInfo imageInfo = { .sampler = reinterpret_cast<VkSampler>(sampler) };
+
+	VkWriteDescriptorSet writeDS = {
+		.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+		.dstSet = ds->descriptorSet,
+		.dstBinding = binding,
+		.descriptorCount = 1,
+		.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
 		.pImageInfo = &imageInfo,
 	};
 
@@ -196,7 +208,7 @@ void BindDescriptorSet(
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 
-	EG_ASSERT(vcc.pipeline && vcc.pipeline->descriptorSetBindMode[set] == BindMode::DescriptorSet);
+	EG_DEBUG_ASSERT(vcc.pipeline && vcc.pipeline->dynamicDescriptorSetIndex != set);
 
 	DescriptorSet* ds = UnwrapDescriptorSet(handle);
 	vcc.referencedResources.Add(*ds);

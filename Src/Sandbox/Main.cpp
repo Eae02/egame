@@ -1,5 +1,4 @@
 #include "EGame/EG.hpp"
-#include <EGame/Graphics/PBR/BRDFIntegrationMap.hpp>
 #include <glm/gtx/matrix_transform_2d.hpp>
 #include <string_view>
 
@@ -25,7 +24,6 @@ struct Game : public eg::IGame
 		m_pipeline = eg::Pipeline::Create(eg::GraphicsPipelineCreateInfo{
 			.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").ToStageInfo(),
 			.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").ToStageInfo(),
-			.setBindModes = { eg::BindMode::DescriptorSet },
 			.numColorAttachments = 1,
 			.colorAttachmentFormats = { eg::Format::DefaultColor },
 			.depthAttachmentFormat = eg::Format::DefaultDepthStencil,
@@ -52,7 +50,7 @@ struct Game : public eg::IGame
 		glm::mat2 transform = glm::scale(glm::mat3(1.0f), scale) * glm::rotate(glm::mat3(1.0f), m_rotation);
 
 		m_parametersBuffer.DCUpdateData(0, sizeof(glm::mat2), &transform);
-		m_parametersBuffer.UsageHint(eg::BufferUsage::UniformBuffer);
+		m_parametersBuffer.UsageHint(eg::BufferUsage::UniformBuffer, eg::ShaderAccessFlags::Vertex);
 
 		eg::RenderPassBeginInfo rpBeginInfo;
 		rpBeginInfo.colorAttachments[0].loadOp = eg::AttachmentLoadOp::Clear;

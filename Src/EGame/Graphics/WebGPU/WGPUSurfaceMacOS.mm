@@ -1,6 +1,7 @@
-#if defined(EG_ENABLE_WEBGPU) && defined(__APPLE__)
+#ifdef __APPLE__
 
 #include "WGPU.hpp"
+#include "../../Utils.hpp"
 
 #include <Cocoa/Cocoa.h>
 #include <Foundation/Foundation.h>
@@ -8,6 +9,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
+#include <SDL2/SDL_metal.h>
 
 namespace eg::graphics_api::webgpu
 {
@@ -33,6 +35,13 @@ WGPUSurface CreateSurface(WGPUInstance instance, SDL_Window* window)
 	};
 
 	return wgpuInstanceCreateSurface(instance, &surfaceDesc);
+}
+
+std::pair<uint32_t, uint32_t> GetWindowDrawableSize(SDL_Window* window)
+{
+	int width, height;
+	SDL_Metal_GetDrawableSize(sdlWindow, &width, &height);
+	return { ToUnsigned(width), ToUnsigned(height) };
 }
 } // namespace eg::graphics_api::webgpu
 

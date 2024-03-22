@@ -114,7 +114,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	bindings.SortByBinding();
 
-	pipeline->InitPipelineLayout(bindings, createInfo.setBindModes, numPushConstantBytes);
+	pipeline->InitPipelineLayout(bindings, createInfo.dynamicDescriptorSetIndex, numPushConstantBytes);
 
 	VkCullModeFlags staticCullMode = TranslateCullMode(createInfo.cullMode.value_or(eg::CullMode::None));
 	pipeline->staticCullMode = staticCullMode;

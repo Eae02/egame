@@ -145,7 +145,6 @@ static inline std::optional<VkImageViewType> TranslateViewType(TextureViewType v
 {
 	switch (viewType)
 	{
-	case TextureViewType::SameAsTexture: return {};
 	case TextureViewType::Flat2D: return VK_IMAGE_VIEW_TYPE_2D;
 	case TextureViewType::Flat3D: return VK_IMAGE_VIEW_TYPE_3D;
 	case TextureViewType::Cube: return VK_IMAGE_VIEW_TYPE_CUBE;
@@ -156,12 +155,13 @@ static inline std::optional<VkImageViewType> TranslateViewType(TextureViewType v
 }
 
 TextureViewHandle GetTextureView(
-	TextureHandle texture, TextureViewType viewType, const TextureSubresource& subresource, Format format)
+	TextureHandle texture, std::optional<TextureViewType> viewType, const TextureSubresource& subresource,
+	Format format)
 {
 	Texture* tex = UnwrapTexture(texture);
 	TextureView& view = tex->GetView(
-		subresource, tex->aspectFlags & (~VK_IMAGE_ASPECT_STENCIL_BIT), TranslateViewType(viewType),
-		TranslateFormat(format));
+		subresource, tex->aspectFlags & ~VK_IMAGE_ASPECT_STENCIL_BIT,
+		viewType.has_value() ? TranslateViewType(*viewType) : std::nullopt, TranslateFormat(format));
 	return reinterpret_cast<TextureViewHandle>(&view);
 }
 
@@ -388,9 +388,9 @@ static inline void InitImageCopyRegion(
 	}
 }
 
-void SetTextureData(
+void CopyBufferToTexture(
 	CommandContextHandle cc, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle,
-	uint64_t offset)
+	const TextureBufferCopyLayout& copyLayout)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
@@ -402,8 +402,22 @@ void SetTextureData(
 	texture->AutoBarrier(cc, TextureUsage::CopyDst);
 	buffer->AutoBarrier(cc, BufferUsage::CopySrc);
 
-	VkBufferImageCopy copyRegion = {};
-	copyRegion.bufferOffset = offset;
+	const uint32_t bytesPerBlock = GetFormatBytesPerBlock(texture->originalFormat);
+	const uint32_t blockWidth = GetFormatBlockWidth(texture->originalFormat);
+
+	EG_ASSERT((copyLayout.rowByteStride % bytesPerBlock) == 0);
+	EG_ASSERT((copyLayout.layerByteStride % bytesPerBlock) == 0);
+
+	const uint32_t pixelsPerRow = (copyLayout.rowByteStride / bytesPerBlock) * blockWidth;
+	EG_ASSERT(pixelsPerRow != 0);
+
+	const uint32_t pixelsPerLayer = (copyLayout.layerByteStride / bytesPerBlock) * blockWidth * blockWidth;
+
+	VkBufferImageCopy copyRegion = {
+		.bufferOffset = copyLayout.offset,
+		.bufferRowLength = pixelsPerRow,
+		.bufferImageHeight = pixelsPerLayer / pixelsPerRow,
+	};
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
 
@@ -411,9 +425,9 @@ void SetTextureData(
 		vcc.cb, buffer->buffer, texture->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
-void GetTextureData(
+void CopyTextureToBuffer(
 	CommandContextHandle cc, TextureHandle handle, const TextureRange& range, BufferHandle bufferHandle,
-	uint64_t offset)
+	const TextureBufferCopyLayout& copyLayout)
 {
 	VulkanCommandContext& vcc = UnwrapCC(cc);
 	Buffer* buffer = UnwrapBuffer(bufferHandle);
@@ -425,8 +439,18 @@ void GetTextureData(
 	texture->AutoBarrier(cc, TextureUsage::CopySrc);
 	buffer->AutoBarrier(cc, BufferUsage::CopyDst);
 
-	VkBufferImageCopy copyRegion = {};
-	copyRegion.bufferOffset = offset;
+	const uint32_t bytesPerBlock = GetFormatBytesPerBlock(texture->originalFormat);
+	EG_ASSERT((copyLayout.rowByteStride % bytesPerBlock) == 0);
+	EG_ASSERT((copyLayout.layerByteStride % bytesPerBlock) == 0);
+
+	const uint32_t pixelsPerRow = copyLayout.rowByteStride / bytesPerBlock;
+	EG_ASSERT(pixelsPerRow != 0);
+
+	VkBufferImageCopy copyRegion = {
+		.bufferOffset = copyLayout.offset,
+		.bufferRowLength = pixelsPerRow,
+		.bufferImageHeight = (copyLayout.layerByteStride / bytesPerBlock) / pixelsPerRow,
+	};
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
 

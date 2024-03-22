@@ -14,14 +14,20 @@ static TextureHandle CreateTexture(
 		usage |= WGPUTextureUsage_CopySrc;
 	if (HasFlag(createInfo.flags, eg::TextureFlags::CopyDst))
 		usage |= WGPUTextureUsage_CopyDst;
-	if (HasFlag(createInfo.flags, eg::TextureFlags::GenerateMipmaps))
-		EG_PANIC("Unimplemented: TextureFlags::GenerateMipmaps");
+	// if (HasFlag(createInfo.flags, eg::TextureFlags::GenerateMipmaps))
+	// 	{}
 	if (HasFlag(createInfo.flags, eg::TextureFlags::ShaderSample))
 		usage |= WGPUTextureUsage_TextureBinding;
 	if (HasFlag(createInfo.flags, eg::TextureFlags::StorageImage))
 		usage |= WGPUTextureUsage_StorageBinding;
 	if (HasFlag(createInfo.flags, eg::TextureFlags::FramebufferAttachment))
 		usage |= WGPUTextureUsage_RenderAttachment;
+
+	if (HasFlag(createInfo.flags, eg::TextureFlags::TransientAttachment) &&
+	    IsDeviceFeatureEnabled(WGPUFeatureName_TransientAttachments))
+	{
+		usage |= WGPUTextureUsage_TransientAttachment;
+	}
 
 	WGPUTextureFormat format = TranslateTextureFormat(createInfo.format);
 
@@ -78,81 +84,159 @@ TextureHandle CreateTexture3D(const TextureCreateInfo& createInfo)
 
 void DestroyTexture(TextureHandle handle)
 {
-	Texture& texture = Texture::Unwrap(handle);
-	wgpuTextureDestroy(texture.texture);
-	delete &texture;
+	Texture* texture = &Texture::Unwrap(handle);
+	OnFrameEnd(
+		[texture]
+		{
+			for (const auto& viewEntry : texture->views)
+				wgpuTextureViewRelease(viewEntry.second);
+			wgpuTextureRelease(texture->texture);
+			delete texture;
+		});
 }
 
 void TextureUsageHint(TextureHandle handle, TextureUsage newUsage, ShaderAccessFlags shaderAccessFlags) {}
 void TextureBarrier(CommandContextHandle ctx, TextureHandle handle, const eg::TextureBarrier& barrier) {}
 
-void SetTextureData(
-	CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset)
+void CopyBufferToTexture(
+	CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer,
+	const TextureBufferCopyLayout& copyLayout)
 {
 	CommandContext& wcc = CommandContext::Unwrap(ctx);
 	Texture& texture = Texture::Unwrap(handle);
 
-	uint32_t rowLen = GetImageByteSize(range.sizeX, 1, texture.format);
-	uint32_t layerLen = range.sizeZ > 1 ? GetImageByteSize(range.sizeX, range.sizeY, texture.format) : 0;
+	wcc.EndComputePass();
 
-	// TODO: Expose there requirements via device limits
-	EG_ASSERT(range.sizeY <= 1 || (rowLen % 256) == 0);
-	EG_ASSERT(range.sizeZ <= 1 || (layerLen % 256) == 0);
+	EG_ASSERT((copyLayout.rowByteStride % 256) == 0);
+	EG_ASSERT((copyLayout.layerByteStride % 256) == 0);
+	EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
+
+	const uint32_t blockSize = GetFormatBlockWidth(texture.format);
 
 	WGPUImageCopyBuffer imageCopyBuffer = {
-		.buffer = Buffer::Unwrap(buffer).buffer,
 		.layout = {
-			.offset = offset,
-			.bytesPerRow = rowLen,
-			.rowsPerImage = layerLen,
+			.offset = copyLayout.offset,
+			.bytesPerRow = copyLayout.rowByteStride,
+			.rowsPerImage = copyLayout.layerByteStride / copyLayout.rowByteStride,
 		},
+		.buffer = Buffer::Unwrap(buffer).buffer,
 	};
 	WGPUImageCopyTexture imageCopyTexture = {
 		.texture = texture.texture,
-		.aspect = WGPUTextureAspect_All,
 		.mipLevel = range.mipLevel,
 		.origin = {
 			.x = range.offsetX,
 			.y = range.offsetY,
 			.z = range.offsetZ,
 		},
+		.aspect = WGPUTextureAspect_All,
 	};
 	WGPUExtent3D extent = {
-		.width = range.sizeX,
-		.height = range.sizeY,
+		.width = RoundToNextMultiple(range.sizeX, blockSize),
+		.height = RoundToNextMultiple(range.sizeY, blockSize),
 		.depthOrArrayLayers = range.sizeZ,
 	};
 
 	wgpuCommandEncoderCopyBufferToTexture(wcc.encoder, &imageCopyBuffer, &imageCopyTexture, &extent);
 }
 
-void GetTextureData(
-	CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer, uint64_t offset)
+void CopyTextureToBuffer(
+	CommandContextHandle ctx, TextureHandle handle, const TextureRange& range, BufferHandle buffer,
+	const TextureBufferCopyLayout& copyLayout)
 {
-	EG_PANIC("Unimplemented: GetTextureData")
+	CommandContext& wcc = CommandContext::Unwrap(ctx);
+	Texture& texture = Texture::Unwrap(handle);
+
+	wcc.EndComputePass();
+
+	EG_ASSERT((copyLayout.rowByteStride % 256) == 0);
+	EG_ASSERT((copyLayout.layerByteStride % 256) == 0);
+	EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
+
+	const uint32_t blockSize = GetFormatBlockWidth(texture.format);
+
+	WGPUImageCopyBuffer imageCopyBuffer = {
+		.layout = {
+			.offset = copyLayout.offset,
+			.bytesPerRow = copyLayout.rowByteStride,
+			.rowsPerImage = copyLayout.layerByteStride / copyLayout.rowByteStride,
+		},
+		.buffer = Buffer::Unwrap(buffer).buffer,
+	};
+	WGPUImageCopyTexture imageCopyTexture = {
+		.texture = texture.texture,
+		.mipLevel = range.mipLevel,
+		.origin = {
+			.x = range.offsetX,
+			.y = range.offsetY,
+			.z = range.offsetZ,
+		},
+		.aspect = WGPUTextureAspect_All,
+	};
+	WGPUExtent3D extent = {
+		.width = RoundToNextMultiple(range.sizeX, blockSize),
+		.height = RoundToNextMultiple(range.sizeY, blockSize),
+		.depthOrArrayLayers = range.sizeZ,
+	};
+
+	wgpuCommandEncoderCopyTextureToBuffer(wcc.encoder, &imageCopyTexture, &imageCopyBuffer, &extent);
 }
 
 void CopyTextureData(
-	CommandContextHandle ctx, TextureHandle src, TextureHandle dst, const TextureRange& srcRange,
+	CommandContextHandle ctx, TextureHandle srcHandle, TextureHandle dstHandle, const TextureRange& srcRange,
 	const TextureOffset& dstOffset)
 {
-	EG_PANIC("Unimplemented: CopyTextureData")
+	CommandContext& wcc = CommandContext::Unwrap(ctx);
+
+	wcc.EndComputePass();
+
+	WGPUImageCopyTexture srcCopy = {
+		.texture = Texture::Unwrap(srcHandle).texture,
+		.mipLevel = srcRange.mipLevel,
+		.origin = {
+			.x = srcRange.offsetX,
+			.y = srcRange.offsetY,
+			.z = srcRange.offsetZ,
+		},
+		.aspect = WGPUTextureAspect_All,
+	};
+	WGPUImageCopyTexture dstCopy = {
+		.texture = Texture::Unwrap(dstHandle).texture,
+		.mipLevel = dstOffset.mipLevel,
+		.origin = {
+			.x = dstOffset.offsetX,
+			.y = dstOffset.offsetY,
+			.z = dstOffset.offsetZ,
+		},
+		.aspect = WGPUTextureAspect_All,
+	};
+	WGPUExtent3D extent = {
+		.width = srcRange.sizeX,
+		.height = srcRange.sizeY,
+		.depthOrArrayLayers = srcRange.sizeZ,
+	};
+
+	wgpuCommandEncoderCopyTextureToTexture(wcc.encoder, &srcCopy, &dstCopy, &extent);
 }
 
 void GenerateMipmaps(CommandContextHandle ctx, TextureHandle handle)
 {
-	EG_PANIC("Unimplemented: GenerateMipmaps")
+	// EG_PANIC("Unimplemented: GenerateMipmaps")
 }
 
-void BindTexture(
-	CommandContextHandle ctx, TextureViewHandle textureView, SamplerHandle sampler, uint32_t set, uint32_t binding)
+void BindTexture(CommandContextHandle ctx, TextureViewHandle textureView, uint32_t set, uint32_t binding)
 {
-	EG_PANIC("Unimplemented: BindTexture")
+	EG_PANIC("Unsupported: BindTexture")
+}
+
+void BindSampler(CommandContextHandle, SamplerHandle sampler, uint32_t set, uint32_t binding)
+{
+	EG_PANIC("Unsupported: BindSampler")
 }
 
 void BindStorageImage(CommandContextHandle ctx, TextureViewHandle texture, uint32_t set, uint32_t binding)
 {
-	EG_PANIC("Unimplemented: BindStorageImage")
+	EG_PANIC("Unsupported: BindStorageImage")
 }
 
 void ResolveTexture(CommandContextHandle ctx, TextureHandle src, TextureHandle dst, const ResolveRegion& region){
@@ -177,50 +261,42 @@ TextureSubresource Texture::ResolveSubresourceRem(TextureSubresource subresource
 	return subresource;
 }
 
-TextureViewHandle GetTextureView(
-	TextureHandle textureHandle, TextureViewType viewType, const TextureSubresource& subresource, Format format)
+WGPUTextureView Texture::GetTextureView(
+	std::optional<TextureViewType> viewType, const TextureSubresource& subresource, Format viewFormat)
 {
-	Texture& texture = Texture::Unwrap(textureHandle);
-
 	const TextureViewKey viewKey = {
-		.format = format == Format::Undefined ? texture.format : format,
-		.type = viewType == TextureViewType::SameAsTexture ? texture.textureType : viewType,
-		.subresource = texture.ResolveSubresourceRem(subresource),
+		.type = viewType.value_or(textureType),
+		.format = viewFormat == Format::Undefined ? format : viewFormat,
+		.subresource = ResolveSubresourceRem(subresource),
 	};
 
-	WGPUTextureView textureView;
+	auto viewIt = views.find(viewKey);
+	if (viewIt != views.end())
+		return viewIt->second;
 
-	auto viewIt = texture.views.find(viewKey);
-	if (viewIt != texture.views.end())
-	{
-		textureView = viewIt->second;
-	}
-	else
-	{
-		static const WGPUTextureViewDimension VIEW_DIMENSION_LUT[] = {
-			[(uint32_t)TextureViewType::Flat2D] = WGPUTextureViewDimension_2D,
-			[(uint32_t)TextureViewType::Flat3D] = WGPUTextureViewDimension_3D,
-			[(uint32_t)TextureViewType::Cube] = WGPUTextureViewDimension_Cube,
-			[(uint32_t)TextureViewType::Array2D] = WGPUTextureViewDimension_2DArray,
-			[(uint32_t)TextureViewType::ArrayCube] = WGPUTextureViewDimension_CubeArray,
-		};
+	const WGPUTextureViewDescriptor viewDescriptor = {
+		.format = TranslateTextureFormat(viewKey.format),
+		.dimension = TranslateTextureViewType(viewKey.type),
+		.baseMipLevel = viewKey.subresource.firstMipLevel,
+		.mipLevelCount = viewKey.subresource.numMipLevels,
+		.baseArrayLayer = viewKey.subresource.firstArrayLayer,
+		.arrayLayerCount = viewKey.subresource.numArrayLayers,
+		.aspect = WGPUTextureAspect_All,
+	};
 
-		const WGPUTextureViewDescriptor viewDescriptor = {
-			.format = TranslateTextureFormat(viewKey.format),
-			.dimension = VIEW_DIMENSION_LUT[static_cast<uint32_t>(viewKey.type)],
-			.baseMipLevel = viewKey.subresource.firstMipLevel,
-			.mipLevelCount = viewKey.subresource.numMipLevels,
-			.baseArrayLayer = viewKey.subresource.firstArrayLayer,
-			.arrayLayerCount = viewKey.subresource.numArrayLayers,
-			.aspect = WGPUTextureAspect_All,
-		};
+	WGPUTextureView textureView = wgpuTextureCreateView(texture, &viewDescriptor);
 
-		textureView = wgpuTextureCreateView(texture.texture, &viewDescriptor);
+	views.emplace(viewKey, textureView);
 
-		texture.views.emplace(viewKey, textureView);
-	}
+	return textureView;
+}
 
-	return reinterpret_cast<TextureViewHandle>(textureView);
+TextureViewHandle GetTextureView(
+	TextureHandle textureHandle, std::optional<TextureViewType> viewType, const TextureSubresource& subresource,
+	Format format)
+{
+	WGPUTextureView view = Texture::Unwrap(textureHandle).GetTextureView(viewType, subresource, format);
+	return reinterpret_cast<TextureViewHandle>(view);
 }
 
 static inline WGPUAddressMode TranslateSamplerWrapMode(WrapMode mode)
@@ -231,6 +307,7 @@ static inline WGPUAddressMode TranslateSamplerWrapMode(WrapMode mode)
 	case WrapMode::MirroredRepeat: return WGPUAddressMode_MirrorRepeat;
 	case WrapMode::ClampToEdge: return WGPUAddressMode_ClampToEdge;
 	}
+	EG_UNREACHABLE
 }
 
 SamplerHandle CreateSampler(const SamplerDescription& description)
@@ -245,7 +322,7 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 			description.mipFilter == TextureFilter::Linear ? WGPUMipmapFilterMode_Linear : WGPUMipmapFilterMode_Nearest,
 		.lodMinClamp = description.minLod,
 		.lodMaxClamp = description.maxLod,
-		.maxAnisotropy = static_cast<uint16_t>(glm::clamp(description.maxAnistropy, 0, UINT16_MAX)),
+		.maxAnisotropy = static_cast<uint16_t>(glm::clamp(description.maxAnistropy, 1, UINT16_MAX)),
 	};
 	if (description.enableCompare)
 		samplerDesc.compare = TranslateCompareOp(description.compareOp);

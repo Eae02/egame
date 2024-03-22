@@ -49,7 +49,7 @@ inline bool _GetQueryResults(QueryPoolHandle queryPoolHandle, uint32_t firstQuer
 {
 	if (numQueries == 0)
 		return true;
-	
+
 	QueryPool* queryPool = UnwrapQueryPool(queryPoolHandle);
 	CheckQueryIndex(*queryPool, firstQuery + numQueries - 1);
 	for (uint32_t i = 0; i < numQueries; i++)

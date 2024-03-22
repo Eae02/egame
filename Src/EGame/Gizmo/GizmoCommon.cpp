@@ -24,7 +24,7 @@ ShaderModule gizmoFragmentShader;
 
 static const eg::DescriptorSetBinding GIZMO_DS_BINDINGS[] = { {
 	.binding = 0,
-	.type = BindingType::UniformBufferDynamicOffset,
+	.type = eg::BindingTypeUniformBuffer{ .dynamicOffset = true },
 	.shaderAccess = ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment,
 } };
 
@@ -46,7 +46,6 @@ void InitGizmoPipeline()
 	GraphicsPipelineCreateInfo pipelineCI;
 	pipelineCI.vertexShader = { .shaderModule = gizmoVertexShader.Handle() };
 	pipelineCI.fragmentShader = { .shaderModule = gizmoFragmentShader.Handle() };
-	pipelineCI.setBindModes[0] = eg::BindMode::DescriptorSet;
 	pipelineCI.descriptorSetBindings[0] = GIZMO_DS_BINDINGS;
 	pipelineCI.vertexBindings[0] = { sizeof(float) * 3, InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, DataType::Float32, 3, 0 };

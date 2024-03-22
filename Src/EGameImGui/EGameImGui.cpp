@@ -3,11 +3,10 @@
 #include "../EGame/Core.hpp"
 #include "../EGame/Event.hpp"
 #include "../EGame/InputState.hpp"
-#include "../EGame/Platform/FileSystem.hpp"
+#include "../EGame/Platform/FontConfig.hpp"
 
 #include "../Shaders/Build/ImGui.fs.h"
 #include "../Shaders/Build/ImGui.vs.h"
-#include "EGame/Platform/FontConfig.hpp"
 
 namespace eg::imgui
 {
@@ -16,8 +15,6 @@ static bool isInitialized;
 static eg::EventListener<eg::ButtonEvent>* buttonEventListener;
 
 static Texture fontTexture;
-
-static Sampler textureSampler;
 
 static ShaderModule vertexShader;
 static ShaderModule fragmentShader;
@@ -30,7 +27,7 @@ static int indexBufferCapacity;
 static Buffer indexBuffer;
 
 static Buffer scaleUniformBuffer;
-static DescriptorSet scaleUniformBufferDescriptorSet;
+static DescriptorSet commonDescriptorSet;
 
 static ImGuiKey buttonRemapTable[NUM_BUTTONS];
 
@@ -183,8 +180,6 @@ void Initialize(const InitializeArgs& args)
 	pipelineCI.enableScissorTest = true;
 	pipelineCI.colorAttachmentFormats[0] = eg::Format::DefaultColor;
 	pipelineCI.depthAttachmentFormat = eg::Format::DefaultDepthStencil;
-	pipelineCI.setBindModes[0] = eg::BindMode::DescriptorSet;
-	pipelineCI.setBindModes[1] = eg::BindMode::DescriptorSet;
 	pipelineCI.blendStates[0] = eg::AlphaBlend;
 	pipelineCI.vertexBindings[0] = { sizeof(ImDrawVert), eg::InputRate::Vertex };
 	pipelineCI.vertexAttributes[0] = { 0, eg::DataType::Float32, 2, static_cast<uint32_t>(offsetof(ImDrawVert, pos)) };
@@ -225,17 +220,6 @@ void Initialize(const InitializeArgs& args)
 	int fontTexWidth, fontTexHeight;
 	io.Fonts->GetTexDataAsRGBA32(&fontTexPixels, &fontTexWidth, &fontTexHeight);
 
-	uint64_t fontTexBytes = fontTexWidth * fontTexHeight * 4;
-	eg::Buffer fontUploadBuffer(eg::BufferFlags::CopySrc | eg::BufferFlags::MapWrite, fontTexBytes, nullptr);
-	void* fontUploadMem = fontUploadBuffer.Map(0, fontTexBytes);
-	std::memcpy(fontUploadMem, fontTexPixels, fontTexBytes);
-	fontUploadBuffer.Flush(0, fontTexBytes);
-
-	textureSampler = Sampler(SamplerDescription{
-		.wrapU = eg::WrapMode::ClampToEdge,
-		.wrapV = eg::WrapMode::ClampToEdge,
-	});
-
 	eg::TextureCreateInfo fontTexCreateInfo;
 	fontTexCreateInfo.flags = eg::TextureFlags::CopyDst | eg::TextureFlags::ShaderSample;
 	fontTexCreateInfo.width = fontTexWidth;
@@ -244,8 +228,10 @@ void Initialize(const InitializeArgs& args)
 	fontTexCreateInfo.mipLevels = 1;
 
 	fontTexture = eg::Texture::Create2D(fontTexCreateInfo);
-	eg::DC.SetTextureData(
-		fontTexture, { 0, 0, 0, ToUnsigned(fontTexWidth), ToUnsigned(fontTexHeight), 1, 0 }, fontUploadBuffer, 0);
+
+	const size_t fontTexByteSize = fontTexWidth * fontTexHeight * 4;
+	fontTexture.SetData({ reinterpret_cast<const char*>(fontTexPixels), fontTexByteSize }, fontTexture.WholeRange());
+
 	io.Fonts->TexID = MakeImTextureID(fontTexture);
 
 	fontTexture.UsageHint(eg::TextureUsage::ShaderSample, eg::ShaderAccessFlags::Fragment);
@@ -254,8 +240,15 @@ void Initialize(const InitializeArgs& args)
 
 	scaleUniformBuffer =
 		eg::Buffer(eg::BufferFlags::UniformBuffer | eg::BufferFlags::CopyDst, sizeof(float) * 2, nullptr);
-	scaleUniformBufferDescriptorSet = eg::DescriptorSet(pipeline, 0);
-	scaleUniformBufferDescriptorSet.BindUniformBuffer(scaleUniformBuffer, 0);
+
+	commonDescriptorSet = eg::DescriptorSet(pipeline, 0);
+	commonDescriptorSet.BindUniformBuffer(scaleUniformBuffer, 0);
+	commonDescriptorSet.BindSampler(
+		GetSampler(SamplerDescription{
+			.wrapU = eg::WrapMode::ClampToEdge,
+			.wrapV = eg::WrapMode::ClampToEdge,
+		}),
+		1);
 
 	detail::imguiBeginFrame = &StartFrame;
 	detail::imguiEndFrame = &EndFrame;
@@ -279,7 +272,7 @@ void Uninitialize()
 	detail::imguiEndFrame = nullptr;
 	ImGui::DestroyContext();
 	scaleUniformBuffer.Destroy();
-	scaleUniformBufferDescriptorSet.Destroy();
+	commonDescriptorSet.Destroy();
 }
 
 EG_ON_SHUTDOWN(Uninitialize);
@@ -343,6 +336,7 @@ void EndFrame()
 	static_assert(sizeof(ImDrawIdx) == sizeof(uint16_t));
 	uint64_t verticesBytes = drawData->TotalVtxCount * sizeof(ImDrawVert);
 	uint64_t indicesBytes = drawData->TotalIdxCount * sizeof(ImDrawIdx);
+	uint64_t indicesBytesPadded = RoundToNextMultiple(indicesBytes, BUFFER_BUFFER_COPY_SIZE_ALIGNMENT);
 
 	if (vertexBufferCapacity < drawData->TotalVtxCount)
 	{
@@ -358,7 +352,7 @@ void EndFrame()
 			eg::BufferFlags::IndexBuffer | eg::BufferFlags::CopyDst, indexBufferCapacity * sizeof(ImDrawIdx), nullptr);
 	}
 
-	size_t uploadBufferSize = verticesBytes + indicesBytes;
+	size_t uploadBufferSize = verticesBytes + indicesBytesPadded;
 	eg::UploadBuffer uploadBuffer = eg::GetTemporaryUploadBuffer(uploadBufferSize);
 	char* uploadMem = reinterpret_cast<char*>(uploadBuffer.Map());
 
@@ -385,7 +379,7 @@ void EndFrame()
 	uploadBuffer.Flush();
 
 	eg::DC.CopyBuffer(uploadBuffer.buffer, vertexBuffer, uploadBuffer.offset, 0, verticesBytes);
-	eg::DC.CopyBuffer(uploadBuffer.buffer, indexBuffer, uploadBuffer.offset + verticesBytes, 0, indicesBytes);
+	eg::DC.CopyBuffer(uploadBuffer.buffer, indexBuffer, uploadBuffer.offset + verticesBytes, 0, indicesBytesPadded);
 
 	vertexBuffer.UsageHint(eg::BufferUsage::VertexBuffer);
 	indexBuffer.UsageHint(eg::BufferUsage::IndexBuffer);
@@ -401,7 +395,7 @@ void EndFrame()
 
 	eg::DC.BindPipeline(pipeline);
 
-	eg::DC.BindDescriptorSet(scaleUniformBufferDescriptorSet, 0);
+	eg::DC.BindDescriptorSet(commonDescriptorSet, 0);
 	eg::DC.BindVertexBuffer(0, vertexBuffer, 0);
 	eg::DC.BindIndexBuffer(eg::IndexType::UInt16, indexBuffer, 0);
 

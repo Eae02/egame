@@ -82,13 +82,7 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 	const size_t uploadBufferSize = bytesPerLayer * header.numLayers;
 	EG_ASSERT(uploadBufferSize + sizeof(Texture2DHeader) <= loadContext.Data().size());
 
-	Buffer uploadBuffer(BufferFlags::CopySrc | BufferFlags::MapWrite, uploadBufferSize, nullptr);
-
-	void* uploadBufferMemory = uploadBuffer.Map(0, uploadBufferSize);
-	std::memcpy(uploadBufferMemory, loadContext.Data().data() + sizeof(Texture2DHeader), uploadBufferSize);
-	uploadBuffer.Flush(0, uploadBufferSize);
-
-	uint64_t bufferOffset = 0;
+	uint64_t bufferOffset = sizeof(Texture2DHeader);
 	for (uint32_t i = 0; i < header.numLayers; i++)
 	{
 		for (uint32_t mip = 0; mip < header.numMipLevels; mip++)
@@ -96,19 +90,22 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 			const uint32_t mipWidth = std::max(header.width >> mip, 1U);
 			const uint32_t mipHeight = std::max(header.height >> mip, 1U);
 
+			const uint32_t mipBytes = GetImageByteSize(mipWidth, mipHeight, createInfo.format);
+
 			if (mip >= mipShift)
 			{
-				TextureRange range = {};
-				range.sizeX = mipWidth;
-				range.sizeY = mipHeight;
-				range.sizeZ = 1;
-				range.offsetZ = i;
-				range.mipLevel = mip - mipShift;
+				TextureRange range = {
+					.offsetZ = i,
+					.sizeX = mipWidth,
+					.sizeY = mipHeight,
+					.sizeZ = 1,
+					.mipLevel = mip - mipShift,
+				};
 
-				eg::DC.SetTextureData(*texture, range, uploadBuffer, bufferOffset);
+				texture->SetData(loadContext.Data().subspan(bufferOffset, mipBytes), range);
 			}
 
-			bufferOffset += GetImageByteSize(mipWidth, mipHeight, createInfo.format);
+			bufferOffset += mipBytes;
 		}
 	}
 

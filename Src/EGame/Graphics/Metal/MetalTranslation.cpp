@@ -61,12 +61,14 @@ MTL::PixelFormat TranslatePixelFormat(Format format)
 	case Format::B10G11R11_UFloat:     return MTL::PixelFormatRG11B10Float;
 	case Format::BC1_RGBA_UNorm:       return MTL::PixelFormatBC1_RGBA;
 	case Format::BC1_RGBA_sRGB:        return MTL::PixelFormatBC1_RGBA_sRGB;
-	case Format::BC1_RGB_UNorm:        return MTL::PixelFormatBC1_RGBA;     //?
-	case Format::BC1_RGB_sRGB:         return MTL::PixelFormatBC1_RGBA_sRGB; //?
-	case Format::BC3_UNorm:            return MTL::PixelFormatBC3_RGBA;
-	case Format::BC3_sRGB:             return MTL::PixelFormatBC3_RGBA_sRGB;
-	case Format::BC4_UNorm:            return MTL::PixelFormatBC4_RUnorm;
-	case Format::BC5_UNorm:            return MTL::PixelFormatBC5_RGUnorm;
+	case Format::BC3_RGBA_UNorm:       return MTL::PixelFormatBC3_RGBA;
+	case Format::BC3_RGBA_sRGB:        return MTL::PixelFormatBC3_RGBA_sRGB;
+	case Format::BC4_R_UNorm:          return MTL::PixelFormatBC4_RUnorm;
+	case Format::BC5_RG_UNorm:         return MTL::PixelFormatBC5_RGUnorm;
+	case Format::BC6H_RGB_UFloat:      return MTL::PixelFormatBC6H_RGBUfloat;
+	case Format::BC6H_RGB_Float:       return MTL::PixelFormatBC6H_RGBFloat;
+	case Format::BC7_RGBA_UNorm:       return MTL::PixelFormatBC7_RGBAUnorm;
+	case Format::BC7_RGBA_sRGB:        return MTL::PixelFormatBC7_RGBAUnorm_sRGB;
 	case Format::Depth16:              return MTL::PixelFormatDepth16Unorm;
 	case Format::Depth32:              return MTL::PixelFormatDepth32Float;
 	case Format::Depth24Stencil8:      return MTL::PixelFormatDepth24Unorm_Stencil8;
@@ -134,12 +136,14 @@ MTL::VertexFormat TranslateVertexFormat(Format format)
 	case Format::R8G8B8A8_sRGB:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
-	case Format::BC1_RGB_UNorm:
-	case Format::BC1_RGB_sRGB:
-	case Format::BC3_UNorm:
-	case Format::BC3_sRGB:
-	case Format::BC4_UNorm:
-	case Format::BC5_UNorm:
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC4_R_UNorm:
+	case Format::BC5_RG_UNorm:
+	case Format::BC6H_RGB_UFloat:
+	case Format::BC6H_RGB_Float:
+	case Format::BC7_RGBA_UNorm:
+	case Format::BC7_RGBA_sRGB:
 	case Format::Depth16:
 	case Format::Depth32:
 	case Format::Depth24Stencil8:

@@ -21,8 +21,7 @@ struct FramebufferAttachment
 		if (attachment.subresource.numArrayLayers > 1)
 		{
 			return FramebufferAttachment{
-				.texture =
-					texture.GetTextureView(TextureViewType::SameAsTexture, attachment.subresource.AsSubresource()),
+				.texture = texture.GetTextureView(std::nullopt, attachment.subresource.AsSubresource()),
 			};
 		}
 		else

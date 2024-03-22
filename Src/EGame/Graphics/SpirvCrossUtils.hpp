@@ -3,11 +3,11 @@
 #include "Abstraction.hpp"
 #include "Graphics.hpp"
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <span>
 #include <vector>
-#include <array>
 
 namespace eg
 {

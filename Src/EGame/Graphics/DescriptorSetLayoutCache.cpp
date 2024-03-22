@@ -6,12 +6,13 @@ namespace eg
 {
 bool DescriptorSetLayoutCache::DSLKey::operator==(const DSLKey& o) const
 {
-	return bindMode == o.bindMode && std::equal(bindings.begin(), bindings.end(), o.bindings.begin(), o.bindings.end());
+	return dynamicBind == o.dynamicBind &&
+	       std::equal(bindings.begin(), bindings.end(), o.bindings.begin(), o.bindings.end());
 }
 
 size_t DescriptorSetLayoutCache::DSLKey::Hash() const
 {
-	size_t h = static_cast<size_t>(bindMode) | (bindings.size() << 1);
+	size_t h = static_cast<size_t>(dynamicBind) | (bindings.size() << 1);
 	for (const DescriptorSetBinding& binding : bindings)
 	{
 		HashAppend(h, binding.Hash());
@@ -27,11 +28,11 @@ void DescriptorSetLayoutCache::DSLKey::CreateOwnedCopyOfBindings()
 }
 
 ICachedDescriptorSetLayout& DescriptorSetLayoutCache::Get(
-	std::span<const DescriptorSetBinding> bindings, BindMode bindMode)
+	std::span<const DescriptorSetBinding> bindings, bool dynamicBind)
 {
 	DSLKey dslKey;
 	dslKey.bindings = bindings;
-	dslKey.bindMode = bindMode;
+	dslKey.dynamicBind = dynamicBind;
 
 	if (!std::is_sorted(bindings.begin(), bindings.end(), DescriptorSetBinding::BindingCmp()))
 	{
@@ -47,12 +48,11 @@ ICachedDescriptorSetLayout& DescriptorSetLayoutCache::Get(
 	if (cacheIt != m_layouts.end())
 		return *cacheIt->second;
 
-	std::unique_ptr<ICachedDescriptorSetLayout> layout = createLayoutCallback(bindings, bindMode);
+	std::unique_ptr<ICachedDescriptorSetLayout> layout = createLayoutCallback(bindings, dynamicBind);
 	ICachedDescriptorSetLayout& ret = *layout;
 
-	dslKey.ownedBindings = std::make_unique<DescriptorSetBinding[]>(bindings.size());
-	std::copy(bindings.begin(), bindings.end(), dslKey.ownedBindings.get());
-	dslKey.bindings = { dslKey.ownedBindings.get(), bindings.size() };
+	if (dslKey.ownedBindings == nullptr)
+		dslKey.CreateOwnedCopyOfBindings();
 
 	m_layouts.emplace(std::move(dslKey), std::move(layout));
 	return ret;

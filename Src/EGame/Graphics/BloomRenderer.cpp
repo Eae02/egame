@@ -6,13 +6,35 @@
 
 namespace eg
 {
-static const SamplerDescription bloomTextureSamplerDesc = {
-	.wrapU = WrapMode::ClampToEdge,
-	.wrapV = WrapMode::ClampToEdge,
-	.wrapW = WrapMode::ClampToEdge,
-	.minFilter = TextureFilter::Linear,
-	.magFilter = TextureFilter::Linear,
-	.mipFilter = TextureFilter::Linear,
+static const DescriptorSetBinding BLUR_X_DS_BINDINGS[] = {
+	DescriptorSetBinding{
+		.binding = 0,
+		.type = eg::BindingTypeTexture{},
+		.shaderAccess = ShaderAccessFlags::Fragment,
+	},
+	DescriptorSetBinding{
+		.binding = 1,
+		.type = eg::BindingTypeTexture{},
+		.shaderAccess = ShaderAccessFlags::Fragment,
+	},
+	DescriptorSetBinding{
+		.binding = 2,
+		.type = BindingTypeSampler{},
+		.shaderAccess = ShaderAccessFlags::Fragment,
+	},
+};
+
+static const DescriptorSetBinding BLUR_Y_DS_BINDINGS[] = {
+	DescriptorSetBinding{
+		.binding = 0,
+		.type = eg::BindingTypeTexture{},
+		.shaderAccess = ShaderAccessFlags::Fragment,
+	},
+	DescriptorSetBinding{
+		.binding = 1,
+		.type = BindingTypeSampler{},
+		.shaderAccess = ShaderAccessFlags::Fragment,
+	},
 };
 
 BloomRenderer::RenderTarget::RenderTarget(
@@ -27,29 +49,53 @@ BloomRenderer::RenderTarget::RenderTarget(
 		levelWidth /= 2;
 		levelHeight /= 2;
 	}
+
+	SamplerHandle sampler = GetSampler({
+		.wrapU = WrapMode::ClampToEdge,
+		.wrapV = WrapMode::ClampToEdge,
+		.wrapW = WrapMode::ClampToEdge,
+		.minFilter = TextureFilter::Linear,
+		.magFilter = TextureFilter::Linear,
+		.mipFilter = TextureFilter::Linear,
+	});
+
 	for (uint32_t l = 0; l < levels; l++)
 	{
-		TextureCreateInfo textureCI;
-		textureCI.width = levelWidth;
-		textureCI.height = levelHeight;
-		textureCI.mipLevels = 1;
-		textureCI.format = format;
-		textureCI.flags = TextureFlags::ShaderSample | TextureFlags::FramebufferAttachment;
-
 		for (uint32_t i = 0; i < 3; i++)
 		{
 			char labelBuffer[32];
 			snprintf(labelBuffer, sizeof(labelBuffer), "Bloom:L%u:T%u", l, i);
-			textureCI.label = labelBuffer;
-			m_levels[l].m_textures[i] = eg::Texture::Create2D(textureCI);
+
+			m_levels[l].m_textures[i] = eg::Texture::Create2D(TextureCreateInfo{
+				.flags = TextureFlags::ShaderSample | TextureFlags::FramebufferAttachment,
+				.mipLevels = 1,
+				.width = levelWidth,
+				.height = levelHeight,
+				.format = format,
+				.label = labelBuffer,
+			});
 
 			FramebufferAttachment colorAttachment(m_levels[l].m_textures[i].handle);
 			m_levels[l].m_framebuffers[i] = eg::Framebuffer({ &colorAttachment, 1 });
 		}
 
+		m_levels[l].m_blurXDescriptorSet = DescriptorSet(BLUR_X_DS_BINDINGS);
+		m_levels[l].m_blurXDescriptorSet.BindTexture(m_levels[l].m_textures[1], 0);
+		m_levels[l].m_blurXDescriptorSet.BindSampler(sampler, 2);
+
+		m_levels[l].m_blurYDescriptorSet = DescriptorSet(BLUR_Y_DS_BINDINGS);
+		m_levels[l].m_blurYDescriptorSet.BindTexture(m_levels[l].m_textures[0], 0);
+		m_levels[l].m_blurYDescriptorSet.BindSampler(sampler, 1);
+
 		levelWidth /= 2;
 		levelHeight /= 2;
 	}
+
+	for (uint32_t l = 0; l < levels - 1; l++)
+	{
+		m_levels[l].m_blurXDescriptorSet.BindTexture(m_levels[l + 1].m_textures[2], 1);
+	}
+	m_levels[levels - 1].m_blurXDescriptorSet.BindTexture(Texture::BlackPixel(), 1);
 }
 
 bool BloomRenderer::RenderTarget::MatchesWindowResolution() const
@@ -79,52 +125,56 @@ BloomRenderer::BloomRenderer(eg::Format format) : m_format(format)
 	eg::ShaderModule blurXSM(ShaderStage::Fragment, BloomBlurX_fs_glsl);
 	eg::ShaderModule blurYSM(ShaderStage::Fragment, BloomBlurY_fs_glsl);
 
-	GraphicsPipelineCreateInfo brightPassPipelineCI;
-	brightPassPipelineCI.vertexShader.shaderModule = vertexShader.Handle();
-	brightPassPipelineCI.fragmentShader.shaderModule = brightPassSM.Handle();
-	brightPassPipelineCI.colorAttachmentFormats[0] = format;
-	brightPassPipelineCI.label = "Bloom[BrightPass]";
-	m_brightPassPipeline = eg::Pipeline::Create(brightPassPipelineCI);
+	m_brightPassPipeline = eg::Pipeline::Create(GraphicsPipelineCreateInfo{
+		.vertexShader = ShaderStageInfo(vertexShader.Handle()),
+		.fragmentShader = ShaderStageInfo(brightPassSM.Handle()),
+		.colorAttachmentFormats = { format },
+		.label = "Bloom[BrightPass]",
+	});
 
-	GraphicsPipelineCreateInfo blurPipelineXCI;
-	blurPipelineXCI.vertexShader.shaderModule = vertexShader.Handle();
-	blurPipelineXCI.fragmentShader.shaderModule = blurXSM.Handle();
-	blurPipelineXCI.colorAttachmentFormats[0] = format;
-	blurPipelineXCI.label = "Bloom[BlurX]";
-	m_blurPipelineX = eg::Pipeline::Create(blurPipelineXCI);
+	m_blurPipelineX = eg::Pipeline::Create(GraphicsPipelineCreateInfo{
+		.vertexShader = ShaderStageInfo(vertexShader.Handle()),
+		.fragmentShader = ShaderStageInfo(blurXSM.Handle()),
+		.colorAttachmentFormats = { format },
+		.label = "Bloom[BlurX]",
+	});
 
-	GraphicsPipelineCreateInfo blurPipelineYCI;
-	blurPipelineYCI.vertexShader.shaderModule = vertexShader.Handle();
-	blurPipelineYCI.fragmentShader.shaderModule = blurYSM.Handle();
-	blurPipelineYCI.colorAttachmentFormats[0] = format;
-	blurPipelineYCI.label = "Bloom[BlurY]";
-	m_blurPipelineY = eg::Pipeline::Create(blurPipelineYCI);
+	m_blurPipelineY = eg::Pipeline::Create(GraphicsPipelineCreateInfo{
+		.vertexShader = ShaderStageInfo(vertexShader.Handle()),
+		.fragmentShader = ShaderStageInfo(blurYSM.Handle()),
+		.colorAttachmentFormats = { format },
+		.label = "Bloom[BlurY]",
+	});
 
-	m_inputSampler = Sampler(bloomTextureSamplerDesc);
+	constexpr uint32_t PARAMETERS_BUFFER_SIZE = sizeof(float) * 6;
 
-	TextureCreateInfo blackPixelTexCI;
-	blackPixelTexCI.width = 1;
-	blackPixelTexCI.height = 1;
-	blackPixelTexCI.mipLevels = 1;
-	blackPixelTexCI.format = Format::R8G8B8A8_UNorm;
-	blackPixelTexCI.flags = TextureFlags::ShaderSample | TextureFlags::CopyDst;
-	m_blackPixelTexture = Texture::Create2D(blackPixelTexCI);
+	uint32_t brightPassParametersBufferZeroedOffset =
+		RoundToNextMultiple(PARAMETERS_BUFFER_SIZE, GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
 
-	UploadBuffer uploadBuffer = GetTemporaryUploadBuffer(4);
-	uint8_t* uploadBufferMem = static_cast<uint8_t*>(uploadBuffer.Map());
-	std::fill_n(uploadBufferMem, 4, 0);
-	uploadBuffer.Flush();
+	m_brightPassParametersBuffer = Buffer(
+		eg::BufferFlags::CopyDst | eg::BufferFlags::UniformBuffer, brightPassParametersBufferZeroedOffset * 2, nullptr);
+	eg::DC.FillBuffer(m_brightPassParametersBuffer, brightPassParametersBufferZeroedOffset, PARAMETERS_BUFFER_SIZE, 0);
 
-	TextureRange textureRange = {};
-	textureRange.sizeX = 1;
-	textureRange.sizeY = 1;
-	textureRange.sizeZ = 1;
-	DC.SetTextureData(m_blackPixelTexture, textureRange, uploadBuffer.buffer, uploadBuffer.offset);
+	SamplerHandle inputSampler = GetSampler({
+		.wrapU = WrapMode::ClampToEdge,
+		.wrapV = WrapMode::ClampToEdge,
+		.wrapW = WrapMode::ClampToEdge,
+		.minFilter = TextureFilter::Linear,
+		.magFilter = TextureFilter::Linear,
+		.mipFilter = TextureFilter::Linear,
+	});
 
-	m_blackPixelTexture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Fragment);
+	m_brightPassDescriptorSet = DescriptorSet(m_brightPassPipeline, 0);
+	m_brightPassDescriptorSet.BindSampler(inputSampler, 0);
+	m_brightPassDescriptorSet.BindUniformBuffer(m_brightPassParametersBuffer, 1, 0, PARAMETERS_BUFFER_SIZE);
+
+	m_noBrightPassDescriptorSet = DescriptorSet(m_brightPassPipeline, 0);
+	m_noBrightPassDescriptorSet.BindSampler(inputSampler, 0);
+	m_noBrightPassDescriptorSet.BindUniformBuffer(
+		m_brightPassParametersBuffer, 1, brightPassParametersBufferZeroedOffset, PARAMETERS_BUFFER_SIZE);
 }
 
-void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
+void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget)
 {
 	EG_ASSERT(renderTarget.Format() == m_format);
 
@@ -137,10 +187,8 @@ void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
 		DC.BeginRenderPass(rpBeginInfo);
 
 		DC.BindPipeline(m_brightPassPipeline);
-		DC.BindTexture(renderTarget.m_levels[l - 1].m_textures[0], 0, 0, &m_inputSampler);
-
-		const float pc[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		DC.PushConstants(0, sizeof(pc), pc);
+		DC.BindDescriptorSet(m_noBrightPassDescriptorSet, 0);
+		DC.BindDescriptorSet(renderTarget.m_levels[l - 1].m_textures[0].GetFragmentShaderSampleDescriptorSet(), 1);
 
 		DC.Draw(0, 3, 0, 1);
 
@@ -159,8 +207,7 @@ void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
 		DC.BeginRenderPass(rpBeginInfo);
 
 		DC.BindPipeline(m_blurPipelineY);
-
-		DC.BindTexture(renderTarget.m_levels[l].m_textures[0], 0, 0, &m_inputSampler);
+		DC.BindDescriptorSet(renderTarget.m_levels[l].m_blurYDescriptorSet, 0);
 
 		DC.Draw(0, 3, 0, 1);
 
@@ -179,13 +226,7 @@ void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
 		DC.BeginRenderPass(rpBeginInfo);
 
 		DC.BindPipeline(m_blurPipelineX);
-
-		DC.BindTexture(renderTarget.m_levels[l].m_textures[1], 0, 0, &m_inputSampler);
-
-		if (l + 1 == ToInt(renderTarget.m_levels.size()))
-			DC.BindTexture(m_blackPixelTexture, 0, 1, &m_inputSampler);
-		else
-			DC.BindTexture(renderTarget.m_levels[l + 1].m_textures[2], 0, 1, &m_inputSampler);
+		DC.BindDescriptorSet(renderTarget.m_levels[l].m_blurXDescriptorSet, 0);
 
 		DC.Draw(0, 3, 0, 1);
 
@@ -196,17 +237,20 @@ void BloomRenderer::RenderNoBrightPass(RenderTarget& renderTarget) const
 	}
 }
 
-void BloomRenderer::Render(const glm::vec3& threshold, TextureRef inputTexture, RenderTarget& renderTarget) const
+void BloomRenderer::Render(
+	const glm::vec3& threshold, DescriptorSetRef inputTextureDescriptorSet, RenderTarget& renderTarget)
 {
 	EG_ASSERT(renderTarget.Format() == m_format);
+
+	const float parameters[4] = { threshold.x, threshold.y, threshold.z, 0.0f };
+	m_brightPassParametersBuffer.DCUpdateData<float>(0, parameters);
+	m_brightPassParametersBuffer.UsageHint(BufferUsage::UniformBuffer, ShaderAccessFlags::Fragment);
 
 	renderTarget.BeginFirstLayerRenderPass(AttachmentLoadOp::Discard);
 
 	DC.BindPipeline(m_brightPassPipeline);
-	DC.BindTexture(inputTexture, 0, 0, &m_inputSampler);
-
-	const float pc[] = { threshold.r, threshold.g, threshold.b, 0.0f };
-	DC.PushConstants(0, sizeof(pc), pc);
+	DC.BindDescriptorSet(m_brightPassDescriptorSet, 0);
+	DC.BindDescriptorSet(inputTextureDescriptorSet, 1);
 
 	DC.Draw(0, 3, 0, 1);
 

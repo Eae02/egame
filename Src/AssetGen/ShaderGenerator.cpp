@@ -285,6 +285,8 @@ public:
 		if (!lang.has_value())
 			return false;
 
+		const bool createOnDemand = generateContext.YAMLNode()["onDemand"].as<bool>(false);
+
 		std::vector<std::string_view> variants;
 
 		IterateStringParts(
@@ -326,6 +328,7 @@ public:
 		generateContext.writer.Write(static_cast<uint32_t>(egStage));
 
 		generateContext.writer.Write(UnsignedNarrow<uint32_t>(variants.size()));
+		generateContext.writer.Write(static_cast<uint8_t>(createOnDemand));
 
 		glsl_include_callbacks_s includeCallbacks = {
 			.include_system = includeCallbackSystem,

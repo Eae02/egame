@@ -6,6 +6,7 @@ option(EG_BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
 option(EG_BUILD_IMGUI "Whether or not to build imgui support library" ON)
 option(EG_VULKAN "Whether or not to enable vulkan support." ON)
 option(EG_WEBGPU "Whether or not to enable webgpu support." OFF)
+option(EG_WEBGPU_TINT "Whether or not to use tint for webgpu shader transpilation." OFF)
 option(EG_WEBGPU_INCLUDE_PATH "Include path for webgpu.h." "")
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
@@ -22,8 +23,12 @@ option(SPIRV_CROSS_ENABLE_C_API "" OFF)
 option(SPIRV_CROSS_FORCE_PIC "" ON)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross/ SYSTEM)
 
-option(YAML_BUILD_SHARED_LIBS "" OFF)
-option(YAML_CPP_BUILD_TESTS "" OFF)
+set(SPIRV-Headers_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_headers/")
+set(SPIRV_SKIP_EXECUTABLES ON)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_tools/ SYSTEM)
+
+set(YAML_BUILD_SHARED_LIBS OFF)
+set(YAML_CPP_BUILD_TESTS OFF)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/yaml-cpp/ SYSTEM)
 
 target_compile_options(yaml-cpp PRIVATE -fPIC)
@@ -37,7 +42,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX ".*\\.mm")
 endif()
 
-if (EG_WEBGPU)
+if (EG_WEBGPU_TINT)
 	set(TINT_BUILD_CMD_TOOLS OFF)
 	set(TINT_BUILD_WGSL_READER OFF)
 	set(TINT_BUILD_GLSL_WRITER OFF)
@@ -45,7 +50,9 @@ if (EG_WEBGPU)
 	set(TINT_BUILD_MSL_WRITER OFF)
 	set(TINT_BUILD_SPV_WRITER OFF)
 	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/tint SYSTEM)
-else()
+endif()
+
+if (NOT EG_WEBGPU)
 	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/WebGPU/*")
 endif()
 
@@ -218,6 +225,7 @@ target_link_libraries(EGame
 		spirv-cross-msl
 		spirv-cross-util
 		spirv-cross-core
+		SPIRV-Tools-opt
 )
 
 target_include_directories(EGame PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>)
@@ -239,8 +247,11 @@ if (EG_WEBGPU_INCLUDE_PATH)
 endif()
 
 if (EG_WEBGPU)
-	target_link_libraries(EGame PRIVATE libtint)
 	target_compile_options(EGame PRIVATE -DEG_ENABLE_WEBGPU)
+endif()
+if (EG_WEBGPU_TINT)
+	target_link_libraries(EGame PRIVATE libtint)
+	target_compile_options(EGame PRIVATE -DEG_ENABLE_TINT)
 endif()
 
 target_compile_options(EGame

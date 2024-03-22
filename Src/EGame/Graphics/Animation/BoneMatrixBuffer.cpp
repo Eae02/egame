@@ -7,9 +7,8 @@ namespace eg
 {
 static DescriptorSetBinding dsBinding = DescriptorSetBinding{
 	.binding = 0,
-	.type = BindingType::StorageBuffer,
+	.type = eg::BindingTypeStorageBuffer{ .rwMode = ReadWriteMode::ReadOnly },
 	.shaderAccess = ShaderAccessFlags::Vertex,
-	.rwMode = ReadWriteMode::ReadOnly,
 };
 
 void BoneMatrixBuffer::CreateDescriptorSet()

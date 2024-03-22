@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <glm/glm.hpp>
 #include <cstring>
+#include <glm/glm.hpp>
 #include <span>
 #include <string>
 #include <string_view>

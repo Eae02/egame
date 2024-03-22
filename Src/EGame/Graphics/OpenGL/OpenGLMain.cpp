@@ -85,6 +85,7 @@ void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
 	deviceInfo = GraphicsDeviceInfo{
 		.uniformBufferOffsetAlignment = ToUnsigned(GetIntegerLimit(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT)),
+		.textureBufferCopyStrideAlignment = 1,
 		.depthRange = depthRange,
 		.features = DeviceFeatureFlags::GeometryShader | DeviceFeatureFlags::DynamicResourceBind,
 		.timerTicksPerNS = 1.0f,

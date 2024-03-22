@@ -23,7 +23,8 @@ struct Texture
 	std::unordered_map<TextureViewKey, MTL::Texture*, MemberFunctionHash<TextureViewKey>> views;
 
 	MTL::Texture* GetTextureView(
-		TextureViewType viewType, const TextureSubresource& subresource, Format format = Format::Undefined);
+		std::optional<TextureViewType> viewType, const TextureSubresource& subresource,
+		Format format = Format::Undefined);
 
 	static Texture& Unwrap(TextureHandle handle) { return *reinterpret_cast<Texture*>(handle); }
 };

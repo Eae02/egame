@@ -2,14 +2,16 @@
 #include "../../Platform/DynamicLibrary.hpp"
 #include "WGPU.hpp"
 #include "WGPUCommandContext.hpp"
+#include "WGPUDescriptorSet.hpp"
+#include "WGPUFence.hpp"
+#include "WGPUSurface.hpp"
 
-#include <SDL2/SDL_metal.h>
+#include <vector>
 
 namespace eg::graphics_api::webgpu
 {
 DynamicLibrary dawnLibrary;
 
-static std::vector<WGPUFeatureName> adapterFeatures;
 static WGPUSupportedLimits adapterLimits;
 
 static std::string deviceName;
@@ -17,7 +19,10 @@ static std::string apiName;
 
 static SDL_Window* sdlWindow;
 
-void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* pUserData)
+static bool enableSrgbEmulation;
+
+static void OnAdapterRequestEnded(
+	WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* pUserData)
 {
 	if (status == WGPURequestAdapterStatus_Success)
 	{
@@ -30,7 +35,8 @@ void OnAdapterRequestEnded(WGPURequestAdapterStatus status, WGPUAdapter adapter,
 	*static_cast<bool*>(pUserData) = true;
 }
 
-void OnDeviceRequestEnded(WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* pUserData)
+static void OnDeviceRequestEnded(
+	WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* pUserData)
 {
 	if (status == WGPURequestDeviceStatus_Success)
 	{
@@ -43,7 +49,119 @@ void OnDeviceRequestEnded(WGPURequestDeviceStatus status, WGPUDevice device, con
 	*static_cast<bool*>(pUserData) = true;
 }
 
-WGPUSurface CreateSurface(WGPUInstance instance, SDL_Window* window);
+static inline const char* GetMessage(const char* message)
+{
+	return message ? message : "(no message)";
+}
+
+static inline std::string_view WGPUErrorTypeToString(WGPUErrorType type)
+{
+	switch (type)
+	{
+	case WGPUErrorType_NoError: return "NoError";
+	case WGPUErrorType_Validation: return "Validation";
+	case WGPUErrorType_OutOfMemory: return "OutOfMemory";
+	case WGPUErrorType_Internal: return "Internal";
+	case WGPUErrorType_Unknown: return "Unknown";
+	case WGPUErrorType_DeviceLost: return "DeviceLost";
+	default: return "?";
+	}
+}
+
+static void OnDeviceError(WGPUErrorType type, const char* message, void* userData)
+{
+	Log(LogLevel::Error, "webgpu", "WebGPU Device Error [{0}]: {1}", WGPUErrorTypeToString(type), GetMessage(message));
+	if (message != nullptr && !strstr(message, "Error while parsing SPIR-V"))
+	{
+		EG_DEBUG_BREAK;
+	}
+}
+
+static void OnDeviceLost(WGPUDeviceLostReason reason, const char* message, void* userData)
+{
+	if (reason != WGPUDeviceLostReason_Destroyed)
+	{
+		EG_PANIC("WebGPU Device Lost: " << GetMessage(message));
+	}
+}
+
+static WGPUPresentMode presentMode = WGPUPresentMode_Fifo;
+
+static void UpdateSwapchain()
+{
+	auto [width, height] = GetWindowDrawableSize(sdlWindow);
+	if (width == wgpuctx.swapchainImageWidth && height == wgpuctx.swapchainImageHeight &&
+	    wgpuctx.swapchainPresentMode == presentMode)
+	{
+		return;
+	}
+
+	wgpuctx.swapchainImageWidth = width;
+	wgpuctx.swapchainImageHeight = height;
+	wgpuctx.swapchainPresentMode = presentMode;
+
+	if (wgpuctx.swapchain != nullptr)
+		wgpuSwapChainRelease(wgpuctx.swapchain);
+
+	const WGPUSwapChainDescriptor swapChainDesc = {
+		.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopyDst,
+		.format = wgpuctx.swapchainFormat,
+		.width = width,
+		.height = height,
+		.presentMode = presentMode,
+	};
+	wgpuctx.swapchain = wgpuDeviceCreateSwapChain(wgpuctx.device, wgpuctx.surface, &swapChainDesc);
+
+	if (enableSrgbEmulation)
+	{
+		if (wgpuctx.srgbEmulationColorTextureView)
+			wgpuTextureViewRelease(wgpuctx.srgbEmulationColorTextureView);
+		if (wgpuctx.srgbEmulationColorTexture)
+			wgpuTextureRelease(wgpuctx.srgbEmulationColorTexture);
+
+		const WGPUTextureDescriptor textureDesc = {
+			.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_CopySrc,
+			.dimension = WGPUTextureDimension_2D,
+			.size = { .width = width, .height = height, .depthOrArrayLayers = 1 },
+			.format = wgpuctx.defaultColorFormat,
+			.mipLevelCount = 1,
+			.sampleCount = 1,
+			.viewFormatCount = 1,
+			.viewFormats = &wgpuctx.defaultColorFormat,
+		};
+
+		wgpuctx.srgbEmulationColorTexture = wgpuDeviceCreateTexture(wgpuctx.device, &textureDesc);
+
+		const WGPUTextureViewDescriptor viewDesc = {
+			.format = wgpuctx.defaultColorFormat,
+			.dimension = WGPUTextureViewDimension_2D,
+			.mipLevelCount = 1,
+			.arrayLayerCount = 1,
+			.aspect = WGPUTextureAspect_All,
+		};
+
+		wgpuctx.srgbEmulationColorTextureView = wgpuTextureCreateView(wgpuctx.srgbEmulationColorTexture, &viewDesc);
+	}
+}
+
+static const WGPUFeatureName WANTED_DEVICE_FEATURES[] = {
+	WGPUFeatureName_SurfaceCapabilities,     WGPUFeatureName_DepthClipControl,       WGPUFeatureName_Float32Filterable,
+	WGPUFeatureName_TextureCompressionBC,    WGPUFeatureName_TextureCompressionASTC, WGPUFeatureName_TimestampQuery,
+	WGPUFeatureName_RG11B10UfloatRenderable, WGPUFeatureName_TransientAttachments,
+};
+
+static std::vector<WGPUFeatureName> enabledDeviceFeatures;
+
+bool IsDeviceFeatureEnabled(WGPUFeatureName feature)
+{
+	return SortedContains(enabledDeviceFeatures, feature);
+}
+
+static std::pair<WGPUBackendType, std::string_view> BACKEND_NAMES[] = {
+	{ WGPUBackendType_D3D11, "D3D11" },   { WGPUBackendType_D3D12, "D3D12" },
+	{ WGPUBackendType_Metal, "Metal" },   { WGPUBackendType_Vulkan, "Vulkan" },
+	{ WGPUBackendType_OpenGL, "OpenGL" }, { WGPUBackendType_OpenGLES, "OpenGLES" },
+};
 
 bool Initialize(const GraphicsAPIInitArguments& initArguments)
 {
@@ -60,7 +178,8 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 #include "WGPUFunctions.inl"
 #undef XM_WGPU_FUNC
 
-	const WGPUInstanceDescriptor instanceDesc = {};
+	WGPUInstanceDescriptor instanceDesc = {};
+	instanceDesc.features.timedWaitAnyEnable = true;
 	wgpuctx.instance = wgpuCreateInstance(&instanceDesc);
 
 	if (wgpuctx.instance == nullptr)
@@ -71,7 +190,21 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 	wgpuctx.surface = CreateSurface(wgpuctx.instance, initArguments.window);
 
-	const WGPURequestAdapterOptions requestAdapterOptions = { .compatibleSurface = wgpuctx.surface };
+	WGPUBackendType preferredBackend = WGPUBackendType_Undefined;
+	if (const char* preferredBackendName = std::getenv("EG_WEBGPU_BACKEND"))
+	{
+		for (auto [backend, backendName] : BACKEND_NAMES)
+		{
+			if (std::string_view(preferredBackendName) == backendName)
+				preferredBackend = backend;
+		}
+	}
+
+	const WGPURequestAdapterOptions requestAdapterOptions = {
+		.compatibleSurface = wgpuctx.surface,
+		.backendType = preferredBackend,
+	};
+
 	bool adapterRequestDone = false;
 	wgpuInstanceRequestAdapter(wgpuctx.instance, &requestAdapterOptions, OnAdapterRequestEnded, &adapterRequestDone);
 	while (!adapterRequestDone)
@@ -79,8 +212,9 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	}
 
 	size_t numAdapterFeatures = wgpuAdapterEnumerateFeatures(wgpuctx.adapter, nullptr);
-	adapterFeatures.resize(numAdapterFeatures);
+	std::vector<WGPUFeatureName> adapterFeatures(numAdapterFeatures);
 	wgpuAdapterEnumerateFeatures(wgpuctx.adapter, adapterFeatures.data());
+	std::sort(adapterFeatures.begin(), adapterFeatures.end());
 
 	wgpuAdapterGetLimits(wgpuctx.adapter, &adapterLimits);
 
@@ -89,70 +223,113 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	deviceName = adapterProperties.name;
 
 	apiName = "WebGPU";
-	switch (adapterProperties.backendType)
+	for (auto [backend, backendName] : BACKEND_NAMES)
 	{
-	case WGPUBackendType_D3D11: apiName += "/D3D11"; break;
-	case WGPUBackendType_D3D12: apiName += "/D3D12"; break;
-	case WGPUBackendType_Metal: apiName += "/Metal"; break;
-	case WGPUBackendType_Vulkan: apiName += "/Vulkan"; break;
-	case WGPUBackendType_OpenGL: apiName += "/OpenGL"; break;
-	case WGPUBackendType_OpenGLES: apiName += "/OpenGLES"; break;
-	default: break;
+		if (adapterProperties.backendType == backend)
+		{
+			apiName += "/";
+			apiName += backendName;
+			break;
+		}
 	}
 
 	eg::Log(eg::LogLevel::Info, "webgpu", "Initializing WebGPU using device: {0}", adapterProperties.name);
 
-	const WGPUDeviceDescriptor deviceDesc = {};
+	for (WGPUFeatureName feature : WANTED_DEVICE_FEATURES)
+	{
+		if (SortedContains(adapterFeatures, feature))
+		{
+			enabledDeviceFeatures.push_back(feature);
+		}
+	}
+	std::sort(enabledDeviceFeatures.begin(), enabledDeviceFeatures.end());
+
+	const WGPURequiredLimits requiredLimits = {
+		.limits = {
+			.minUniformBufferOffsetAlignment = adapterLimits.limits.minUniformBufferOffsetAlignment,
+			.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment,
+			.maxComputeInvocationsPerWorkgroup = adapterLimits.limits.maxComputeInvocationsPerWorkgroup,
+			.maxComputeWorkgroupSizeX = adapterLimits.limits.maxComputeWorkgroupSizeX,
+			.maxComputeWorkgroupSizeY = adapterLimits.limits.maxComputeWorkgroupSizeY,
+			.maxComputeWorkgroupSizeZ = adapterLimits.limits.maxComputeWorkgroupSizeZ,
+		},
+	};
+
+	const WGPUDeviceDescriptor deviceDesc = {
+		.requiredFeatureCount = enabledDeviceFeatures.size(),
+		.requiredFeatures = enabledDeviceFeatures.data(),
+		.requiredLimits = &requiredLimits,
+	};
 	bool deviceRequestDone = false;
 	wgpuAdapterRequestDevice(wgpuctx.adapter, &deviceDesc, OnDeviceRequestEnded, &deviceRequestDone);
 	while (!deviceRequestDone)
 	{
 	}
 
+	wgpuDeviceSetUncapturedErrorCallback(wgpuctx.device, OnDeviceError, nullptr);
+	wgpuDeviceSetDeviceLostCallback(wgpuctx.device, OnDeviceLost, nullptr);
+
 	wgpuctx.queue = wgpuDeviceGetQueue(wgpuctx.device);
+
+	sdlWindow = initArguments.window;
 
 	wgpuctx.swapchainFormat = wgpuSurfaceGetPreferredFormat(wgpuctx.surface, wgpuctx.adapter);
 
-	int swapchainWidth, swapchainHeight;
-	SDL_Metal_GetDrawableSize(initArguments.window, &swapchainWidth, &swapchainHeight);
-
-	const WGPUSwapChainDescriptor swapChainDesc = {
-		.width = static_cast<uint32_t>(swapchainWidth),
-		.height = static_cast<uint32_t>(swapchainHeight),
-		.usage = WGPUTextureUsage_RenderAttachment,
-		.presentMode = WGPUPresentMode_Fifo,
-		.format = wgpuctx.swapchainFormat,
+	static const WGPUTextureFormat EXPECTED_SWAPCHAIN_FORMATS[] = {
+		WGPUTextureFormat_BGRA8Unorm,
+		WGPUTextureFormat_RGBA8Unorm,
+		WGPUTextureFormat_BGRA8UnormSrgb,
+		WGPUTextureFormat_RGBA8UnormSrgb,
 	};
-	wgpuctx.swapchain = wgpuDeviceCreateSwapChain(wgpuctx.device, wgpuctx.surface, &swapChainDesc);
+	if (!Contains(EXPECTED_SWAPCHAIN_FORMATS, wgpuctx.swapchainFormat))
+	{
+		eg::Log(eg::LogLevel::Warning, "webgpu", "Unexpected swapchain format: {0}", wgpuctx.swapchainFormat);
+		wgpuctx.swapchainFormat = WGPUTextureFormat_BGRA8Unorm;
+	}
 
-	sdlWindow = initArguments.window;
+	if (initArguments.defaultFramebufferSRGB && wgpuctx.swapchainFormat != WGPUTextureFormat_BGRA8UnormSrgb &&
+	    wgpuctx.swapchainFormat != WGPUTextureFormat_RGBA8UnormSrgb &&
+	    IsDeviceFeatureEnabled(WGPUFeatureName_SurfaceCapabilities))
+	{
+		eg::Log(eg::LogLevel::Warning, "webgpu", "Using sRGB emulation of default framebuffer");
+		enableSrgbEmulation = true;
+
+		if (wgpuctx.swapchainFormat == WGPUTextureFormat_BGRA8Unorm)
+			wgpuctx.defaultColorFormat = WGPUTextureFormat_BGRA8UnormSrgb;
+		else
+			wgpuctx.defaultColorFormat = WGPUTextureFormat_RGBA8UnormSrgb;
+	}
+	else
+	{
+		wgpuctx.defaultColorFormat = wgpuctx.swapchainFormat;
+	}
+
+	UpdateSwapchain();
 
 	CommandContext::main.BeginEncode();
 
 	return true;
 }
 
-static bool HasAdapterFeature(WGPUFeatureName feature)
-{
-	return Contains(adapterFeatures, feature);
-}
-
 void GetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
 	DeviceFeatureFlags features = DeviceFeatureFlags::ComputeShaderAndSSBO | DeviceFeatureFlags::PartialTextureViews;
 
-	if (HasAdapterFeature(WGPUFeatureName_TextureCompressionBC))
+	if (IsDeviceFeatureEnabled(WGPUFeatureName_TextureCompressionBC))
 		features |= DeviceFeatureFlags::TextureCompressionBC;
-	if (HasAdapterFeature(WGPUFeatureName_TextureCompressionASTC))
+	if (IsDeviceFeatureEnabled(WGPUFeatureName_TextureCompressionASTC))
 		features |= DeviceFeatureFlags::TextureCompressionASTC;
 
 	deviceInfo = {
 		.uniformBufferOffsetAlignment = adapterLimits.limits.minUniformBufferOffsetAlignment,
 		.storageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment,
-		.maxComputeWorkGroupSize[0] = adapterLimits.limits.maxComputeWorkgroupSizeX,
-		.maxComputeWorkGroupSize[1] = adapterLimits.limits.maxComputeWorkgroupSizeY,
-		.maxComputeWorkGroupSize[2] = adapterLimits.limits.maxComputeWorkgroupSizeZ,
+		.maxComputeWorkGroupSize = {
+			adapterLimits.limits.maxComputeWorkgroupSizeX,
+			adapterLimits.limits.maxComputeWorkgroupSizeY,
+			adapterLimits.limits.maxComputeWorkgroupSizeZ,
+		},
 		.maxComputeWorkGroupInvocations = adapterLimits.limits.maxComputeInvocationsPerWorkgroup,
+		.textureBufferCopyStrideAlignment = 256,
 		.depthRange = eg::DepthRange::ZeroToOne,
 		.features = features,
 		.timerTicksPerNS = 1.0f,
@@ -168,12 +345,8 @@ std::span<std::string> GetDeviceNames()
 
 void GetDrawableSize(int& width, int& height)
 {
-	SDL_Metal_GetDrawableSize(sdlWindow, &width, &height);
-}
-
-FormatCapabilities GetFormatCapabilities(Format format)
-{
-	EG_PANIC("Unimplemented")
+	width = ToInt(wgpuctx.swapchainImageWidth);
+	height = ToInt(wgpuctx.swapchainImageHeight);
 }
 
 static Fence* loadingFence;
@@ -183,6 +356,7 @@ void EndLoading()
 	CommandContext::main.EndEncode();
 	wgpuQueueSubmit(wgpuctx.queue, 1, &CommandContext::main.commandBuffer);
 	loadingFence = Fence::CreateAndInsert();
+	RunFrameEndCallbacks();
 }
 
 bool IsLoadingComplete()
@@ -194,30 +368,79 @@ static std::array<Fence*, MAX_CONCURRENT_FRAMES> frameFences;
 
 void BeginFrame()
 {
+	UpdateSwapchain();
+
 	if (frameFences[CFrameIdx()] != nullptr)
 	{
 		frameFences[CFrameIdx()]->Wait();
 		frameFences[CFrameIdx()]->Deref();
 	}
-	
-	wgpuctx.currentSwapchainColorTexture = wgpuSwapChainGetCurrentTextureView(wgpuctx.swapchain);
+
+	if (!enableSrgbEmulation)
+	{
+		wgpuctx.currentSwapchainColorView = wgpuSwapChainGetCurrentTextureView(wgpuctx.swapchain);
+	}
 
 	CommandContext::main.BeginEncode();
 }
 
 void EndFrame()
 {
+	if (enableSrgbEmulation)
+	{
+		WGPUTexture swapchainTexture = wgpuSwapChainGetCurrentTexture(wgpuctx.swapchain);
+
+		const WGPUImageCopyTexture srcCopy = {
+			.texture = wgpuctx.srgbEmulationColorTexture,
+			.aspect = WGPUTextureAspect_All,
+		};
+		const WGPUImageCopyTexture dstCopy = {
+			.texture = swapchainTexture,
+			.aspect = WGPUTextureAspect_All,
+		};
+		const WGPUExtent3D copyExtent = {
+			.width = wgpuctx.swapchainImageWidth,
+			.height = wgpuctx.swapchainImageHeight,
+			.depthOrArrayLayers = 1,
+		};
+
+		wgpuCommandEncoderCopyTextureToTexture(CommandContext::main.encoder, &srcCopy, &dstCopy, &copyExtent);
+	}
+
 	CommandContext::main.EndEncode();
-	wgpuQueueSubmit(wgpuctx.queue, 1, &CommandContext::main.commandBuffer);
+	CommandContext::main.Submit();
 	frameFences[CFrameIdx()] = Fence::CreateAndInsert();
-	
-	wgpuTextureViewRelease(wgpuctx.currentSwapchainColorTexture);
+
+	if (!enableSrgbEmulation)
+	{
+		wgpuTextureViewRelease(wgpuctx.currentSwapchainColorView);
+	}
+
 	wgpuSwapChainPresent(wgpuctx.swapchain);
+
+	RunFrameEndCallbacks();
 }
 
-void Shutdown() {}
+void SetEnableVSync(bool enableVSync)
+{
+	if (enableVSync)
+		presentMode = WGPUPresentMode_Fifo;
+	else
+		presentMode = WGPUPresentMode_Immediate;
+}
 
-void SetEnableVSync(bool enableVSync) {}
+void Shutdown()
+{
+	ClearBindGroupLayoutCache();
+	RunFrameEndCallbacks();
+
+	wgpuSwapChainRelease(wgpuctx.swapchain);
+	wgpuQueueRelease(wgpuctx.queue);
+	wgpuDeviceRelease(wgpuctx.device);
+	wgpuAdapterRelease(wgpuctx.adapter);
+	wgpuSurfaceRelease(wgpuctx.surface);
+	wgpuInstanceRelease(wgpuctx.instance);
+}
 
 void DeviceWaitIdle() {}
 } // namespace eg::graphics_api::webgpu

@@ -485,7 +485,8 @@ void console::AddCommand(std::string_view name, int minArgs, CommandCallback cal
 void console::AddCommand(std::string_view name, int minArgs, console::CommandCallbackOld callback)
 {
 	AddCommand(
-		name, minArgs, [callbackInner = std::move(callback)](std::span<const std::string_view> args, class Writer&)
+		name, minArgs,
+		[callbackInner = std::move(callback)](std::span<const std::string_view> args, class Writer&)
 		{ callbackInner(args); });
 }
 

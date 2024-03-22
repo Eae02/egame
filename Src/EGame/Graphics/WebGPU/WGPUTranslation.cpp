@@ -3,12 +3,12 @@
 
 namespace eg::graphics_api::webgpu
 {
-WGPUTextureFormat TranslateTextureFormat(Format format)
+WGPUTextureFormat TranslateTextureFormat(Format format, bool undefinedIfUnsupported)
 {
 	// clang-format off
 	switch (format)
 	{
-	case Format::DefaultColor:         return wgpuctx.swapchainFormat;
+	case Format::DefaultColor:         return wgpuctx.defaultColorFormat;
 	case Format::DefaultDepthStencil:  return WGPUTextureFormat_Undefined;
 	case Format::R8_SNorm:             return WGPUTextureFormat_R8Snorm;
 	case Format::R8_UNorm:             return WGPUTextureFormat_R8Unorm;
@@ -51,25 +51,28 @@ WGPUTextureFormat TranslateTextureFormat(Format format)
 	case Format::A2R10G10B10_UNorm:    return WGPUTextureFormat_RGB10A2Unorm;
 	case Format::BC1_RGBA_UNorm:       return WGPUTextureFormat_BC1RGBAUnorm;
 	case Format::BC1_RGBA_sRGB:        return WGPUTextureFormat_BC1RGBAUnormSrgb;
-	case Format::BC1_RGB_UNorm:        return WGPUTextureFormat_BC1RGBAUnorm;
-	case Format::BC1_RGB_sRGB:         return WGPUTextureFormat_BC1RGBAUnormSrgb;
-	case Format::BC3_UNorm:            return WGPUTextureFormat_BC3RGBAUnorm;
-	case Format::BC3_sRGB:             return WGPUTextureFormat_BC3RGBAUnormSrgb;
-	case Format::BC4_UNorm:            return WGPUTextureFormat_BC4RUnorm;
-	case Format::BC5_UNorm:            return WGPUTextureFormat_BC5RGUnorm;
+	case Format::BC3_RGBA_UNorm:       return WGPUTextureFormat_BC3RGBAUnorm;
+	case Format::BC3_RGBA_sRGB:        return WGPUTextureFormat_BC3RGBAUnormSrgb;
+	case Format::BC4_R_UNorm:          return WGPUTextureFormat_BC4RUnorm;
+	case Format::BC5_RG_UNorm:         return WGPUTextureFormat_BC5RGUnorm;
+	case Format::BC6H_RGB_UFloat:      return WGPUTextureFormat_BC6HRGBFloat;
+	case Format::BC6H_RGB_Float:       return WGPUTextureFormat_BC6HRGBUfloat;
+	case Format::BC7_RGBA_UNorm:       return WGPUTextureFormat_BC7RGBAUnorm;
+	case Format::BC7_RGBA_sRGB:        return WGPUTextureFormat_BC7RGBAUnormSrgb;
 	case Format::Depth16:              return WGPUTextureFormat_Depth16Unorm;
 	case Format::Depth32:              return WGPUTextureFormat_Depth32Float;
 	case Format::Depth24Stencil8:      return WGPUTextureFormat_Depth24PlusStencil8;
 	case Format::Depth32Stencil8:      return WGPUTextureFormat_Depth32FloatStencil8;
+	
+	default:
+		if (undefinedIfUnsupported)
+			return WGPUTextureFormat_Undefined;
+		EG_PANIC("Unsupported texture format: " << FormatToString(format));
 	}
 	// clang-format on
-
-	eg::Log(eg::LogLevel::Warning, "wgpu", "Attempted to translate an unknown format: {0}", FormatToString(format));
-
-	return WGPUTextureFormat_Undefined;
 }
 
-WGPUVertexFormat TranslateVertexFormat(Format format)
+WGPUVertexFormat TranslateVertexFormat(Format format, bool undefinedIfUnsupported)
 {
 	// clang-format off
 	switch (format)
@@ -86,9 +89,9 @@ WGPUVertexFormat TranslateVertexFormat(Format format)
 	case Format::R16G16_UInt:          return WGPUVertexFormat_Uint16x2;
 	case Format::R16G16_SInt:          return WGPUVertexFormat_Sint16x2;
 	case Format::R16G16_Float:         return WGPUVertexFormat_Float16x2;
-	case Format::R32G32_UInt:          return WGPUVertexFormat_Uint32;
-	case Format::R32G32_SInt:          return WGPUVertexFormat_Sint32;
-	case Format::R32G32_Float:         return WGPUVertexFormat_Float32;
+	case Format::R32G32_UInt:          return WGPUVertexFormat_Uint32x2;
+	case Format::R32G32_SInt:          return WGPUVertexFormat_Sint32x2;
+	case Format::R32G32_Float:         return WGPUVertexFormat_Float32x2;
 	case Format::R32G32B32_UInt:       return WGPUVertexFormat_Uint32x3;
 	case Format::R32G32B32_SInt:       return WGPUVertexFormat_Sint32x3;
 	case Format::R32G32B32_Float:      return WGPUVertexFormat_Float32x3;
@@ -101,11 +104,14 @@ WGPUVertexFormat TranslateVertexFormat(Format format)
 	case Format::R16G16B16A16_UInt:    return WGPUVertexFormat_Uint16x4;
 	case Format::R16G16B16A16_SInt:    return WGPUVertexFormat_Sint16x4;
 	case Format::R16G16B16A16_Float:   return WGPUVertexFormat_Float16x4;
-	case Format::R32G32B32A32_UInt:    return WGPUVertexFormat_Uint32;
-	case Format::R32G32B32A32_SInt:    return WGPUVertexFormat_Sint32;
-	case Format::R32G32B32A32_Float:   return WGPUVertexFormat_Float32;
+	case Format::R32G32B32A32_UInt:    return WGPUVertexFormat_Uint32x4;
+	case Format::R32G32B32A32_SInt:    return WGPUVertexFormat_Sint32x4;
+	case Format::R32G32B32A32_Float:   return WGPUVertexFormat_Float32x4;
 	case Format::A2R10G10B10_UNorm:    return WGPUVertexFormat_Unorm10_10_10_2;
 	
+	case Format::Undefined:
+	case Format::DefaultColor:
+	case Format::DefaultDepthStencil:
 	case Format::R8_SNorm:
 	case Format::R8_UNorm:
 	case Format::R8_UInt:
@@ -122,20 +128,37 @@ WGPUVertexFormat TranslateVertexFormat(Format format)
 	case Format::R8G8B8A8_sRGB:
 	case Format::BC1_RGBA_UNorm:
 	case Format::BC1_RGBA_sRGB:
-	case Format::BC1_RGB_UNorm:
-	case Format::BC1_RGB_sRGB:
-	case Format::BC3_UNorm:
-	case Format::BC3_sRGB:
-	case Format::BC4_UNorm:
-	case Format::BC5_UNorm:
+	case Format::BC3_RGBA_UNorm:
+	case Format::BC3_RGBA_sRGB:
+	case Format::BC4_R_UNorm:
+	case Format::BC5_RG_UNorm:
+	case Format::BC6H_RGB_UFloat:
+	case Format::BC6H_RGB_Float:
+	case Format::BC7_RGBA_UNorm:
+	case Format::BC7_RGBA_sRGB:
 	case Format::Depth16:
 	case Format::Depth32:
 	case Format::Depth24Stencil8:
 	case Format::Depth32Stencil8:
-		EG_PANIC("Unsupported vertex format");
+		if (undefinedIfUnsupported)
+			return WGPUVertexFormat_Undefined;
+		EG_PANIC("Unsupported vertex format: " << FormatToString(format));
 	}
 	// clang-format on
 
+	EG_UNREACHABLE
+}
+
+WGPUTextureViewDimension TranslateTextureViewType(TextureViewType viewType)
+{
+	switch (viewType)
+	{
+	case TextureViewType::Flat2D: return WGPUTextureViewDimension_2D;
+	case TextureViewType::Flat3D: return WGPUTextureViewDimension_3D;
+	case TextureViewType::Cube: return WGPUTextureViewDimension_Cube;
+	case TextureViewType::Array2D: return WGPUTextureViewDimension_2DArray;
+	case TextureViewType::ArrayCube: return WGPUTextureViewDimension_CubeArray;
+	}
 	EG_UNREACHABLE
 }
 
@@ -176,5 +199,6 @@ WGPUCullMode TranslateCullMode(CullMode cullMode)
 	case CullMode::Front: return WGPUCullMode_Front;
 	case CullMode::Back: return WGPUCullMode_Back;
 	}
+	EG_UNREACHABLE
 }
 } // namespace eg::graphics_api::webgpu

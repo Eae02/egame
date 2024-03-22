@@ -104,12 +104,14 @@ VkFormat TranslateFormat(Format format)
 	case Format::B10G11R11_UFloat: return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 	case Format::BC1_RGBA_UNorm: return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
 	case Format::BC1_RGBA_sRGB: return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
-	case Format::BC1_RGB_UNorm: return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
-	case Format::BC1_RGB_sRGB: return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
-	case Format::BC3_UNorm: return VK_FORMAT_BC3_UNORM_BLOCK;
-	case Format::BC3_sRGB: return VK_FORMAT_BC3_SRGB_BLOCK;
-	case Format::BC4_UNorm: return VK_FORMAT_BC4_UNORM_BLOCK;
-	case Format::BC5_UNorm: return VK_FORMAT_BC5_UNORM_BLOCK;
+	case Format::BC3_RGBA_UNorm: return VK_FORMAT_BC3_UNORM_BLOCK;
+	case Format::BC3_RGBA_sRGB: return VK_FORMAT_BC3_SRGB_BLOCK;
+	case Format::BC4_R_UNorm: return VK_FORMAT_BC4_UNORM_BLOCK;
+	case Format::BC5_RG_UNorm: return VK_FORMAT_BC5_UNORM_BLOCK;
+	case Format::BC6H_RGB_UFloat: return VK_FORMAT_BC6H_UFLOAT_BLOCK;
+	case Format::BC6H_RGB_Float: return VK_FORMAT_BC6H_SFLOAT_BLOCK;
+	case Format::BC7_RGBA_UNorm: return VK_FORMAT_BC7_UNORM_BLOCK;
+	case Format::BC7_RGBA_sRGB: return VK_FORMAT_BC7_SRGB_BLOCK;
 	case Format::Depth16: return VK_FORMAT_D16_UNORM;
 	case Format::Depth32: return VK_FORMAT_D32_SFLOAT;
 	case Format::Depth24Stencil8: return VK_FORMAT_D24_UNORM_S8_UINT;
@@ -184,20 +186,6 @@ VkShaderStageFlags TranslateShaderStageFlags(ShaderAccessFlags accessFlags)
 	if (HasFlag(accessFlags, ShaderAccessFlags::Compute))
 		flags |= VK_SHADER_STAGE_COMPUTE_BIT;
 	return flags;
-}
-
-VkDescriptorType TranslateBindingType(BindingType bindingType)
-{
-	switch (bindingType)
-	{
-	case BindingType::UniformBuffer: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	case BindingType::StorageBuffer: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	case BindingType::UniformBufferDynamicOffset: return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	case BindingType::StorageBufferDynamicOffset: return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-	case BindingType::Texture: return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	case BindingType::StorageImage: return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	}
-	EG_UNREACHABLE;
 }
 } // namespace eg::graphics_api::vk
 

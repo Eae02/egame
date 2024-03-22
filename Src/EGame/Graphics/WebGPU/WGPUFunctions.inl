@@ -1,5 +1,10 @@
 #ifdef XM_WGPU_FUNC
 
+#ifndef __EMSCRIPTEN__
+XM_WGPU_FUNC(DeviceTick)
+XM_WGPU_FUNC(QueueOnSubmittedWorkDoneF)
+#endif
+
 XM_WGPU_FUNC(CreateInstance)
 XM_WGPU_FUNC(InstanceRequestAdapter)
 XM_WGPU_FUNC(InstanceCreateSurface)
@@ -8,12 +13,23 @@ XM_WGPU_FUNC(AdapterEnumerateFeatures)
 XM_WGPU_FUNC(AdapterGetLimits)
 XM_WGPU_FUNC(AdapterGetProperties)
 XM_WGPU_FUNC(DeviceCreateCommandEncoder)
+XM_WGPU_FUNC(DeviceSetUncapturedErrorCallback)
+XM_WGPU_FUNC(DeviceSetDeviceLostCallback)
+
+XM_WGPU_FUNC(QueueRelease)
+XM_WGPU_FUNC(DeviceRelease)
+XM_WGPU_FUNC(AdapterRelease)
+XM_WGPU_FUNC(SurfaceRelease)
+XM_WGPU_FUNC(InstanceRelease)
 
 XM_WGPU_FUNC(DeviceGetQueue)
-XM_WGPU_FUNC(DeviceTick)
+XM_WGPU_FUNC(InstanceWaitAny)
 XM_WGPU_FUNC(QueueSubmit)
 XM_WGPU_FUNC(QueueWriteBuffer)
 XM_WGPU_FUNC(QueueOnSubmittedWorkDone)
+
+XM_WGPU_FUNC(DeviceCreateQuerySet)
+XM_WGPU_FUNC(QuerySetRelease)
 
 XM_WGPU_FUNC(CommandEncoderFinish)
 XM_WGPU_FUNC(CommandEncoderRelease)
@@ -41,17 +57,25 @@ XM_WGPU_FUNC(RenderPassEncoderSetStencilReference)
 XM_WGPU_FUNC(RenderPassEncoderSetVertexBuffer)
 XM_WGPU_FUNC(RenderPassEncoderSetViewport)
 
+XM_WGPU_FUNC(CommandEncoderBeginComputePass)
 XM_WGPU_FUNC(ComputePassEncoderSetBindGroup)
+XM_WGPU_FUNC(ComputePassEncoderSetPipeline)
+XM_WGPU_FUNC(ComputePassEncoderEnd)
+XM_WGPU_FUNC(ComputePassEncoderRelease)
+XM_WGPU_FUNC(ComputePassEncoderDispatchWorkgroups)
+XM_WGPU_FUNC(ComputePassEncoderDispatchWorkgroupsIndirect)
 
 XM_WGPU_FUNC(SurfaceGetPreferredFormat)
 XM_WGPU_FUNC(DeviceCreateSwapChain)
+XM_WGPU_FUNC(SwapChainGetCurrentTexture)
 XM_WGPU_FUNC(SwapChainGetCurrentTextureView)
-XM_WGPU_FUNC(TextureViewRelease)
 XM_WGPU_FUNC(SwapChainPresent)
+XM_WGPU_FUNC(SwapChainRelease)
 
 XM_WGPU_FUNC(DeviceCreateBuffer)
 XM_WGPU_FUNC(BufferDestroy)
 XM_WGPU_FUNC(BufferGetMappedRange)
+XM_WGPU_FUNC(BufferGetConstMappedRange)
 XM_WGPU_FUNC(BufferUnmap)
 XM_WGPU_FUNC(BufferMapAsync)
 
@@ -71,10 +95,16 @@ XM_WGPU_FUNC(TextureGetWidth)
 XM_WGPU_FUNC(TextureGetHeight)
 XM_WGPU_FUNC(TextureGetMipLevelCount)
 XM_WGPU_FUNC(TextureGetSampleCount)
+XM_WGPU_FUNC(TextureViewRelease)
+XM_WGPU_FUNC(TextureRelease)
 
 XM_WGPU_FUNC(DeviceCreateShaderModule)
+XM_WGPU_FUNC(ShaderModuleRelease)
 XM_WGPU_FUNC(DeviceCreateComputePipeline)
+XM_WGPU_FUNC(ComputePipelineRelease)
 XM_WGPU_FUNC(DeviceCreateRenderPipeline)
+XM_WGPU_FUNC(RenderPipelineRelease)
 XM_WGPU_FUNC(DeviceCreatePipelineLayout)
+XM_WGPU_FUNC(PipelineLayoutRelease)
 
 #endif

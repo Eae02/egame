@@ -89,6 +89,7 @@ public:
 	Profiler& operator=(Profiler&& other) = default;
 
 	void Reset();
+	void OnFrameBegin();
 
 	CPUTimer StartCPUTimer(std::string name);
 
@@ -130,6 +131,7 @@ private:
 	int m_lastCPUTimer = -1;
 
 	std::vector<QueryPool> m_queryPools;
+	size_t m_numQueryPoolsUsed = 0;
 	bool m_addQueryPool = false;
 
 	std::vector<TimerEntry> m_gpuTimers;

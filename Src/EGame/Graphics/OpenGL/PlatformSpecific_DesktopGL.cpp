@@ -245,7 +245,7 @@ void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 		deviceInfo.features |= DeviceFeatureFlags::TextureCompressionASTC;
 	if (SDL_GL_ExtensionSupported("GL_ARB_texture_view"))
 		deviceInfo.features |= DeviceFeatureFlags::PartialTextureViews;
-	
+
 	if (!useGLESPath)
 		deviceInfo.features |= DeviceFeatureFlags::MapCoherent;
 

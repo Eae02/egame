@@ -116,6 +116,9 @@ void detail::RunFrame(IGame& game)
 		gal::BeginFrame();
 	}
 
+	if (profilingEnabled)
+		Profiler::current->OnFrameBegin();
+
 	auto gpuTimer = StartGPUTimer("Frame");
 
 	while (!pendingProfilers.empty())
@@ -340,23 +343,24 @@ int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)
 
 void detail::CoreUninitialize()
 {
-	for (auto* node = detail::onShutdown; node != nullptr; node = node->next)
+	for (auto* node = onShutdown; node != nullptr; node = node->next)
 	{
 		node->callback();
 	}
 
-	delete detail::currentIS;
-	delete detail::previousIS;
+	delete currentIS;
+	delete previousIS;
 
 	profilers.clear();
 	console::Destroy();
 	SpriteBatch::overlay = {};
 	SpriteFont::UnloadDevFont();
 	SpriteBatch::DestroyStatic();
+	DestroyPixelTextures();
 	TranslationGizmo::Destroy();
 	RotationGizmo::Destroy();
-	detail::DestroyGizmoPipelines();
-	detail::DestroyFullscreenShaders();
+	DestroyGizmoPipelines();
+	DestroyFullscreenShaders();
 	UnloadAssets();
 	DestroyUploadBuffers();
 	DestroyGraphicsAPI();

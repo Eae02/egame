@@ -32,14 +32,47 @@ size_t SamplerDescription::Hash() const
 	return h;
 }
 
+size_t BindingTypeTexture::Hash() const
+{
+	return static_cast<size_t>(viewType) | (static_cast<size_t>(sampleMode) << 10) |
+	       (static_cast<size_t>(multisample) << 20);
+}
+
+size_t BindingTypeStorageImage::Hash() const
+{
+	return static_cast<size_t>(viewType) | (static_cast<size_t>(rwMode) << 10) | (static_cast<size_t>(format) << 20);
+}
+
 size_t DescriptorSetBinding::Hash() const
 {
 	size_t h = 0;
-	h |= static_cast<size_t>(type);
-	h |= static_cast<size_t>(shaderAccess) << 3;
-	h |= static_cast<size_t>(rwMode) << 15;
-	h |= static_cast<size_t>(binding) << 18;
+	HashAppend(h, shaderAccess);
+	HashAppend(h, binding);
+	std::visit(
+		[&]<typename T>(const T& t)
+		{
+			if constexpr (std::is_same_v<BindingTypeSampler, T>)
+				HashAppend(h, t);
+			else
+				HashAppend(h, t.Hash());
+		},
+		type);
 	return h;
+}
+
+BindingType DescriptorSetBinding::GetBindingType() const
+{
+	if (std::holds_alternative<BindingTypeTexture>(type))
+		return BindingType::Texture;
+	if (std::holds_alternative<BindingTypeStorageImage>(type))
+		return BindingType::StorageImage;
+	if (std::holds_alternative<BindingTypeStorageBuffer>(type))
+		return BindingType::StorageBuffer;
+	if (std::holds_alternative<BindingTypeUniformBuffer>(type))
+		return BindingType::UniformBuffer;
+	if (std::holds_alternative<BindingTypeSampler>(type))
+		return BindingType::Sampler;
+	EG_UNREACHABLE
 }
 
 size_t TextureViewKey::Hash() const
@@ -138,10 +171,9 @@ std::string_view BindingTypeToString(BindingType bindingType)
 	{
 	case BindingType::UniformBuffer: return "UniformBuffer";
 	case BindingType::StorageBuffer: return "StorageBuffer";
-	case BindingType::UniformBufferDynamicOffset: return "UniformBufferDynamicOffset";
-	case BindingType::StorageBufferDynamicOffset: return "StorageBufferDynamicOffset";
 	case BindingType::Texture: return "Texture";
 	case BindingType::StorageImage: return "StorageImage";
+	case BindingType::Sampler: return "Sampler";
 	}
 	EG_UNREACHABLE
 }

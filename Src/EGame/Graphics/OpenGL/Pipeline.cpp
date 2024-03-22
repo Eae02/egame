@@ -1,11 +1,19 @@
-#include "Pipeline.hpp"
+// this is needed to stop gcc from complaining about something being maybe uninitialized in std::sort
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#include <vector>
+#pragma GCC diagnostic pop
+
 #include "../../Assert.hpp"
+#include "../../Hash.hpp"
 #include "../../MainThreadInvoke.hpp"
 #include "../../String.hpp"
 #include "../SpirvCrossUtils.hpp"
+#include "Pipeline.hpp"
 
 #include <algorithm>
 #include <spirv_glsl.hpp>
+#include <unordered_map>
 
 namespace eg::graphics_api::gl
 {
@@ -165,40 +173,68 @@ void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeS
 
 std::optional<size_t> AbstractPipeline::FindBindingIndex(uint32_t set, uint32_t binding) const
 {
-	auto it = std::lower_bound(bindings.begin(), bindings.end(), MappedBinding{ set, binding });
+	auto it = std::lower_bound(bindings.begin(), bindings.end(), std::make_pair(set, binding));
 	if (it != bindings.end() && it->set == set && it->binding == binding)
 		return it - bindings.begin();
+	return std::nullopt;
+}
+
+std::span<const uint32_t> AbstractPipeline::ResolveBindingMulti(uint32_t set, uint32_t binding) const
+{
+	if (std::optional<size_t> bindingIndex = FindBindingIndex(set, binding))
+		return bindings[*bindingIndex].GetGLBindings();
 	return {};
 }
 
-std::optional<uint32_t> AbstractPipeline::ResolveBinding(uint32_t set, uint32_t binding) const
+std::optional<uint32_t> AbstractPipeline::ResolveBindingSingle(uint32_t set, uint32_t binding) const
 {
-	if (std::optional<size_t> bindingIndex = FindBindingIndex(set, binding))
-		return bindings[*bindingIndex].glBinding;
-	return {};
+	std::span<const uint32_t> resolved = ResolveBindingMulti(set, binding);
+	EG_ASSERT(resolved.size() <= 1);
+	if (resolved.empty())
+		return std::nullopt;
+	return resolved[0];
 }
 
 size_t AbstractPipeline::FindBindingsSetStartIndex(uint32_t set) const
 {
-	return std::lower_bound(bindings.begin(), bindings.end(), MappedBinding{ set, 0 }) - bindings.begin();
+	return ToUnsigned(std::lower_bound(bindings.begin(), bindings.end(), std::make_pair(set, 0)) - bindings.begin());
 }
 
-uint32_t ResolveBindingForBind(uint32_t set, uint32_t binding)
+std::span<const uint32_t> ResolveBindingMulti(uint32_t set, uint32_t binding)
 {
 	std::optional<size_t> bindingIndex = currentPipeline->FindBindingIndex(set, binding);
 	if (!bindingIndex.has_value())
 		EG_PANIC("Attempted to bind to invalid binding " << set << "," << binding);
 	MarkBindingAsSatisfied(*bindingIndex);
-	return currentPipeline->bindings[*bindingIndex].glBinding;
+	return currentPipeline->bindings[*bindingIndex].GetGLBindings();
 }
 
-static const std::pair<spirv_cross::SmallVector<spirv_cross::Resource> spirv_cross::ShaderResources::*, BindingType>
-	bindingTypes[] = {
-		{ &spirv_cross::ShaderResources::uniform_buffers, BindingType::UniformBuffer },
-		{ &spirv_cross::ShaderResources::storage_buffers, BindingType::StorageBuffer },
-		{ &spirv_cross::ShaderResources::sampled_images, BindingType::Texture },
-		{ &spirv_cross::ShaderResources::storage_images, BindingType::StorageImage },
-	};
+uint32_t ResolveBindingSingle(uint32_t set, uint32_t binding)
+{
+	std::span<const uint32_t> bindings = ResolveBindingMulti(set, binding);
+	EG_ASSERT(bindings.size() == 1);
+	return bindings[0];
+}
+
+struct CombinedImageSamplerKey
+{
+	uint32_t textureSetIndex;
+	uint32_t textureBindingIndex;
+	uint32_t samplerSetIndex;
+	uint32_t samplerBindingIndex;
+
+	bool operator==(const CombinedImageSamplerKey&) const = default;
+
+	size_t Hash() const
+	{
+		size_t h = 0;
+		HashAppend(h, textureSetIndex);
+		HashAppend(h, textureBindingIndex);
+		HashAppend(h, samplerSetIndex);
+		HashAppend(h, samplerBindingIndex);
+		return h;
+	}
+};
 
 void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages)
 {
@@ -217,16 +253,84 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 			bindings.push_back(MappedBinding{
 				.set = set,
 				.binding = binding.binding,
-				.type = binding.type,
-				.glBinding = 0,
+				.type = binding.GetBindingType(),
+				.glBindings = std::monostate(),
 			});
 		}
 	}
 
 	std::sort(bindings.begin(), bindings.end());
 
-	// Assigns gl bindings to resources
+	std::unordered_map<CombinedImageSamplerKey, GLuint, MemberFunctionHash<CombinedImageSamplerKey>>
+		combinedImageSamplersBindingMap;
+
 	uint32_t nextTextureBinding = 0;
+	for (auto [compiler, shader] : shaderStages)
+	{
+		spirv_cross::VariableID dummySamplerID = compiler->build_dummy_sampler_for_combined_images();
+
+		compiler->build_combined_image_samplers();
+
+		for (const auto& comb : compiler->get_combined_image_samplers())
+		{
+			std::string name = Concat({
+				"SPIRV_Cross_Combined_",
+				compiler->get_name(comb.image_id),
+				"_",
+				compiler->get_name(comb.sampler_id),
+			});
+			compiler->set_name(comb.combined_id, name);
+
+			CombinedImageSamplerKey key;
+			key.textureSetIndex = compiler->get_decoration(comb.image_id, spv::DecorationDescriptorSet);
+			key.textureBindingIndex = compiler->get_decoration(comb.image_id, spv::DecorationBinding);
+			if (comb.sampler_id == dummySamplerID)
+			{
+				key.samplerSetIndex = UINT32_MAX;
+				key.samplerBindingIndex = UINT32_MAX;
+			}
+			else
+			{
+				key.samplerSetIndex = compiler->get_decoration(comb.sampler_id, spv::DecorationDescriptorSet);
+				key.samplerBindingIndex = compiler->get_decoration(comb.sampler_id, spv::DecorationBinding);
+			}
+
+			uint32_t binding;
+			auto bindingIt = combinedImageSamplersBindingMap.find(key);
+			if (bindingIt != combinedImageSamplersBindingMap.end())
+			{
+				binding = bindingIt->second;
+			}
+			else
+			{
+				binding = nextTextureBinding++;
+				combinedImageSamplersBindingMap.emplace(key, binding);
+			}
+
+			auto textureBindingIt = std::lower_bound(
+				bindings.begin(), bindings.end(), std::make_pair(key.textureSetIndex, key.textureBindingIndex));
+			if (textureBindingIt != bindings.end() && textureBindingIt->set == key.textureSetIndex &&
+			    textureBindingIt->binding == key.textureBindingIndex)
+			{
+				textureBindingIt->PushGLBinding(binding);
+			}
+
+			if (comb.sampler_id != dummySamplerID)
+			{
+				auto samplerBindingIt = std::lower_bound(
+					bindings.begin(), bindings.end(), std::make_pair(key.samplerSetIndex, key.samplerBindingIndex));
+				if (samplerBindingIt != bindings.end() && samplerBindingIt->set == key.samplerSetIndex &&
+				    samplerBindingIt->binding == key.samplerBindingIndex)
+				{
+					samplerBindingIt->PushGLBinding(binding);
+				}
+			}
+
+			compiler->set_decoration(comb.combined_id, spv::DecorationBinding, binding);
+		}
+	}
+
+	// Assigns gl bindings to resources
 	uint32_t nextStorageImageBinding = 0;
 	uint32_t nextUniformBufferBinding = 0;
 	uint32_t nextStorageBufferBinding = 0;
@@ -246,25 +350,21 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 		switch (bindings[i].type)
 		{
 		case BindingType::UniformBuffer:
-		case BindingType::UniformBufferDynamicOffset:
 			sets[set].numUniformBuffers++;
-			bindings[i].glBinding = nextUniformBufferBinding++;
+			bindings[i].PushGLBinding(nextUniformBufferBinding++);
 			break;
 		case BindingType::StorageBuffer:
-		case BindingType::StorageBufferDynamicOffset:
 			sets[set].numStorageBuffers++;
-			bindings[i].glBinding = nextStorageBufferBinding++;
+			bindings[i].PushGLBinding(nextStorageBufferBinding++);
 			usesGL4Resources = true;
-			break;
-		case BindingType::Texture:
-			sets[set].numTextures++;
-			bindings[i].glBinding = nextTextureBinding++;
 			break;
 		case BindingType::StorageImage:
 			sets[set].numStorageImages++;
-			bindings[i].glBinding = nextStorageImageBinding++;
+			bindings[i].PushGLBinding(nextStorageImageBinding++);
 			usesGL4Resources = true;
 			break;
+		case BindingType::Texture: sets[set].numTextures++; break;
+		case BindingType::Sampler: sets[set].numSamplers++; break;
 		}
 	}
 
@@ -276,15 +376,26 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 	for (auto [compiler, shader] : shaderStages)
 	{
 		const spirv_cross::ShaderResources& shResources = compiler->get_shader_resources();
-		for (auto [resourceFieldPtr, bindingType] : bindingTypes)
+
+		// Updates bindings for resources with a single binding
+		const spirv_cross::SmallVector<spirv_cross::Resource>* singleBindingResourceLists[] = {
+			&shResources.uniform_buffers,
+			&shResources.storage_buffers,
+			&shResources.storage_images,
+		};
+		for (const auto* resourceList : singleBindingResourceLists)
 		{
-			for (const spirv_cross::Resource& res : shResources.*resourceFieldPtr)
+			for (const spirv_cross::Resource& res : *resourceList)
 			{
 				const uint32_t set = compiler->get_decoration(res.id, spv::DecorationDescriptorSet);
 				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
-				auto it = std::lower_bound(bindings.begin(), bindings.end(), MappedBinding{ set, binding });
+				auto it = std::lower_bound(bindings.begin(), bindings.end(), std::make_pair(set, binding));
+
+				std::span<const uint32_t> glBindings = it->GetGLBindings();
+				EG_ASSERT(glBindings.size() <= 1);
+
 				compiler->set_decoration(res.id, spv::DecorationDescriptorSet, 0);
-				compiler->set_decoration(res.id, spv::DecorationBinding, it->glBinding);
+				compiler->set_decoration(res.id, spv::DecorationBinding, glBindings.empty() ? 0 : glBindings[0]);
 			}
 		}
 
@@ -591,5 +702,23 @@ void PushConstants(CommandContextHandle, uint32_t offset, uint32_t range, const 
 		default: EG_PANIC("Unknown push constant type.");
 		}
 	}
+}
+void MappedBinding::PushGLBinding(uint32_t b)
+{
+	if (std::holds_alternative<std::monostate>(glBindings))
+		glBindings = b;
+	else if (std::holds_alternative<uint32_t>(glBindings))
+		glBindings = std::vector<uint32_t>{ std::get<uint32_t>(glBindings), b };
+	else
+		std::get<std::vector<uint32_t>>(glBindings).push_back(b);
+}
+std::span<const uint32_t> MappedBinding::GetGLBindings() const
+{
+	if (std::holds_alternative<std::monostate>(glBindings))
+		return {};
+	else if (std::holds_alternative<uint32_t>(glBindings))
+		return { &std::get<uint32_t>(glBindings), 1 };
+	else
+		return std::get<std::vector<uint32_t>>(glBindings);
 }
 } // namespace eg::graphics_api::gl
