@@ -183,11 +183,7 @@ void EndRenderPass(CommandContextHandle ctx)
 
 void PushConstants(CommandContextHandle ctx, uint32_t offset, uint32_t range, const void* data)
 {
-	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
-
-	EG_ASSERT(offset + range <= mcc.pushConstantData.size());
-	std::memcpy(mcc.pushConstantData.data() + offset, data, range);
-	mcc.pushConstantsChanged = true;
+	EG_PANIC("Unsupported: PushConstants")
 }
 
 void SetViewport(CommandContextHandle ctx, float x, float y, float w, float h)

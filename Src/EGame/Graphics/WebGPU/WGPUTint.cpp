@@ -1,6 +1,7 @@
 #include "WGPUTint.hpp"
-#ifdef EG_WEBGPU_TINT
+#ifdef EG_ENABLE_TINT
 
+#include "../../Log.hpp"
 #include "../../String.hpp"
 
 #include <src/tint/lang/core/ir/module.h>
@@ -9,20 +10,35 @@
 #include <src/tint/lang/wgsl/writer/ir_to_program/ir_to_program.h>
 #include <tint/tint.h>
 
+#include <iostream>
+
 namespace eg::graphics_api::webgpu
 {
 static void TintErrorReporter(const tint::InternalCompilerError& e)
 {
-	std::cerr << "Internal tint error: " << e.Message() << std::endl;
+	eg::Log(eg::LogLevel::Error, "webgpu", "Internal tint error: {0}", e.Message());
 }
 
 static bool useWGSL;
+static bool dumpWGSL;
 
 void InitializeTint()
 {
 	tint::Initialize();
 	tint::SetInternalCompilerErrorReporter(TintErrorReporter);
 	useWGSL = true;
+
+	if (const char* useWGSLEnv = std::getenv("EG_USE_WGSL"))
+	{
+		if (std::string_view(useWGSLEnv) == "0")
+			useWGSL = false;
+	}
+
+	if (const char* useWGSLEnv = std::getenv("EG_DUMP_WGSL"))
+	{
+		if (std::string_view(useWGSLEnv) == "1")
+			dumpWGSL = true;
+	}
 }
 
 std::optional<std::string> GenerateShaderWGSL(std::span<const char> spirv, const char* label)
@@ -43,7 +59,7 @@ std::optional<std::string> GenerateShaderWGSL(std::span<const char> spirv, const
 	{
 		std::ostringstream message;
 		message << "Failed to convert to WGSL" << labelWithParenthesis << ": " << program.Diagnostics();
-		eg::Log(eg::LogLevel::Error, "sh", "{0}", message.str());
+		eg::Log(eg::LogLevel::Error, "webgpu", "{0}", message.str());
 		return std::nullopt;
 	}
 
@@ -53,8 +69,18 @@ std::optional<std::string> GenerateShaderWGSL(std::span<const char> spirv, const
 	{
 		std::ostringstream message;
 		message << "Failed to write WGSL" << labelWithParenthesis << ": " << result.Failure();
-		eg::Log(eg::LogLevel::Error, "sh", "{0}", message.str());
+		eg::Log(eg::LogLevel::Error, "webgpu", "{0}", message.str());
 		return std::nullopt;
+	}
+
+	if (dumpWGSL)
+	{
+		std::cerr << "-- WGSL Dump ";
+		if (label)
+			std::cerr << "[" << label << "]";
+		std::cerr << " --\n";
+		IterateStringParts(result->wgsl, '\n', [&](std::string_view line) { std::cerr << " |   " << line << "\n"; });
+		std::cerr << "---------------\n\n";
 	}
 
 	return result->wgsl;

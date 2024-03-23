@@ -34,7 +34,6 @@ public:
 	MTL::BlitCommandEncoder& GetBlitCmdEncoder();
 
 	MTL::ComputeCommandEncoder& GetComputeCmdEncoder();
-	void FlushPushConstantsForCompute();
 
 	MTL::RenderCommandEncoder& RenderCmdEncoder() const
 	{
@@ -66,9 +65,6 @@ public:
 	uint32_t boundIndexBufferOffset = 0;
 	MTL::Buffer* boundIndexBuffer = nullptr;
 	MTL::IndexType boundIndexType{};
-
-	std::array<char, 128> pushConstantData;
-	bool pushConstantsChanged = false;
 
 	uint32_t framebufferWidth = 0;
 	uint32_t framebufferHeight = 0;

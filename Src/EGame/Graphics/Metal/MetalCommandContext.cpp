@@ -77,25 +77,6 @@ void MetalCommandContext::FlushDrawState()
 		m_renderEncoder->setTriangleFillMode(m_renderState.triangleFillMode);
 		m_renderState.triangleFillModeChanged = false;
 	}
-
-	if (pushConstantsChanged)
-	{
-		const StageBindingsTable* vsBindingsTable = boundGraphicsPipelineState->bindingsTableVS.get();
-		const StageBindingsTable* fsBindingsTable = boundGraphicsPipelineState->bindingsTableFS.get();
-
-		if (vsBindingsTable != nullptr && vsBindingsTable->pushConstantBytes > 0)
-		{
-			m_renderEncoder->setVertexBytes(
-				pushConstantData.data(), pushConstantData.size(), PUSH_CONSTANTS_BUFFER_INDEX);
-		}
-		if (fsBindingsTable != nullptr && fsBindingsTable->pushConstantBytes > 0)
-		{
-			m_renderEncoder->setFragmentBytes(
-				pushConstantData.data(), pushConstantData.size(), PUSH_CONSTANTS_BUFFER_INDEX);
-		}
-
-		pushConstantsChanged = false;
-	}
 }
 
 std::optional<uint32_t> MetalCommandContext::GetComputePipelineMetalResourceIndex(uint32_t set, uint32_t binding) const
@@ -171,15 +152,6 @@ MTL::ComputeCommandEncoder& MetalCommandContext::GetComputeCmdEncoder()
 	}
 
 	return *m_computeEncoder;
-}
-
-void MetalCommandContext::FlushPushConstantsForCompute()
-{
-	if (pushConstantsChanged)
-	{
-		pushConstantsChanged = false;
-		m_computeEncoder->setBytes(pushConstantData.data(), pushConstantData.size(), PUSH_CONSTANTS_BUFFER_INDEX);
-	}
 }
 
 void MetalCommandContext::SetViewport(const MTL::Viewport& viewport)

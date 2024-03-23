@@ -40,7 +40,7 @@ WGPUSurface CreateSurface(WGPUInstance instance, SDL_Window* window)
 std::pair<uint32_t, uint32_t> GetWindowDrawableSize(SDL_Window* window)
 {
 	int width, height;
-	SDL_Metal_GetDrawableSize(sdlWindow, &width, &height);
+	SDL_Metal_GetDrawableSize(window, &width, &height);
 	return { ToUnsigned(width), ToUnsigned(height) };
 }
 } // namespace eg::graphics_api::webgpu

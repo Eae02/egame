@@ -1,6 +1,5 @@
 #include "../../Assert.hpp"
 #include "../Abstraction.hpp"
-#include "../DescriptorSetWrapper.hpp"
 #include "MetalBuffer.hpp"
 #include "MetalCommandContext.hpp"
 #include "MetalMain.hpp"
@@ -9,9 +8,32 @@
 
 namespace eg::graphics_api::mtl
 {
+struct BufferBinding
+{
+	MTL::Buffer* buffer;
+	uint64_t offset;
+};
+
+using ResourceVariant = std::variant<std::monostate, BufferBinding, MTL::Texture*, MTL::SamplerState*>;
+
+struct DescriptorSet
+{
+	uint32_t maxBindingPlusOne;
+	ResourceVariant resources[];
+};
+
+DescriptorSet& UnwrapDescriptorSet(DescriptorSetHandle handle)
+{
+	return *reinterpret_cast<DescriptorSet*>(handle);
+}
+
 static inline DescriptorSetHandle CreateDescriptorSet(uint32_t maxBindingPlusOne)
 {
-	return DescriptorSetWrapper::Allocate(maxBindingPlusOne)->Wrap();
+	void* memory = malloc(sizeof(DescriptorSet) + sizeof(ResourceVariant) * maxBindingPlusOne);
+	static_cast<DescriptorSet*>(memory)->maxBindingPlusOne = maxBindingPlusOne;
+	for (uint32_t i = 0; i < maxBindingPlusOne; i++)
+		new (static_cast<char*>(memory) + sizeof(DescriptorSet) + sizeof(ResourceVariant) * i) ResourceVariant;
+	return static_cast<DescriptorSetHandle>(memory);
 }
 
 DescriptorSetHandle CreateDescriptorSetP(PipelineHandle pipeline, uint32_t set)
@@ -26,37 +48,41 @@ DescriptorSetHandle CreateDescriptorSetB(std::span<const DescriptorSetBinding> b
 
 void DestroyDescriptorSet(DescriptorSetHandle set)
 {
-	DescriptorSetWrapper::Unwrap(set);
+	free(set);
 }
 
-void BindTextureDS(
-	TextureViewHandle textureView, SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding,
-	eg::TextureUsage _usage)
+static void BindResource(DescriptorSetHandle setHandle, uint32_t binding, ResourceVariant resource)
 {
-	EG_ASSERT(sampler != nullptr);
-	DescriptorSetWrapper::Unwrap(set)->BindTexture(binding, { .textureView = textureView, .sampler = sampler });
+	DescriptorSet& ds = UnwrapDescriptorSet(setHandle);
+	EG_ASSERT(binding < ds.maxBindingPlusOne);
+	ds.resources[binding] = resource;
+}
+
+void BindTextureDS(TextureViewHandle textureView, DescriptorSetHandle set, uint32_t binding, eg::TextureUsage _usage)
+{
+	BindResource(set, binding, UnwrapTextureView(textureView));
 }
 
 void BindStorageImageDS(TextureViewHandle textureView, DescriptorSetHandle set, uint32_t binding)
 {
-	DescriptorSetWrapper::Unwrap(set)->BindTexture(binding, { .textureView = textureView });
+	BindResource(set, binding, UnwrapTextureView(textureView));
 }
 
-static void BindBufferDS(BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset)
+void BindSamplerDS(SamplerHandle sampler, DescriptorSetHandle set, uint32_t binding)
 {
-	DescriptorSetWrapper::Unwrap(set)->BindBuffer(binding, { .buffer = handle, .offset = offset });
+	BindResource(set, binding, reinterpret_cast<MTL::SamplerState*>(sampler));
 }
 
 void BindUniformBufferDS(
 	BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> _range)
 {
-	BindBufferDS(handle, set, binding, offset);
+	BindResource(set, binding, BufferBinding{ .buffer = UnwrapBuffer(handle), .offset = offset });
 }
 
 void BindStorageBufferDS(
 	BufferHandle handle, DescriptorSetHandle set, uint32_t binding, uint64_t offset, std::optional<uint64_t> _range)
 {
-	BindBufferDS(handle, set, binding, offset);
+	BindResource(set, binding, BufferBinding{ .buffer = UnwrapBuffer(handle), .offset = offset });
 }
 
 void BindDescriptorSet(
@@ -66,29 +92,28 @@ void BindDescriptorSet(
 
 	size_t nextDynamicOffsetIndex = 0;
 
-	DescriptorSetWrapper::Unwrap(handle)->BindDescriptorSet(
-		[&]<typename T>(uint32_t binding, const T& resource)
+	const DescriptorSet& descriptorSet = UnwrapDescriptorSet(handle);
+	for (uint32_t binding = 0; binding <= descriptorSet.maxBindingPlusOne; binding++)
+	{
+		if (auto resource = std::get_if<BufferBinding>(&descriptorSet.resources[binding]))
 		{
-			if constexpr (std::is_same_v<T, DescriptorSetWrapper::BufferBinding>)
+			uint64_t offset = resource->offset;
+			if (offset == BIND_BUFFER_OFFSET_DYNAMIC)
 			{
-				uint64_t offset = resource.offset;
-				if (offset == BIND_BUFFER_OFFSET_DYNAMIC)
-				{
-					EG_ASSERT(nextDynamicOffsetIndex < dynamicOffsets.size());
-					offset = dynamicOffsets[nextDynamicOffsetIndex];
-					nextDynamicOffsetIndex++;
-				}
-
-				mcc.BindBuffer(UnwrapBuffer(resource.buffer), offset, set, binding);
+				EG_ASSERT(nextDynamicOffsetIndex < dynamicOffsets.size());
+				offset = dynamicOffsets[nextDynamicOffsetIndex];
+				nextDynamicOffsetIndex++;
 			}
-			else if constexpr (std::is_same_v<T, DescriptorSetWrapper::TextureBinding>)
-			{
-				mcc.BindTexture(UnwrapTextureView(resource.textureView), set, binding);
-				if (resource.sampler != nullptr)
-				{
-					mcc.BindSampler(reinterpret_cast<MTL::SamplerState*>(resource.sampler), set, binding);
-				}
-			}
-		});
+			mcc.BindBuffer(resource->buffer, offset, set, binding);
+		}
+		else if (auto resource = std::get_if<MTL::Texture*>(&descriptorSet.resources[binding]))
+		{
+			mcc.BindTexture(*resource, set, binding);
+		}
+		else if (auto resource = std::get_if<MTL::SamplerState*>(&descriptorSet.resources[binding]))
+		{
+			mcc.BindSampler(*resource, set, binding);
+		}
+	}
 }
 } // namespace eg::graphics_api::mtl

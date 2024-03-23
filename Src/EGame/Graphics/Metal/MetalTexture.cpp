@@ -168,19 +168,22 @@ void GenerateMipmaps(CommandContextHandle ctx, TextureHandle handle)
 	mcc.GetBlitCmdEncoder().generateMipmaps(mtexture.texture);
 }
 
-void BindTexture(
-	CommandContextHandle ctx, TextureViewHandle textureView, SamplerHandle sampler, uint32_t set, uint32_t binding)
+void BindTexture(CommandContextHandle ctx, TextureViewHandle textureView, uint32_t set, uint32_t binding)
 {
-	EG_ASSERT(sampler != nullptr);
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
 	mcc.BindTexture(UnwrapTextureView(textureView), set, binding);
-	mcc.BindSampler(reinterpret_cast<MTL::SamplerState*>(sampler), set, binding);
 }
 
 void BindStorageImage(CommandContextHandle ctx, TextureViewHandle texture, uint32_t set, uint32_t binding)
 {
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
 	mcc.BindTexture(UnwrapTextureView(texture), set, binding);
+}
+
+void BindSampler(CommandContextHandle ctx, SamplerHandle sampler, uint32_t set, uint32_t binding)
+{
+	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
+	mcc.BindSampler(reinterpret_cast<MTL::SamplerState*>(sampler), set, binding);
 }
 
 void ClearColorTexture(CommandContextHandle ctx, TextureHandle texture, uint32_t mipLevel, const void* color)
@@ -225,8 +228,8 @@ MTL::Texture* Texture::GetTextureView(
 	}
 	else
 	{
-		EG_ASSERT(static_cast<int>(viewType) < std::size(textureViewTypeTranslationTable));
-		viewKey.type = textureViewTypeTranslationTable[static_cast<int>(viewType)];
+		EG_ASSERT(static_cast<int>(*viewType) < std::size(textureViewTypeTranslationTable));
+		viewKey.type = textureViewTypeTranslationTable[static_cast<int>(*viewType)];
 	}
 
 	viewKey.format = format == Format::Undefined ? texture->pixelFormat() : TranslatePixelFormat(format);

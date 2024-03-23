@@ -107,8 +107,6 @@ void DispatchCompute(CommandContextHandle ctx, uint32_t sizeX, uint32_t sizeY, u
 {
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
 
-	mcc.FlushPushConstantsForCompute();
-
 	mcc.GetComputeCmdEncoder().dispatchThreadgroups(
 		MTL::Size::Make(sizeX, sizeY, sizeZ), mcc.currentComputePipeline->workGroupSize);
 }
@@ -116,8 +114,6 @@ void DispatchCompute(CommandContextHandle ctx, uint32_t sizeX, uint32_t sizeY, u
 void DispatchComputeIndirect(CommandContextHandle ctx, BufferHandle argsBuffer, uint64_t argsBufferOffset)
 {
 	MetalCommandContext& mcc = MetalCommandContext::Unwrap(ctx);
-
-	mcc.FlushPushConstantsForCompute();
 
 	mcc.GetComputeCmdEncoder().dispatchThreadgroups(
 		UnwrapBuffer(argsBuffer), argsBufferOffset, mcc.currentComputePipeline->workGroupSize);

@@ -47,26 +47,13 @@ ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::Pars
 	module->bindingsTable = std::make_shared<StageBindingsTable>();
 	StageBindingsTable& bindingsTable = *module->bindingsTable;
 
-	bindingsTable.pushConstantBytes = GetPushConstantBytes(compiler, &shaderResources);
-
 	spv::ExecutionModel executionModel = StageToSpvExecutionModel(stage);
 
 	auto stageAccessFlag = static_cast<ShaderAccessFlags>(1 << static_cast<int>(stage));
 
 	uint32_t nextBufferIndex = 0;
 	uint32_t nextTextureIndex = 0;
-
-	// Assigns a binding to the push constants buffer
-	if (bindingsTable.pushConstantBytes > 0)
-	{
-		compiler.add_msl_resource_binding(spirv_cross::MSLResourceBinding{
-			.stage = executionModel,
-			.desc_set = spirv_cross::kPushConstDescSet,
-			.binding = spirv_cross::kPushConstBinding,
-			.count = 1,
-			.msl_buffer = PUSH_CONSTANTS_BUFFER_INDEX,
-		});
-	}
+	uint32_t nextSamplerIndex = 0;
 
 	for (uint32_t i = 0; i < MAX_DESCRIPTOR_SETS; i++)
 	{
@@ -87,12 +74,10 @@ ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::Pars
 
 			uint32_t metalIndex;
 
-			switch (setBinding.type)
+			switch (setBinding.GetBindingType())
 			{
 			case BindingType::UniformBuffer:
 			case BindingType::StorageBuffer:
-			case BindingType::UniformBufferDynamicOffset:
-			case BindingType::StorageBufferDynamicOffset:
 				metalIndex = nextBufferIndex++;
 				resourceBinding.msl_buffer = metalIndex;
 				break;
@@ -105,6 +90,10 @@ ShaderModuleHandle CreateShaderModule(ShaderStage stage, const spirv_cross::Pars
 				metalIndex = nextTextureIndex++;
 				resourceBinding.msl_texture = metalIndex;
 				resourceBinding.msl_buffer = nextBufferIndex++;
+				break;
+			case BindingType::Sampler:
+				metalIndex = nextSamplerIndex++;
+				resourceBinding.msl_sampler = metalIndex;
 				break;
 			}
 

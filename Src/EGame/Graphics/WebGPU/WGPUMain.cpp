@@ -5,6 +5,7 @@
 #include "WGPUDescriptorSet.hpp"
 #include "WGPUFence.hpp"
 #include "WGPUSurface.hpp"
+#include "WGPUTint.hpp"
 
 #include <vector>
 
@@ -71,10 +72,7 @@ static inline std::string_view WGPUErrorTypeToString(WGPUErrorType type)
 static void OnDeviceError(WGPUErrorType type, const char* message, void* userData)
 {
 	Log(LogLevel::Error, "webgpu", "WebGPU Device Error [{0}]: {1}", WGPUErrorTypeToString(type), GetMessage(message));
-	if (message != nullptr && !strstr(message, "Error while parsing SPIR-V"))
-	{
-		EG_DEBUG_BREAK;
-	}
+	EG_DEBUG_BREAK;
 }
 
 static void OnDeviceLost(WGPUDeviceLostReason reason, const char* message, void* userData)
@@ -177,6 +175,8 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 #define XM_WGPU_FUNC(F) wgpu##F = reinterpret_cast<WGPUProc##F>(dawnLibrary.GetSymbol("wgpu" #F));
 #include "WGPUFunctions.inl"
 #undef XM_WGPU_FUNC
+
+	InitializeTint();
 
 	WGPUInstanceDescriptor instanceDesc = {};
 	instanceDesc.features.timedWaitAnyEnable = true;

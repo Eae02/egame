@@ -66,10 +66,14 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 	case Format::BC3_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
 	case Format::BC4_R_UNorm: return GL_COMPRESSED_RED_RGTC1;
 	case Format::BC5_RG_UNorm: return GL_COMPRESSED_RG_RGTC2;
+
+#ifndef EG_GLES
 	case Format::BC6H_RGB_UFloat: return GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT;
 	case Format::BC6H_RGB_Float: return GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT;
 	case Format::BC7_RGBA_UNorm: return GL_COMPRESSED_RGBA_BPTC_UNORM;
 	case Format::BC7_RGBA_sRGB: return GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM;
+#endif
+
 	case Format::Depth16: return GL_DEPTH_COMPONENT16;
 	case Format::Depth32: return GL_DEPTH_COMPONENT32F;
 	case Format::Depth24Stencil8: return GL_DEPTH24_STENCIL8;
@@ -91,9 +95,7 @@ GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 	case Format::R16G16B16A16_SNorm:
 #endif
 
-	case Format::Undefined:
-	case Format::A2R10G10B10_SInt:
-	case Format::A2R10G10B10_SNorm:
+	default:
 		if (returnZeroOnFailure)
 			return 0;
 		EG_PANIC("Invalid texture format: " << FormatToString(format) << ".");

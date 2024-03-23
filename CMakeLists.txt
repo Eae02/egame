@@ -23,9 +23,11 @@ option(SPIRV_CROSS_ENABLE_C_API "" OFF)
 option(SPIRV_CROSS_FORCE_PIC "" ON)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_cross/ SYSTEM)
 
-set(SPIRV-Headers_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_headers/")
-set(SPIRV_SKIP_EXECUTABLES ON)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_tools/ SYSTEM)
+if (EG_WEBGPU)
+	set(SPIRV-Headers_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_headers/")
+	set(SPIRV_SKIP_EXECUTABLES ON)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_tools/ SYSTEM)
+endif()
 
 set(YAML_BUILD_SHARED_LIBS OFF)
 set(YAML_CPP_BUILD_TESTS OFF)
@@ -225,7 +227,6 @@ target_link_libraries(EGame
 		spirv-cross-msl
 		spirv-cross-util
 		spirv-cross-core
-		SPIRV-Tools-opt
 )
 
 target_include_directories(EGame PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Src/>)
@@ -248,6 +249,7 @@ endif()
 
 if (EG_WEBGPU)
 	target_compile_options(EGame PRIVATE -DEG_ENABLE_WEBGPU)
+	target_link_libraries(EGame PRIVATE SPIRV-Tools-opt)
 endif()
 if (EG_WEBGPU_TINT)
 	target_link_libraries(EGame PRIVATE libtint)

@@ -48,8 +48,8 @@ void SpriteBatch::InitStatic()
 	spriteBatchFS = ShaderModule(ShaderStage::Fragment, Sprite_fs_glsl);
 
 	spritePipeline = FramebufferLazyPipeline({
-		.vertexShader = eg::ShaderStageInfo(spriteBatchVS.Handle()),
-		.fragmentShader = eg::ShaderStageInfo(spriteBatchFS.Handle()),
+		.vertexShader = ShaderStageInfo{ .shaderModule=spriteBatchVS.Handle() },
+		.fragmentShader = ShaderStageInfo{ .shaderModule=spriteBatchFS.Handle() },
 		.enableScissorTest = true,
 		.descriptorSetBindings = { bindingsSet0 },
 		.blendStates = {eg::BlendState(BlendFunc::Add, BlendFactor::One, BlendFactor::OneMinusSrcAlpha)},

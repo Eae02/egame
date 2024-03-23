@@ -8,17 +8,13 @@
 
 namespace eg::graphics_api::mtl
 {
-static constexpr uint32_t PUSH_CONSTANTS_BUFFER_INDEX = 30;
-
 inline uint32_t GetVertexBindingBufferIndex(uint32_t binding)
 {
-	return 29 - binding;
+	return 30 - binding;
 }
 
 struct StageBindingsTable
 {
-	uint32_t pushConstantBytes = 0;
-
 	std::array<std::vector<int>, MAX_DESCRIPTOR_SETS> bindingsMetalIndexTable;
 
 	std::optional<uint32_t> GetResourceMetalIndex(uint32_t set, uint32_t binding) const;

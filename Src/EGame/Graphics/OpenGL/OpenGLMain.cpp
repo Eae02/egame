@@ -107,10 +107,10 @@ FormatCapabilities GetFormatCapabilities(Format format)
 #ifdef EG_GLES
 		switch (GetFormatType(format))
 		{
-		case FormatTypes::DepthStencil:
+		case FormatType::DepthStencil:
 			capabilities |= FormatCapabilities::SampledImage | FormatCapabilities::DepthStencilAttachment;
 			break;
-		case FormatTypes::Float:
+		case FormatType::Float:
 			capabilities |= FormatCapabilities::SampledImage;
 			if (glesFormatSupport.floatColorBuffer)
 				capabilities |= FormatCapabilities::ColorAttachment;

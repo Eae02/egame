@@ -126,22 +126,22 @@ BloomRenderer::BloomRenderer(eg::Format format) : m_format(format)
 	eg::ShaderModule blurYSM(ShaderStage::Fragment, BloomBlurY_fs_glsl);
 
 	m_brightPassPipeline = eg::Pipeline::Create(GraphicsPipelineCreateInfo{
-		.vertexShader = ShaderStageInfo(vertexShader.Handle()),
-		.fragmentShader = ShaderStageInfo(brightPassSM.Handle()),
+		.vertexShader = ShaderStageInfo{ .shaderModule = vertexShader.Handle() },
+		.fragmentShader = ShaderStageInfo{ .shaderModule = brightPassSM.Handle() },
 		.colorAttachmentFormats = { format },
 		.label = "Bloom[BrightPass]",
 	});
 
 	m_blurPipelineX = eg::Pipeline::Create(GraphicsPipelineCreateInfo{
-		.vertexShader = ShaderStageInfo(vertexShader.Handle()),
-		.fragmentShader = ShaderStageInfo(blurXSM.Handle()),
+		.vertexShader = ShaderStageInfo{ .shaderModule = vertexShader.Handle() },
+		.fragmentShader = ShaderStageInfo{ .shaderModule = blurXSM.Handle() },
 		.colorAttachmentFormats = { format },
 		.label = "Bloom[BlurX]",
 	});
 
 	m_blurPipelineY = eg::Pipeline::Create(GraphicsPipelineCreateInfo{
-		.vertexShader = ShaderStageInfo(vertexShader.Handle()),
-		.fragmentShader = ShaderStageInfo(blurYSM.Handle()),
+		.vertexShader = ShaderStageInfo{ .shaderModule = vertexShader.Handle() },
+		.fragmentShader = ShaderStageInfo{ .shaderModule = blurYSM.Handle() },
 		.colorAttachmentFormats = { format },
 		.label = "Bloom[BlurY]",
 	});
