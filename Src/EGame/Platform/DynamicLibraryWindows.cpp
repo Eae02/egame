@@ -29,6 +29,8 @@ void* DynamicLibrary::GetSymbol(const char* name) const
 	return reinterpret_cast<void*>(GetProcAddress(reinterpret_cast<HMODULE>(m_handle), name));
 }
 
+const std::string_view DynamicLibrary::FileExtension = ".dll";
+
 std::string DynamicLibrary::PlatformFormat(std::string_view name)
 {
 	return Concat({ name, ".dll" });

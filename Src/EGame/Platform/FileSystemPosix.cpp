@@ -63,13 +63,13 @@ std::optional<MemoryMappedFile> MemoryMappedFile::OpenRead(const char* path)
 
 	MemoryMappedFile file;
 	file.data = std::span<const char>(static_cast<char*>(fileData), fileSize);
-	file.fileHandle = fd;
+	file.handles = Handles { .fd = fd };
 	return file;
 }
 
 void MemoryMappedFile::CloseImpl()
 {
-	close(static_cast<int>(fileHandle));
+	close(handles->fd);
 	munmap(const_cast<char*>(data.data()), data.size());
 }
 } // namespace eg

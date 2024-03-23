@@ -203,7 +203,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{ return GetDevicePreferenceIndex(candidate) < GetDevicePreferenceIndex(current); };
 
 	// Selects which physical device to use
-	std::array<bool, std::size(OPTIONAL_DEVICE_EXTENSIONS)> optionalExtensionsSeen;
+	std::array<bool, std::size(OPTIONAL_DEVICE_EXTENSIONS)> optionalExtensionsSeen{};
 	VkPhysicalDeviceProperties currentDeviceProperties;
 	okDeviceNames.clear();
 	for (VkPhysicalDevice physicalDevice : physicalDevices)
@@ -259,8 +259,8 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 			physicalDevice, nullptr, &availDevExtensions, devExtensionProperties.data());
 
 		// Checks which device extensions are supported
-		std::array<bool, std::size(OPTIONAL_DEVICE_EXTENSIONS)> optionalExtensionsSeenThisDevice;
-		std::array<bool, std::size(REQUIRED_DEVICE_EXTENSIONS)> requiredExtensionsSeen;
+		std::array<bool, std::size(OPTIONAL_DEVICE_EXTENSIONS)> optionalExtensionsSeenThisDevice{};
+		std::array<bool, std::size(REQUIRED_DEVICE_EXTENSIONS)> requiredExtensionsSeen{};
 		for (const VkExtensionProperties& extProperties : devExtensionProperties)
 		{
 			for (size_t i = 0; i < std::size(REQUIRED_DEVICE_EXTENSIONS); i++)
@@ -368,6 +368,7 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
 		if (optionalExtensionsSeen[i])
 		{
+			std::cerr << "Enable " << OPTIONAL_DEVICE_EXTENSIONS[i] << "\n";
 			enabledDeviceExtensions.push_back(OPTIONAL_DEVICE_EXTENSIONS[i]);
 		}
 	}

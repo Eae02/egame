@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -46,14 +47,14 @@ public:
 	MemoryMappedFile(MemoryMappedFile&& other)
 	{
 		std::swap(other.data, data);
-		std::swap(other.fileHandle, fileHandle);
+		std::swap(other.handles, handles);
 	}
 
 	MemoryMappedFile& operator=(MemoryMappedFile&& other)
 	{
 		Close();
 		std::swap(other.data, data);
-		std::swap(other.fileHandle, fileHandle);
+		std::swap(other.handles, handles);
 		return *this;
 	}
 
@@ -63,19 +64,27 @@ public:
 
 	void Close()
 	{
-		if (fileHandle != FILE_HANDLE_NULL)
+		if (handles.has_value())
 		{
 			CloseImpl();
 			data = {};
-			fileHandle = FILE_HANDLE_NULL;
+			handles = std::nullopt;
 		}
 	}
 
 private:
 	void CloseImpl();
 
-	static const intptr_t FILE_HANDLE_NULL;
+	struct Handles
+	{
+#if defined(__linux__) || defined(__APPLE__)
+		int fd;
+#elif defined(_WIN32)
+		void* file;
+		void* mapping;
+#endif
+	};
 
-	intptr_t fileHandle = FILE_HANDLE_NULL;
+	std::optional<Handles> handles;
 };
 } // namespace eg

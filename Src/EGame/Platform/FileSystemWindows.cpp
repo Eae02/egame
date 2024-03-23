@@ -41,6 +41,37 @@ bool IsRegularFile(const char* path)
 	return GetFileAttributes(path) == FILE_ATTRIBUTE_NORMAL;
 }
 
+std::optional<MemoryMappedFile> MemoryMappedFile::OpenRead(const char* path)
+{
+	HANDLE fileHandle =
+		CreateFile(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	if (fileHandle == INVALID_HANDLE_VALUE)
+		return std::nullopt;
+
+	DWORD fileSize = GetFileSize(fileHandle, nullptr);
+
+	HANDLE mapping = CreateFileMapping(fileHandle, nullptr, PAGE_READONLY, 0, 0, nullptr);
+	if (mapping == nullptr)
+	{
+		CloseHandle(fileHandle);
+		return std::nullopt;
+	}
+
+	const void* fileData = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
+
+	MemoryMappedFile file;
+	file.data = std::span<const char>(static_cast<const char*>(fileData), fileSize);
+	file.handles = Handles{ .file = fileHandle, .mapping = mapping };
+	return file;
+}
+
+void MemoryMappedFile::CloseImpl()
+{
+	UnmapViewOfFile(data.data());
+	CloseHandle(handles->mapping);
+	CloseHandle(handles->file);
+}
+
 static std::string appDataPath;
 
 const std::string& AppDataPath()

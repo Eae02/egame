@@ -28,16 +28,16 @@ void* DynamicLibrary::GetSymbol(const char* name) const
 	return dlsym(m_handle, name);
 }
 
-std::string DynamicLibrary::PlatformFormat(std::string_view name)
-{
 #ifdef __linux__
-	constexpr const char* SUFFIX = ".so";
+const std::string_view DynamicLibrary::FileExtension = ".so";
 #endif
 #ifdef __APPLE__
-	constexpr const char* SUFFIX = ".dylib";
+const std::string_view DynamicLibrary::FileExtension = ".dylib";
 #endif
 
-	return Concat({ "lib", name, SUFFIX });
+std::string DynamicLibrary::PlatformFormat(std::string_view name)
+{
+	return Concat({ "lib", name, DynamicLibrary::FileExtension });
 }
 
 const char* DynamicLibrary::FailureReason()

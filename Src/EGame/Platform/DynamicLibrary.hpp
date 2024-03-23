@@ -35,6 +35,8 @@ public:
 
 	void* GetSymbol(const char* name) const;
 
+	static const std::string_view FileExtension;
+
 private:
 	void* m_handle = nullptr;
 };
