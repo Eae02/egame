@@ -34,6 +34,7 @@ EG_API void CreateDirectories(std::string_view path);
 
 EG_API bool IsRegularFile(const char* path);
 
+// This class is used for reading files by memory mapping
 class EG_API MemoryMappedFile
 {
 public:
@@ -59,6 +60,14 @@ public:
 	}
 
 	static std::optional<MemoryMappedFile> OpenRead(const char* path);
+
+	// Creates a MemoryMappedFile that wraps data
+	static MemoryMappedFile Wrap(std::span<const char> data)
+	{
+		MemoryMappedFile file;
+		file.data = data;
+		return file;
+	}
 
 	std::span<const char> data;
 

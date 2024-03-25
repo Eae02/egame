@@ -38,8 +38,6 @@ bool IsRegularFile(const char* path)
 	return S_ISREG(attrib.st_mode);
 }
 
-const intptr_t MemoryMappedFile::FILE_HANDLE_NULL = -1;
-
 std::optional<MemoryMappedFile> MemoryMappedFile::OpenRead(const char* path)
 {
 	int fd = open(path, O_RDONLY);

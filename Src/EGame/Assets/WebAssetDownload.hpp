@@ -5,6 +5,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <span>
 
 namespace eg
 {
@@ -44,7 +45,7 @@ EG_API void DownloadAssetPackageASync(DownloadAssetPackageArgs args);
 namespace detail
 {
 void WebDownloadAssetPackages(std::function<void()> onComplete);
-std::istream* WebGetDownloadedAssetPackageStream(std::string_view name);
+std::optional<std::span<const char>> WebGetDownloadedAssetPackage(std::string_view name);
 void PruneDownloadedAssetPackages();
 } // namespace detail
 } // namespace eg

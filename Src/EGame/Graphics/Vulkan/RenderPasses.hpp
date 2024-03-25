@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef EG_NO_VULKAN
-
 #include "Common.hpp"
 
 namespace eg::graphics_api::vk
@@ -37,5 +35,3 @@ VkRenderPass GetRenderPass(const RenderPassDescription& description, bool allowC
 
 void DestroyRenderPasses();
 } // namespace eg::graphics_api::vk
-
-#endif

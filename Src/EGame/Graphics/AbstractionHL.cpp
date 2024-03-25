@@ -148,7 +148,7 @@ void Texture::SetData(std::span<const char> packedData, const TextureRange& rang
 
 	const uint32_t strideAlignment = GetGraphicsDeviceInfo().textureBufferCopyStrideAlignment;
 	const uint32_t bytesPerRow = RoundToNextMultiple(packedBytesPerRow, std::lcm(strideAlignment, bytesPerBlock));
-	const uint32_t bytesPerLayer = RoundToNextMultiple(bytesPerRow * range.sizeY, strideAlignment);
+	const uint32_t bytesPerLayer = bytesPerRow * range.sizeY;
 
 	Buffer dedicatedBuffer;
 
@@ -194,7 +194,6 @@ void Texture::SetData(std::span<const char> packedData, const TextureRange& rang
 			TextureBufferCopyLayout{
 				.offset = static_cast<uint32_t>(uploadBuffer.offset),
 				.rowByteStride = bytesPerRow,
-				.layerByteStride = bytesPerLayer,
 			});
 }
 

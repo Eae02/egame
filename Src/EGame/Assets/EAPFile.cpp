@@ -13,13 +13,15 @@ namespace eg
 {
 static const char EAPMagic[] = { -1, 'E', 'A', 'P' };
 
+constexpr uint32_t COMPRESSED_BIT = static_cast<uint32_t>(1) << 31;
+
 static void WriteAssetDataSection(std::ofstream& stream, std::span<const char> data, bool compress)
 {
-	uint64_t dataBytesAndCompressedBit = data.size();
-	EG_ASSERT(dataBytesAndCompressedBit < 0x8000000000000000ULL);
+	uint32_t dataBytesAndCompressedBit = UnsignedNarrow<uint32_t>(data.size());
+	EG_ASSERT(dataBytesAndCompressedBit < COMPRESSED_BIT);
 	if (compress)
-		dataBytesAndCompressedBit |= 0x8000000000000000ULL;
-	BinWrite(stream, dataBytesAndCompressedBit);
+		dataBytesAndCompressedBit |= COMPRESSED_BIT;
+	BinWrite<uint32_t>(stream, dataBytesAndCompressedBit);
 
 	if (compress)
 	{
@@ -27,27 +29,30 @@ static void WriteAssetDataSection(std::ofstream& stream, std::span<const char> d
 	}
 	else
 	{
-		stream.write(data.data(), data.size());
+		stream.write(data.data(), static_cast<std::streamsize>(data.size()));
 	}
 }
 
 struct AssetDataSection
 {
 	std::span<const char> data;
-	std::optional<uint64_t> compressedSize;
-	size_t bytesRead;
+	std::optional<uint32_t> compressedSize;
+	uint32_t bytesRead;
 };
 
 static std::optional<AssetDataSection> ReadAssetDataSection(std::span<const char> section, LinearAllocator& allocator)
 {
-	uint64_t dataBytes = ReadFromSpan<uint64_t>(section, 0);
-	const bool compressed = (dataBytes & 0x8000000000000000ULL) != 0;
-	dataBytes &= ~0x8000000000000000ULL;
+	uint32_t dataBytes = ReadFromSpan<uint32_t>(section, 0);
+	const bool compressed = (dataBytes & COMPRESSED_BIT) != 0;
+	dataBytes &= ~COMPRESSED_BIT;
 
 	if (compressed)
 	{
-		uint64_t compressedSize = ReadFromSpan<uint64_t>(section, sizeof(uint64_t));
-		std::span<const char> compressedData = section.subspan(sizeof(uint64_t) * 2, compressedSize);
+		uint64_t compressedSize = ReadFromSpan<uint64_t>(section, sizeof(uint32_t));
+
+		constexpr size_t COMPRESSED_DATA_OFFSET = sizeof(uint32_t) + sizeof(uint64_t);
+
+		std::span<const char> compressedData = section.subspan(COMPRESSED_DATA_OFFSET, compressedSize);
 
 		char* uncompressedDataPtr = static_cast<char*>(allocator.Allocate(dataBytes));
 		if (!Decompress(compressedData.data(), compressedData.size(), uncompressedDataPtr, dataBytes))
@@ -56,14 +61,14 @@ static std::optional<AssetDataSection> ReadAssetDataSection(std::span<const char
 		return AssetDataSection{
 			.data = { uncompressedDataPtr, dataBytes },
 			.compressedSize = compressedSize,
-			.bytesRead = sizeof(uint64_t) * 2 + compressedSize,
+			.bytesRead = UnsignedNarrow<uint32_t>(COMPRESSED_DATA_OFFSET + compressedSize),
 		};
 	}
 	else
 	{
 		return AssetDataSection{
-			.data = section.subspan(sizeof(uint64_t), dataBytes),
-			.bytesRead = sizeof(uint64_t) + dataBytes,
+			.data = section.subspan(sizeof(uint32_t), dataBytes),
+			.bytesRead = static_cast<uint32_t>(sizeof(uint32_t)) + dataBytes,
 		};
 	}
 }
@@ -124,7 +129,7 @@ void WriteEAPFile(std::span<const EAPAsset> assets, std::string_view path)
 		BinWriteString(stream, sideStreamName);
 	}
 
-	std::vector<uint64_t> assetSideStreamOffsets(numSideStreams);
+	std::vector<uint32_t> assetSideStreamOffsets(numSideStreams);
 
 	for (const EAPAsset& asset : assets)
 	{
@@ -142,15 +147,15 @@ void WriteEAPFile(std::span<const EAPAsset> assets, std::string_view path)
 		{
 			auto streamIt = std::lower_bound(sideStreamNames.begin(), sideStreamNames.end(), sideStreamData.streamName);
 			EG_ASSERT(streamIt != sideStreamNames.end());
-			const size_t streamIndex = streamIt - sideStreamNames.begin();
+			const size_t streamIndex = ToUnsigned(streamIt - sideStreamNames.begin());
 
-			assetSideStreamOffsets[streamIndex] = static_cast<uint64_t>(sideStreams[streamIndex].tellp());
+			assetSideStreamOffsets[streamIndex] = static_cast<uint32_t>(sideStreams[streamIndex].tellp());
 			WriteAssetDataSection(sideStreams[streamIndex], sideStreamData.data, asset.compress);
 		}
 
 		for (uint32_t i = 0; i < numSideStreams; i++)
 		{
-			BinWrite<uint64_t>(stream, assetSideStreamOffsets[i]);
+			BinWrite<uint32_t>(stream, assetSideStreamOffsets[i]);
 		}
 
 		WriteAssetDataSection(stream, asset.generatedAssetData, asset.compress);
@@ -216,8 +221,8 @@ std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, Li
 
 		for (uint32_t j = 0; j < numSideStreams; j++)
 		{
-			uint64_t sideStreamDataOffset = reader.Read<uint64_t>();
-			if (sideStreamDataOffset == UINT64_MAX && !sideStreams[j].empty())
+			uint32_t sideStreamDataOffset = reader.Read<uint32_t>();
+			if (sideStreamDataOffset == UINT32_MAX && !sideStreams[j].empty())
 				continue;
 
 			std::optional<AssetDataSection> sideDataSection =

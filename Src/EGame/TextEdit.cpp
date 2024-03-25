@@ -1,6 +1,5 @@
 #include "TextEdit.hpp"
 
-#include <SDL.h>
 #include <utf8.h>
 
 namespace eg

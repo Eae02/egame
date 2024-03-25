@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef EG_NO_VULKAN
-
 #include "../SpirvCrossUtils.hpp"
 #include "Common.hpp"
 
@@ -25,5 +23,3 @@ inline ShaderModule* UnwrapShaderModule(ShaderModuleHandle handle)
 	return reinterpret_cast<ShaderModule*>(handle);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

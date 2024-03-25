@@ -91,14 +91,12 @@ void GetDrawableSize(int& width, int& height)
 
 void PlatformSpecificGetDeviceInfo(GraphicsDeviceInfo& deviceInfo)
 {
-	deviceInfo.blockTextureCompression = Contains(supportedExtensions, "GL_EXT_texture_compression_s3tc") &&
-	                                     Contains(supportedExtensions, "GL_ARB_texture_compression_rgtc");
-	deviceInfo.persistentMappedBuffers = false;
-	deviceInfo.tessellation = false;
-	deviceInfo.textureCubeMapArray = false;
-	deviceInfo.maxTessellationPatchSize = 0;
-	deviceInfo.maxClipDistances = 0;
-	deviceInfo.computeShader = false;
+	if (Contains(supportedExtensions, "GL_EXT_texture_compression_s3tc") &&
+	    Contains(supportedExtensions, "GL_ARB_texture_compression_rgtc"))
+	{
+		deviceInfo.features |= DeviceFeatureFlags::TextureCompressionBC;
+	}
+
 	deviceInfo.apiName = "WebGL2";
 }
 

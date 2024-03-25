@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef EG_NO_VULKAN
-
 #include "../Abstraction.hpp"
 #include "../DescriptorSetLayoutCache.hpp"
 #include "Common.hpp"
@@ -47,5 +45,3 @@ private:
 // unneccessarily create multiple descriptor set layouts
 void NormalizeBinding(DescriptorSetBinding& binding);
 } // namespace eg::graphics_api::vk
-
-#endif

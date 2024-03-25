@@ -2,8 +2,6 @@
 
 #include "../Abstraction.hpp"
 
-#include <future>
-
 namespace eg::graphics_api::webgpu
 {
 bool Initialize(const GraphicsAPIInitArguments& initArguments);

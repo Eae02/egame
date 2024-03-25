@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
 #include "../SpirvCrossUtils.hpp"
@@ -7,8 +6,8 @@
 #include "RenderPasses.hpp"
 #include "ShaderModule.hpp"
 #include "Translation.hpp"
-
 #include "VulkanCommandContext.hpp"
+
 #include <algorithm>
 #include <spirv_cross.hpp>
 
@@ -454,5 +453,3 @@ void DrawIndexed(
 	vkCmdDrawIndexed(vcc.cb, numIndices, numInstances, firstIndex, firstVertex, firstInstance);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

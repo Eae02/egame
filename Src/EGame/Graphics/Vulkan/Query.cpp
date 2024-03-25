@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
 #include "../Abstraction.hpp"
@@ -116,5 +115,3 @@ void EndQuery(CommandContextHandle cc, QueryPoolHandle queryPoolHandle, uint32_t
 	vkCmdEndQuery(vcc.cb, queryPool->pool, query);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

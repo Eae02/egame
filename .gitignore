@@ -14,3 +14,4 @@ Bin
 *.gch
 /.clangd
 /Deps/tint/
+/Deps/inc/webgpu_native/

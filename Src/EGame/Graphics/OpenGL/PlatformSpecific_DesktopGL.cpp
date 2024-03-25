@@ -1,16 +1,16 @@
-#include "EGame/Graphics/Abstraction.hpp"
-#include "EGame/Utils.hpp"
-#include <SDL_video.h>
 #ifndef __EMSCRIPTEN__
 
 #include "../../Assert.hpp"
 #include "../../String.hpp"
+#include "../../Utils.hpp"
+#include "../Abstraction.hpp"
 #include "Framebuffer.hpp"
 #include "OpenGL.hpp"
 #include "PlatformSpecific.hpp"
 #include "Utils.hpp"
 
 #include <SDL.h>
+#include <SDL_video.h>
 
 namespace eg::graphics_api::gl
 {

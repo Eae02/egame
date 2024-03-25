@@ -1,5 +1,3 @@
-#include <vulkan/vulkan_core.h>
-#ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
 #include "../Graphics.hpp"
@@ -368,5 +366,3 @@ void BindIndexBuffer(CommandContextHandle cc, IndexType type, BufferHandle buffe
 	vkCmdBindIndexBuffer(vcc.cb, buffer->buffer, offset, vkIndexType);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "Buffer.hpp"
 #include "Pipeline.hpp"
@@ -133,5 +132,3 @@ void DispatchComputeIndirect(CommandContextHandle cc, BufferHandle argsBuffer, u
 	vkCmdDispatchIndirect(vcc.cb, UnwrapBuffer(argsBuffer)->buffer, argsBufferOffset);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

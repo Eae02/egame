@@ -1,11 +1,13 @@
+#ifndef __EMSCRIPTEN__
 #include "SDLTranslation.hpp"
 
-#ifndef __EMSCRIPTEN__
+#include <SDL.h>
+
 namespace eg::detail
 {
-Button TranslateSDLKey(SDL_Scancode scancode)
+Button TranslateSDLKey(int scancode)
 {
-	switch (scancode)
+	switch (static_cast<SDL_Scancode>(scancode))
 	{
 	case SDL_SCANCODE_LSHIFT: return Button::LeftShift;
 	case SDL_SCANCODE_RSHIFT: return Button::RightShift;

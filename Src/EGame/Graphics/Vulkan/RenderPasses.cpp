@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "RenderPasses.hpp"
 #include "../../Assert.hpp"
 
@@ -186,5 +185,3 @@ void DestroyRenderPasses()
 	}
 }
 } // namespace eg::graphics_api::vk
-
-#endif

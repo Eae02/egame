@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef EG_NO_VULKAN
-
 #include "../../Alloc/LinearAllocator.hpp"
 #include "../SpirvCrossUtils.hpp"
 #include "Common.hpp"
@@ -44,5 +42,3 @@ inline PipelineHandle WrapPipeline(AbstractPipeline* pipeline)
 	return reinterpret_cast<PipelineHandle>(pipeline);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

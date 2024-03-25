@@ -30,11 +30,11 @@ KeyFrameList<KeyFrameTp> ReadSamplerKeyFrames(const GLTFData& data, const json& 
 	const Accessor& inputAccessor = data.GetAccessor(inputAccessorIndex);
 	const float* inputAccessorData = reinterpret_cast<const float*>(data.GetAccessorData(inputAccessor));
 
-	const size_t numKeyFrames = inputAccessor.elementCount;
+	const size_t numKeyFrames = static_cast<size_t>(std::max(inputAccessor.elementCount, 0));
 
 	const Accessor& outputAccessor = data.GetAccessor(samplerEl.at("output"));
 	const char* outputAccessorData = data.GetAccessorData(outputAccessor);
-	int outputDataStride =
+	uint32_t outputDataStride =
 		ComponentSize(outputAccessor.componentType) * ComponentsPerElement(outputAccessor.elementType);
 
 	// Parses the interpolation mode
@@ -53,14 +53,14 @@ KeyFrameList<KeyFrameTp> ReadSamplerKeyFrames(const GLTFData& data, const json& 
 
 	// For a given output key frame index, stores which index to source that key frame from so that key frames become
 	//  sorted in ascending order of time.
-	std::vector<size_t> srcIndices(keyFrames.size());
+	std::vector<uint32_t> srcIndices(keyFrames.size());
 	std::iota(srcIndices.begin(), srcIndices.end(), 0);
 	std::sort(
 		srcIndices.begin(), srcIndices.end(),
-		[&](size_t a, size_t b) { return inputAccessorData[a] < inputAccessorData[b]; });
+		[&](uint32_t a, uint32_t b) { return inputAccessorData[a] < inputAccessorData[b]; });
 
-	size_t dataOffset = 0;
-	const size_t initialOutputDataStride = outputDataStride;
+	uint32_t dataOffset = 0;
+	const uint32_t initialOutputDataStride = outputDataStride;
 	if (interpolationMode == KeyFrameInterpolation::CubicSpline)
 	{
 		dataOffset += outputDataStride;
@@ -71,7 +71,7 @@ KeyFrameList<KeyFrameTp> ReadSamplerKeyFrames(const GLTFData& data, const json& 
 	for (size_t i = 0; i < numKeyFrames; i++)
 	{
 		keyFrames[i].time = inputAccessorData[srcIndices[i]];
-		const size_t offset = dataOffset + srcIndices[i] * outputDataStride;
+		const uint32_t offset = dataOffset + srcIndices[i] * outputDataStride;
 		ReadKeyFrameTransform(keyFrames[i].transform, outputAccessorData + offset, outputAccessor.componentType);
 	}
 
@@ -83,8 +83,8 @@ KeyFrameList<KeyFrameTp> ReadSamplerKeyFrames(const GLTFData& data, const json& 
 		std::vector<SplineTangents<typename KeyFrameTp::TransformTp>> tangents(numKeyFrames);
 		for (size_t i = 0; i < numKeyFrames; i++)
 		{
-			const size_t offsetIn = outputDataStride * srcIndices[i];
-			const size_t offsetOut = offsetIn + initialOutputDataStride * 2;
+			const uint32_t offsetIn = outputDataStride * srcIndices[i];
+			const uint32_t offsetOut = offsetIn + initialOutputDataStride * 2;
 
 			ReadKeyFrameTransform(tangents[i].in, outputAccessorData + offsetIn, outputAccessor.componentType);
 			ReadKeyFrameTransform(tangents[i].out, outputAccessorData + offsetOut, outputAccessor.componentType);
@@ -123,7 +123,7 @@ Animation ImportAnimation(
 		if (targets.empty())
 			continue;
 
-		const json& samplerEl = samplersArray.at(channelEl.at("sampler").get<int>());
+		const json& samplerEl = samplersArray.at(ToUnsigned(channelEl.at("sampler").get<int>()));
 
 		const std::string& pathString = targetIt->at("path");
 		if (pathString == "translation")
@@ -169,7 +169,7 @@ ImportedSkeleton ImportSkeleton(const GLTFData& gltfData, const json& nodesArray
 	for (size_t i = 0; i < jointsEl.size(); i++)
 	{
 		const int nodeIndex = jointsEl[i].get<int>();
-		const json& nodeEl = nodesArray.at(nodeIndex);
+		const json& nodeEl = nodesArray.at(ToUnsigned(nodeIndex));
 		auto nameIt = nodeEl.find("name");
 		std::string name = nameIt == nodeEl.end() ? "" : *nameIt;
 
@@ -192,7 +192,7 @@ ImportedSkeleton ImportSkeleton(const GLTFData& gltfData, const json& nodesArray
 				// The bone might not be found since the child node won't necessarily be part of the skin.
 				if (childBoneIt != jointsEl.end())
 				{
-					boneParentIds.at(childBoneIt - jointsEl.begin()) = i;
+					boneParentIds.at(ToUnsigned(childBoneIt - jointsEl.begin())) = i;
 				}
 			}
 		}

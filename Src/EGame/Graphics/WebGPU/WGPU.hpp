@@ -1,6 +1,11 @@
 #pragma once
 
-#include <webgpu.h>
+#ifdef __EMSCRIPTEN__
+#include <webgpu/webgpu.h>
+#else
+#include <webgpu_native/webgpu.h>
+#define WGPU_SKIP_DECLARATIONS
+#endif
 
 #include <functional>
 
@@ -34,11 +39,18 @@ bool IsDeviceFeatureEnabled(WGPUFeatureName feature);
 void OnFrameEnd(std::function<void()> callback);
 void RunFrameEndCallbacks();
 
-#define XM_WGPU_FUNC(F) extern WGPUProc##F wgpu##F;
-#include "WGPUFunctions.inl"
-#undef XM_WGPU_FUNC
+extern WGPUProcInstanceWaitAny wgpuInstanceWaitAny;
 
 #ifdef __EMSCRIPTEN__
-inline void wgpuDeviceTick(WGPUDevice);
+inline void wgpuDeviceTick(WGPUDevice) {}
+inline WGPUFuture wgpuQueueOnSubmittedWorkDoneF(WGPUQueue, WGPUQueueWorkDoneCallbackInfo)
+{
+	return {};
+}
+inline void wgpuDeviceSetDeviceLostCallback(WGPUDevice, void (*)(WGPUDeviceLostReason, const char*, void*), void*) {}
+#else
+#define XM_WGPU_FUNC(F) extern WGPUProc##F wgpu##F;
+#include "WGPUNativeFunctions.inl"
+#undef XM_WGPU_FUNC
 #endif
 } // namespace eg::graphics_api::webgpu

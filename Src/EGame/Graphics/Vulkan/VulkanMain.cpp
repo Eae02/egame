@@ -1,22 +1,21 @@
-#include "EGame/Graphics/Abstraction.hpp"
-#include <vulkan/vulkan_core.h>
-#ifndef EG_NO_VULKAN
+#include "VulkanMain.hpp"
 #include "../../Assert.hpp"
 #include "../../Core.hpp"
+#include "../Abstraction.hpp"
 #include "../RenderDoc.hpp"
 #include "Buffer.hpp"
 #include "CachedDescriptorSetLayout.hpp"
 #include "Common.hpp"
 #include "RenderPasses.hpp"
 #include "Translation.hpp"
-#include "VulkanMain.hpp"
-
 #include "VulkanCommandContext.hpp"
+
 #include <SDL_vulkan.h>
 #include <algorithm>
 #include <cstring>
 #include <sstream>
 #include <volk.h>
+#include <vulkan/vulkan_core.h>
 
 namespace eg::graphics_api::vk
 {
@@ -942,5 +941,3 @@ void DebugLabelInsert(CommandContextHandle cctx, const char* label, const float*
 	}
 }
 } // namespace eg::graphics_api::vk
-
-#endif

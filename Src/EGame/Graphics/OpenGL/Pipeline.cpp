@@ -1,8 +1,10 @@
 // this is needed to stop gcc from complaining about something being maybe uninitialized in std::sort
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #include <vector>
 #pragma GCC diagnostic pop
+#endif
 
 #include "../../Assert.hpp"
 #include "../../Hash.hpp"

@@ -3,7 +3,6 @@
 #include "../EGame/IOUtils.hpp"
 #include "../EGame/Log.hpp"
 
-#include <fstream>
 #include <vorbis/vorbisfile.h>
 #include <yaml-cpp/yaml.h>
 
@@ -70,7 +69,7 @@ public:
 			{
 				for (size_t i = 0; i < static_cast<size_t>(bytes) / (2 * sizeof(int16_t)); i++)
 				{
-					samples.push_back(static_cast<uint16_t>(
+					samples.push_back(static_cast<int16_t>(
 						(static_cast<int32_t>(buffer[i * 2 + 1]) + static_cast<int32_t>(buffer[i * 2])) / 2));
 				}
 			}
@@ -81,9 +80,9 @@ public:
 		} while (bytes != 0);
 
 		generateContext.outputFlags |= eg::AssetFlags::DisableEAPCompression;
-		generateContext.writer.Write<uint32_t>(outputChannels);
-		generateContext.writer.Write<uint64_t>(info->rate);
-		generateContext.writer.Write<uint64_t>(samples.size());
+		generateContext.writer.Write<uint32_t>(ToUnsigned(outputChannels));
+		generateContext.writer.Write<uint64_t>(ToUnsigned(info->rate));
+		generateContext.writer.Write<uint32_t>(UnsignedNarrow<uint32_t>(samples.size()));
 
 		generateContext.writer.WriteBytes(
 			{ reinterpret_cast<const char*>(samples.data()), samples.size() * sizeof(int16_t) });

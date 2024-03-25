@@ -138,13 +138,38 @@ void FlushBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t
 
 void InvalidateBuffer(BufferHandle handle, uint64_t modOffset, std::optional<uint64_t> modRange) {}
 
+WGPUBuffer CreateTempBuffer(uint64_t size)
+{
+	WGPUBufferDescriptor tempBufferDesc = {
+		.usage = WGPUBufferUsage_CopySrc,
+		.size = size,
+		.mappedAtCreation = true,
+	};
+	WGPUBuffer tempBuffer = wgpuDeviceCreateBuffer(wgpuctx.device, &tempBufferDesc);
+
+	OnFrameEnd([tempBuffer] { wgpuBufferDestroy(tempBuffer); });
+
+	return tempBuffer;
+}
+
 void UpdateBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, const void* data)
 {
 	CommandContext& wcc = CommandContext::Unwrap(cc);
+	WGPUBuffer dstBuffer = Buffer::Unwrap(handle).buffer;
+
 	wcc.EndComputePass();
 
-	wgpuCommandEncoderWriteBuffer(
-		wcc.encoder, Buffer::Unwrap(handle).buffer, offset, static_cast<const uint8_t*>(data), size);
+#ifdef __EMSCRIPTEN__
+	WGPUBuffer tempBuffer = CreateTempBuffer(size);
+
+	void* tempBufferPtr = wgpuBufferGetMappedRange(tempBuffer, 0, size);
+	std::memcpy(tempBufferPtr, data, size);
+	wgpuBufferUnmap(tempBuffer);
+
+	wgpuCommandEncoderCopyBufferToBuffer(wcc.encoder, tempBuffer, 0, dstBuffer, offset, size);
+#else
+	wgpuCommandEncoderWriteBuffer(wcc.encoder, dstBuffer, offset, static_cast<const uint8_t*>(data), size);
+#endif
 }
 
 void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, uint64_t size, uint8_t data)
@@ -153,15 +178,26 @@ void FillBuffer(CommandContextHandle cc, BufferHandle handle, uint64_t offset, u
 	wcc.EndComputePass();
 
 	WGPUBuffer buffer = Buffer::Unwrap(handle).buffer;
+
 	if (data == 0)
 	{
 		wgpuCommandEncoderClearBuffer(wcc.encoder, buffer, offset, size);
 	}
 	else
 	{
+#ifdef __EMSCRIPTEN__
+		WGPUBuffer tempBuffer = CreateTempBuffer(size);
+
+		void* tempBufferPtr = wgpuBufferGetMappedRange(tempBuffer, 0, size);
+		std::fill_n(static_cast<uint8_t*>(tempBufferPtr), size, data);
+		wgpuBufferUnmap(tempBuffer);
+
+		wgpuCommandEncoderCopyBufferToBuffer(wcc.encoder, tempBuffer, 0, buffer, offset, size);
+#else
 		std::unique_ptr<uint8_t[]> dataAllocation = std::make_unique<uint8_t[]>(size);
 		std::fill_n(dataAllocation.get(), size, data);
 		wgpuCommandEncoderWriteBuffer(wcc.encoder, buffer, offset, dataAllocation.get(), size);
+#endif
 	}
 }
 

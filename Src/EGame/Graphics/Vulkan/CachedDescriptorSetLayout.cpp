@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "CachedDescriptorSetLayout.hpp"
 #include "../../Assert.hpp"
 
@@ -167,5 +166,3 @@ std::tuple<VkDescriptorSet, VkDescriptorPool> CachedDescriptorSetLayout::Allocat
 	return { set, pool };
 }
 } // namespace eg::graphics_api::vk
-
-#endif

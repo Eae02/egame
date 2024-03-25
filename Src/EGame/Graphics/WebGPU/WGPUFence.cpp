@@ -23,11 +23,8 @@ bool Fence::IsDone() const
 	WGPUFutureWaitInfo waitInfo = { .future = future };
 	WGPUWaitStatus status = wgpuInstanceWaitAny(wgpuctx.instance, 1, &waitInfo, 0);
 	return status == WGPUWaitStatus_Success;
-
-	// return workDoneStatus.load() != WGPUQueueWorkDoneStatus_Force32;
 }
 
-#ifndef __EMSCRIPTEN__
 void Fence::Wait()
 {
 	wgpuDeviceTick(wgpuctx.device);
@@ -39,24 +36,22 @@ void Fence::Wait()
 
 	wgpuDeviceTick(wgpuctx.device);
 }
-#endif
 
 Fence* Fence::CreateAndInsert()
 {
+	if (wgpuInstanceWaitAny == nullptr)
+		return nullptr;
+	
 	Fence* fence = new Fence;
 	fence->refCount = 2;
 	fence->workDoneStatus = WGPUQueueWorkDoneStatus_Force32;
 
-#ifndef __EMSCRIPTEN__
 	WGPUQueueWorkDoneCallbackInfo callbackInfo = {
 		.mode = static_cast<WGPUCallbackMode>(WGPUCallbackMode_AllowSpontaneous | WGPUCallbackMode_AllowProcessEvents),
 		.callback = FenceOnSubmittedWorkDoneCallback,
 		.userdata = fence,
 	};
 	fence->future = wgpuQueueOnSubmittedWorkDoneF(wgpuctx.queue, callbackInfo);
-#else
-	wgpuQueueOnSubmittedWorkDone(wgpuctx.queue, FenceOnSubmittedWorkDoneCallback, fence);
-#endif
 
 	return fence;
 }

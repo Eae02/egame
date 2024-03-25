@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef EG_NO_VULKAN
-
 #include "Common.hpp"
 
 namespace eg::graphics_api::vk
@@ -32,5 +30,3 @@ inline Buffer* UnwrapBuffer(BufferHandle handle)
 
 void ProcessPendingInitBuffers(bool destroyAll);
 } // namespace eg::graphics_api::vk
-
-#endif

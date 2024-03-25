@@ -1,5 +1,6 @@
 #include "PoolAllocator.hpp"
 #include <cstddef>
+#include <optional>
 
 namespace eg
 {
@@ -10,13 +11,13 @@ PoolAllocator::PoolAllocator(uint64_t elementCount)
 
 PoolAllocator::FindAvailableResult PoolAllocator::FindAvailable(uint64_t elementCount, uint64_t alignment)
 {
-	int64_t blockIndex = -1;
+	std::optional<size_t> blockIndex;
 	uint64_t bestPadding = 0;
 
 	for (size_t i = 0; i < m_availableBlocks.size(); i++)
 	{
 		// Don't use this block if the current one is a better fit
-		if (blockIndex != -1 && m_availableBlocks[blockIndex].m_elementCount < m_availableBlocks[i].m_elementCount)
+		if (blockIndex && m_availableBlocks[*blockIndex].m_elementCount < m_availableBlocks[i].m_elementCount)
 			continue;
 
 		uint64_t padding = m_availableBlocks[i].m_firstElement % alignment;
@@ -35,10 +36,10 @@ PoolAllocator::FindAvailableResult PoolAllocator::FindAvailable(uint64_t element
 			break;
 	}
 
-	if (blockIndex == -1)
+	if (!blockIndex.has_value())
 		return {};
 
-	return PoolAllocator::FindAvailableResult(m_availableBlocks[blockIndex], bestPadding);
+	return PoolAllocator::FindAvailableResult(m_availableBlocks[*blockIndex], bestPadding);
 }
 
 void PoolAllocator::Allocate(const PoolAllocator::FindAvailableResult& availableResult, uint64_t elementCount)
@@ -64,8 +65,8 @@ void PoolAllocator::Allocate(const PoolAllocator::FindAvailableResult& available
 
 void PoolAllocator::Free(uint64_t firstElement, uint64_t elementCount)
 {
-	int64_t prevBlockIndex = -1;
-	int64_t nextBlockIndex = -1;
+	std::optional<size_t> prevBlockIndex;
+	std::optional<size_t> nextBlockIndex;
 
 	const uint64_t nextBlockFirstElement = firstElement + elementCount;
 
@@ -74,49 +75,49 @@ void PoolAllocator::Free(uint64_t firstElement, uint64_t elementCount)
 		if (m_availableBlocks[i].m_firstElement == nextBlockFirstElement)
 		{
 			nextBlockIndex = i;
-			if (prevBlockIndex != -1)
+			if (prevBlockIndex.has_value())
 				break; // Both previous and next block have been found.
 		}
 
 		if (m_availableBlocks[i].m_firstElement + m_availableBlocks[i].m_elementCount == firstElement)
 		{
 			prevBlockIndex = i;
-			if (nextBlockIndex != -1)
+			if (nextBlockIndex.has_value())
 				break; // Both previous and next block have been found.
 		}
 	}
 
-	if (prevBlockIndex == -1 && nextBlockIndex == -1)
+	if (!prevBlockIndex.has_value() && !nextBlockIndex.has_value())
 	{
 		// Neither a next or previous block exist.
 		m_availableBlocks.emplace_back(firstElement, elementCount);
 	}
-	else if (prevBlockIndex != -1 && nextBlockIndex != -1)
+	else if (prevBlockIndex.has_value() && nextBlockIndex.has_value())
 	{
 		// Both a next and previous block exist.
 
 		// Increases the span of the previous block to cover the freed block and the next block.
-		m_availableBlocks[static_cast<size_t>(prevBlockIndex)].m_elementCount +=
-			elementCount + m_availableBlocks[static_cast<size_t>(nextBlockIndex)].m_elementCount;
+		m_availableBlocks[*prevBlockIndex].m_elementCount +=
+			elementCount + m_availableBlocks[*nextBlockIndex].m_elementCount;
 
 		// Removes the next block.
-		m_availableBlocks[static_cast<size_t>(nextBlockIndex)] = m_availableBlocks.back();
+		m_availableBlocks[*nextBlockIndex] = m_availableBlocks.back();
 		m_availableBlocks.pop_back();
 	}
-	else if (prevBlockIndex != -1)
+	else if (prevBlockIndex.has_value())
 	{
 		// Only a previous block exists.
 
 		// Increases the span of the previous block to cover the freed block.
-		m_availableBlocks[prevBlockIndex].m_elementCount += elementCount;
+		m_availableBlocks[*prevBlockIndex].m_elementCount += elementCount;
 	}
 	else
 	{
 		// Only a next block exists.
 
 		// Increases the span of the next block and moves it back so it also covers the freed block.
-		m_availableBlocks[nextBlockIndex].m_firstElement -= elementCount;
-		m_availableBlocks[nextBlockIndex].m_elementCount += elementCount;
+		m_availableBlocks[*nextBlockIndex].m_firstElement -= elementCount;
+		m_availableBlocks[*nextBlockIndex].m_elementCount += elementCount;
 	}
 }
 } // namespace eg

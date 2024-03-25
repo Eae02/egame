@@ -14,8 +14,6 @@ WGPUTextureFormat TranslateTextureFormat(Format format, bool undefinedIfUnsuppor
 	case Format::R8_UNorm:             return WGPUTextureFormat_R8Unorm;
 	case Format::R8_UInt:              return WGPUTextureFormat_R8Uint;
 	case Format::R8_SInt:              return WGPUTextureFormat_R8Sint;
-	case Format::R16_UNorm:            return WGPUTextureFormat_R16Unorm;
-	case Format::R16_SNorm:            return WGPUTextureFormat_R16Snorm;
 	case Format::R16_UInt:             return WGPUTextureFormat_R16Uint;
 	case Format::R16_SInt:             return WGPUTextureFormat_R16Sint;
 	case Format::R16_Float:            return WGPUTextureFormat_R16Float;
@@ -26,8 +24,6 @@ WGPUTextureFormat TranslateTextureFormat(Format format, bool undefinedIfUnsuppor
 	case Format::R8G8_SNorm:           return WGPUTextureFormat_RG8Snorm;
 	case Format::R8G8_UInt:            return WGPUTextureFormat_RG8Uint;
 	case Format::R8G8_SInt:            return WGPUTextureFormat_RG8Sint;
-	case Format::R16G16_UNorm:         return WGPUTextureFormat_RG16Unorm;
-	case Format::R16G16_SNorm:         return WGPUTextureFormat_RG16Snorm;
 	case Format::R16G16_UInt:          return WGPUTextureFormat_RG16Uint;
 	case Format::R16G16_SInt:          return WGPUTextureFormat_RG16Sint;
 	case Format::R16G16_Float:         return WGPUTextureFormat_RG16Float;
@@ -39,8 +35,6 @@ WGPUTextureFormat TranslateTextureFormat(Format format, bool undefinedIfUnsuppor
 	case Format::R8G8B8A8_SNorm:       return WGPUTextureFormat_RGBA8Snorm;
 	case Format::R8G8B8A8_UInt:        return WGPUTextureFormat_RGBA8Uint;
 	case Format::R8G8B8A8_SInt:        return WGPUTextureFormat_RGBA8Sint;
-	case Format::R16G16B16A16_UNorm:   return WGPUTextureFormat_RGBA16Unorm;
-	case Format::R16G16B16A16_SNorm:   return WGPUTextureFormat_RGBA16Snorm;
 	case Format::R16G16B16A16_UInt:    return WGPUTextureFormat_RGBA16Uint;
 	case Format::R16G16B16A16_SInt:    return WGPUTextureFormat_RGBA16Sint;
 	case Format::R16G16B16A16_Float:   return WGPUTextureFormat_RGBA16Float;
@@ -63,6 +57,15 @@ WGPUTextureFormat TranslateTextureFormat(Format format, bool undefinedIfUnsuppor
 	case Format::Depth32:              return WGPUTextureFormat_Depth32Float;
 	case Format::Depth24Stencil8:      return WGPUTextureFormat_Depth24PlusStencil8;
 	case Format::Depth32Stencil8:      return WGPUTextureFormat_Depth32FloatStencil8;
+	
+#ifndef __EMSCRIPTEN__
+case Format::R16_UNorm:            return WGPUTextureFormat_R16Unorm;
+case Format::R16_SNorm:            return WGPUTextureFormat_R16Snorm;
+case Format::R16G16_UNorm:         return WGPUTextureFormat_RG16Unorm;
+case Format::R16G16_SNorm:         return WGPUTextureFormat_RG16Snorm;
+case Format::R16G16B16A16_UNorm:   return WGPUTextureFormat_RGBA16Unorm;
+case Format::R16G16B16A16_SNorm:   return WGPUTextureFormat_RGBA16Snorm;
+#endif
 	
 	default:
 		if (undefinedIfUnsupported)

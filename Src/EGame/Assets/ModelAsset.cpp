@@ -66,11 +66,11 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 		aabb.max.y = reader.Read<float>();
 		aabb.max.z = reader.Read<float>();
 
-		uint64_t materialIndex;
+		size_t materialIndex;
 		auto materialIt = std::find(materialNames.begin(), materialNames.end(), materialName);
 		if (materialIt != materialNames.end())
 		{
-			materialIndex = materialIt - materialNames.begin();
+			materialIndex = static_cast<size_t>(materialIt - materialNames.begin());
 		}
 		else
 		{

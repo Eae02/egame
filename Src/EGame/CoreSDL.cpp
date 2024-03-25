@@ -23,10 +23,10 @@ static SDL_Window* sdlWindow;
 
 bool VulkanAppearsSupported()
 {
-#ifdef EG_NO_VULKAN
-	return false;
-#else
+#ifdef EG_ENABLE_VULKAN
 	return graphics_api::vk::EarlyInitializeMemoized();
+#else
+	return false;
 #endif
 }
 
@@ -38,7 +38,7 @@ static inline void UpdateDisplayScaling()
 	detail::displayScaleFactor = static_cast<float>(displayWidth) / static_cast<float>(windowWidth);
 }
 
-int detail::PlatformInit(const RunConfig& runConfig, bool headless)
+int detail::PlatformInit(const RunConfig& runConfig, bool headless, std::function<void()> initCompleteCallback)
 {
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER))
 	{
@@ -144,7 +144,7 @@ int detail::PlatformInit(const RunConfig& runConfig, bool headless)
 		return 1;
 	}
 
-	GraphicsAPIInitArguments apiInitArguments;
+	GraphicsAPIInitArguments apiInitArguments = {};
 	apiInitArguments.window = sdlWindow;
 	apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
 	apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
@@ -165,6 +165,7 @@ int detail::PlatformInit(const RunConfig& runConfig, bool headless)
 	firstMouseMotionEvent = true;
 	firstControllerAxisEvent = true;
 
+	initCompleteCallback();
 	return 0;
 }
 

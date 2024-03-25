@@ -207,7 +207,7 @@ void detail::RunFrame(IGame& game)
 	lastFrameBeginTime = frameBeginTime;
 }
 
-static int InitializeUntilAssetDownload(const RunConfig& runConfig)
+static int InitializeUntilAssetDownload(const RunConfig& runConfig, std::function<void()> initCompleteCallback)
 {
 	if (runConfig.framerateCap != 0)
 	{
@@ -252,32 +252,33 @@ static int InitializeUntilAssetDownload(const RunConfig& runConfig)
 		detail::RegisterConsoleCommands();
 	}
 
-	int platformInitStatus = detail::PlatformInit(runConfig, false);
-	if (platformInitStatus != 0)
-		return platformInitStatus;
+	return detail::PlatformInit(
+		runConfig, false,
+		[initCompleteCallback = std::move(initCompleteCallback)]
+		{
+			renderdoc::Init();
+			InitPlatformFontConfig();
+			detail::RegisterDefaultAssetGenerator();
+			LoadAssetGenLibrary();
+			detail::RegisterAssetLoaders();
+			detail::LoadGameControllers();
 
-	renderdoc::Init();
-	InitPlatformFontConfig();
-	detail::RegisterDefaultAssetGenerator();
-	LoadAssetGenLibrary();
-	detail::RegisterAssetLoaders();
-	detail::LoadGameControllers();
+			gal::GetDeviceInfo(detail::graphicsDeviceInfo);
 
-	gal::GetDeviceInfo(detail::graphicsDeviceInfo);
+			SpriteBatch::InitStatic();
+			TranslationGizmo::Initialize();
+			RotationGizmo::Initialize();
+			if (DevMode())
+			{
+				SpriteFont::LoadDevFont();
+				EnableProfiling();
+			}
 
-	SpriteBatch::InitStatic();
-	TranslationGizmo::Initialize();
-	RotationGizmo::Initialize();
-	if (DevMode())
-	{
-		SpriteFont::LoadDevFont();
-		EnableProfiling();
-	}
+			detail::currentIS = new InputState;
+			detail::previousIS = new InputState;
 
-	detail::currentIS = new InputState;
-	detail::previousIS = new InputState;
-
-	return 0;
+			initCompleteCallback();
+		});
 }
 
 static void RunInitCallbacks()
@@ -300,42 +301,46 @@ static void FinishInitialization()
 
 int InitializeHeadless(const RunConfig& runConfig)
 {
-	if (int status = InitializeUntilAssetDownload(runConfig))
-		return status;
-
-	if (runConfig.initialize)
-		runConfig.initialize();
-
-	RunInitCallbacks();
-	FinishInitialization();
-
-	return 0;
-}
-
-int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
-{
-	if (int status = InitializeUntilAssetDownload(runConfig))
-		return status;
-
 	auto initialize = runConfig.initialize;
 
-	detail::WebDownloadAssetPackages(
+	return InitializeUntilAssetDownload(
+		runConfig,
 		[=]
 		{
 			if (initialize)
 				initialize();
 
 			RunInitCallbacks();
-
-			std::unique_ptr<IGame> game = createGame();
-
 			FinishInitialization();
+		});
+}
 
-			detail::PruneDownloadedAssetPackages();
+int detail::Run(const RunConfig& runConfig, std::unique_ptr<IGame> (*createGame)())
+{
+	auto initialize = runConfig.initialize;
 
-			lastFrameBeginTime = high_resolution_clock::now();
+	return InitializeUntilAssetDownload(
+		runConfig,
+		[=]
+		{
+			detail::WebDownloadAssetPackages(
+				[=]
+				{
+					if (initialize)
+						initialize();
 
-			PlatformRunGameLoop(std::move(game));
+					RunInitCallbacks();
+
+					std::unique_ptr<IGame> game = createGame();
+
+					FinishInitialization();
+
+					detail::PruneDownloadedAssetPackages();
+
+					lastFrameBeginTime = high_resolution_clock::now();
+
+					PlatformRunGameLoop(std::move(game));
+				});
 		});
 
 	return 0;

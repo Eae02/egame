@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef EG_NO_VULKAN
-
 #include "Common.hpp"
 
 namespace eg::graphics_api::vk
@@ -16,5 +14,3 @@ VkPipelineStageFlags TranslateShaderPipelineStage(ShaderAccessFlags accessFlags)
 VkShaderStageFlags TranslateShaderStageFlags(ShaderAccessFlags accessFlags);
 VkDescriptorType TranslateBindingType(BindingType bindingType);
 } // namespace eg::graphics_api::vk
-
-#endif

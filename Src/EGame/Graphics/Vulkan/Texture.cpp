@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "Texture.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
@@ -406,17 +405,14 @@ void CopyBufferToTexture(
 	const uint32_t blockWidth = GetFormatBlockWidth(texture->originalFormat);
 
 	EG_ASSERT((copyLayout.rowByteStride % bytesPerBlock) == 0);
-	EG_ASSERT((copyLayout.layerByteStride % bytesPerBlock) == 0);
 
 	const uint32_t pixelsPerRow = (copyLayout.rowByteStride / bytesPerBlock) * blockWidth;
 	EG_ASSERT(pixelsPerRow != 0);
 
-	const uint32_t pixelsPerLayer = (copyLayout.layerByteStride / bytesPerBlock) * blockWidth * blockWidth;
-
 	VkBufferImageCopy copyRegion = {
 		.bufferOffset = copyLayout.offset,
 		.bufferRowLength = pixelsPerRow,
-		.bufferImageHeight = pixelsPerLayer / pixelsPerRow,
+		.bufferImageHeight = 0,
 	};
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
@@ -441,7 +437,6 @@ void CopyTextureToBuffer(
 
 	const uint32_t bytesPerBlock = GetFormatBytesPerBlock(texture->originalFormat);
 	EG_ASSERT((copyLayout.rowByteStride % bytesPerBlock) == 0);
-	EG_ASSERT((copyLayout.layerByteStride % bytesPerBlock) == 0);
 
 	const uint32_t pixelsPerRow = copyLayout.rowByteStride / bytesPerBlock;
 	EG_ASSERT(pixelsPerRow != 0);
@@ -449,7 +444,7 @@ void CopyTextureToBuffer(
 	VkBufferImageCopy copyRegion = {
 		.bufferOffset = copyLayout.offset,
 		.bufferRowLength = pixelsPerRow,
-		.bufferImageHeight = (copyLayout.layerByteStride / bytesPerBlock) / pixelsPerRow,
+		.bufferImageHeight = 0,
 	};
 	InitImageCopyRegion(
 		*texture, range, range, copyRegion.imageOffset, copyRegion.imageSubresource, copyRegion.imageExtent);
@@ -598,5 +593,3 @@ void GenerateMipmaps(CommandContextHandle cc, TextureHandle handle)
 	texture->currentUsage = TextureUsage::CopySrc;
 }
 } // namespace eg::graphics_api::vk
-
-#endif

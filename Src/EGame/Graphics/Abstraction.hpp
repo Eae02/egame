@@ -10,6 +10,7 @@
 #include <optional>
 #include <span>
 #include <tuple>
+#include <functional>
 #include <variant>
 
 struct SDL_Window;
@@ -665,8 +666,7 @@ struct TextureOffset
 struct TextureBufferCopyLayout
 {
 	uint32_t offset;
-	uint32_t rowByteStride;   // must be a multiple of max(textureBufferCopyStrideAlignment, texture bpp)
-	uint32_t layerByteStride; // must be a multiple of rowByteStride
+	uint32_t rowByteStride; // must be a multiple of max(textureBufferCopyStrideAlignment, texture bpp)
 };
 
 constexpr uint32_t REMAINING_SUBRESOURCE = UINT32_MAX;
@@ -875,6 +875,7 @@ struct GraphicsAPIInitArguments
 	bool preferIntegrated;
 	bool preferGLESPath;
 	std::string_view preferredDeviceName;
+	std::function<void()> initDoneCallback;
 };
 
 namespace detail

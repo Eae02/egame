@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "ShaderModule.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
@@ -54,4 +53,3 @@ void DestroyShaderModule(ShaderModuleHandle handle)
 	UnwrapShaderModule(handle)->UnRef();
 }
 } // namespace eg::graphics_api::vk
-#endif

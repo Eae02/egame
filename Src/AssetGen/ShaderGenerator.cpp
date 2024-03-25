@@ -408,11 +408,12 @@ public:
 				    spirv_messages);
 			}
 
-			const uint64_t codeSize = glslang::program_SPIRV_get_size(program) * sizeof(uint32_t);
+			const uint32_t codeSize =
+				UnsignedNarrow<uint32_t>(glslang::program_SPIRV_get_size(program) * sizeof(uint32_t));
 			std::span<char> spirvData(reinterpret_cast<char*>(glslang::program_SPIRV_get_ptr(program)), codeSize);
 
 			generateContext.writer.WriteString(variant);
-			generateContext.writer.Write<uint64_t>(codeSize);
+			generateContext.writer.Write<uint32_t>(codeSize);
 			generateContext.writer.WriteBytes(spirvData);
 
 			eg::Log(eg::LogLevel::Info, "sh", "Compiling shader: {0}", generateContext.AssetName());

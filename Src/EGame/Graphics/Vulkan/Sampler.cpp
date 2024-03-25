@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "../../Assert.hpp"
 #include "Common.hpp"
 #include "Translation.hpp"
@@ -54,5 +53,3 @@ SamplerHandle CreateSampler(const SamplerDescription& description)
 	return reinterpret_cast<SamplerHandle>(sampler);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

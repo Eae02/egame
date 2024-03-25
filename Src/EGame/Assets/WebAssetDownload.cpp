@@ -22,9 +22,9 @@ void eg::detail::WebDownloadAssetPackages(std::function<void()> onComplete)
 {
 	onComplete();
 }
-std::istream* eg::detail::WebGetDownloadedAssetPackageStream(std::string_view name)
+std::optional<std::span<const char>> eg::detail::WebGetDownloadedAssetPackage(std::string_view name)
 {
-	return nullptr;
+	return std::nullopt;
 }
 void eg::detail::PruneDownloadedAssetPackages() {}
 #else
@@ -47,53 +47,38 @@ void DownloadAssetPackageASync(DownloadAssetPackageArgs args)
 	assetPackagesToDownload.push_back(std::move(args));
 }
 
-struct FetchedAssetBinary
+struct FetchClose
 {
-	emscripten_fetch_t* fetch;
-	eg::MemoryStreambuf streambuf;
-	std::istream stream;
-
-	explicit FetchedAssetBinary(emscripten_fetch_t* _fetch)
-		: fetch(_fetch), streambuf(fetch->data, fetch->data + fetch->numBytes), stream(&streambuf)
+	void operator()(emscripten_fetch_t* fetch) const
 	{
+		if (fetch != nullptr)
+			emscripten_fetch_close(fetch);
 	}
-
-	~FetchedAssetBinary() { emscripten_fetch_close(fetch); }
 };
-
-struct CachedAssetBinary
-{
-	std::ifstream stream;
-	CachedAssetBinary(std::ifstream _stream) : stream(std::move(_stream)) {}
-};
-
-using AssetBinaryVariant = std::variant<std::unique_ptr<FetchedAssetBinary>, std::unique_ptr<CachedAssetBinary>>;
 
 struct DownloadedAssetBinary
 {
 	std::string name;
-	AssetBinaryVariant binary;
-	bool freeAfterInit;
+	std::unique_ptr<emscripten_fetch_t, FetchClose> fetch;
+	std::vector<char> cachedAssetBinary;
+	bool freeAfterInit = false;
 };
 
 static std::vector<DownloadedAssetBinary> assetBinaries;
 
-static void AddAssetBinary(const DownloadAssetPackageArgs& args, AssetBinaryVariant binary)
-{
-	assetBinaries.push_back(DownloadedAssetBinary{
-		.name = args.eapName, .binary = std::move(binary), .freeAfterInit = args.freeAfterInit });
-}
-
-std::istream* detail::WebGetDownloadedAssetPackageStream(std::string_view name)
+std::optional<std::span<const char>> detail::WebGetDownloadedAssetPackage(std::string_view name)
 {
 	for (const DownloadedAssetBinary& binary : assetBinaries)
 	{
 		if (binary.name == name)
 		{
-			return std::visit([](auto& b) -> std::istream* { return &b->stream; }, binary.binary);
+			if (binary.fetch != nullptr)
+				return std::span<const char>(binary.fetch->data, binary.fetch->numBytes);
+			else
+				return std::span<const char>(binary.cachedAssetBinary);
 		}
 	}
-	return nullptr;
+	return std::nullopt;
 }
 
 void detail::PruneDownloadedAssetPackages()
@@ -157,9 +142,14 @@ static void AssetDownloadCompleted(emscripten_fetch_t* fetch)
 	emscripten_async_call(
 		[](void* userdata)
 		{
-			AddAssetBinary(
-				assetPackagesToDownload.at(currentDownloadIndex),
-				std::make_unique<FetchedAssetBinary>(static_cast<emscripten_fetch_t*>(userdata)));
+			const auto& packageArgs = assetPackagesToDownload.at(currentDownloadIndex);
+
+			assetBinaries.push_back(DownloadedAssetBinary{
+				.name = packageArgs.eapName,
+				.fetch = std::unique_ptr<emscripten_fetch_t, FetchClose>(static_cast<emscripten_fetch_t*>(userdata)),
+				.freeAfterInit = packageArgs.freeAfterInit,
+			});
+
 			currentDownloadIndex++;
 			FetchNextAssetPackage();
 		},
@@ -194,10 +184,10 @@ static void AssetDownloadProgress(emscripten_fetch_t* fetch)
 	args.progressCallback(progress);
 }
 
-static std::unique_ptr<CachedAssetBinary> TryLoadCachedAssets(const DownloadAssetPackageArgs& args)
+static std::optional<std::vector<char>> TryLoadCachedAssets(const DownloadAssetPackageArgs& args)
 {
 	if (args.cacheID.empty())
-		return nullptr;
+		return std::nullopt;
 
 	std::string idPath = GetCachePath(args, true);
 
@@ -205,7 +195,7 @@ static std::unique_ptr<CachedAssetBinary> TryLoadCachedAssets(const DownloadAsse
 	if (!cachedAssetsIdStream)
 	{
 		CacheBeginPrint(args) << "Failed to open " << idPath << std::endl;
-		return nullptr;
+		return std::nullopt;
 	}
 
 	std::string cachedId;
@@ -214,7 +204,7 @@ static std::unique_ptr<CachedAssetBinary> TryLoadCachedAssets(const DownloadAsse
 	{
 		CacheBeginPrint(args) << "Version mismatch (got '" << cachedId << "' expected '" << args.cacheID << "')"
 							  << std::endl;
-		return nullptr;
+		return std::nullopt;
 	}
 	cachedAssetsIdStream.close();
 
@@ -224,21 +214,22 @@ static std::unique_ptr<CachedAssetBinary> TryLoadCachedAssets(const DownloadAsse
 	if (!cachedAssetsStream)
 	{
 		CacheBeginPrint(args) << "Failed to open " << cachePath << std::endl;
-		return nullptr;
+		return std::nullopt;
 	}
+
+	std::vector<char> streamData = ReadStreamContents(cachedAssetsStream);
+
+	cachedAssetsStream.close();
 
 	static const char EAP_MAGIC[4] = { -1, 'E', 'A', 'P' };
-	char magic[4];
-	cachedAssetsStream.read(magic, 4);
-	if (std::memcmp(magic, EAP_MAGIC, 4) != 0)
+	if (streamData.size() < 4 || std::memcmp(streamData.data(), EAP_MAGIC, 4) != 0)
 	{
-		CacheBeginPrint(args) << "Package corrupted " << std::hex << *reinterpret_cast<uint32_t*>(magic) << std::dec
-							  << std::endl;
-		return nullptr;
+		CacheBeginPrint(args) << "Package corrupted " << std::hex << *reinterpret_cast<uint32_t*>(streamData.data())
+							  << std::dec << std::endl;
+		return std::nullopt;
 	}
 
-	cachedAssetsStream.seekg(std::ios::beg);
-	return std::make_unique<CachedAssetBinary>(std::move(cachedAssetsStream));
+	return streamData;
 }
 
 std::function<void()> allDownloadsCompleteCallback;
@@ -255,9 +246,14 @@ static void FetchNextAssetPackage()
 
 	EG_ASSERT(!args.eapName.empty());
 
-	if (std::unique_ptr<CachedAssetBinary> cachedAssetBinary = TryLoadCachedAssets(args))
+	if (auto cachedAssetBinary = TryLoadCachedAssets(args))
 	{
-		AddAssetBinary(args, std::move(cachedAssetBinary));
+		assetBinaries.push_back(DownloadedAssetBinary{
+			.name = args.eapName,
+			.cachedAssetBinary = std::move(*cachedAssetBinary),
+			.freeAfterInit = args.freeAfterInit,
+		});
+
 		CacheBeginPrint(args) << "Cache valid, loading assets from cache" << std::endl;
 		currentDownloadIndex++;
 		FetchNextAssetPackage();

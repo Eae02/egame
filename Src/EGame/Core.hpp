@@ -86,7 +86,8 @@ EG_API extern void (*imguiEndFrame)();
 void ButtonDownEvent(Button button, bool isRepeat);
 void ButtonUpEvent(Button button, bool isRepeat);
 
-int PlatformInit(const RunConfig& runConfig, bool headless);
+int PlatformInit(const RunConfig& runConfig, bool headless, std::function<void()> initCompleteCallback);
+
 void PlatformStartFrame();
 void PlatformRunGameLoop(std::unique_ptr<IGame> game);
 

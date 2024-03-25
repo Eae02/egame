@@ -25,8 +25,8 @@ bool ShaderModuleAsset::AssetLoader(const AssetLoadContext& context)
 	{
 		std::string variantName(reader.ReadString());
 
-		uint64_t codeLen = reader.Read<uint64_t>();
-		if (codeBuffer.size() < codeLen)
+		uint32_t codeLen = reader.Read<uint32_t>();
+		if (codeBuffer.size() < static_cast<size_t>(codeLen))
 			codeBuffer.resize(codeLen);
 
 		std::span<char> codeSpan(codeBuffer.data(), codeLen);

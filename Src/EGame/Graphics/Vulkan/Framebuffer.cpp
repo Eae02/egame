@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
 #include "Common.hpp"
@@ -404,5 +403,3 @@ void EndRenderPass(CommandContextHandle cc)
 	vkCmdEndRenderPass(UnwrapCC(cc).cb);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

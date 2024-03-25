@@ -1,7 +1,5 @@
 #pragma once
 
-#ifndef EG_NO_VULKAN
-
 #include "../../Hash.hpp"
 #include "Common.hpp"
 
@@ -72,5 +70,3 @@ inline TextureView* UnwrapTextureView(TextureViewHandle handle)
 	return reinterpret_cast<TextureView*>(handle);
 }
 } // namespace eg::graphics_api::vk
-
-#endif

@@ -42,7 +42,7 @@ struct Accessor
 	ElementType elementType;
 };
 
-inline int ComponentSize(ComponentType type)
+inline uint32_t ComponentSize(ComponentType type)
 {
 	switch (type)
 	{
@@ -54,7 +54,7 @@ inline int ComponentSize(ComponentType type)
 	EG_UNREACHABLE
 }
 
-inline int ComponentsPerElement(ElementType type)
+inline uint32_t ComponentsPerElement(ElementType type)
 {
 	switch (type)
 	{
@@ -100,20 +100,21 @@ public:
 	{
 		if (index < 0 || static_cast<size_t>(index) >= m_bufferViews.size())
 			throw std::runtime_error("Buffer view index out of range.");
-		return m_bufferViews[index];
+		return m_bufferViews[static_cast<size_t>(index)];
 	}
 
 	inline const Accessor& GetAccessor(int64_t index) const
 	{
 		if (index < 0 || static_cast<size_t>(index) >= m_accessors.size())
 			throw std::runtime_error("Accessor index out of range.");
-		return m_accessors[index];
+		return m_accessors[static_cast<size_t>(index)];
 	}
 
 	inline bool CheckAccessor(int64_t index, ElementType elementType, ComponentType componentType) const
 	{
 		return index >= 0 && static_cast<size_t>(index) < m_accessors.size() &&
-		       m_accessors[index].elementType == elementType && m_accessors[index].componentType == componentType;
+		       m_accessors[static_cast<size_t>(index)].elementType == elementType &&
+		       m_accessors[static_cast<size_t>(index)].componentType == componentType;
 	}
 
 	inline const char* GetAccessorData(int64_t index) const { return m_buffers[GetAccessor(index).bufferIndex].data(); }

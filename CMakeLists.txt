@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.25)
 project(EGame)
 
+set(DEFAULT_ENABLE_VULKAN ON)
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+	set(DEFAULT_ENABLE_VULKAN OFF)
+endif()
+
 option(EG_BUILD_ASSETGEN "Whether or not to build asset generator library" ON)
 option(EG_BUILD_ASSETMAN "Whether or not to build asset manager utility" ON)
 option(EG_BUILD_IMGUI "Whether or not to build imgui support library" ON)
-option(EG_VULKAN "Whether or not to enable vulkan support." ON)
+option(EG_VULKAN "Whether or not to enable vulkan support." ${DEFAULT_ENABLE_VULKAN})
 option(EG_WEBGPU "Whether or not to enable webgpu support." OFF)
 option(EG_WEBGPU_TINT "Whether or not to use tint for webgpu shader transpilation." OFF)
-option(EG_WEBGPU_INCLUDE_PATH "Include path for webgpu.h." "")
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
@@ -44,6 +48,14 @@ if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX ".*\\.mm")
 endif()
 
+if (NOT EG_WEBGPU)
+	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/WebGPU/*")
+endif()
+
+if (NOT EG_VULKAN)
+	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/Vulkan/*")
+endif()
+
 if (EG_WEBGPU_TINT)
 	set(TINT_BUILD_CMD_TOOLS OFF)
 	set(TINT_BUILD_WGSL_READER OFF)
@@ -51,11 +63,8 @@ if (EG_WEBGPU_TINT)
 	set(TINT_BUILD_HLSL_WRITER OFF)
 	set(TINT_BUILD_MSL_WRITER OFF)
 	set(TINT_BUILD_SPV_WRITER OFF)
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/tint SYSTEM)
-endif()
-
-if (NOT EG_WEBGPU)
-	list(FILTER EGAME_SOURCE_FILES EXCLUDE REGEX "Src/EGame/Graphics/WebGPU/*")
+	set(TINT_SPIRV_TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Deps/spirv_tools)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Deps/tint/ SYSTEM)
 endif()
 
 #Adds compile options for warnings
@@ -160,7 +169,7 @@ if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 		
 		target_include_directories(EGameAssetGen SYSTEM PRIVATE
 			${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
-			${CMAKE_CURRENT_SOURCE_DIR}/Deps/glslang_c_interface
+			${CMAKE_CURRENT_SOURCE_DIR}/Deps/inc
 			${OGG_VORBIS_INCLUDE_DIRS}
 		)
 		
@@ -236,15 +245,16 @@ target_include_directories(EGame SYSTEM
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/glm
 	PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/stb
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/utfcpp/source
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/volk
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vma/include
-		${CMAKE_CURRENT_SOURCE_DIR}/Deps/utfcpp/source
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/vulkan-headers/include
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/metal-cpp/
+		${CMAKE_CURRENT_SOURCE_DIR}/Deps/inc/
 )
 
-if (EG_WEBGPU_INCLUDE_PATH)
-	target_include_directories(EGame SYSTEM PRIVATE ${EG_WEBGPU_INCLUDE_PATH})
+if (EG_VUKLAN)
+	target_compile_options(EGame PRIVATE -DEG_ENABLE_VULKAN)
 endif()
 
 if (EG_WEBGPU)
@@ -260,7 +270,7 @@ target_compile_options(EGame
 	PUBLIC
 		-DGLM_FORCE_RADIANS -DGLM_FORCE_CTOR_INIT -DGLM_ENABLE_EXPERIMENTAL
 	PRIVATE
-		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES -DWGPU_SKIP_DECLARATIONS)
+		-DZLIB_CONST -DVMA_STATIC_VULKAN_FUNCTIONS=0 -DVK_NO_PROTOTYPES)
 
 set_target_properties(EGame EGSandbox PROPERTIES
 	CXX_STANDARD 20
@@ -296,7 +306,11 @@ add_dependencies(EGSandbox EGame)
 target_link_libraries(EGSandbox EGame)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
-	set(EMCC_FLAGS "-lopenal -s ALLOW_MEMORY_GROWTH=1 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=cwrap -sFETCH -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0")
+	set(EMCC_FLAGS "-lopenal -s ALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1048576 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_ZLIB=1 -sFORCE_FILESYSTEM -sEXPORTED_RUNTIME_METHODS=cwrap -sFETCH -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=0")
+	
+	if (EG_WEBGPU)
+		set(EMCC_FLAGS "${EMCC_FLAGS} -sUSE_WEBGPU")
+	endif()
 	
 	if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 		set(EMCC_FLAGS "${EMCC_FLAGS} -gsource-map")
@@ -308,11 +322,7 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
 	
 	set_target_properties(EGSandbox PROPERTIES OUTPUT_NAME game)
 	
-	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN -DEG_NO_FREETYPE -s USE_ZLIB=1 -Wno-sign-conversion -Wno-shorten-64-to-32)
+	target_compile_options(EGame PRIVATE -DEG_NO_FREETYPE -s USE_ZLIB=1 -Wno-sign-conversion -Wno-shorten-64-to-32)
 	set_target_properties(EGame PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
 	set_target_properties(EGSandbox PROPERTIES LINK_FLAGS "${EMCC_FLAGS}")
-elseif(NOT ${EG_VULKAN})
-	target_compile_options(EGame PRIVATE -DEG_NO_VULKAN)
 endif()
-
-export(TARGETS EGame yaml-cpp FILE ${CMAKE_CURRENT_SOURCE_DIR}/CMake/${BUILD_NAME}/EGameTargets.cmake)

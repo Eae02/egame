@@ -1,6 +1,6 @@
 #include "WGPU.hpp"
 
-#include <SDL2/SDL.h>
+struct SDL_Window;
 
 namespace eg::graphics_api::webgpu
 {

@@ -114,6 +114,7 @@ void WriteCompressedSection(std::ostream& output, const void* data, size_t dataS
 	deflateEnd(&deflateStream);
 
 	BinWrite<uint64_t>(output, compressedData.size() * 256 - lastPageUnusedchars);
+
 	std::for_each(
 		compressedData.begin(), std::prev(compressedData.end()),
 		[&](const std::array<char, 256>& page) { output.write(page.data(), page.size()); });

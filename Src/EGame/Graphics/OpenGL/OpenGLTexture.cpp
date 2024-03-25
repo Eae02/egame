@@ -400,16 +400,7 @@ void CopyBufferToTexture(
 	uint32_t rowLength = copyLayout.rowByteStride / bytesPerBlock;
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, rowLength);
 
-	if (rowLength != 0 && copyLayout.layerByteStride != 0)
-	{
-		EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
-		uint32_t pixelsPerLayer = copyLayout.layerByteStride / bytesPerBlock;
-		glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, pixelsPerLayer / rowLength);
-	}
-	else
-	{
-		glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-	}
+	const uint32_t layerByteStride = rowLength * range.sizeY;
 
 	texture->ChangeUsage(TextureUsage::CopyDst);
 
@@ -423,7 +414,7 @@ void CopyBufferToTexture(
 		for (int l = 0; l < ToInt(range.sizeZ); l++)
 		{
 			GLenum glLayer = GL_TEXTURE_CUBE_MAP_POSITIVE_X + l + range.offsetZ;
-			char* layerOffsetPtr = offsetPtr + copyLayout.layerByteStride * l;
+			char* layerOffsetPtr = offsetPtr + layerByteStride * l;
 			if (isCompressed)
 			{
 				glCompressedTexSubImage2D(
@@ -488,17 +479,6 @@ void CopyTextureToBuffer(
 	EG_ASSERT((copyLayout.rowByteStride % bytesPerBlock) == 0);
 	uint32_t rowLength = copyLayout.rowByteStride / bytesPerBlock;
 	glPixelStorei(GL_PACK_ROW_LENGTH, rowLength);
-
-	if (rowLength != 0 && copyLayout.layerByteStride != 0)
-	{
-		EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
-		uint32_t pixelsPerLayer = copyLayout.layerByteStride / bytesPerBlock;
-		glPixelStorei(GL_PACK_IMAGE_HEIGHT, pixelsPerLayer / rowLength);
-	}
-	else
-	{
-		glPixelStorei(GL_PACK_IMAGE_HEIGHT, 0);
-	}
 
 	const Buffer* buffer = UnwrapBuffer(bufferHandle);
 

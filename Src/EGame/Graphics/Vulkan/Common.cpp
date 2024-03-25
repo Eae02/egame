@@ -1,5 +1,3 @@
-#ifndef EG_NO_VULKAN
-
 #include "Common.hpp"
 #include "../../Assert.hpp"
 
@@ -170,5 +168,3 @@ void ReferencedResourceSet::Remove(Resource& resource)
 	}
 }
 } // namespace eg::graphics_api::vk
-
-#endif

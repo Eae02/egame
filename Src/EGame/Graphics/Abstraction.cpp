@@ -2,9 +2,16 @@
 #include "../Assert.hpp"
 #include "../Hash.hpp"
 #include "../Log.hpp"
+
 #include "OpenGL/OpenGL.hpp"
-#include "Vulkan/VulkanMain.hpp"
+
+#ifdef EG_ENABLE_WEBGPU
 #include "WebGPU/WGPUMain.hpp"
+#endif
+
+#ifdef EG_ENABLE_VULKAN
+#include "Vulkan/VulkanMain.hpp"
+#endif
 
 #ifdef __APPLE__
 #include "Metal/MetalMain.hpp"
@@ -106,7 +113,7 @@ bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& init
 #undef XM_ABSCALLBACK
 		return eg::graphics_api::gl::Initialize(initArguments);
 
-#ifndef EG_NO_VULKAN
+#ifdef EG_ENABLE_VULKAN
 	case GraphicsAPI::Vulkan:
 #define XM_ABSCALLBACK(name, ret, params) gal::name = &graphics_api::vk::name;
 #include "AbstractionCallbacks.inl"

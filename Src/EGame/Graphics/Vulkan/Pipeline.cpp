@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "Pipeline.hpp"
 #include "CachedDescriptorSetLayout.hpp"
 #include "ShaderModule.hpp"
@@ -115,5 +114,3 @@ void InitShaderStageCreateInfo(
 	}
 }
 } // namespace eg::graphics_api::vk
-
-#endif

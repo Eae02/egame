@@ -2,11 +2,9 @@
 
 namespace eg::graphics_api::webgpu
 {
-WebGPUCtx wgpuctx;
+WGPUProcInstanceWaitAny wgpuInstanceWaitAny = nullptr;
 
-#define XM_WGPU_FUNC(F) WGPUProc##F wgpu##F;
-#include "WGPUFunctions.inl"
-#undef XM_WGPU_FUNC
+WebGPUCtx wgpuctx;
 
 static std::vector<std::function<void()>> frameEndCallbacks;
 

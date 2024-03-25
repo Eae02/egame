@@ -23,11 +23,13 @@ static TextureHandle CreateTexture(
 	if (HasFlag(createInfo.flags, eg::TextureFlags::FramebufferAttachment))
 		usage |= WGPUTextureUsage_RenderAttachment;
 
+#ifndef __EMSCRIPTEN__
 	if (HasFlag(createInfo.flags, eg::TextureFlags::TransientAttachment) &&
 	    IsDeviceFeatureEnabled(WGPUFeatureName_TransientAttachments))
 	{
 		usage |= WGPUTextureUsage_TransientAttachment;
 	}
+#endif
 
 	WGPUTextureFormat format = TranslateTextureFormat(createInfo.format);
 
@@ -108,16 +110,15 @@ void CopyBufferToTexture(
 	wcc.EndComputePass();
 
 	EG_ASSERT((copyLayout.rowByteStride % 256) == 0);
-	EG_ASSERT((copyLayout.layerByteStride % 256) == 0);
-	EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
 
 	const uint32_t blockSize = GetFormatBlockWidth(texture.format);
+	const uint32_t numBlocksY = (range.sizeY + blockSize) / blockSize;
 
 	WGPUImageCopyBuffer imageCopyBuffer = {
 		.layout = {
 			.offset = copyLayout.offset,
 			.bytesPerRow = copyLayout.rowByteStride,
-			.rowsPerImage = copyLayout.layerByteStride / copyLayout.rowByteStride,
+			.rowsPerImage = numBlocksY,
 		},
 		.buffer = Buffer::Unwrap(buffer).buffer,
 	};
@@ -150,16 +151,15 @@ void CopyTextureToBuffer(
 	wcc.EndComputePass();
 
 	EG_ASSERT((copyLayout.rowByteStride % 256) == 0);
-	EG_ASSERT((copyLayout.layerByteStride % 256) == 0);
-	EG_ASSERT((copyLayout.layerByteStride % copyLayout.rowByteStride) == 0);
 
 	const uint32_t blockSize = GetFormatBlockWidth(texture.format);
+	const uint32_t numBlocksY = (range.sizeY + blockSize) / blockSize;
 
 	WGPUImageCopyBuffer imageCopyBuffer = {
 		.layout = {
 			.offset = copyLayout.offset,
 			.bytesPerRow = copyLayout.rowByteStride,
-			.rowsPerImage = copyLayout.layerByteStride / copyLayout.rowByteStride,
+			.rowsPerImage = numBlocksY,
 		},
 		.buffer = Buffer::Unwrap(buffer).buffer,
 	};

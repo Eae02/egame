@@ -1,9 +1,7 @@
 #ifdef XM_WGPU_FUNC
 
-#ifndef __EMSCRIPTEN__
 XM_WGPU_FUNC(DeviceTick)
 XM_WGPU_FUNC(QueueOnSubmittedWorkDoneF)
-#endif
 
 XM_WGPU_FUNC(CreateInstance)
 XM_WGPU_FUNC(InstanceRequestAdapter)
@@ -23,7 +21,6 @@ XM_WGPU_FUNC(SurfaceRelease)
 XM_WGPU_FUNC(InstanceRelease)
 
 XM_WGPU_FUNC(DeviceGetQueue)
-XM_WGPU_FUNC(InstanceWaitAny)
 XM_WGPU_FUNC(QueueSubmit)
 XM_WGPU_FUNC(QueueWriteBuffer)
 XM_WGPU_FUNC(QueueOnSubmittedWorkDone)

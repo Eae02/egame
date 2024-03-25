@@ -117,9 +117,13 @@ void CopyBufferToTexture(
 		destOrigin.z = 0;
 	}
 
+	const uint32_t blockSize = GetFormatBlockWidth(mtexture.format);
+	const uint32_t numBlocksY = (range.sizeY + blockSize) / blockSize;
+	const uint32_t bytesPerLayer = copyLayout.rowByteStride * numBlocksY;
+
 	mcc.GetBlitCmdEncoder().copyFromBuffer(
-		UnwrapBuffer(buffer), copyLayout.offset, copyLayout.rowByteStride, copyLayout.layerByteStride, destSize,
-		mtexture.texture, slice, range.mipLevel, destOrigin);
+		UnwrapBuffer(buffer), copyLayout.offset, copyLayout.rowByteStride, bytesPerLayer, destSize, mtexture.texture,
+		slice, range.mipLevel, destOrigin);
 }
 
 void CopyTextureToBuffer(

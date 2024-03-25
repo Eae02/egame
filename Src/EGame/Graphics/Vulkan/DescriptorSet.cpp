@@ -1,5 +1,3 @@
-#include <vulkan/vulkan_core.h>
-#ifndef EG_NO_VULKAN
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
 #include "Buffer.hpp"
@@ -217,5 +215,3 @@ void BindDescriptorSet(
 		static_cast<uint32_t>(dynamicOffsets.size()), dynamicOffsets.data());
 }
 } // namespace eg::graphics_api::vk
-
-#endif

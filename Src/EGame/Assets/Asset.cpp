@@ -7,8 +7,6 @@
 #include "AssetGenerator.hpp"
 #include "AssetLoad.hpp"
 #include "EAPFile.hpp"
-#include "ShaderModule.hpp"
-#include "Texture2DLoader.hpp"
 #include "WebAssetDownload.hpp"
 #include "YAMLUtils.hpp"
 
@@ -17,7 +15,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
-#include <queue>
 #include <regex>
 #include <span>
 #include <unordered_map>
@@ -145,14 +142,14 @@ static void SaveAssetToCache(const GeneratedAsset& asset, uint64_t yamlParamsHas
 
 	BinWrite(stream, UnsignedNarrow<uint32_t>(asset.sideStreamsData.size()));
 
-	BinWrite<uint64_t>(stream, asset.data.size());
-	stream.write(asset.data.data(), asset.data.size());
+	BinWrite<uint32_t>(stream, UnsignedNarrow<uint32_t>(asset.data.size()));
+	stream.write(asset.data.data(), static_cast<std::streamsize>(asset.data.size()));
 
 	for (const GeneratedAssetSideStreamData& sideStreamData : asset.sideStreamsData)
 	{
 		BinWriteString(stream, sideStreamData.streamName);
-		BinWrite<uint64_t>(stream, sideStreamData.data.size());
-		stream.write(sideStreamData.data.data(), sideStreamData.data.size());
+		BinWrite<uint32_t>(stream, UnsignedNarrow<uint32_t>(sideStreamData.data.size()));
+		stream.write(sideStreamData.data.data(), static_cast<std::streamsize>(sideStreamData.data.size()));
 	}
 }
 
@@ -181,7 +178,7 @@ static std::optional<GeneratedAsset> TryReadAssetFromCache(
 		return {};
 
 	asset.flags = static_cast<AssetFlags>(BinRead<uint32_t>(stream));
-	const auto generateTime = std::chrono::system_clock::from_time_t(BinRead<uint64_t>(stream));
+	const auto generateTime = std::chrono::system_clock::from_time_t(static_cast<time_t>(BinRead<uint64_t>(stream)));
 
 	const uint32_t numFileDependencies = BinRead<uint32_t>(stream);
 	asset.fileDependencies.reserve(numFileDependencies);
@@ -203,7 +200,7 @@ static std::optional<GeneratedAsset> TryReadAssetFromCache(
 
 	const uint32_t numSideStreams = BinRead<uint32_t>(stream);
 
-	const uint64_t dataSize = BinRead<uint64_t>(stream);
+	const uint32_t dataSize = BinRead<uint32_t>(stream);
 	asset.data.resize(dataSize);
 	stream.read(asset.data.data(), dataSize);
 
@@ -211,7 +208,7 @@ static std::optional<GeneratedAsset> TryReadAssetFromCache(
 	for (uint32_t i = 0; i < numSideStreams; i++)
 	{
 		asset.sideStreamsData[i].streamName = BinReadString(stream);
-		const uint64_t sideStreamDataSize = BinRead<uint64_t>(stream);
+		const uint32_t sideStreamDataSize = BinRead<uint32_t>(stream);
 		asset.sideStreamsData[i].data.resize(sideStreamDataSize);
 		stream.read(asset.sideStreamsData[i].data.data(), sideStreamDataSize);
 	}
@@ -615,9 +612,14 @@ bool LoadAssets(
 	std::vector<MemoryMappedFile> mappedFiles;
 	std::optional<std::vector<EAPAsset>> eapAssets;
 	std::string eapPath = path + ".eap";
-	if ([[maybe_unused]] std::istream* downloadedStream = detail::WebGetDownloadedAssetPackageStream(eapPath))
+	if (auto downloadedPackageData = detail::WebGetDownloadedAssetPackage(eapPath))
 	{
-		// okEap = LoadAssetsFromEAPStream(*downloadedStream, mountPath);
+		ReadEAPFileArgs readArgs;
+		readArgs.eapFileData = *downloadedPackageData;
+		readArgs.openSideStreamCallback = [&](std::string_view sideStreamName) -> std::span<const char>
+		{ return detail::WebGetDownloadedAssetPackage(eapPath).value_or(std::span<const char>()); };
+
+		eapAssets = ReadEAPFile(readArgs, allocator);
 	}
 	else
 	{
@@ -646,7 +648,7 @@ bool LoadAssets(
 }
 
 #ifdef __EMSCRIPTEN__
-void detail::LoadAssetGenLibrary() {}
+void LoadAssetGenLibrary() {}
 #else
 static DynamicLibrary assetGenLibrary;
 static bool hasLoadedAssetGenLibrary = false;

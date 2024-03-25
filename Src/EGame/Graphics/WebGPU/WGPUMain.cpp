@@ -1,9 +1,9 @@
 #include "WGPUMain.hpp"
-#include "../../Platform/DynamicLibrary.hpp"
 #include "WGPU.hpp"
 #include "WGPUCommandContext.hpp"
 #include "WGPUDescriptorSet.hpp"
 #include "WGPUFence.hpp"
+#include "WGPUPlatform.hpp"
 #include "WGPUSurface.hpp"
 #include "WGPUTint.hpp"
 
@@ -11,8 +11,6 @@
 
 namespace eg::graphics_api::webgpu
 {
-DynamicLibrary dawnLibrary;
-
 static WGPUSupportedLimits adapterLimits;
 
 static std::string deviceName;
@@ -21,34 +19,6 @@ static std::string apiName;
 static SDL_Window* sdlWindow;
 
 static bool enableSrgbEmulation;
-
-static void OnAdapterRequestEnded(
-	WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* pUserData)
-{
-	if (status == WGPURequestAdapterStatus_Success)
-	{
-		wgpuctx.adapter = adapter;
-	}
-	else
-	{
-		std::cout << "Could not get WebGPU adapter: " << message << std::endl;
-	}
-	*static_cast<bool*>(pUserData) = true;
-}
-
-static void OnDeviceRequestEnded(
-	WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* pUserData)
-{
-	if (status == WGPURequestDeviceStatus_Success)
-	{
-		wgpuctx.device = device;
-	}
-	else
-	{
-		std::cout << "Could not get WebGPU device: " << message << std::endl;
-	}
-	*static_cast<bool*>(pUserData) = true;
-}
 
 static inline const char* GetMessage(const char* message)
 {
@@ -143,9 +113,13 @@ static void UpdateSwapchain()
 }
 
 static const WGPUFeatureName WANTED_DEVICE_FEATURES[] = {
-	WGPUFeatureName_SurfaceCapabilities,     WGPUFeatureName_DepthClipControl,       WGPUFeatureName_Float32Filterable,
-	WGPUFeatureName_TextureCompressionBC,    WGPUFeatureName_TextureCompressionASTC, WGPUFeatureName_TimestampQuery,
-	WGPUFeatureName_RG11B10UfloatRenderable, WGPUFeatureName_TransientAttachments,
+	WGPUFeatureName_DepthClipControl,     WGPUFeatureName_Float32Filterable,
+	WGPUFeatureName_TextureCompressionBC, WGPUFeatureName_TextureCompressionASTC,
+	WGPUFeatureName_TimestampQuery,       WGPUFeatureName_RG11B10UfloatRenderable,
+
+#ifndef __EMSCRIPTEN__
+	WGPUFeatureName_SurfaceCapabilities,  WGPUFeatureName_TransientAttachments,
+#endif
 };
 
 static std::vector<WGPUFeatureName> enabledDeviceFeatures;
@@ -161,62 +135,84 @@ static std::pair<WGPUBackendType, std::string_view> BACKEND_NAMES[] = {
 	{ WGPUBackendType_OpenGL, "OpenGL" }, { WGPUBackendType_OpenGLES, "OpenGLES" },
 };
 
-bool Initialize(const GraphicsAPIInitArguments& initArguments)
+static bool requestedDefaultFramebufferSRGB;
+
+static std::function<void()> initCompleteCallback;
+
+static void OnDeviceRequestEnded(
+	WGPURequestDeviceStatus status, WGPUDevice device, const char* message, void* pUserData)
 {
-	std::string dawnLibraryName = DynamicLibrary::PlatformFormat("webgpu_dawn");
-	if (!dawnLibrary.Open(dawnLibraryName.c_str()))
-	{
-		eg::Log(
-			eg::LogLevel::Error, "wgpu", "Failed to load dawn library for webgpu ({0}): {1}", dawnLibraryName,
-			dawnLibrary.FailureReason());
-		return false;
-	}
+	if (status != WGPURequestDeviceStatus_Success)
+		EG_PANIC("Could not get WebGPU device: " << message);
 
-#define XM_WGPU_FUNC(F) wgpu##F = reinterpret_cast<WGPUProc##F>(dawnLibrary.GetSymbol("wgpu" #F));
-#include "WGPUFunctions.inl"
-#undef XM_WGPU_FUNC
+	wgpuctx.device = device;
 
-	InitializeTint();
+	wgpuDeviceSetUncapturedErrorCallback(wgpuctx.device, OnDeviceError, nullptr);
+	wgpuDeviceSetDeviceLostCallback(wgpuctx.device, OnDeviceLost, nullptr);
 
-	WGPUInstanceDescriptor instanceDesc = {};
-	instanceDesc.features.timedWaitAnyEnable = true;
-	wgpuctx.instance = wgpuCreateInstance(&instanceDesc);
+	wgpuctx.queue = wgpuDeviceGetQueue(wgpuctx.device);
 
-	if (wgpuctx.instance == nullptr)
-	{
-		eg::Log(eg::LogLevel::Error, "wgpu", "Failed to create webgpu instance");
-		return false;
-	}
+	wgpuctx.swapchainFormat = wgpuSurfaceGetPreferredFormat(wgpuctx.surface, wgpuctx.adapter);
 
-	wgpuctx.surface = CreateSurface(wgpuctx.instance, initArguments.window);
-
-	WGPUBackendType preferredBackend = WGPUBackendType_Undefined;
-	if (const char* preferredBackendName = std::getenv("EG_WEBGPU_BACKEND"))
-	{
-		for (auto [backend, backendName] : BACKEND_NAMES)
-		{
-			if (std::string_view(preferredBackendName) == backendName)
-				preferredBackend = backend;
-		}
-	}
-
-	const WGPURequestAdapterOptions requestAdapterOptions = {
-		.compatibleSurface = wgpuctx.surface,
-		.backendType = preferredBackend,
+	static const WGPUTextureFormat EXPECTED_SWAPCHAIN_FORMATS[] = {
+		WGPUTextureFormat_BGRA8Unorm,
+		WGPUTextureFormat_RGBA8Unorm,
+		WGPUTextureFormat_BGRA8UnormSrgb,
+		WGPUTextureFormat_RGBA8UnormSrgb,
 	};
-
-	bool adapterRequestDone = false;
-	wgpuInstanceRequestAdapter(wgpuctx.instance, &requestAdapterOptions, OnAdapterRequestEnded, &adapterRequestDone);
-	while (!adapterRequestDone)
+	if (!Contains(EXPECTED_SWAPCHAIN_FORMATS, wgpuctx.swapchainFormat))
 	{
+		eg::Log(eg::LogLevel::Warning, "webgpu", "Unexpected swapchain format: {0}", wgpuctx.swapchainFormat);
+		wgpuctx.swapchainFormat = WGPUTextureFormat_BGRA8Unorm;
 	}
+
+	if (requestedDefaultFramebufferSRGB && wgpuctx.swapchainFormat != WGPUTextureFormat_BGRA8UnormSrgb &&
+	    wgpuctx.swapchainFormat != WGPUTextureFormat_RGBA8UnormSrgb)
+	{
+		eg::Log(eg::LogLevel::Warning, "webgpu", "Using sRGB emulation of default framebuffer");
+		enableSrgbEmulation = true;
+
+		if (wgpuctx.swapchainFormat == WGPUTextureFormat_BGRA8Unorm)
+			wgpuctx.defaultColorFormat = WGPUTextureFormat_BGRA8UnormSrgb;
+		else
+			wgpuctx.defaultColorFormat = WGPUTextureFormat_RGBA8UnormSrgb;
+	}
+	else
+	{
+		wgpuctx.defaultColorFormat = wgpuctx.swapchainFormat;
+	}
+
+	UpdateSwapchain();
+
+	CommandContext::main.BeginEncode();
+
+	if (initCompleteCallback)
+		initCompleteCallback();
+}
+
+static void OnAdapterRequestEnded(
+	WGPURequestAdapterStatus status, WGPUAdapter adapter, const char* message, void* pUserData)
+{
+	if (status != WGPURequestAdapterStatus_Success)
+		EG_PANIC("Could not get WebGPU adapter: " << message);
+
+	wgpuctx.adapter = adapter;
 
 	size_t numAdapterFeatures = wgpuAdapterEnumerateFeatures(wgpuctx.adapter, nullptr);
 	std::vector<WGPUFeatureName> adapterFeatures(numAdapterFeatures);
 	wgpuAdapterEnumerateFeatures(wgpuctx.adapter, adapterFeatures.data());
 	std::sort(adapterFeatures.begin(), adapterFeatures.end());
 
+#ifdef __EMSCRIPTEN__
+	adapterLimits.limits.minUniformBufferOffsetAlignment = 256;
+	adapterLimits.limits.minStorageBufferOffsetAlignment = 256;
+	adapterLimits.limits.maxComputeInvocationsPerWorkgroup = 256;
+	adapterLimits.limits.maxComputeWorkgroupSizeX = 256;
+	adapterLimits.limits.maxComputeWorkgroupSizeY = 256;
+	adapterLimits.limits.maxComputeWorkgroupSizeZ = 64;
+#else
 	wgpuAdapterGetLimits(wgpuctx.adapter, &adapterLimits);
+#endif
 
 	WGPUAdapterProperties adapterProperties = {};
 	wgpuAdapterGetProperties(wgpuctx.adapter, &adapterProperties);
@@ -260,53 +256,48 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 		.requiredFeatures = enabledDeviceFeatures.data(),
 		.requiredLimits = &requiredLimits,
 	};
-	bool deviceRequestDone = false;
-	wgpuAdapterRequestDevice(wgpuctx.adapter, &deviceDesc, OnDeviceRequestEnded, &deviceRequestDone);
-	while (!deviceRequestDone)
+	wgpuAdapterRequestDevice(wgpuctx.adapter, &deviceDesc, OnDeviceRequestEnded, nullptr);
+}
+
+bool Initialize(const GraphicsAPIInitArguments& initArguments)
+{
+	wgpuctx.instance = PlatformInit(initArguments);
+
+	if (wgpuctx.instance == nullptr)
+		return false;
+
+	InitializeTint();
+
+	wgpuctx.surface = CreateSurface(wgpuctx.instance, initArguments.window);
+
+	WGPUBackendType preferredBackend = WGPUBackendType_Undefined;
+	if (const char* preferredBackendName = std::getenv("EG_WEBGPU_BACKEND"))
 	{
+		for (auto [backend, backendName] : BACKEND_NAMES)
+		{
+			if (std::string_view(preferredBackendName) == backendName)
+				preferredBackend = backend;
+		}
 	}
-
-	wgpuDeviceSetUncapturedErrorCallback(wgpuctx.device, OnDeviceError, nullptr);
-	wgpuDeviceSetDeviceLostCallback(wgpuctx.device, OnDeviceLost, nullptr);
-
-	wgpuctx.queue = wgpuDeviceGetQueue(wgpuctx.device);
 
 	sdlWindow = initArguments.window;
+	requestedDefaultFramebufferSRGB = initArguments.defaultFramebufferSRGB;
 
-	wgpuctx.swapchainFormat = wgpuSurfaceGetPreferredFormat(wgpuctx.surface, wgpuctx.adapter);
-
-	static const WGPUTextureFormat EXPECTED_SWAPCHAIN_FORMATS[] = {
-		WGPUTextureFormat_BGRA8Unorm,
-		WGPUTextureFormat_RGBA8Unorm,
-		WGPUTextureFormat_BGRA8UnormSrgb,
-		WGPUTextureFormat_RGBA8UnormSrgb,
+	const WGPURequestAdapterOptions requestAdapterOptions = {
+		.compatibleSurface = wgpuctx.surface,
+		.backendType = preferredBackend,
 	};
-	if (!Contains(EXPECTED_SWAPCHAIN_FORMATS, wgpuctx.swapchainFormat))
-	{
-		eg::Log(eg::LogLevel::Warning, "webgpu", "Unexpected swapchain format: {0}", wgpuctx.swapchainFormat);
-		wgpuctx.swapchainFormat = WGPUTextureFormat_BGRA8Unorm;
-	}
 
-	if (initArguments.defaultFramebufferSRGB && wgpuctx.swapchainFormat != WGPUTextureFormat_BGRA8UnormSrgb &&
-	    wgpuctx.swapchainFormat != WGPUTextureFormat_RGBA8UnormSrgb &&
-	    IsDeviceFeatureEnabled(WGPUFeatureName_SurfaceCapabilities))
-	{
-		eg::Log(eg::LogLevel::Warning, "webgpu", "Using sRGB emulation of default framebuffer");
-		enableSrgbEmulation = true;
+	static_assert(sizeof(void*) == sizeof(void (*)()));
 
-		if (wgpuctx.swapchainFormat == WGPUTextureFormat_BGRA8Unorm)
-			wgpuctx.defaultColorFormat = WGPUTextureFormat_BGRA8UnormSrgb;
-		else
-			wgpuctx.defaultColorFormat = WGPUTextureFormat_RGBA8UnormSrgb;
-	}
-	else
-	{
-		wgpuctx.defaultColorFormat = wgpuctx.swapchainFormat;
-	}
+	initCompleteCallback = std::move(initArguments.initDoneCallback);
 
-	UpdateSwapchain();
+	wgpuInstanceRequestAdapter(wgpuctx.instance, &requestAdapterOptions, OnAdapterRequestEnded, nullptr);
 
-	CommandContext::main.BeginEncode();
+#ifndef __EMSCRIPTEN__
+	// If we are not running in emscripten, all the callbacks should have been run by now
+	EG_ASSERT(wgpuctx.device != nullptr);
+#endif
 
 	return true;
 }
@@ -361,7 +352,7 @@ void EndLoading()
 
 bool IsLoadingComplete()
 {
-	return loadingFence->IsDone();
+	return platformIsLoadingComplete && (loadingFence == nullptr || loadingFence->IsDone());
 }
 
 static std::array<Fence*, MAX_CONCURRENT_FRAMES> frameFences;
@@ -416,7 +407,9 @@ void EndFrame()
 		wgpuTextureViewRelease(wgpuctx.currentSwapchainColorView);
 	}
 
+#ifndef __EMSCRIPTEN__
 	wgpuSwapChainPresent(wgpuctx.swapchain);
+#endif
 
 	RunFrameEndCallbacks();
 }

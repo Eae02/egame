@@ -34,7 +34,7 @@ struct EAPAsset
 	const class AssetLoader* loader = nullptr;
 
 	// Not needed for WriteEAPFile, will be zero if the asset was not compressed
-	uint64_t compressedSize = 0;
+	uint32_t compressedSize = 0;
 };
 
 EG_API void WriteEAPFile(std::span<const EAPAsset> assets, std::string_view path);

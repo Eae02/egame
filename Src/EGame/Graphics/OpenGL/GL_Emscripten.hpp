@@ -1,7 +1,8 @@
 #pragma once
 
-#include <GLES3/gl2ext.h>
 #include <GLES3/gl32.h>
+
+#include <GLES3/gl2ext.h>
 
 #define glObjectLabel(a, b, c, d)
 #define glMemoryBarrier(x)

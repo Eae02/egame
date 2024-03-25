@@ -1,4 +1,3 @@
-#ifndef EG_NO_VULKAN
 #include "Translation.hpp"
 #include "../../Assert.hpp"
 
@@ -188,5 +187,3 @@ VkShaderStageFlags TranslateShaderStageFlags(ShaderAccessFlags accessFlags)
 	return flags;
 }
 } // namespace eg::graphics_api::vk
-
-#endif

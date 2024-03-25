@@ -80,7 +80,7 @@ void Texture2DWriter::ProcessMipLevel(const uint8_t* imageData, int width, int h
 
 	uint32_t numBlocks = static_cast<uint32_t>(((width + 3) / 4) * ((height + 3) / 4));
 
-	const size_t outputBytes = static_cast<size_t>(numBlocks * bytesPerBlock);
+	const uint32_t outputBytes = numBlocks * bytesPerBlock;
 	std::unique_ptr<uint8_t, FreeDel> outputDataUP(static_cast<uint8_t*>(std::malloc(outputBytes)));
 	uint8_t* outputBuffer = outputDataUP.get();
 
@@ -308,8 +308,8 @@ bool Texture2DWriter::AddLayer(std::istream& imageStream, std::string_view fileN
 	uint8_t* nextMipData = nullptr;
 	if (m_numMipLevels > 1)
 	{
-		size_t firstMipBytes = (m_width * m_height * loadChannels);
-		mipDataUP.reset(static_cast<uint8_t*>(std::malloc(firstMipBytes * 2)));
+		int firstMipBytes = m_width * m_height * loadChannels;
+		mipDataUP.reset(static_cast<uint8_t*>(std::malloc(ToUnsigned(firstMipBytes * 2))));
 		nextMipData = mipDataUP.get();
 		if (!isCompressed)
 		{

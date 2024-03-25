@@ -1,8 +1,5 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
-#ifndef EG_NO_VULKAN
-
 #include "../../Log.hpp"
 #include "../Abstraction.hpp"
 #include "../Graphics.hpp"
@@ -136,5 +133,3 @@ inline VkFence CreateFence(VkDevice device)
 	return fence;
 }
 } // namespace eg::graphics_api::vk
-
-#endif
