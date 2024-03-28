@@ -12,6 +12,7 @@ bool useGLESPath;
 
 std::string rendererName;
 GLVendor glVendor;
+std::thread::id glThreadID;
 
 GLenum TranslateFormatForTexture(Format format, bool returnZeroOnFailure)
 {

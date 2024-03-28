@@ -272,6 +272,10 @@ std::optional<FontAtlas> FontAtlas::FromFNTInternal(ReadLineCB readLineCB, LoadI
 
 	auto PrintMalformatted = [&] { Log(LogLevel::Error, "fnt", "Malformatted font file '{0}'", name); };
 
+	bool hasDefaultChar = false;
+
+	std::array<int, 4> padding = {};
+
 	std::string line;
 	while (readLineCB(line))
 	{
@@ -310,7 +314,26 @@ std::optional<FontAtlas> FontAtlas::FromFNTInternal(ReadLineCB readLineCB, LoadI
 			return INT_MIN;
 		};
 
-		if (IsCommand("common"))
+		if (IsCommand("info"))
+		{
+			// for (const std::string_view part : parts)
+			// {
+			// 	auto [partName, partVal] = SplitStringOnce(part, '=');
+			// 	if (partName == "padding")
+			// 	{
+			// 		std::vector<std::string_view> paddingParts;
+			// 		SplitString(partVal, ',', paddingParts);
+			// 		if (paddingParts.size() == 4)
+			// 		{
+			// 			for (size_t i = 0; i < 4; i++)
+			// 			{
+			// 				padding[i] = std::stoi(std::string(paddingParts[i]));
+			// 			}
+			// 		}
+			// 	}
+			// }
+		}
+		else if (IsCommand("common"))
 		{
 			atlas.m_lineHeight = static_cast<float>(GetPartValueI("lineHeight"));
 			atlas.m_size = GetPartValueI("base");
@@ -361,11 +384,16 @@ std::optional<FontAtlas> FontAtlas::FromFNTInternal(ReadLineCB readLineCB, LoadI
 				return {};
 			}
 
+			float xAdvanceF = static_cast<float>(xAdvance - padding[0] - padding[2]);
+
 			if (id == ' ')
 			{
-				atlas.m_spaceAdvance = static_cast<float>(xAdvance);
+				atlas.m_spaceAdvance = xAdvanceF;
 				continue;
 			}
+
+			if (id == DefaultChar)
+				hasDefaultChar = true;
 
 			Character& character = atlas.m_characters.emplace_back();
 			character.id = ToUnsigned(id);
@@ -373,9 +401,9 @@ std::optional<FontAtlas> FontAtlas::FromFNTInternal(ReadLineCB readLineCB, LoadI
 			character.textureY = UnsignedNarrow<uint16_t>(ToUnsigned(y));
 			character.width = UnsignedNarrow<uint16_t>(ToUnsigned(width));
 			character.height = UnsignedNarrow<uint16_t>(ToUnsigned(height));
-			character.xOffset = xOffset;
-			character.yOffset = static_cast<int>(std::round(atlas.m_lineHeight)) - yOffset;
-			character.xAdvance = static_cast<float>(xAdvance);
+			character.xOffset = xOffset - padding[0];
+			character.yOffset = static_cast<int>(std::round(atlas.m_lineHeight)) - (yOffset - padding[1]);
+			character.xAdvance = xAdvanceF;
 		}
 		else if (IsCommand("kerning"))
 		{
@@ -394,17 +422,25 @@ std::optional<FontAtlas> FontAtlas::FromFNTInternal(ReadLineCB readLineCB, LoadI
 	if (!loadImage(imageFileName, atlas.m_atlasData))
 		return {};
 
+	atlas.m_lineHeight -= static_cast<float>(padding[1] + padding[3]);
+
+	if (!hasDefaultChar)
+	{
+		eg::Log(eg::LogLevel::Warning, "fnt", "{0}: Default character (U+25A1) not included.", name);
+
+		atlas.m_characters.push_back(Character{
+			.id = DefaultChar,
+			.width = 1,
+			.height = 1,
+			.xAdvance = atlas.m_spaceAdvance,
+		});
+	}
+
 	std::sort(
 		atlas.m_characters.begin(), atlas.m_characters.end(),
 		[&](const Character& a, const Character& b) { return a.id < b.id; });
 
 	std::sort(atlas.m_kerningPairs.begin(), atlas.m_kerningPairs.end(), KerningPairCompare());
-
-	if (atlas.GetCharacter(DefaultChar) == nullptr)
-	{
-		eg::Log(eg::LogLevel::Error, "fnt", "{0}: Default character (U+25A1) not included.", name);
-		return {};
-	}
 
 	return atlas;
 }

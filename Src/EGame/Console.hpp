@@ -14,6 +14,11 @@
 #include "TextEdit.hpp"
 #include "Utils.hpp"
 
+namespace eg
+{
+class AssetManager;
+}
+
 namespace eg::console
 {
 class EG_API CompletionsList
@@ -50,6 +55,8 @@ EG_API void AddCommand(std::string_view name, int minArgs, CommandCallback callb
 EG_API void SetCompletionProvider(std::string_view command, int arg, CompletionProviderCallback callback);
 
 EG_API void Write(const ColorLin& color, std::string_view text);
+
+EG_API void SetAssetManagerForCommands(const AssetManager* assetManager);
 
 struct LineSegment
 {

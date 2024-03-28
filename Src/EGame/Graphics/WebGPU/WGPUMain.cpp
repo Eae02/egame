@@ -352,7 +352,7 @@ void EndLoading()
 
 bool IsLoadingComplete()
 {
-	return platformIsLoadingComplete && (loadingFence == nullptr || loadingFence->IsDone());
+	return loadingFence == nullptr || loadingFence->IsDone();
 }
 
 static std::array<Fence*, MAX_CONCURRENT_FRAMES> frameFences;
@@ -381,6 +381,9 @@ void EndFrame()
 	{
 		WGPUTexture swapchainTexture = wgpuSwapChainGetCurrentTexture(wgpuctx.swapchain);
 
+		uint32_t swapchainTextureWidth = wgpuTextureGetWidth(swapchainTexture);
+		uint32_t swapchainTextureHeight = wgpuTextureGetHeight(swapchainTexture);
+
 		const WGPUImageCopyTexture srcCopy = {
 			.texture = wgpuctx.srgbEmulationColorTexture,
 			.aspect = WGPUTextureAspect_All,
@@ -390,8 +393,8 @@ void EndFrame()
 			.aspect = WGPUTextureAspect_All,
 		};
 		const WGPUExtent3D copyExtent = {
-			.width = wgpuctx.swapchainImageWidth,
-			.height = wgpuctx.swapchainImageHeight,
+			.width = std::min(wgpuctx.swapchainImageWidth, swapchainTextureWidth),
+			.height = std::min(wgpuctx.swapchainImageHeight, swapchainTextureHeight),
 			.depthOrArrayLayers = 1,
 		};
 

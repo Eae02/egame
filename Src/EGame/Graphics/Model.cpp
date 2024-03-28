@@ -1,4 +1,5 @@
 #include "Model.hpp"
+#include "GraphicsLoadContext.hpp"
 
 #include <algorithm>
 
@@ -12,13 +13,18 @@ Model::Model(ModelCreateArgs args)
 
 	std::sort(m_animations.begin(), m_animations.end(), AnimationNameCompare());
 
-	m_buffersDescriptor = std::make_unique<MeshBuffersDescriptor>();
+	m_numVertexStreams = UnsignedNarrow<uint32_t>(m_vertexFormat.streamsBytesPerVertex.size());
+
+	if (std::holds_alternative<std::span<const uint16_t>>(args.indices))
+		m_indexType = IndexType::UInt16;
+	else
+		m_indexType = IndexType::UInt32;
 
 	// Calculates vertex stream offsets
 	uint32_t nextVertexStreamOffset = 0;
 	for (size_t s = 0; s < m_vertexFormat.streamsBytesPerVertex.size(); s++)
 	{
-		m_buffersDescriptor->vertexStreamOffsets[s] = nextVertexStreamOffset;
+		m_vertexStreamOffsets.at(s) = nextVertexStreamOffset;
 		nextVertexStreamOffset += m_vertexFormat.streamsBytesPerVertex[s] * args.numVertices;
 	}
 	EG_ASSERT(nextVertexStreamOffset <= args.vertexData.size_bytes());
@@ -27,7 +33,7 @@ Model::Model(ModelCreateArgs args)
 	for (const ModelVertexAttribute& attribute : args.vertexFormat.attributes)
 	{
 		uint64_t bytesPerVertex = args.vertexFormat.streamsBytesPerVertex[attribute.streamIndex];
-		uint64_t verticesEnd = *m_buffersDescriptor->vertexStreamOffsets[attribute.streamIndex] + attribute.offset +
+		uint64_t verticesEnd = m_vertexStreamOffsets.at(attribute.streamIndex) + attribute.offset +
 		                       bytesPerVertex * (m_numVertices - 1) + GetVertexAttributeByteWidth(attribute.type);
 		EG_ASSERT(verticesEnd <= args.vertexData.size_bytes());
 	}
@@ -50,9 +56,6 @@ Model::Model(ModelCreateArgs args)
 		std::memcpy(m_dataForCPUAccess->indexData.get(), indexData.data(), indexData.size());
 	}
 
-	if (std::holds_alternative<std::span<const uint16_t>>(args.indices))
-		m_buffersDescriptor->indexType = IndexType::UInt16;
-
 	// Checks that all meshes refer to valid data
 	for (const MeshDescriptor& mesh : m_meshes)
 	{
@@ -63,37 +66,59 @@ Model::Model(ModelCreateArgs args)
 	}
 
 	// Uploads vertices and indices
-	const uint64_t verticesBytes = args.vertexData.size_bytes();
-	const uint64_t indicesBytes = indexData.size_bytes();
-	const uint64_t totalBytesToUpload = verticesBytes + indicesBytes;
+	const uint64_t vertexBytes = args.vertexData.size();
+	const uint64_t indexBytes = indexData.size();
+	const uint64_t totalBytesToUpload = vertexBytes + indexBytes;
 	if (HasFlag(args.accessFlags, ModelAccessFlags::GPU) && totalBytesToUpload != 0)
 	{
-		Buffer uploadBuffer(BufferFlags::MapWrite | BufferFlags::CopySrc, totalBytesToUpload, nullptr);
-		char* uploadBufferData = static_cast<char*>(uploadBuffer.Map(0, totalBytesToUpload));
+		GraphicsLoadContext* graphicsLoadContext =
+			args.graphicsLoadContext ? args.graphicsLoadContext : &GraphicsLoadContext::Direct;
 
-		std::memcpy(uploadBufferData, args.vertexData.data(), verticesBytes);
-		std::memcpy(uploadBufferData + verticesBytes, indexData.data(), indicesBytes);
+		auto stagingBuffer = graphicsLoadContext->AllocateStagingBuffer(totalBytesToUpload);
 
-		uploadBuffer.Flush(0, totalBytesToUpload);
+		std::copy_n(args.vertexData.begin(), vertexBytes, stagingBuffer.memory.begin());
+		std::copy_n(indexData.begin(), indexData.size(), stagingBuffer.memory.begin() + vertexBytes);
 
-		m_vertexBuffer = Buffer(BufferFlags::VertexBuffer | BufferFlags::CopyDst, verticesBytes, nullptr);
-		m_indexBuffer = Buffer(BufferFlags::IndexBuffer | BufferFlags::CopyDst, verticesBytes, nullptr);
+		m_buffers = std::make_unique<Buffers>();
 
-		eg::DC.CopyBuffer(uploadBuffer, m_vertexBuffer, 0, 0, verticesBytes);
-		eg::DC.CopyBuffer(uploadBuffer, m_indexBuffer, verticesBytes, 0, indicesBytes);
+		for (uint32_t s = 0; s < m_numVertexStreams; s++)
+			m_buffers->descriptor.vertexStreamOffsets[s] = m_vertexStreamOffsets[s];
+		m_buffers->descriptor.indexType = m_indexType;
 
-		m_vertexBuffer.UsageHint(eg::BufferUsage::VertexBuffer);
-		m_indexBuffer.UsageHint(eg::BufferUsage::IndexBuffer);
+		graphicsLoadContext->OnGraphicsThread(
+			[stagingBuffer, vertexBytes, indexBytes, buffers = m_buffers.get()](CommandContext& cc)
+			{
+				buffers->vertexBuffer = Buffer(
+					BufferFlags::VertexBuffer | BufferFlags::CopyDst | BufferFlags::ManualBarrier, vertexBytes,
+					nullptr);
+				buffers->indexBuffer = Buffer(
+					BufferFlags::IndexBuffer | BufferFlags::CopyDst | BufferFlags::ManualBarrier, indexBytes, nullptr);
 
-		m_buffersDescriptor->vertexBuffer = m_vertexBuffer;
-		m_buffersDescriptor->indexBuffer = m_indexBuffer;
+				buffers->descriptor.vertexBuffer = buffers->vertexBuffer;
+				buffers->descriptor.indexBuffer = buffers->indexBuffer;
+
+				stagingBuffer.Flush();
+
+				cc.CopyBuffer(stagingBuffer.buffer, buffers->vertexBuffer, stagingBuffer.bufferOffset, 0, vertexBytes);
+				cc.CopyBuffer(
+					stagingBuffer.buffer, buffers->indexBuffer, stagingBuffer.bufferOffset + vertexBytes, 0,
+					indexBytes);
+
+				cc.Barrier(
+					buffers->vertexBuffer,
+					BufferBarrier{ .oldUsage = eg::BufferUsage::CopyDst, .newUsage = eg::BufferUsage::VertexBuffer });
+
+				cc.Barrier(
+					buffers->indexBuffer,
+					BufferBarrier{ .oldUsage = eg::BufferUsage::CopyDst, .newUsage = eg::BufferUsage::IndexBuffer });
+			});
 	}
 }
 
 std::variant<std::span<const uint32_t>, std::span<const uint16_t>> Model::GetIndices() const
 {
 	EG_ASSERT(m_dataForCPUAccess.has_value());
-	switch (m_buffersDescriptor->indexType)
+	switch (m_indexType)
 	{
 	case IndexType::UInt32:
 		return std::span(reinterpret_cast<const uint32_t*>(m_dataForCPUAccess->indexData.get()), m_numIndices);
@@ -116,10 +141,10 @@ std::optional<std::pair<uint32_t, uint32_t>> Model::GetVertexAttributeOffsetAndS
 	ModelVertexAttributeType attributeType, uint32_t typeIndex) const
 {
 	std::optional<ModelVertexAttribute> attrib = m_vertexFormat.FindAttribute(attributeType, typeIndex);
-	if (!attrib.has_value())
+	if (!attrib.has_value() || attrib->streamIndex >= m_numVertexStreams)
 		return std::nullopt;
 	return std::make_pair(
-		*m_buffersDescriptor->vertexStreamOffsets.at(attrib->streamIndex) + attrib->offset,
+		m_vertexStreamOffsets[attrib->streamIndex] + attrib->offset,
 		m_vertexFormat.streamsBytesPerVertex[attrib->streamIndex]);
 }
 

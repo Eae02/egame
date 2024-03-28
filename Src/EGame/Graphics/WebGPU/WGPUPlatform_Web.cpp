@@ -9,31 +9,15 @@ WGPUInstance PlatformInit(const GraphicsAPIInitArguments& initArguments)
 	return wgpuCreateInstance(nullptr);
 }
 
-static void (*webRunFrameCallback)();
+static std::optional<bool> isMaybeAvailable;
 
-bool platformIsLoadingComplete = false;
-
-int numFramesPending = 0;
-
-void WorkDoneCallback(WGPUQueueWorkDoneStatus status, void*)
+bool IsMaybeAvailable()
 {
-	platformIsLoadingComplete = true;
-
-	numFramesPending--;
-
-	while (numFramesPending < MAX_CONCURRENT_FRAMES)
+	if (!isMaybeAvailable.has_value())
 	{
-		webRunFrameCallback();
-		numFramesPending++;
-		wgpuQueueOnSubmittedWorkDone(wgpuctx.queue, WorkDoneCallback, nullptr);
+		isMaybeAvailable = EM_ASM_INT({ return !!navigator.gpu; });
 	}
-}
-
-void StartWebMainLoop(void (*runFrame)())
-{
-	webRunFrameCallback = runFrame;
-	numFramesPending++;
-	wgpuQueueOnSubmittedWorkDone(wgpuctx.queue, WorkDoneCallback, nullptr);
+	return *isMaybeAvailable;
 }
 } // namespace eg::graphics_api::webgpu
 

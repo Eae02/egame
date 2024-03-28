@@ -10,24 +10,31 @@ layout(location=0) out vec4 color_out;
 
 layout(set=0, binding=1) uniform FlagsUB
 {
-	uint flags;
+	uint blendMode;
+	uint effectMode;
 };
 
-const uint RED_TO_ALPHA_BIT = 1 << 2;
+const uint EFFECT_NONE = 0;
+const uint EFFECT_RED_TO_ALPHA = 1;
+const uint EFFECT_DISTANCE_FIELD = 2;
 
 const uint BLEND_ALPHA = 0;
 const uint BLEND_ADDITIVE = 1;
 const uint BLEND_OVERWRITE = 2;
 
+const float SDF_DIST_LO = 0.9;
+const float SDF_DIST_HI = 1.0;
+
 void main()
 {
 	color_out = texture(sampler2D(uTexture, uSampler), vTexCoord);
-	if ((flags & RED_TO_ALPHA_BIT) != 0)
+	
+	if (effectMode == EFFECT_DISTANCE_FIELD)
+		color_out = vec4(1, 1, 1, clamp((color_out.r - SDF_DIST_LO) / (SDF_DIST_HI - SDF_DIST_LO), 0.0, 1.0));
+	else if (effectMode == EFFECT_RED_TO_ALPHA)
 		color_out = vec4(1, 1, 1, color_out.r);
 
 	color_out *= vColor;
-
-	uint blendMode = flags & 3;
 
 	if (blendMode == BLEND_ALPHA)
 		color_out.rgb *= color_out.a;

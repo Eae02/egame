@@ -10,6 +10,7 @@
 #include <SDL.h>
 #include <iostream>
 #include <list>
+#include <thread>
 
 using namespace std::chrono;
 

@@ -10,16 +10,6 @@ namespace eg::graphics_api::gl
 {
 using SPIRType = spirv_cross::SPIRType;
 
-struct PushConstantMember
-{
-	uint32_t offset;
-	uint32_t arraySize;
-	uint32_t vectorSize;
-	uint32_t columns;
-	int uniformLocation;
-	SPIRType::BaseType baseType;
-};
-
 struct ShaderModule
 {
 	ShaderStage stage;

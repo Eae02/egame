@@ -43,6 +43,8 @@ ICachedDescriptorSetLayout& DescriptorSetLayoutCache::Get(
 		bindings = dslKey.bindings;
 	}
 
+	std::lock_guard<std::mutex> lock(m_mutex);
+
 	// Searches for a matching descriptor set in the cache
 	auto cacheIt = m_layouts.find(dslKey);
 	if (cacheIt != m_layouts.end())
@@ -56,5 +58,11 @@ ICachedDescriptorSetLayout& DescriptorSetLayoutCache::Get(
 
 	m_layouts.emplace(std::move(dslKey), std::move(layout));
 	return ret;
+}
+
+void DescriptorSetLayoutCache::Clear()
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	m_layouts.clear();
 }
 } // namespace eg

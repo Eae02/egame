@@ -49,6 +49,7 @@ struct ModelCreateArgs
 	ModelVertexFormat vertexFormat;
 	std::vector<std::string> materialNames;
 	std::vector<Animation> animations;
+	class GraphicsLoadContext* graphicsLoadContext;
 };
 
 struct EG_API MeshBuffersDescriptor
@@ -97,11 +98,11 @@ public:
 
 	const Animation* FindAnimation(std::string_view name) const;
 
-	BufferRef VertexBuffer() const { return m_vertexBuffer; }
+	BufferRef VertexBuffer() const { return m_buffers->vertexBuffer; }
 
-	BufferRef IndexBuffer() const { return m_indexBuffer; }
+	BufferRef IndexBuffer() const { return m_buffers->indexBuffer; }
 
-	const MeshBuffersDescriptor& BuffersDescriptor() const { return *m_buffersDescriptor; }
+	const MeshBuffersDescriptor& BuffersDescriptor() const { return m_buffers->descriptor; }
 
 	const ModelVertexFormat& VertexFormat() const { return m_vertexFormat; }
 
@@ -112,8 +113,6 @@ private:
 	uint32_t m_numVertices;
 
 	std::vector<MeshDescriptor> m_meshes;
-
-	std::unique_ptr<MeshBuffersDescriptor> m_buffersDescriptor;
 
 	struct DataForCPUAccess
 	{
@@ -127,8 +126,18 @@ private:
 
 	std::vector<std::string> m_materialNames;
 
-	Buffer m_vertexBuffer;
-	Buffer m_indexBuffer;
+	uint32_t m_numVertexStreams;
+	std::array<uint32_t, MAX_VERTEX_BINDINGS> m_vertexStreamOffsets;
+	IndexType m_indexType;
+
+	struct Buffers
+	{
+		MeshBuffersDescriptor descriptor;
+		Buffer vertexBuffer;
+		Buffer indexBuffer;
+	};
+
+	std::unique_ptr<Buffers> m_buffers;
 
 	std::vector<Animation> m_animations;
 };

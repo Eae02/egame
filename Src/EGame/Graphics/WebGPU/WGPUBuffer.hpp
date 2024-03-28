@@ -10,8 +10,8 @@ namespace eg::graphics_api::webgpu
 {
 struct Buffer
 {
-	WGPUBuffer buffer;
-	uint64_t size;
+	WGPUBuffer buffer = nullptr;
+	uint64_t size = 0;
 
 	WGPUBuffer readbackBuffer = nullptr;
 

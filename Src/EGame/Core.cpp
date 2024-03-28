@@ -21,20 +21,12 @@
 #include "Profiling/Profiler.hpp"
 #include "Profiling/ProfilerPane.hpp"
 
-#include <iomanip>
-#include <iostream>
 #include <list>
 
 using namespace std::chrono;
 
 namespace eg
 {
-std::mutex detail::mutexMTI;
-LinearAllocator detail::allocMTI;
-detail::MTIBase* detail::firstMTI;
-detail::MTIBase* detail::lastMTI;
-std::thread::id detail::mainThreadId;
-
 bool detail::shouldClose;
 std::string detail::gameName;
 std::string_view detail::exeDirPath;
@@ -165,11 +157,7 @@ void detail::RunFrame(IGame& game)
 	console::Update(dt);
 	console::Draw(SpriteBatch::overlay, detail::resolutionX, detail::resolutionY);
 
-	// Processes main thread invokes
-	for (detail::MTIBase* mti = detail::firstMTI; mti != nullptr; mti = mti->next)
-		mti->Invoke();
-	detail::firstMTI = detail::lastMTI = nullptr;
-	detail::allocMTI.Reset();
+	RunMainThreadInvokeCallbacks();
 
 	eg::RenderPassBeginInfo rpBeginInfo;
 	rpBeginInfo.colorAttachments[0].loadOp = AttachmentLoadOp::Load;
@@ -214,9 +202,9 @@ static int InitializeUntilAssetDownload(const RunConfig& runConfig, std::functio
 		maxFrameTimeNS = 1000000000ULL / static_cast<uint64_t>(runConfig.framerateCap);
 	}
 
+	detail::mainThreadId = std::this_thread::get_id();
+
 	detail::devMode = HasFlag(runConfig.flags, RunFlags::DevMode);
-	detail::createAssetPackage = HasFlag(runConfig.flags, RunFlags::CreateAssetPackage);
-	detail::disableAssetPackageCompression = HasFlag(runConfig.flags, RunFlags::AssetPackageFast);
 
 	if (const char* devEnv = getenv("EG_DEV"))
 	{
@@ -229,12 +217,6 @@ static int InitializeUntilAssetDownload(const RunConfig& runConfig, std::functio
 			Log(LogLevel::Warning, "misc",
 			    R"(Could not parse EG_DEV environment variable, should be either "true" or "false".)");
 		}
-	}
-
-	const char* createEapEnv = getenv("EG_CREATE_EAP");
-	if (createEapEnv != nullptr && std::strcmp(createEapEnv, "true") == 0 && detail::devMode)
-	{
-		detail::createAssetPackage = true;
 	}
 
 	if (runConfig.gameName != nullptr)
@@ -256,14 +238,18 @@ static int InitializeUntilAssetDownload(const RunConfig& runConfig, std::functio
 		runConfig, false,
 		[initCompleteCallback = std::move(initCompleteCallback)]
 		{
+			gal::GetDeviceInfo(detail::graphicsDeviceInfo);
+			if (DevMode() &&
+		        !HasFlag(DeviceFeatureFlags::ConcurrentResourceCreation, detail::graphicsDeviceInfo.features))
+			{
+				InstallGraphicsAPIMainThreadAsserts();
+			}
+
 			renderdoc::Init();
 			InitPlatformFontConfig();
 			detail::RegisterDefaultAssetGenerator();
 			LoadAssetGenLibrary();
-			detail::RegisterAssetLoaders();
 			detail::LoadGameControllers();
-
-			gal::GetDeviceInfo(detail::graphicsDeviceInfo);
 
 			SpriteBatch::InitStatic();
 			TranslationGizmo::Initialize();
@@ -366,7 +352,6 @@ void detail::CoreUninitialize()
 	RotationGizmo::Destroy();
 	DestroyGizmoPipelines();
 	DestroyFullscreenShaders();
-	UnloadAssets();
 	DestroyUploadBuffers();
 	DestroyGraphicsAPI();
 	DestroyPlatformFontConfig();

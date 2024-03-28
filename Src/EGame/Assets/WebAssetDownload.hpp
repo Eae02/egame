@@ -4,8 +4,8 @@
 
 #include <functional>
 #include <optional>
-#include <string>
 #include <span>
+#include <string>
 
 namespace eg
 {

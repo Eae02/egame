@@ -63,8 +63,7 @@ struct VertexAttribData
 struct GraphicsPipeline : AbstractPipeline
 {
 	uint32_t numShaderModules;
-	GLuint shaderModules[5];
-	GLuint vertexArray;
+	std::optional<GLuint> vertexArray;
 	std::optional<CullMode> cullMode;
 	bool enableWireframeRasterization;
 	GLenum frontFace;
@@ -114,13 +113,6 @@ static inline bool ShouldOutputFramebufferFormats()
 
 static ObjectPool<GraphicsPipeline> gfxPipelinePool;
 
-// Indices must match ShaderStage
-static const std::array<GLenum, 6> ShaderTypes = { GL_VERTEX_SHADER,          GL_FRAGMENT_SHADER,
-	                                               GL_GEOMETRY_SHADER,        GL_TESS_CONTROL_SHADER,
-	                                               GL_TESS_EVALUATION_SHADER, GL_COMPUTE_SHADER };
-
-static std::array<const char*, 6> ShaderSuffixes = { " [VS]", " [FS]", " [GS]", " [TCS]", " [TES]", " [CS]" };
-
 PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createInfo)
 {
 #ifdef __EMSCRIPTEN__
@@ -141,7 +133,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 	pipeline->minSampleShading = createInfo.enableSampleShading ? createInfo.minSampleShading : 0.0f;
 
-	std::pair<spirv_cross::CompilerGLSL*, GLuint> shaderStages[5];
+	std::pair<spirv_cross::CompilerGLSL*, ShaderStage> shaderStages[5];
 	auto* spvCompilers = static_cast<spirv_cross::CompilerGLSL*>(alloca(sizeof(spirv_cross::CompilerGLSL) * 5));
 
 	// Attaches shaders to the pipeline's program
@@ -162,9 +154,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 		SetSpecializationConstants(stageInfo, *compiler);
 
-		GLuint shader = glCreateShader(ShaderTypes.at(static_cast<int>(expectedStage)));
-		pipeline->shaderModules[pipeline->numShaderModules] = shader;
-		shaderStages[pipeline->numShaderModules] = { compiler, shader };
+		shaderStages[pipeline->numShaderModules] = { compiler, expectedStage };
 		pipeline->numShaderModules++;
 
 		if (useGLESPath)
@@ -189,12 +179,6 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 			}
 			currentIOGroup++;
 		}
-
-		if (createInfo.label != nullptr)
-		{
-			std::string shaderLabel = Concat({ createInfo.label, ShaderSuffixes.at(static_cast<int>(expectedStage)) });
-			glObjectLabel(GL_SHADER, shader, -1, shaderLabel.c_str());
-		}
 	};
 	MaybeAddStage(createInfo.vertexShader, eg::ShaderStage::Vertex);
 	MaybeAddStage(createInfo.tessControlShader, eg::ShaderStage::TessControl);
@@ -202,23 +186,13 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	MaybeAddStage(createInfo.geometryShader, eg::ShaderStage::Geometry);
 	MaybeAddStage(createInfo.fragmentShader, eg::ShaderStage::Fragment);
 
-	pipeline->Initialize({ &shaderStages[0], pipeline->numShaderModules });
+	pipeline->Initialize({ &shaderStages[0], pipeline->numShaderModules }, createInfo.label);
 
 	for (uint32_t i = 0; i < pipeline->numShaderModules; i++)
 	{
 		spvCompilers[i].~CompilerGLSL();
 	}
 	spvCompilers = nullptr;
-
-	if (createInfo.label != nullptr)
-	{
-		glObjectLabel(GL_PROGRAM, pipeline->program, -1, createInfo.label);
-	}
-
-	// ** Sets up VAOs **
-
-	glGenVertexArrays(1, &pipeline->vertexArray);
-	glBindVertexArray(pipeline->vertexArray);
 
 	std::copy_n(createInfo.vertexBindings, MAX_VERTEX_BINDINGS, pipeline->vertexBindings);
 
@@ -231,49 +205,17 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 		GLVertexAttribFormat format = TranslateFormatForVertexAttribute(createInfo.vertexAttributes[i].format);
 
-		pipeline->vertexAttribs[pipeline->numActiveVertexAttribs++] =
-			VertexAttribData{ .attribIndex = i,
-			                  .binding = createInfo.vertexAttributes[i].binding,
-			                  .dataOffset = createInfo.vertexAttributes[i].offset,
-			                  .format = format };
-
-		glEnableVertexAttribArray(i);
-
-#ifndef EG_GLES
-		if (!useGLESPath)
-		{
-			glVertexAttribBinding(i, binding);
-
-			if (format.mode == GLVertexAttribMode::Int)
-			{
-				glVertexAttribIFormat(i, format.size, format.type, createInfo.vertexAttributes[i].offset);
-			}
-			else
-			{
-				glVertexAttribFormat(
-					i, format.size, format.type, format.mode == GLVertexAttribMode::Norm,
-					createInfo.vertexAttributes[i].offset);
-			}
-		}
-#endif
+		pipeline->vertexAttribs[pipeline->numActiveVertexAttribs++] = VertexAttribData{
+			.attribIndex = i,
+			.binding = createInfo.vertexAttributes[i].binding,
+			.dataOffset = createInfo.vertexAttributes[i].offset,
+			.format = format,
+		};
 	}
 
 	std::stable_sort(
 		pipeline->vertexAttribs, pipeline->vertexAttribs + pipeline->numActiveVertexAttribs,
 		[&](const VertexAttribData& a, const VertexAttribData& b) { return a.binding < b.binding; });
-
-#ifndef EG_GLES
-	if (!useGLESPath)
-	{
-		for (uint32_t i = 0; i < MAX_VERTEX_BINDINGS; i++)
-		{
-			if (createInfo.vertexBindings[i].stride != UINT32_MAX)
-			{
-				glVertexBindingDivisor(i, static_cast<GLuint>(createInfo.vertexBindings[i].inputRate));
-			}
-		}
-	}
-#endif
 
 #ifdef __EMSCRIPTEN__
 	for (uint32_t i = 1; i < MAX_COLOR_ATTACHMENTS; i++)
@@ -292,7 +234,7 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 	pipeline->enableStencilTest = createInfo.enableStencilTest;
 	pipeline->topology = Translate(createInfo.topology);
 	pipeline->cullMode = createInfo.cullMode;
-	pipeline->patchSize = createInfo.patchControlPoints;
+	pipeline->patchSize = ToInt(createInfo.patchControlPoints);
 
 	if (createInfo.enableStencilTest)
 	{
@@ -330,8 +272,8 @@ PipelineHandle CreateGraphicsPipeline(const GraphicsPipelineCreateInfo& createIn
 
 void GraphicsPipeline::Free()
 {
-	for (uint32_t i = 0; i < numShaderModules; i++)
-		glDeleteShader(shaderModules[i]);
+	// for (uint32_t i = 0; i < numShaderModules; i++)
+	// 	glDeleteShader(shaderModules[i]);
 	gfxPipelinePool.Delete(this);
 }
 
@@ -560,7 +502,20 @@ void GraphicsPipeline::Bind()
 		}
 	}
 
-	glBindVertexArray(vertexArray);
+	if (vertexArray.has_value())
+	{
+		glBindVertexArray(*vertexArray);
+	}
+	else
+	{
+		GLuint vao;
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		vertexArray = vao;
+
+		for (uint32_t i = 0; i < numActiveVertexAttribs; i++)
+			glEnableVertexAttribArray(vertexAttribs[i].attribIndex);
+	}
 
 	if (curState.frontFace != frontFace)
 		glFrontFace(curState.frontFace = frontFace);
@@ -710,7 +665,7 @@ static std::pair<GLuint, uint32_t> vertexBuffers[MAX_VERTEX_BINDINGS];
 
 inline void MaybeUpdateVAO(uint32_t firstVertex, uint32_t firstInstance)
 {
-	if (useGLESPath && (firstVertex != currentFirstVertex || firstInstance != currentFirstInstance))
+	if (firstVertex != currentFirstVertex || firstInstance != currentFirstInstance)
 		updateVAOBindings = true;
 
 	if (!updateVAOBindings)
@@ -719,59 +674,40 @@ inline void MaybeUpdateVAO(uint32_t firstVertex, uint32_t firstInstance)
 	currentFirstVertex = firstVertex;
 	currentFirstInstance = firstInstance;
 
-	const GraphicsPipeline* pipeline = static_cast<const GraphicsPipeline*>(currentPipeline);
+	GraphicsPipeline* pipeline = static_cast<GraphicsPipeline*>(currentPipeline);
 
-	if (useGLESPath)
-	{
-		uint32_t binding = UINT32_MAX;
-		std::for_each_n(
-			pipeline->vertexAttribs, pipeline->numActiveVertexAttribs,
-			[&](const VertexAttribData& attrib)
-			{
-				if (binding != attrib.binding)
-				{
-					binding = attrib.binding;
-					glBindBuffer(GL_ARRAY_BUFFER, vertexBuffers[binding].first);
-				}
-
-				const GLsizei stride = pipeline->vertexBindings[binding].stride;
-
-				const uint32_t first =
-					pipeline->vertexBindings[binding].inputRate == InputRate::Vertex ? firstVertex : firstInstance;
-
-				uintptr_t offset = attrib.dataOffset + vertexBuffers[binding].second + first * stride;
-				void* offsetPtr = reinterpret_cast<void*>(offset);
-
-				if (attrib.format.mode == GLVertexAttribMode::Int)
-				{
-					glVertexAttribIPointer(
-						attrib.attribIndex, attrib.format.size, attrib.format.type, stride, offsetPtr);
-				}
-				else
-				{
-					glVertexAttribPointer(
-						attrib.attribIndex, attrib.format.size, attrib.format.type,
-						attrib.format.mode == GLVertexAttribMode::Norm, stride, offsetPtr);
-				}
-
-				glVertexAttribDivisor(
-					attrib.attribIndex, static_cast<GLuint>(pipeline->vertexBindings[binding].inputRate));
-			});
-	}
-	else
-	{
-#ifndef EG_GLES
-		for (uint32_t binding = 0; binding < MAX_VERTEX_BINDINGS; binding++)
+	uint32_t binding = UINT32_MAX;
+	std::for_each_n(
+		pipeline->vertexAttribs, pipeline->numActiveVertexAttribs,
+		[&](const VertexAttribData& attrib)
 		{
-			if (pipeline->vertexBindings[binding].stride != UINT32_MAX)
+			if (binding != attrib.binding)
 			{
-				glBindVertexBuffer(
-					binding, vertexBuffers[binding].first, vertexBuffers[binding].second,
-					pipeline->vertexBindings[binding].stride);
+				binding = attrib.binding;
+				glBindBuffer(GL_ARRAY_BUFFER, vertexBuffers[binding].first);
 			}
-		}
-#endif
-	}
+
+			const GLsizei stride = pipeline->vertexBindings[binding].stride;
+
+			const uint32_t first =
+				pipeline->vertexBindings[binding].inputRate == InputRate::Vertex ? firstVertex : firstInstance;
+
+			uintptr_t offset = attrib.dataOffset + vertexBuffers[binding].second + first * stride;
+			void* offsetPtr = reinterpret_cast<void*>(offset);
+
+			if (attrib.format.mode == GLVertexAttribMode::Int)
+			{
+				glVertexAttribIPointer(attrib.attribIndex, attrib.format.size, attrib.format.type, stride, offsetPtr);
+			}
+			else
+			{
+				glVertexAttribPointer(
+					attrib.attribIndex, attrib.format.size, attrib.format.type,
+					attrib.format.mode == GLVertexAttribMode::Norm, stride, offsetPtr);
+			}
+
+			glVertexAttribDivisor(attrib.attribIndex, static_cast<GLuint>(pipeline->vertexBindings[binding].inputRate));
+		});
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
 }
@@ -799,7 +735,11 @@ void Draw(
 	AssertAllBindingsSatisfied();
 
 	FlushDrawState();
-	MaybeUpdateVAO(0, firstInstance);
+
+	if (useGLESPath)
+		MaybeUpdateVAO(0, firstInstance);
+	else
+		MaybeUpdateVAO(0, 0);
 
 	GLenum topology = static_cast<const GraphicsPipeline*>(currentPipeline)->topology;
 
@@ -825,7 +765,11 @@ void DrawIndexed(
 	AssertAllBindingsSatisfied();
 
 	FlushDrawState();
-	MaybeUpdateVAO(firstVertex, firstInstance);
+
+	if (useGLESPath)
+		MaybeUpdateVAO(firstVertex, firstInstance);
+	else
+		MaybeUpdateVAO(0, 0);
 
 	uintptr_t indexOffset = indexBufferOffset + firstIndex * 2;
 	GLenum indexType = GL_UNSIGNED_SHORT;

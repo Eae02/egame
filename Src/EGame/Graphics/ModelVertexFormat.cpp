@@ -156,8 +156,12 @@ size_t ModelVertexFormat::Hash() const
 
 size_t ModelVertexAttribute::Hash() const
 {
-	return static_cast<size_t>(type) ^ (static_cast<size_t>(typeIndex) << 6) ^
-	       (static_cast<size_t>(streamIndex) << 16) ^ (static_cast<size_t>(offset) << 32);
+	size_t hash = 0;
+	HashAppend(hash, type);
+	HashAppend(hash, typeIndex);
+	HashAppend(hash, streamIndex);
+	HashAppend(hash, offset);
+	return hash;
 }
 
 void ModelVertexFormat::RegisterFormat(std::string_view name, ModelVertexFormat format)

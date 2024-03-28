@@ -2,56 +2,94 @@
 
 #include "API.hpp"
 #include "Alloc/LinearAllocator.hpp"
+#include "Assert.hpp"
 
+#include <functional>
 #include <mutex>
+#include <optional>
 #include <thread>
 
 namespace eg
 {
 namespace detail
 {
-struct MTIBase
-{
-	virtual void Invoke() = 0;
+EG_API extern std::mutex mainThreadInvokeMutex;
+EG_API extern std::vector<std::function<void()>> mainThreadInvokeFunctions;
+EG_API extern std::thread::id mainThreadId;
 
-	MTIBase* next = nullptr;
-};
+void RunMainThreadInvokeCallbacks();
+} // namespace detail
+
+inline bool IsMainThread()
+{
+	return std::this_thread::get_id() == detail::mainThreadId;
+}
 
 template <typename T>
-struct MTI : MTIBase
+class MainThreadInvokableUnsyncronized
 {
-	T callback;
+public:
+	MainThreadInvokableUnsyncronized() = default;
 
-	explicit MTI(T&& _callback) : callback(_callback) {}
+	template <typename InitFn>
+	static MainThreadInvokableUnsyncronized<T> Init(InitFn init)
+	{
+		MainThreadInvokableUnsyncronized<T> result;
+		if (IsMainThread())
+			result.m_handle = init();
+		else
+			result.m_initFunction = init;
+		return result;
+	}
 
-	void Invoke() override { callback(); }
+	template <typename F>
+	void OnMainThread(F func)
+	{
+		if (m_handle.has_value())
+		{
+			EG_DEBUG_ASSERT(IsMainThread());
+			func(MTGet());
+		}
+		else
+		{
+			m_functions.emplace_back(func);
+		}
+	}
+
+	const std::optional<T>& GetOpt()
+	{
+		if (!m_handle.has_value() && IsMainThread())
+			MTGet();
+		return m_handle;
+	}
+
+	const T& MTGet()
+	{
+		EG_DEBUG_ASSERT(IsMainThread());
+		if (!m_handle.has_value())
+			m_handle = m_initFunction();
+		for (const auto& func : m_functions)
+			func(*m_handle);
+		m_functions.clear();
+		return *m_handle;
+	}
+
+private:
+	std::optional<T> m_handle;
+	std::function<T()> m_initFunction;
+	std::vector<std::function<void(T)>> m_functions;
 };
-
-EG_API extern std::mutex mutexMTI;
-EG_API extern LinearAllocator allocMTI;
-EG_API extern MTIBase* firstMTI;
-EG_API extern MTIBase* lastMTI;
-EG_API extern std::thread::id mainThreadId;
-} // namespace detail
 
 template <typename CallbackTp>
 void MainThreadInvoke(CallbackTp&& callback)
 {
-	if (std::this_thread::get_id() == detail::mainThreadId)
+	if (IsMainThread())
 	{
 		callback();
 		return;
 	}
 
-	std::lock_guard<std::mutex> lock(detail::mutexMTI);
-
-	auto* mti = detail::allocMTI.New<detail::MTI<CallbackTp>>(std::forward<CallbackTp>(callback));
-	if (detail::lastMTI == nullptr)
-		detail::firstMTI = detail::lastMTI = mti;
-	else
-	{
-		detail::lastMTI->next = mti;
-		detail::lastMTI = mti;
-	}
+	std::lock_guard<std::mutex> lock(detail::mainThreadInvokeMutex);
+	detail::mainThreadInvokeFunctions.emplace_back(std::move(callback));
 }
 } // namespace eg

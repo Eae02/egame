@@ -24,7 +24,6 @@ void DispatchComputeIndirect(CommandContextHandle, BufferHandle argsBuffer, uint
 #else
 struct ComputePipeline : public AbstractPipeline
 {
-	GLuint shaderModule;
 	void Free() override;
 	void Bind() override;
 };
@@ -35,28 +34,19 @@ PipelineHandle CreateComputePipeline(const ComputePipelineCreateInfo& createInfo
 {
 	ComputePipeline* pipeline = computePipelinePool.New();
 
-	pipeline->shaderModule = glCreateShader(GL_COMPUTE_SHADER);
-
 	ShaderModule* computeShaderModule = UnwrapShaderModule(createInfo.computeShader.shaderModule);
 
 	spirv_cross::CompilerGLSL spvCompiler(*computeShaderModule->parsedIR);
 	SetSpecializationConstants(createInfo.computeShader, spvCompiler);
 
-	std::pair<spirv_cross::CompilerGLSL*, GLuint> shaderStagePair(&spvCompiler, pipeline->shaderModule);
-	pipeline->Initialize({ &shaderStagePair, 1 });
-
-	if (createInfo.label != nullptr)
-	{
-		glObjectLabel(GL_PROGRAM, pipeline->program, -1, createInfo.label);
-		glObjectLabel(GL_SHADER, pipeline->shaderModule, -1, createInfo.label);
-	}
+	std::pair<spirv_cross::CompilerGLSL*, ShaderStage> shaderStagePair(&spvCompiler, ShaderStage::Compute);
+	pipeline->Initialize({ &shaderStagePair, 1 }, createInfo.label);
 
 	return WrapPipeline(pipeline);
 }
 
 void ComputePipeline::Free()
 {
-	glDeleteShader(shaderModule);
 	computePipelinePool.Delete(this);
 }
 

@@ -2,11 +2,13 @@
 #include "../Assert.hpp"
 #include "../Hash.hpp"
 #include "../Log.hpp"
+#include "../MainThreadInvoke.hpp"
 
 #include "OpenGL/OpenGL.hpp"
 
 #ifdef EG_ENABLE_WEBGPU
 #include "WebGPU/WGPUMain.hpp"
+#include "WebGPU/WGPUPlatform.hpp"
 #endif
 
 #ifdef EG_ENABLE_VULKAN
@@ -142,6 +144,75 @@ bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& init
 	}
 
 	return false;
+}
+
+bool IsGraphicsAPIMaybeAvailable(GraphicsAPI api)
+{
+	switch (api)
+	{
+	case GraphicsAPI::OpenGL: return true;
+
+#ifdef EG_ENABLE_VULKAN
+	case GraphicsAPI::Vulkan: return graphics_api::vk::EarlyInitializeMemoized();
+#endif
+
+#ifdef __APPLE__
+	case GraphicsAPI::Metal: return true;
+#endif
+
+#ifdef EG_ENABLE_WEBGPU
+	case GraphicsAPI::WebGPU: return graphics_api::webgpu::IsMaybeAvailable();
+#endif
+
+	default: return false;
+	}
+}
+
+struct CapturedGALFunctions
+{
+#define XM_ABSCALLBACK(name, ret, params) ret(*name) params;
+#include "AbstractionCallbacks.inl"
+#undef XM_ABSCALLBACK
+
+	void Capture()
+	{
+#define XM_ABSCALLBACK(name, ret, params) this->name = gal::name;
+#include "AbstractionCallbacks.inl"
+#undef XM_ABSCALLBACK
+	}
+};
+
+CapturedGALFunctions mainThreadAssertsInnerFunctions;
+
+void InstallGraphicsAPIMainThreadAsserts()
+{
+	mainThreadAssertsInnerFunctions.Capture();
+#define XM_ABSCALLBACK(name, ret, params)                                                                              \
+	gal::name = []<typename... A>(A... args) -> ret                                                                    \
+	{                                                                                                                  \
+		if (!IsMainThread())                                                                                           \
+		{                                                                                                              \
+			EG_PANIC("Graphics function " #name " called on a background thread");                                     \
+		}                                                                                                              \
+		return mainThreadAssertsInnerFunctions.name(args...);                                                          \
+	};
+
+#include "AbstractionCallbacks.inl"
+#undef XM_ABSCALLBACK
+
+	// These functions are ok so ignore
+	gal::CreateGraphicsPipeline = mainThreadAssertsInnerFunctions.CreateGraphicsPipeline;
+	gal::CreateComputePipeline = mainThreadAssertsInnerFunctions.CreateComputePipeline;
+	gal::CreateShaderModule = mainThreadAssertsInnerFunctions.CreateShaderModule;
+	gal::CreateDescriptorSetP = mainThreadAssertsInnerFunctions.CreateDescriptorSetP;
+	gal::CreateDescriptorSetB = mainThreadAssertsInnerFunctions.CreateDescriptorSetB;
+	gal::BindSamplerDS = mainThreadAssertsInnerFunctions.BindSamplerDS;
+	gal::BindTextureDS = mainThreadAssertsInnerFunctions.BindTextureDS;
+	gal::BindStorageImageDS = mainThreadAssertsInnerFunctions.BindStorageImageDS;
+	gal::BindUniformBufferDS = mainThreadAssertsInnerFunctions.BindUniformBufferDS;
+	gal::BindStorageBufferDS = mainThreadAssertsInnerFunctions.BindStorageBufferDS;
+
+	gal::GetTextureView = mainThreadAssertsInnerFunctions.GetTextureView;
 }
 
 void DestroyGraphicsAPI()

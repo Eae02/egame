@@ -239,7 +239,7 @@ void Initialize(const InitializeArgs& args)
 	buttonEventListener = new eg::EventListener<eg::ButtonEvent>;
 
 	scaleUniformBuffer =
-		eg::Buffer(eg::BufferFlags::UniformBuffer | eg::BufferFlags::CopyDst, sizeof(float) * 2, nullptr);
+		eg::Buffer(eg::BufferFlags::UniformBuffer | eg::BufferFlags::CopyDst, sizeof(float) * 4, nullptr);
 
 	commonDescriptorSet = eg::DescriptorSet(pipeline, 0);
 	commonDescriptorSet.BindUniformBuffer(scaleUniformBuffer, 0);

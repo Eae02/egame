@@ -1,5 +1,6 @@
 #include "Console.hpp"
 #include "Assert.hpp"
+#include "ConsoleCommands.hpp"
 #include "Core.hpp"
 #include "Graphics/SpriteBatch.hpp"
 #include "Graphics/SpriteFont.hpp"
@@ -517,6 +518,11 @@ void console::CompletionsList::Add(std::string_view completion)
 	{
 		m_completions->emplace_back(completion);
 	}
+}
+
+void console::SetAssetManagerForCommands(const AssetManager* assetManager)
+{
+	detail::commandsAssetManager = assetManager;
 }
 
 using TweakVarValue = std::variant<float, int, std::string>;

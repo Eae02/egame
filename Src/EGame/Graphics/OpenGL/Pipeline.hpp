@@ -1,5 +1,6 @@
 #pragma once
 
+#include "EGame/MainThreadInvoke.hpp"
 #include "OpenGL.hpp"
 #include "ShaderModule.hpp"
 #include "Utils.hpp"
@@ -52,8 +53,7 @@ struct PipelineDescriptorSet
 struct AbstractPipeline
 {
 	bool isGraphicsPipeline = false;
-	GLuint program;
-	std::vector<PushConstantMember> pushConstants;
+	MainThreadInvokableUnsyncronized<GLuint> program;
 	uint32_t numUniformBuffers = 0;
 	uint32_t numTextures = 0;
 	std::vector<MappedBinding> bindings;
@@ -65,20 +65,20 @@ struct AbstractPipeline
 	std::span<const uint32_t> ResolveBindingMulti(uint32_t set, uint32_t binding) const;
 	std::optional<uint32_t> ResolveBindingSingle(uint32_t set, uint32_t binding) const;
 
-	void Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages);
+	void Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, ShaderStage>> stageCompilers, const char* label);
 
 	virtual void Free() = 0;
 
 	virtual void Bind() = 0;
 };
 
-extern const AbstractPipeline* currentPipeline;
+extern AbstractPipeline* currentPipeline;
 
 void MarkBindingAsSatisfied(size_t resolvedBindingIndex);
 void AssertAllBindingsSatisfied();
 
 void CompileShaderStage(GLuint shader, std::string_view glslCode);
-void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeStages);
+void LinkShaderProgram(GLuint program);
 
 std::span<const uint32_t> ResolveBindingMulti(uint32_t set, uint32_t binding);
 uint32_t ResolveBindingSingle(uint32_t set, uint32_t binding);

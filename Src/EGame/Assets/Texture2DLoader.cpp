@@ -1,5 +1,7 @@
 #include "Texture2DLoader.hpp"
 #include "../Graphics/AbstractionHL.hpp"
+#include "../Graphics/GraphicsLoadContext.hpp"
+#include "../Graphics/TextureUpload.hpp"
 #include "AssetLoad.hpp"
 
 namespace eg
@@ -41,36 +43,23 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 		}
 	}
 
-	Texture* texture;
+	Texture* texture = &loadContext.CreateResult<Texture>();
 
 	TextureCreateInfo createInfo;
-	createInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample;
+	createInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample | TextureFlags::ManualBarrier;
 	createInfo.width = header.width >> mipShift;
 	createInfo.height = header.height >> mipShift;
 	createInfo.format = header.format;
 	createInfo.arrayLayers = header.numLayers;
 	createInfo.mipLevels = header.numMipLevels - mipShift;
-
-	AssertFormatSupport(createInfo.format, eg::FormatCapabilities::SampledImage);
-
-	if (header.flags & TF_CubeMap)
-	{
-		texture = &loadContext.CreateResult<Texture>(Texture::CreateCube(createInfo));
-	}
-	else if (header.flags & TF_3D)
+	if (header.flags & TF_3D)
 	{
 		createInfo.arrayLayers = 1;
 		createInfo.depth = header.numLayers;
-		texture = &loadContext.CreateResult<Texture>(Texture::Create3D(createInfo));
 	}
-	else if (header.flags & TF_ArrayTexture)
-	{
-		texture = &loadContext.CreateResult<Texture>(Texture::Create2DArray(createInfo));
-	}
-	else
-	{
-		texture = &loadContext.CreateResult<Texture>(Texture::Create2D(createInfo));
-	}
+
+	//	TODO: Do this but with results gathered beforehand
+	//	AssertFormatSupport(createInfo.format, eg::FormatCapabilities::SampledImage);
 
 	size_t bytesPerLayer = 0;
 	for (uint32_t i = 0; i < header.numMipLevels; i++)
@@ -81,6 +70,8 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 
 	const size_t uploadBufferSize = bytesPerLayer * header.numLayers;
 	EG_ASSERT(uploadBufferSize + sizeof(Texture2DHeader) <= loadContext.Data().size());
+
+	std::vector<TextureUploadBuffer> uploadBuffers;
 
 	uint64_t bufferOffset = sizeof(Texture2DHeader);
 	for (uint32_t i = 0; i < header.numLayers; i++)
@@ -102,14 +93,50 @@ bool Texture2DLoader(const AssetLoadContext& loadContext)
 					.mipLevel = mip - mipShift,
 				};
 
-				texture->SetData(loadContext.Data().subspan(bufferOffset, mipBytes), range);
+				auto mipData = loadContext.Data().subspan(bufferOffset, mipBytes);
+				uploadBuffers.emplace_back(mipData, range, createInfo.format, loadContext.GetGraphicsLoadContext());
 			}
 
 			bufferOffset += mipBytes;
 		}
 	}
 
-	texture->UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment);
+	loadContext.GetGraphicsLoadContext().OnGraphicsThread(
+		[uploadBuffers = std::move(uploadBuffers), texture, headerFlags = header.flags, createInfo](CommandContext& cc)
+		{
+			if (headerFlags & TF_CubeMap)
+			{
+				*texture = Texture::CreateCube(createInfo);
+			}
+			else if (headerFlags & TF_3D)
+			{
+				*texture = Texture::Create3D(createInfo);
+			}
+			else if (headerFlags & TF_ArrayTexture)
+			{
+				*texture = Texture::Create2DArray(createInfo);
+			}
+			else
+			{
+				*texture = Texture::Create2D(createInfo);
+			}
+
+			eg::TextureBarrier preUploadBarrier = {
+				.oldUsage = eg::TextureUsage::Undefined,
+				.newUsage = eg::TextureUsage::CopyDst,
+			};
+			cc.Barrier(*texture, preUploadBarrier);
+
+			for (const TextureUploadBuffer& uploadBuffer : uploadBuffers)
+				uploadBuffer.CopyToTexture(cc, *texture);
+
+			eg::TextureBarrier postBarrier = {
+				.oldUsage = eg::TextureUsage::CopyDst,
+				.newUsage = eg::TextureUsage::ShaderSample,
+				.newAccess = ShaderAccessFlags::Vertex | ShaderAccessFlags::Fragment,
+			};
+			cc.Barrier(*texture, postBarrier);
+		});
 
 	return true;
 }

@@ -32,7 +32,7 @@
 #define EG_ASSERT(condition)                                                                                           \
 	if (!(condition))                                                                                                  \
 	{                                                                                                                  \
-		::eg::detail::PanicImpl("A@" __FILE__ ":" EG_MACRO_ITOS(__LINE__) " " #condition);                             \
+		::eg::detail::PanicImpl("EG_ASSERT " __FILE__ ":" EG_MACRO_ITOS(__LINE__) " " #condition);                     \
 	}
 #define EG_PANIC(msg)                                                                                                  \
 	{                                                                                                                  \
@@ -42,7 +42,7 @@
 	}
 
 #ifdef NDEBUG
-#define EG_DEBUG_ASSERT(condition) condition
+#define EG_DEBUG_ASSERT(condition) static_cast<void>(condition)
 #else
 #define EG_DEBUG_ASSERT(condition) EG_ASSERT(condition)
 #endif

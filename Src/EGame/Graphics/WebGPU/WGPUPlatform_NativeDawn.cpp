@@ -11,8 +11,6 @@ namespace eg::graphics_api::webgpu
 
 static DynamicLibrary dawnLibrary;
 
-bool platformIsLoadingComplete = true;
-
 WGPUInstance PlatformInit(const GraphicsAPIInitArguments& initArguments)
 {
 	std::string dawnLibraryName = DynamicLibrary::PlatformFormat("webgpu_dawn");
@@ -26,12 +24,17 @@ WGPUInstance PlatformInit(const GraphicsAPIInitArguments& initArguments)
 
 #define XM_WGPU_FUNC(F) wgpu##F = reinterpret_cast<WGPUProc##F>(dawnLibrary.GetSymbol("wgpu" #F));
 #include "WGPUNativeFunctions.inl"
-XM_WGPU_FUNC(InstanceWaitAny)
+	XM_WGPU_FUNC(InstanceWaitAny)
 #undef XM_WGPU_FUNC
 
 	WGPUInstanceDescriptor instanceDesc = {};
 	instanceDesc.features.timedWaitAnyEnable = true;
 	return wgpuCreateInstance(&instanceDesc);
+}
+
+bool IsMaybeAvailable()
+{
+	return true;
 }
 } // namespace eg::graphics_api::webgpu
 

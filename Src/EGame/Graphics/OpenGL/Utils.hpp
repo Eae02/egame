@@ -5,6 +5,7 @@
 #include "GL.hpp"
 
 #include <optional>
+#include <thread>
 #include <vector>
 
 namespace eg::graphics_api::gl
@@ -43,6 +44,12 @@ enum class GLVendor
 
 extern std::string rendererName;
 extern GLVendor glVendor;
+extern std::thread::id glThreadID;
+
+inline bool IsOnGLThread()
+{
+	return std::this_thread::get_id() == glThreadID;
+}
 
 #ifdef EG_GLES
 constexpr bool useGLESPath = true;

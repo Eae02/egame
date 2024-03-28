@@ -13,10 +13,12 @@ enum class GraphicsAPI
 	Metal,
 	WebGPU,
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
 	Preferred = Metal,
+#elif defined(__EMSCRIPTEN__)
+	Preferred = WebGPU,
 #else
-	Preferred = OpenGL
+	Preferred = Vulkan,
 #endif
 };
 

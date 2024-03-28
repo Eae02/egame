@@ -129,6 +129,8 @@ std::tuple<VkDescriptorSet, VkDescriptorPool> CachedDescriptorSetLayout::Allocat
 		EG_PANIC("Attempted to create a descriptor set for a set with dynamic bind mode.");
 	}
 
+	std::lock_guard<std::mutex> lock(m_mutex);
+
 	VkDescriptorSetAllocateInfo allocateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
 	allocateInfo.descriptorSetCount = 1;
 	allocateInfo.pSetLayouts = &m_layout;

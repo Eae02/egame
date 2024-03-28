@@ -4,6 +4,7 @@
 #include "WGPUSurface.hpp"
 
 #include <emscripten.h>
+#include <emscripten/html5.h>
 
 namespace eg::graphics_api::webgpu
 {
@@ -11,7 +12,7 @@ WGPUSurface CreateSurface(WGPUInstance instance, SDL_Window* window)
 {
 	WGPUSurfaceDescriptorFromCanvasHTMLSelector surfaceDescriptorCanvas = {
 		.chain = { .sType = WGPUSType_SurfaceDescriptorFromCanvasHTMLSelector },
-		.selector = "canvas",
+		.selector = "#canvas",
 	};
 
 	WGPUSurfaceDescriptor surfaceDesc = {
@@ -24,7 +25,7 @@ WGPUSurface CreateSurface(WGPUInstance instance, SDL_Window* window)
 std::pair<uint32_t, uint32_t> GetWindowDrawableSize(SDL_Window* window)
 {
 	int width, height;
-	emscripten_get_screen_size(&width, &height);
+	emscripten_get_canvas_element_size("#canvas", &width, &height);
 	return { ToUnsigned(width), ToUnsigned(height) };
 }
 } // namespace eg::graphics_api::webgpu

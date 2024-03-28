@@ -123,6 +123,7 @@ bool ModelAssetLoader(const AssetLoadContext& loadContext)
 		.vertexFormat = *format,
 		.materialNames = std::move(materialNames),
 		.animations = std::move(animations),
+		.graphicsLoadContext = &loadContext.GetGraphicsLoadContext(),
 	};
 
 	Model& model = loadContext.CreateResult<Model>(std::move(modelCreateArgs));

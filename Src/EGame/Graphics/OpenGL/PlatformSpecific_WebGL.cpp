@@ -53,7 +53,10 @@ bool InitializeGLPlatformSpecific(
 	}
 
 	if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext))
+	{
+		std::cout << "eglMakeCurrent failed: " << std::hex << eglGetError() << std::endl;
 		return false;
+	}
 
 	requiredExtensions.push_back("GL_EXT_texture_filter_anisotropic");
 

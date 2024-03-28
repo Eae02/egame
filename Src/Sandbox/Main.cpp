@@ -16,14 +16,19 @@ struct Game : public eg::IGame
 {
 	Game()
 	{
-		if (!eg::LoadAssets("SandboxAssets", "/", eg::GetDefaultEnabledAssetSideStreams()))
+		eg::AssetLoaderRegistry loaderRegistry;
+		if (!m_assetManager.LoadAssets({
+				.path = "SandboxAssets",
+				.mountPath = "/",
+				.loaderRegistry = &loaderRegistry,
+			}))
 		{
 			EG_PANIC("Error loading assets");
 		}
 
 		m_pipeline = eg::Pipeline::Create(eg::GraphicsPipelineCreateInfo{
-			.vertexShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").ToStageInfo(),
-			.fragmentShader = eg::GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").ToStageInfo(),
+			.vertexShader = m_assetManager.GetAsset<eg::ShaderModuleAsset>("Main.vs.glsl").ToStageInfo(),
+			.fragmentShader = m_assetManager.GetAsset<eg::ShaderModuleAsset>("Main.fs.glsl").ToStageInfo(),
 			.numColorAttachments = 1,
 			.colorAttachmentFormats = { eg::Format::DefaultColor },
 			.depthAttachmentFormat = eg::Format::DefaultDepthStencil,
@@ -79,6 +84,8 @@ struct Game : public eg::IGame
 	eg::Pipeline m_pipeline;
 	eg::Buffer m_parametersBuffer;
 	eg::DescriptorSet m_descriptorSet;
+
+	eg::AssetManager m_assetManager;
 };
 
 #ifdef __EMSCRIPTEN__

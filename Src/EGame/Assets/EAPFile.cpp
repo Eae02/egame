@@ -162,15 +162,15 @@ void WriteEAPFile(std::span<const EAPAsset> assets, std::string_view path)
 	}
 }
 
-std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, LinearAllocator& allocator)
+std::optional<std::vector<EAPAsset>> ReadEAPFile(
+	std::span<const char> eapFileData, const OpenSideStreamFn& openSideStreamCallback, const ReadEAPFileArgs& args)
 {
-	if (args.eapFileData.size() < sizeof(EAPMagic) ||
-	    std::memcmp(args.eapFileData.data(), EAPMagic, sizeof(EAPMagic)) != 0)
+	if (eapFileData.size() < sizeof(EAPMagic) || std::memcmp(eapFileData.data(), EAPMagic, sizeof(EAPMagic)) != 0)
 	{
 		return std::nullopt;
 	}
 
-	MemoryReader reader(args.eapFileData.subspan(sizeof(EAPMagic)));
+	MemoryReader reader(eapFileData.subspan(sizeof(EAPMagic)));
 
 	const uint32_t numAssets = reader.Read<uint32_t>();
 	const uint32_t numLoaderNames = reader.Read<uint32_t>();
@@ -179,7 +179,7 @@ std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, Li
 	for (uint32_t i = 0; i < numLoaderNames; i++)
 	{
 		loaderNames[i] = reader.ReadString();
-		loaders[i] = FindAssetLoader(loaderNames[i]);
+		loaders[i] = args.loaderRegistry->FindLoader(loaderNames[i]);
 	}
 
 	const uint32_t numSideStreams = reader.Read<uint32_t>();
@@ -188,20 +188,10 @@ std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, Li
 	for (uint32_t i = 0; i < numSideStreams; i++)
 	{
 		std::string_view sideStreamName = reader.ReadString();
-		auto it = std::find_if(
-			args.sideStreamsData.begin(), args.sideStreamsData.end(),
-			[&](const SideStreamData& data) { return data.streamName == sideStreamName; });
 
 		sideStreamNames[i] = sideStreamName;
-
-		if (it != args.sideStreamsData.end())
-		{
-			sideStreams[i] = it->data;
-		}
-		else if (args.openSideStreamCallback.has_value())
-		{
-			sideStreams[i] = (*args.openSideStreamCallback)(sideStreamName);
-		}
+		if (openSideStreamCallback != nullptr)
+			sideStreams[i] = openSideStreamCallback(sideStreamName);
 	}
 
 	std::vector<EAPAsset> assets(numAssets);
@@ -226,7 +216,7 @@ std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, Li
 				continue;
 
 			std::optional<AssetDataSection> sideDataSection =
-				ReadAssetDataSection(sideStreams[j].subspan(sideStreamDataOffset), allocator);
+				ReadAssetDataSection(sideStreams[j].subspan(sideStreamDataOffset), *args.allocator);
 			if (!sideDataSection.has_value())
 				return std::nullopt;
 
@@ -238,7 +228,7 @@ std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, Li
 		}
 
 		std::optional<AssetDataSection> dataSection =
-			ReadAssetDataSection(reader.data.subspan(reader.dataOffset), allocator);
+			ReadAssetDataSection(reader.data.subspan(reader.dataOffset), *args.allocator);
 		if (!dataSection.has_value())
 			return std::nullopt;
 
@@ -253,20 +243,16 @@ std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, Li
 }
 
 std::optional<ReadEAPFileFromFileSystemResult> ReadEAPFileFromFileSystem(
-	const std::string& path, const std::function<bool(std::string_view)>& shouldLoadSideStreamCallback,
-	LinearAllocator& allocator)
+	const std::string& path, const ShouldLoadSideStreamFn& shouldLoadSideStreamCallback, const ReadEAPFileArgs& args)
 {
 	std::optional<MemoryMappedFile> eapFile = MemoryMappedFile::OpenRead(path.c_str());
 	if (!eapFile.has_value())
 		return std::nullopt;
 
-	ReadEAPFileArgs readArgs;
-	readArgs.eapFileData = eapFile->data;
-
 	std::vector<MemoryMappedFile> mappedFiles;
 	mappedFiles.push_back(std::move(*eapFile));
 
-	readArgs.openSideStreamCallback = [&](std::string_view sideStreamName) -> std::span<const char>
+	OpenSideStreamFn openSideStreamCallback = [&](std::string_view sideStreamName) -> std::span<const char>
 	{
 		if (!shouldLoadSideStreamCallback(sideStreamName))
 			return {};
@@ -279,7 +265,7 @@ std::optional<ReadEAPFileFromFileSystemResult> ReadEAPFileFromFileSystem(
 		return data;
 	};
 
-	auto result = ReadEAPFile(readArgs, allocator);
+	auto result = ReadEAPFile(eapFile->data, openSideStreamCallback, args);
 	if (!result.has_value())
 		return std::nullopt;
 

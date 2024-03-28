@@ -1,4 +1,5 @@
 #include "AssetLoad.hpp"
+#include "../Graphics/GraphicsLoadContext.hpp"
 #include "../Graphics/Particles/ParticleEmitterType.hpp"
 #include "../Log.hpp"
 #include "../Platform/FileSystem.hpp"
@@ -12,17 +13,42 @@
 
 namespace eg
 {
-static std::vector<AssetLoader> assetLoaders;
-
-static bool AssetLoaderLess(const AssetLoader& a, std::string_view b)
+AssetLoaderRegistry::AssetLoaderRegistry()
 {
-	return a.name < b;
+	AddLoader("Shader", &ShaderModuleAsset::AssetLoader, ShaderModuleAsset::AssetFormat);
+	AddLoader("Texture2D", &Texture2DLoader, Texture2DAssetFormat);
+	AddLoader("Model", &ModelAssetLoader, ModelAssetFormat);
+	AddLoader("ParticleEmitter", &ParticleEmitterType::AssetLoader, ParticleEmitterType::AssetFormat);
+	AddLoader("SpriteFont", &SpriteFontLoader, SpriteFontAssetFormat);
+	AddLoader("AudioClip", &AudioClipAssetLoader, AudioClipAssetFormat);
+
+	AddLoader(
+		"String",
+		[](const AssetLoadContext& loadContext)
+		{
+			loadContext.CreateResult<std::string>(loadContext.Data().data(), loadContext.Data().size());
+			return true;
+		});
+
+	SetLoaderAndGeneratorForFileExtension("glsl", { .loader = "Shader", .generator = "Shader" });
+	SetLoaderAndGeneratorForFileExtension("png", { .loader = "Texture2D", .generator = "Texture2D" });
+	SetLoaderAndGeneratorForFileExtension("obj", { .loader = "Model", .generator = "OBJModel" });
+	SetLoaderAndGeneratorForFileExtension("gltf", { .loader = "Model", .generator = "GLTFModel" });
+	SetLoaderAndGeneratorForFileExtension("glb", { .loader = "Model", .generator = "GLTFModel" });
+	SetLoaderAndGeneratorForFileExtension("ype", { .loader = "ParticleEmitter", .generator = "ParticleEmitter" });
+	SetLoaderAndGeneratorForFileExtension("ttf", { .loader = "SpriteFont", .generator = "Font" });
+	SetLoaderAndGeneratorForFileExtension("ogg", { .loader = "AudioClip", .generator = "OGGVorbis" });
 }
 
-void RegisterAssetLoader(std::string name, AssetLoaderCallback loader, const AssetFormat& format)
+struct AssetLoaderStringCompare
 {
-	auto it = std::lower_bound(assetLoaders.begin(), assetLoaders.end(), name, &AssetLoaderLess);
-	if (it != assetLoaders.end() && it->name == name)
+	bool operator()(const AssetLoader& a, std::string_view b) const { return a.name < b; }
+};
+
+void AssetLoaderRegistry::AddLoader(std::string name, AssetLoaderCallback loader, const AssetFormat& format)
+{
+	auto it = std::lower_bound(m_loaders.begin(), m_loaders.end(), name, AssetLoaderStringCompare());
+	if (it != m_loaders.end() && it->name == name)
 	{
 		Log(LogLevel::Warning, "as", "Re-registering asset loader '{0}'.", name);
 		it->format = &format;
@@ -30,16 +56,40 @@ void RegisterAssetLoader(std::string name, AssetLoaderCallback loader, const Ass
 	}
 	else
 	{
-		assetLoaders.insert(it, AssetLoader{ std::move(name), &format, std::move(loader) });
+		m_loaders.insert(it, AssetLoader{ std::move(name), &format, std::move(loader) });
 	}
 }
 
-const AssetLoader* FindAssetLoader(std::string_view loader)
+const AssetLoader* AssetLoaderRegistry::FindLoader(std::string_view loader) const
 {
-	auto it = std::lower_bound(assetLoaders.begin(), assetLoaders.end(), loader, &AssetLoaderLess);
-	if (it == assetLoaders.end() || it->name != loader)
+	auto it = std::lower_bound(m_loaders.begin(), m_loaders.end(), loader, AssetLoaderStringCompare());
+	if (it == m_loaders.end() || it->name != loader)
 		return nullptr;
 	return &*it;
+}
+
+void AssetLoaderRegistry::SetLoaderAndGeneratorForFileExtension(
+	std::string_view extension, LoaderGeneratorPair loaderAndGenerator)
+{
+	auto it = m_assetExtensions.find(extension);
+	if (it != m_assetExtensions.end())
+	{
+		it->second = loaderAndGenerator;
+		Log(LogLevel::Warning, "as", "Re-binding asset extension '{0}'", extension);
+	}
+	else
+	{
+		m_assetExtensions.emplace(extension, loaderAndGenerator);
+	}
+}
+
+std::optional<LoaderGeneratorPair> AssetLoaderRegistry::GetLoaderAndGeneratorForFileExtension(
+	std::string_view extension) const
+{
+	auto it = m_assetExtensions.find(extension);
+	if (it == m_assetExtensions.end())
+		return std::nullopt;
+	return it->second;
 }
 
 Asset* LoadAsset(const AssetLoader& loader, const AssetLoadArgs& loadArgs)
@@ -58,8 +108,13 @@ Asset* LoadAsset(const AssetLoader& loader, const AssetLoadArgs& loadArgs)
 
 AssetLoadContext::AssetLoadContext(const AssetLoadArgs& loadArgs)
 	: m_asset(loadArgs.asset), m_assetPath(loadArgs.assetPath), m_dirPath(ParentPath(loadArgs.assetPath, true)),
-	  m_data(loadArgs.generatedData), m_sideStreamsData(loadArgs.sideStreamsData)
+	  m_data(loadArgs.generatedData), m_sideStreamsData(loadArgs.sideStreamsData), m_allocator(loadArgs.allocator),
+	  m_graphicsLoadContext(loadArgs.graphicsLoadContext)
 {
+	if (m_graphicsLoadContext == nullptr)
+		m_graphicsLoadContext = &eg::GraphicsLoadContext::Direct;
+
+	EG_ASSERT(m_allocator != nullptr);
 }
 
 std::optional<std::span<const char>> AssetLoadContext::FindSideStreamData(std::string_view streamName) const
@@ -70,24 +125,6 @@ std::optional<std::span<const char>> AssetLoadContext::FindSideStreamData(std::s
 	if (it == m_sideStreamsData.end())
 		return std::nullopt;
 	return it->data;
-}
-
-void detail::RegisterAssetLoaders()
-{
-	RegisterAssetLoader("Shader", &ShaderModuleAsset::AssetLoader, ShaderModuleAsset::AssetFormat);
-	RegisterAssetLoader("Texture2D", &Texture2DLoader, Texture2DAssetFormat);
-	RegisterAssetLoader("Model", &ModelAssetLoader, ModelAssetFormat);
-	RegisterAssetLoader("ParticleEmitter", &ParticleEmitterType::AssetLoader, ParticleEmitterType::AssetFormat);
-	RegisterAssetLoader("SpriteFont", &SpriteFontLoader, SpriteFontAssetFormat);
-	RegisterAssetLoader("AudioClip", &AudioClipAssetLoader, AudioClipAssetFormat);
-
-	RegisterAssetLoader(
-		"String",
-		[](const AssetLoadContext& loadContext)
-		{
-			loadContext.CreateResult<std::string>(loadContext.Data().data(), loadContext.Data().size());
-			return true;
-		});
 }
 
 static std::unordered_map<std::string, bool> shouldLoadAssetSideStream;

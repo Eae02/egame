@@ -61,7 +61,7 @@ std::optional<MemoryMappedFile> MemoryMappedFile::OpenRead(const char* path)
 
 	MemoryMappedFile file;
 	file.data = std::span<const char>(static_cast<char*>(fileData), fileSize);
-	file.handles = Handles { .fd = fd };
+	file.handles = Handles{ .fd = fd };
 	return file;
 }
 

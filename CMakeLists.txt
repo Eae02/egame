@@ -253,7 +253,7 @@ target_include_directories(EGame SYSTEM
 		${CMAKE_CURRENT_SOURCE_DIR}/Deps/inc/
 )
 
-if (EG_VUKLAN)
+if (EG_VULKAN)
 	target_compile_options(EGame PRIVATE -DEG_ENABLE_VULKAN)
 endif()
 

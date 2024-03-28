@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Alloc/LinearAllocator.hpp"
 #include "AbstractionHL.hpp"
 #include "IMaterial.hpp"
 #include "Model.hpp"

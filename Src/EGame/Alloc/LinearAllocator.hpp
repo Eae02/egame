@@ -34,6 +34,7 @@ public:
 	template <typename T>
 	inline T* AllocateArray(size_t len)
 	{
+		static_assert(std::is_trivially_destructible_v<T>);
 		return static_cast<T*>(Allocate(sizeof(T) * len, alignof(T)));
 	}
 
@@ -46,6 +47,7 @@ public:
 	template <typename T, typename... Args>
 	inline T* New(Args&&... args)
 	{
+		static_assert(std::is_trivially_destructible_v<T>);
 		T* memory = static_cast<T*>(Allocate(sizeof(T), alignof(T)));
 		new (memory) T(std::forward<Args>(args)...);
 		return memory;

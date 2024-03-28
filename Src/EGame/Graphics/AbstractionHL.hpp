@@ -1,8 +1,9 @@
 #pragma once
 
-#include "../Assets/Asset.hpp"
 #include "Abstraction.hpp"
 #include "SpirvCrossFwd.hpp"
+
+#include <memory>
 
 namespace eg
 {
@@ -315,7 +316,9 @@ public:
 		std::istream& stream, LoadFormat format, uint32_t mipLevels = 0,
 		class CommandContext* commandContext = nullptr);
 
-	void SetData(std::span<const char> packedData, const TextureRange& range, CommandContext* commandContext = nullptr);
+	void SetData(
+		std::span<const char> packedData, const TextureRange& range, class CommandContext* commandContext = nullptr,
+		const eg::TextureBarrier* barriers = nullptr);
 
 	static Texture Create2D(const TextureCreateInfo& createInfo)
 	{

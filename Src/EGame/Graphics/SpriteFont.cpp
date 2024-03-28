@@ -3,33 +3,39 @@
 #include "../../Assets/DevFont.png.h"
 #include "../Assert.hpp"
 #include "../Core.hpp"
+#include "../Graphics/GraphicsLoadContext.hpp"
 #include "../Log.hpp"
 #include "../Platform/FontConfig.hpp"
+#include "TextureUpload.hpp"
 
 #include <utf8.h>
 
 namespace eg
 {
-SpriteFont::SpriteFont(FontAtlas atlas) : FontAtlas(std::move(atlas))
+SpriteFont::SpriteFont(FontAtlas atlas, class GraphicsLoadContext& graphicsLoadContext) : FontAtlas(std::move(atlas))
 {
-	TextureCreateInfo texCreateInfo;
-	texCreateInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample;
-	texCreateInfo.width = AtlasWidth();
-	texCreateInfo.height = AtlasHeight();
-	texCreateInfo.mipLevels = 1;
-	texCreateInfo.format = Format::R8_UNorm;
-	m_texture = Texture::Create2D(texCreateInfo);
-
-	TextureRange textureRange = {
+	const TextureRange textureRange = {
 		.sizeX = AtlasWidth(),
 		.sizeY = AtlasHeight(),
 		.sizeZ = 1,
 	};
 
-	size_t imageBytes = AtlasWidth() * AtlasHeight();
-	m_texture.SetData({ reinterpret_cast<const char*>(AtlasData()), imageBytes }, textureRange);
+	std::span<const char> textureData(reinterpret_cast<const char*>(AtlasData()), AtlasWidth() * AtlasHeight());
+	TextureUploadBuffer uploadBuffer(textureData, textureRange, Format::R8_UNorm, graphicsLoadContext);
 
-	m_texture.UsageHint(TextureUsage::ShaderSample, ShaderAccessFlags::Fragment);
+	graphicsLoadContext.OnGraphicsThread(
+		[this, uploadBuffer](CommandContext& cc)
+		{
+			TextureCreateInfo texCreateInfo;
+			texCreateInfo.flags = TextureFlags::CopyDst | TextureFlags::ShaderSample | TextureFlags::ManualBarrier;
+			texCreateInfo.width = AtlasWidth();
+			texCreateInfo.height = AtlasHeight();
+			texCreateInfo.mipLevels = 1;
+			texCreateInfo.format = Format::R8_UNorm;
+			m_texture = Texture::Create2D(texCreateInfo);
+
+			uploadBuffer.CopyToTextureWithBarriers(cc, m_texture, TextureUsage::Undefined, TextureUsage::ShaderSample);
+		});
 
 	FreeAtlasData();
 }
@@ -60,7 +66,7 @@ void SpriteFont::LoadDevFont()
 				eg::Log(
 					eg::LogLevel::Info, "fnt", "Rendered dev font from '{0}' ({1}) at size {2}", devFontName, path,
 					devFontSize);
-				s_devFont = std::make_unique<SpriteFont>(std::move(*atlas));
+				s_devFont = std::make_unique<SpriteFont>(std::move(*atlas), eg::GraphicsLoadContext::Direct);
 				return;
 			}
 		}
@@ -70,7 +76,7 @@ void SpriteFont::LoadDevFont()
 			std::span<const char>(reinterpret_cast<const char*>(DevFont_fnt), DevFont_fnt_len),
 			std::span<const char>(reinterpret_cast<const char*>(DevFont_png), DevFont_png_len)))
 	{
-		s_devFont = std::make_unique<SpriteFont>(std::move(*atlas));
+		s_devFont = std::make_unique<SpriteFont>(std::move(*atlas), eg::GraphicsLoadContext::Direct);
 	}
 	else
 	{

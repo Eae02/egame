@@ -538,7 +538,7 @@ void main() {
 	glAttachShader(fixSrgbShader, vertexShader);
 	glAttachShader(fixSrgbShader, fragmentShader);
 
-	LinkShaderProgram(fixSrgbShader, {});
+	LinkShaderProgram(fixSrgbShader);
 }
 
 void SRGBEmulationEndFrame()

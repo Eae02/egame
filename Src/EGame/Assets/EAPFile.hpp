@@ -43,12 +43,14 @@ EG_API std::string GetEAPSideStreamPath(std::string_view eapPath, std::string_vi
 
 struct ReadEAPFileArgs
 {
-	std::span<const char> eapFileData;
-	std::span<const SideStreamData> sideStreamsData;
-	std::optional<std::function<std::span<const char>(std::string_view)>> openSideStreamCallback;
+	class LinearAllocator* allocator;
+	const class AssetLoaderRegistry* loaderRegistry;
 };
 
-EG_API std::optional<std::vector<EAPAsset>> ReadEAPFile(const ReadEAPFileArgs& args, class LinearAllocator& allocator);
+using OpenSideStreamFn = std::function<std::span<const char>(std::string_view)>;
+
+EG_API std::optional<std::vector<EAPAsset>> ReadEAPFile(
+	std::span<const char> eapFileData, const OpenSideStreamFn& openSideStreamCallback, const ReadEAPFileArgs& args);
 
 struct ReadEAPFileFromFileSystemResult
 {
@@ -58,7 +60,8 @@ struct ReadEAPFileFromFileSystemResult
 	std::vector<MemoryMappedFile> mappedFiles;
 };
 
+using ShouldLoadSideStreamFn = std::function<bool(std::string_view)>;
+
 EG_API std::optional<ReadEAPFileFromFileSystemResult> ReadEAPFileFromFileSystem(
-	const std::string& path, const std::function<bool(std::string_view)>& shouldLoadSideStreamCallback,
-	class LinearAllocator& allocator);
+	const std::string& path, const ShouldLoadSideStreamFn& shouldLoadSideStreamCallback, const ReadEAPFileArgs& args);
 } // namespace eg

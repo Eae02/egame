@@ -41,7 +41,7 @@ Fence* Fence::CreateAndInsert()
 {
 	if (wgpuInstanceWaitAny == nullptr)
 		return nullptr;
-	
+
 	Fence* fence = new Fence;
 	fence->refCount = 2;
 	fence->workDoneStatus = WGPUQueueWorkDoneStatus_Force32;

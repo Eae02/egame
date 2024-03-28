@@ -4,8 +4,10 @@
 #include "../Core.hpp"
 #include "../Hash.hpp"
 #include "../IOUtils.hpp"
+#include "GraphicsLoadContext.hpp"
 #include "ImageLoader.hpp"
 #include "SpirvCrossUtils.hpp"
+#include "TextureUpload.hpp"
 
 #include <fstream>
 #include <mutex>
@@ -99,9 +101,6 @@ Texture Texture::Load(std::istream& stream, LoadFormat format, uint32_t mipLevel
 	if (!stream)
 		return Texture();
 
-	if (commandContext == nullptr)
-		commandContext = &DC;
-
 	ImageLoader loader(stream);
 
 	TextureCreateInfo createInfo;
@@ -130,71 +129,39 @@ Texture Texture::Load(std::istream& stream, LoadFormat format, uint32_t mipLevel
 	return texture;
 }
 
-void Texture::SetData(std::span<const char> packedData, const TextureRange& range, CommandContext* commandContext)
+void Texture::SetData(
+	std::span<const char> packedData, const TextureRange& range, CommandContext* commandContext,
+	const eg::TextureBarrier* barriers)
 {
-	const uint32_t blockSize = GetFormatBlockWidth(m_format);
-	EG_ASSERT((range.offsetX % blockSize) == 0);
-	EG_ASSERT((range.offsetY % blockSize) == 0);
+	if (commandContext == nullptr)
+		commandContext = &DC;
 
-	const uint32_t sizeXBlocks = (range.sizeX + blockSize - 1) / blockSize;
-	const uint32_t sizeYBlocks = (range.sizeY + blockSize - 1) / blockSize;
+	GraphicsLoadContext graphicsLoadContext = GraphicsLoadContext::CreateWrapping(*commandContext, std::nullopt);
+	TextureUploadBuffer uploadBuffer(packedData, range, m_format, graphicsLoadContext);
 
-	const uint32_t bytesPerBlock = GetFormatBytesPerBlock(m_format);
-
-	const uint32_t packedBytesPerRow = sizeXBlocks * bytesPerBlock;
-	const uint32_t packedBytesPerLayer = sizeXBlocks * sizeYBlocks * bytesPerBlock;
-
-	EG_ASSERT(packedData.size() >= range.sizeZ * packedBytesPerLayer);
-
-	const uint32_t strideAlignment = GetGraphicsDeviceInfo().textureBufferCopyStrideAlignment;
-	const uint32_t bytesPerRow = RoundToNextMultiple(packedBytesPerRow, std::lcm(strideAlignment, bytesPerBlock));
-	const uint32_t bytesPerLayer = bytesPerRow * range.sizeY;
-
-	Buffer dedicatedBuffer;
-
-	const uint32_t bufferSize = bytesPerLayer * range.sizeZ;
-
-	UploadBuffer uploadBuffer;
-	if (commandContext == nullptr && bufferSize < 4 * 1024)
+	if (barriers != nullptr)
 	{
-		uploadBuffer = GetTemporaryUploadBuffer(bufferSize);
-	}
-	else
-	{
-		dedicatedBuffer =
-			Buffer(BufferFlags::CopySrc | BufferFlags::MapWrite | eg::BufferFlags::ManualBarrier, bufferSize, nullptr);
-		uploadBuffer.buffer = dedicatedBuffer;
-		uploadBuffer.offset = 0;
-		uploadBuffer.range = bufferSize;
+		TextureBarrier barrierBeforeCopy = {
+			.oldUsage = barriers->oldUsage,
+			.newUsage = TextureUsage::CopyDst,
+			.oldAccess = barriers->oldAccess,
+			.subresource = barriers->subresource,
+		};
+		commandContext->Barrier(*this, barrierBeforeCopy);
 	}
 
-	char* uploadBufferMem = static_cast<char*>(uploadBuffer.Map());
-	if (packedBytesPerRow == bytesPerRow && packedBytesPerLayer == bytesPerLayer)
-	{
-		std::memcpy(uploadBufferMem, packedData.data(), range.sizeZ * packedBytesPerLayer);
-	}
-	else
-	{
-		for (uint32_t z = 0; z < range.sizeZ; z++)
-		{
-			for (uint32_t y = 0; y < sizeYBlocks; y++)
-			{
-				const uint32_t inputOffset = packedBytesPerRow * y + packedBytesPerLayer * z;
-				const uint32_t outputOffset = bytesPerRow * y + bytesPerLayer * z;
-				std::memcpy(uploadBufferMem + outputOffset, packedData.data() + inputOffset, packedBytesPerRow);
-			}
-		}
-	}
+	uploadBuffer.CopyToTexture(*commandContext, *this);
 
-	uploadBuffer.Flush();
-
-	(commandContext ? commandContext : &DC)
-		->CopyBufferToTexture(
-			*this, range, uploadBuffer.buffer,
-			TextureBufferCopyLayout{
-				.offset = static_cast<uint32_t>(uploadBuffer.offset),
-				.rowByteStride = bytesPerRow,
-			});
+	if (barriers != nullptr)
+	{
+		TextureBarrier barrierAfterCopy = {
+			.oldUsage = TextureUsage::CopyDst,
+			.newUsage = barriers->newUsage,
+			.newAccess = barriers->newAccess,
+			.subresource = barriers->subresource,
+		};
+		commandContext->Barrier(*this, barrierAfterCopy);
+	}
 }
 
 void TextureRef::UsageHint(TextureUsage usage, ShaderAccessFlags shaderAccessFlags)

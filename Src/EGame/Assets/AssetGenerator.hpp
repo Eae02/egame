@@ -103,12 +103,11 @@ EG_API std::optional<GeneratedAsset> GenerateAsset(
 	std::string_view currentDir, std::string_view generator, std::string_view assetName, const YAML::Node& node,
 	const YAML::Node& rootNode);
 
-EG_API void RegisterAssetGeneratorInstance(
-	std::string name, const AssetFormat& format, std::unique_ptr<AssetGenerator> generator);
+EG_API void RegisterAssetGeneratorInstance(std::string name, const AssetFormat& format, AssetGenerator* generator);
 
 template <typename T, typename... A>
 void RegisterAssetGenerator(std::string name, const AssetFormat& format, A&&... args)
 {
-	RegisterAssetGeneratorInstance(std::move(name), format, std::make_unique<T>(std::forward<A>(args)...));
+	RegisterAssetGeneratorInstance(std::move(name), format, new T(std::forward<A>(args)...));
 }
 } // namespace eg

@@ -1,15 +1,17 @@
 #include "ConsoleCommands.hpp"
+#include "Assets/AssetManager.hpp"
 #include "Console.hpp"
 #include "Core.hpp"
 #include "EGame/Graphics/Abstraction.hpp"
 #include "Graphics/Model.hpp"
-#include "Platform/Debug.hpp"
 #include "Profiling/ProfilerPane.hpp"
 
 #include <iomanip>
 
 namespace eg::detail
 {
+const AssetManager* commandsAssetManager;
+
 void RegisterConsoleCommands()
 {
 	console::AddCommand(
@@ -45,7 +47,10 @@ void RegisterConsoleCommands()
 		"modelInfo", 1,
 		[&](std::span<const std::string_view> args, console::Writer& writer)
 		{
-			const Model* model = eg::FindAsset<Model>(args[0]);
+			if (commandsAssetManager == nullptr)
+				return;
+
+			const Model* model = commandsAssetManager->FindAsset<Model>(args[0]);
 			if (model == nullptr)
 			{
 				writer.Write(console::ErrorColor, "The model ");
@@ -142,8 +147,15 @@ void RegisterConsoleCommands()
 		"modelInfo", 0,
 		[](std::span<const std::string_view> args, eg::console::CompletionsList& list)
 		{
-			std::type_index typeIndex(typeid(Model));
-			AssetCommandCompletionProvider(list, &typeIndex);
+			if (commandsAssetManager != nullptr)
+			{
+				commandsAssetManager->IterateAssets(
+					[&](const Asset& asset)
+					{
+						if (asset.IsOfType<Model>())
+							list.Add(asset.fullName);
+					});
+			}
 		});
 
 	console::AddCommand(

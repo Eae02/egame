@@ -4,6 +4,8 @@
 #include "../DescriptorSetLayoutCache.hpp"
 #include "Common.hpp"
 
+#include <mutex>
+
 namespace eg::graphics_api::vk
 {
 class CachedDescriptorSetLayout : public ICachedDescriptorSetLayout
@@ -30,6 +32,8 @@ public:
 
 private:
 	static DescriptorSetLayoutCache descriptorSetLayoutCache;
+
+	std::mutex m_mutex;
 
 	VkDescriptorSetLayout m_layout;
 	bool m_dynamicBind;

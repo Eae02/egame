@@ -4,6 +4,7 @@
 #include "Abstraction.hpp"
 
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 
 namespace eg
@@ -38,7 +39,7 @@ public:
 	ICachedDescriptorSetLayout& Get(std::span<const DescriptorSetBinding> bindings, bool dynamicBind);
 
 	bool IsEmpty() const { return m_layouts.empty(); }
-	void Clear() { m_layouts.clear(); }
+	void Clear();
 
 private:
 	struct DSLKey
@@ -53,6 +54,8 @@ private:
 
 		void CreateOwnedCopyOfBindings();
 	};
+
+	std::mutex m_mutex;
 
 	std::unordered_map<DSLKey, std::unique_ptr<ICachedDescriptorSetLayout>, MemberFunctionHash<DSLKey>> m_layouts;
 };

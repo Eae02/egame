@@ -30,13 +30,13 @@ enum class RunFlags
 {
 	None = 0,
 	DevMode = 1,
-	CreateAssetPackage = 2,
+	CreateAssetPackage = 2, // TODO: Remove
 	DefaultFramebufferSRGB = 4,
 	VSync = 8,
 	ForceDepthZeroToOne = 16,
 	PreferIntegratedGPU = 32,
 	PreferGLESPath = 64,
-	AssetPackageFast = 128,
+	AssetPackageFast = 128, // TODO: Remove
 };
 
 EG_BIT_FIELD(RunFlags)
@@ -118,8 +118,6 @@ inline int64_t NativeDisplayModeIndex()
 EG_API void SetDisplayModeFullscreen(const FullscreenDisplayMode& displayMode);
 EG_API void SetDisplayModeFullscreenDesktop();
 EG_API void SetDisplayModeWindowed();
-
-EG_API bool VulkanAppearsSupported();
 
 /**
  * Enables profiling if not already enabled.

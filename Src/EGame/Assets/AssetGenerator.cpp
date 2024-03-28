@@ -11,7 +11,7 @@ struct AssetGeneratorEntry
 {
 	std::string name;
 	AssetFormat format;
-	std::unique_ptr<AssetGenerator> generator;
+	AssetGenerator* generator;
 };
 
 static bool AssetGeneratorLess(const AssetGeneratorEntry& a, std::string_view b)
@@ -21,19 +21,19 @@ static bool AssetGeneratorLess(const AssetGeneratorEntry& a, std::string_view b)
 
 static std::vector<AssetGeneratorEntry> assetGenerators;
 
-void RegisterAssetGeneratorInstance(
-	std::string name, const AssetFormat& format, std::unique_ptr<AssetGenerator> generator)
+void RegisterAssetGeneratorInstance(std::string name, const AssetFormat& format, AssetGenerator* generator)
 {
 	auto it = std::lower_bound(assetGenerators.begin(), assetGenerators.end(), name, &AssetGeneratorLess);
 	if (it != assetGenerators.end() && it->name == name)
 	{
 		Log(LogLevel::Warning, "as", "Re-registering asset generator '{0}'.", name);
 		it->format = format;
-		it->generator = std::move(generator);
+		delete it->generator;
+		it->generator = generator;
 	}
 	else
 	{
-		assetGenerators.insert(it, AssetGeneratorEntry{ std::move(name), format, std::move(generator) });
+		assetGenerators.insert(it, AssetGeneratorEntry{ std::move(name), format, generator });
 	}
 }
 

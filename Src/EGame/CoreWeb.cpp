@@ -22,11 +22,30 @@ int detail::PlatformInit(const RunConfig& runConfig, bool _headless, std::functi
 	apiInitArguments.defaultFramebufferSRGB = HasFlag(runConfig.flags, RunFlags::DefaultFramebufferSRGB);
 	apiInitArguments.forceDepthZeroToOne = HasFlag(runConfig.flags, RunFlags::ForceDepthZeroToOne);
 	apiInitArguments.initDoneCallback = std::move(initCompleteCallback);
-	if (!InitializeGraphicsAPI(eg::GraphicsAPI::WebGPU, apiInitArguments))
-	{
-		return 1;
-	}
-	return 0;
+
+	bool tryWebGPU = EM_ASM_INT({ return !!navigator.gpu; });
+
+	void* urlParamsPtr = EM_ASM_PTR({ return stringToNewUTF8(window.location.search); });
+	std::string_view urlParams = static_cast<char*>(urlParamsPtr);
+	if (urlParams.starts_with("?"))
+		urlParams = urlParams.substr(1);
+	bool preferGL = false;
+	IterateStringParts(
+		urlParams, '&',
+		[&](std::string_view part)
+		{
+			if (part == "gl")
+				tryWebGPU = false;
+		});
+	free(urlParamsPtr);
+
+	if (tryWebGPU && InitializeGraphicsAPI(eg::GraphicsAPI::WebGPU, apiInitArguments))
+		return 0;
+
+	if (InitializeGraphicsAPI(eg::GraphicsAPI::OpenGL, apiInitArguments))
+		return 0;
+
+	return 1;
 }
 
 extern bool shouldClose;
@@ -226,16 +245,7 @@ void detail::PlatformRunGameLoop(std::unique_ptr<IGame> _game)
 			return EM_TRUE;
 		});
 
-#ifdef EG_ENABLE_WEBGPU
-	if (eg::CurrentGraphicsAPI() == eg::GraphicsAPI::WebGPU)
-	{
-		graphics_api::webgpu::StartWebMainLoop(WebMainLoopCallback);
-	}
-	else
-#endif
-	{
-		emscripten_set_main_loop(WebMainLoopCallback, 0, 0);
-	}
+	emscripten_set_main_loop(WebMainLoopCallback, 0, 0);
 }
 
 void detail::PlatformStartFrame()

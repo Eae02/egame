@@ -7,10 +7,10 @@
 #include "Graphics.hpp"
 #include "SpirvCrossFwd.hpp"
 
+#include <functional>
 #include <optional>
 #include <span>
 #include <tuple>
-#include <functional>
 #include <variant>
 
 struct SDL_Window;
@@ -57,12 +57,15 @@ enum class ShaderStage
 enum class ShaderAccessFlags
 {
 	None = 0,
+
 	Vertex = 1 << static_cast<int>(ShaderStage::Vertex),
 	Fragment = 1 << static_cast<int>(ShaderStage::Fragment),
 	Geometry = 1 << static_cast<int>(ShaderStage::Geometry),
 	TessControl = 1 << static_cast<int>(ShaderStage::TessControl),
 	TessEvaluation = 1 << static_cast<int>(ShaderStage::TessEvaluation),
 	Compute = 1 << static_cast<int>(ShaderStage::Compute),
+
+	All = Vertex | Fragment | Geometry | TessControl | TessEvaluation | Compute,
 };
 
 EG_BIT_FIELD(ShaderAccessFlags)
@@ -888,7 +891,11 @@ inline GraphicsAPI CurrentGraphicsAPI()
 	return detail::graphicsAPI;
 }
 
+EG_API bool IsGraphicsAPIMaybeAvailable(GraphicsAPI api);
+
 bool InitializeGraphicsAPI(GraphicsAPI api, const GraphicsAPIInitArguments& initArguments);
+
+void InstallGraphicsAPIMainThreadAsserts();
 
 void DestroyGraphicsAPI();
 

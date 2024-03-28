@@ -76,7 +76,12 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 
 	rendererName = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
 
+	glThreadID = std::this_thread::get_id();
+
 	Log(LogLevel::Info, "gl", "Using OpenGL renderer: '{0}', by vendor: '{1}'", rendererName, vendorName);
+
+	if (initArguments.initDoneCallback)
+		initArguments.initDoneCallback();
 
 	return true;
 }

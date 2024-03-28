@@ -367,7 +367,6 @@ bool Initialize(const GraphicsAPIInitArguments& initArguments)
 	{
 		if (optionalExtensionsSeen[i])
 		{
-			std::cerr << "Enable " << OPTIONAL_DEVICE_EXTENSIONS[i] << "\n";
 			enabledDeviceExtensions.push_back(OPTIONAL_DEVICE_EXTENSIONS[i]);
 		}
 	}

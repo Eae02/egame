@@ -1,7 +1,8 @@
+#include "Buffer.hpp"
 #include "../../Alloc/ObjectPool.hpp"
 #include "../../Assert.hpp"
+#include "../../MainThreadInvoke.hpp"
 #include "../Graphics.hpp"
-#include "Buffer.hpp"
 #include "Pipeline.hpp"
 #include "Translation.hpp"
 #include "VulkanCommandContext.hpp"
@@ -36,11 +37,13 @@ struct PendingInitBuffer
 	uint64_t destroyFrame;
 };
 
+static std::mutex pendingInitBuffersMutex;
 static std::vector<PendingInitBuffer> pendingInitBuffers;
 
 void ProcessPendingInitBuffers(bool destroyAll)
 {
-	for (int64_t i = pendingInitBuffers.size() - 1; i >= 0; i--)
+	std::lock_guard<std::mutex> lock(pendingInitBuffersMutex);
+	for (int64_t i = static_cast<int64_t>(pendingInitBuffers.size()) - 1; i >= 0; i--)
 	{
 		if (destroyAll || detail::frameIndex >= pendingInitBuffers[i].destroyFrame)
 		{
@@ -123,25 +126,14 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 		}
 		else
 		{
-			VkBufferMemoryBarrier barrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
-			barrier.buffer = buffer->buffer;
-			barrier.offset = 0;
-			barrier.size = VK_WHOLE_SIZE;
-			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-			VkCommandBuffer immediateCB = VulkanCommandContext::currentImmediate->cb;
-			vkCmdPipelineBarrier(
-				immediateCB, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, 0, 0, nullptr, 1, &barrier, 0,
-				nullptr);
-
 			buffer->currentStageFlags = VK_ACCESS_TRANSFER_WRITE_BIT;
 			buffer->currentUsage = eg::BufferUsage::CopyDst;
 
-			if (createInfo.size <= 65536)
+			if (createInfo.size <= 65536 && IsMainThread())
 			{
-				vkCmdUpdateBuffer(immediateCB, buffer->buffer, 0, createInfo.size, createInfo.initialData);
+				vkCmdUpdateBuffer(
+					VulkanCommandContext::currentImmediate->cb, buffer->buffer, 0, createInfo.size,
+					createInfo.initialData);
 			}
 			else
 			{
@@ -164,11 +156,20 @@ BufferHandle CreateBuffer(const BufferCreateInfo& createInfo)
 				std::memcpy(initAllocationInfo.pMappedData, createInfo.initialData, createInfo.size);
 				vmaFlushAllocation(ctx.allocator, initAllocation, 0, createInfo.size);
 
-				VkBufferCopy bufferCopyReg = { 0, 0, createInfo.size };
-				vkCmdCopyBuffer(immediateCB, initBuffer, buffer->buffer, 1, &bufferCopyReg);
+				buffer->refCount++;
 
-				pendingInitBuffers.push_back(
-					{ initBuffer, initAllocation, detail::frameIndex + MAX_CONCURRENT_FRAMES });
+				MainThreadInvoke(
+					[buffer, initBuffer, initAllocation]
+					{
+						buffer->UnRef();
+
+						VkBufferCopy bufferCopyReg = { 0, 0, buffer->size };
+						vkCmdCopyBuffer(
+							VulkanCommandContext::currentImmediate->cb, initBuffer, buffer->buffer, 1, &bufferCopyReg);
+
+						pendingInitBuffers.push_back(
+							{ initBuffer, initAllocation, detail::frameIndex + MAX_CONCURRENT_FRAMES });
+					});
 			}
 		}
 	}

@@ -1,12 +1,12 @@
-#include "Asset.hpp"
+#include "AssetManager.hpp"
 #include "../Compression.hpp"
-#include "../Console.hpp"
 #include "../IOUtils.hpp"
+#include "../Log.hpp"
 #include "../Platform/DynamicLibrary.hpp"
 #include "../Platform/FileSystem.hpp"
 #include "AssetGenerator.hpp"
-#include "AssetLoad.hpp"
 #include "EAPFile.hpp"
+#include "EGame/Assets/AssetLoad.hpp"
 #include "WebAssetDownload.hpp"
 #include "YAMLUtils.hpp"
 
@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <mutex>
 #include <regex>
 #include <span>
 #include <unordered_map>
@@ -23,31 +24,16 @@
 
 namespace eg
 {
-LinearAllocator detail::assetAllocator;
-
-bool detail::createAssetPackage;
-bool detail::disableAssetPackageCompression;
-
-struct AssetDirectory
-{
-	std::string_view name;
-	Asset* firstAsset = nullptr;
-	AssetDirectory* firstChildDir = nullptr;
-	AssetDirectory* nextSiblingDir = nullptr;
-};
-
-static AssetDirectory assetRootDir;
-
-static AssetDirectory* FindDirectory(AssetDirectory* current, std::string_view path, bool create)
+AssetDirectory* AssetDirectory::FindDirectory(std::string_view path, bool create, eg::LinearAllocator* allocator)
 {
 	if (path.empty())
-		return current;
+		return this;
 
 	size_t firstSlash = path.find('/');
 	if (firstSlash == 0)
 	{
 		// The path starts with a slash, so try again from the same directory with the slash removed
-		return FindDirectory(current, path.substr(1), create);
+		return FindDirectory(path.substr(1), create, allocator);
 	}
 
 	std::string_view entryName;
@@ -59,62 +45,24 @@ static AssetDirectory* FindDirectory(AssetDirectory* current, std::string_view p
 	std::string_view remPath = path.substr(std::min(entryName.size() + 1, path.size()));
 
 	// Searches for the next directory in the path
-	for (AssetDirectory* dir = current->firstChildDir; dir != nullptr; dir = dir->nextSiblingDir)
+	for (AssetDirectory* dir = firstChildDir; dir != nullptr; dir = dir->nextSiblingDir)
 	{
 		if (dir->name == entryName)
-			return FindDirectory(dir, remPath, create);
+			return dir->FindDirectory(remPath, create, allocator);
 	}
 
 	if (!create)
 		return nullptr;
+	EG_ASSERT(allocator != nullptr);
 
-	AssetDirectory* newDir = detail::assetAllocator.New<AssetDirectory>();
-
-	// Initializes the name of the new directory
-	char* nameBuffer = reinterpret_cast<char*>(detail::assetAllocator.Allocate(entryName.size()));
-	std::memcpy(nameBuffer, entryName.data(), entryName.size());
-	newDir->name = std::string_view(nameBuffer, entryName.size());
+	AssetDirectory* newDir = allocator->New<AssetDirectory>();
+	newDir->name = allocator->MakeStringCopy(entryName);
 
 	// Adds the new directory to the linked list
-	newDir->nextSiblingDir = current->firstChildDir;
-	current->firstChildDir = newDir;
+	newDir->nextSiblingDir = firstChildDir;
+	firstChildDir = newDir;
 
-	return FindDirectory(newDir, remPath, create);
-}
-
-struct BoundAssetExtension
-{
-	std::string_view loader;
-	std::string_view generator;
-};
-
-std::unordered_map<std::string_view, BoundAssetExtension> assetExtensions = {
-	{ "glsl", { .loader = "Shader", .generator = "Shader" } },
-	{ "png", { .loader = "Texture2D", .generator = "Texture2D" } },
-	{ "obj", { .loader = "Model", .generator = "OBJModel" } },
-	{ "gltf", { .loader = "Model", .generator = "GLTFModel" } },
-	{ "glb", { .loader = "Model", .generator = "GLTFModel" } },
-	{ "ype", { .loader = "ParticleEmitter", .generator = "ParticleEmitter" } },
-	{ "ttf", { .loader = "SpriteFont", .generator = "Font" } },
-	{ "ogg", { .loader = "AudioClip", .generator = "OGGVorbis" } },
-};
-
-void BindAssetExtension(std::string_view extension, std::string_view loader, std::string_view generator)
-{
-	BoundAssetExtension newEntry = {
-		.loader = detail::assetAllocator.MakeStringCopy(loader),
-		.generator = detail::assetAllocator.MakeStringCopy(generator),
-	};
-
-	if (assetExtensions.contains(extension))
-	{
-		assetExtensions[extension] = newEntry;
-		Log(LogLevel::Warning, "as", "Re-binding asset extension '{0}'", extension);
-	}
-	else
-	{
-		assetExtensions.emplace(detail::assetAllocator.MakeStringCopy(extension), newEntry);
-	}
+	return newDir->FindDirectory(remPath, create, allocator);
 }
 
 static const char cachedAssetMagic[] = { -2, 'E', 'A', 'C' };
@@ -232,11 +180,18 @@ struct AssetToLoad
 	const AssetLoader* loader = nullptr;
 };
 
+struct ProcessAssetArgs
+{
+	AssetDirectory* destinationDir;
+	const std::unordered_map<std::string_view, AssetToLoad*>* assetsToLoadByName;
+	std::vector<AssetToLoad*>* assetsToposortOut;
+	std::vector<Asset*>* allAssetsOut;
+	eg::LinearAllocator* allocator;
+	GraphicsLoadContext* graphicsLoadContext;
+};
+
 // Generates and loads an asset recursively so that all it's load-time dependencies are satisfied.
-static bool ProcessAsset(
-	AssetToLoad& assetToLoad, AssetDirectory& destinationDir,
-	const std::unordered_map<std::string_view, AssetToLoad*>& assetsToLoadByName,
-	std::vector<AssetToLoad*>* assetsToposortOut)
+static bool ProcessAsset(AssetToLoad& assetToLoad, const ProcessAssetArgs& processAssetArgs)
 {
 	switch (assetToLoad.state)
 	{
@@ -263,9 +218,9 @@ static bool ProcessAsset(
 			fullDepPathView = fullDepPath;
 		}
 		std::string fullDepPathCanonical = CanonicalPath(fullDepPathView);
-		auto it = assetsToLoadByName.find(fullDepPathCanonical);
+		auto it = processAssetArgs.assetsToLoadByName->find(fullDepPathCanonical);
 
-		if (it == assetsToLoadByName.end())
+		if (it == processAssetArgs.assetsToLoadByName->end())
 		{
 			eg::Log(
 				LogLevel::Warning, "as",
@@ -275,7 +230,7 @@ static bool ProcessAsset(
 			continue;
 		}
 
-		if (!ProcessAsset(*it->second, destinationDir, assetsToLoadByName, assetsToposortOut))
+		if (!ProcessAsset(*it->second, processAssetArgs))
 		{
 			eg::Log(
 				LogLevel::Warning, "as",
@@ -299,6 +254,8 @@ static bool ProcessAsset(
 		.assetPath = assetToLoad.name,
 		.generatedData = assetToLoad.generatedAsset.data,
 		.sideStreamsData = sideStreamsData,
+		.allocator = processAssetArgs.allocator,
+		.graphicsLoadContext = processAssetArgs.graphicsLoadContext,
 	};
 	Asset* asset = LoadAsset(*assetToLoad.loader, assetLoadArgs);
 	if (asset == nullptr)
@@ -308,15 +265,18 @@ static bool ProcessAsset(
 		return false;
 	}
 
-	if (assetsToposortOut != nullptr)
+	if (processAssetArgs.assetsToposortOut != nullptr)
 	{
-		assetsToposortOut->push_back(&assetToLoad);
+		processAssetArgs.assetsToposortOut->push_back(&assetToLoad);
 	}
 
-	asset->fullName = detail::assetAllocator.MakeStringCopy(assetToLoad.name);
+	processAssetArgs.allAssetsOut->push_back(asset);
+
+	asset->fullName = processAssetArgs.allocator->MakeStringCopy(assetToLoad.name);
 	asset->name = BaseName(asset->fullName);
 
-	AssetDirectory* directory = FindDirectory(&destinationDir, ParentPath(assetToLoad.name), true);
+	AssetDirectory* directory =
+		processAssetArgs.destinationDir->FindDirectory(ParentPath(assetToLoad.name), true, processAssetArgs.allocator);
 	asset->next = directory->firstAsset;
 	directory->firstAsset = asset;
 
@@ -343,7 +303,8 @@ static void FindAllFilesInDirectory(
 	}
 }
 
-std::optional<std::vector<YAMLAssetInfo>> DetectAndGenerateYAMLAssets(std::string_view path)
+std::optional<std::vector<YAMLAssetInfo>> DetectAndGenerateYAMLAssets(
+	std::string_view path, const AssetLoaderRegistry& loaderRegistry)
 {
 	std::string yamlPath = Concat({ path, "/Assets.yaml" });
 	std::ifstream yamlStream(yamlPath, std::ios::binary);
@@ -373,12 +334,13 @@ std::optional<std::vector<YAMLAssetInfo>> DetectAndGenerateYAMLAssets(std::strin
 		}
 		else
 		{
-			std::string_view extension = PathExtension(asset.name);
-			auto it = assetExtensions.find(extension);
-			if (it != assetExtensions.end())
+			std::optional<LoaderGeneratorPair> loaderAndGenerator =
+				loaderRegistry.GetLoaderAndGeneratorForFileExtension(PathExtension(asset.name));
+
+			if (loaderAndGenerator.has_value())
 			{
-				asset.loaderName = it->second.loader;
-				generatorName = it->second.generator;
+				asset.loaderName = loaderAndGenerator->loader;
+				generatorName = loaderAndGenerator->generator;
 			}
 			else
 			{
@@ -387,7 +349,7 @@ std::optional<std::vector<YAMLAssetInfo>> DetectAndGenerateYAMLAssets(std::strin
 			}
 		}
 
-		asset.loader = FindAssetLoader(asset.loaderName);
+		asset.loader = loaderRegistry.FindLoader(asset.loaderName);
 		if (asset.loader == nullptr)
 		{
 			asset.status = YAMLAssetStatus::ErrorLoaderNotFound;
@@ -469,12 +431,13 @@ std::optional<std::vector<YAMLAssetInfo>> DetectAndGenerateYAMLAssets(std::strin
 	return assetsToLoad;
 }
 
-static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
+bool AssetManager::LoadAssetsYAML(const LoadArgs& loadArgs)
 {
 #if defined(__EMSCRIPTEN__)
 	return false;
 #else
-	std::optional<std::vector<YAMLAssetInfo>> yamlAssets = DetectAndGenerateYAMLAssets(path);
+	std::optional<std::vector<YAMLAssetInfo>> yamlAssets =
+		DetectAndGenerateYAMLAssets(loadArgs.path, *loadArgs.loaderRegistry);
 	if (!yamlAssets.has_value())
 		return false;
 
@@ -511,16 +474,24 @@ static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 		assetsToLoadByName.emplace(asset.name, &asset);
 	}
 
-	AssetDirectory& mountDir = *FindDirectory(&assetRootDir, mountPath, true);
+	AssetDirectory& mountDir = *m_rootDirectory.FindDirectory(loadArgs.mountPath, true, &m_allocator);
 
 	std::vector<AssetToLoad*> assetsToposorted;
 
 	for (AssetToLoad& asset : assetsToLoad)
 	{
-		ProcessAsset(asset, mountDir, assetsToLoadByName, detail::createAssetPackage ? &assetsToposorted : nullptr);
+		ProcessAssetArgs processAssetArgs = {
+			.destinationDir = &mountDir,
+			.assetsToLoadByName = &assetsToLoadByName,
+			.assetsToposortOut = loadArgs.createAssetPackage ? &assetsToposorted : nullptr,
+			.allAssetsOut = &m_allAssets,
+			.allocator = &m_allocator,
+			.graphicsLoadContext = loadArgs.graphicsLoadContext,
+		};
+		ProcessAsset(asset, processAssetArgs);
 	}
 
-	if (detail::createAssetPackage)
+	if (loadArgs.createAssetPackage)
 	{
 		std::vector<EAPAsset> eapAssets(assetsToposorted.size());
 		std::transform(
@@ -533,7 +504,7 @@ static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 				eapAsset.format = *asset->loader->format;
 				eapAsset.generatedAssetData = { asset->generatedAsset.data.data(), asset->generatedAsset.data.size() };
 				eapAsset.compress = !HasFlag(asset->generatedAsset.flags, AssetFlags::DisableEAPCompression) &&
-			                        !detail::disableAssetPackageCompression;
+			                        !loadArgs.disableAssetPackageCompression;
 
 				for (const GeneratedAssetSideStreamData& data : asset->generatedAsset.sideStreamsData)
 					eapAsset.sideStreamsData.push_back({ .streamName = data.streamName, .data = data.data });
@@ -541,7 +512,7 @@ static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 				return eapAsset;
 			});
 
-		std::string eapPath = path + ".eap";
+		std::string eapPath = Concat({ loadArgs.path, ".eap" });
 		WriteEAPFile(eapAssets, eapPath);
 	}
 
@@ -549,9 +520,11 @@ static bool LoadAssetsYAML(const std::string& path, std::string_view mountPath)
 #endif
 }
 
-bool MountEAPAssets(std::span<const EAPAsset> assets, std::string_view mountPath)
+bool AssetManager::LoadAssetsEAP(
+	std::span<const struct EAPAsset> assets, std::string_view mountPath,
+	const class AssetLoaderRegistry& loaderRegistry, GraphicsLoadContext& graphicsLoadContext)
 {
-	AssetDirectory& mountDir = *FindDirectory(&assetRootDir, mountPath, true);
+	AssetDirectory& mountDir = *m_rootDirectory.FindDirectory(mountPath, true, &m_allocator);
 
 	for (const EAPAsset& eapAsset : assets)
 	{
@@ -571,13 +544,15 @@ bool MountEAPAssets(std::span<const EAPAsset> assets, std::string_view mountPath
 		}
 
 		// Loads the asset
-		const AssetLoadArgs loadArgs = {
+		const AssetLoadArgs assetLoadArgs = {
 			.asset = nullptr,
 			.assetPath = eapAsset.assetName,
 			.generatedData = eapAsset.generatedAssetData,
 			.sideStreamsData = eapAsset.sideStreamsData,
+			.allocator = &m_allocator,
+			.graphicsLoadContext = &graphicsLoadContext,
 		};
-		Asset* asset = LoadAsset(*eapAsset.loader, loadArgs);
+		Asset* asset = LoadAsset(*eapAsset.loader, assetLoadArgs);
 		if (asset == nullptr)
 		{
 			eg::Log(
@@ -586,10 +561,12 @@ bool MountEAPAssets(std::span<const EAPAsset> assets, std::string_view mountPath
 			return false;
 		}
 
-		asset->fullName = detail::assetAllocator.MakeStringCopy(eapAsset.assetName);
+		asset->fullName = m_allocator.MakeStringCopy(eapAsset.assetName);
 		asset->name = BaseName(asset->fullName);
 
-		AssetDirectory* directory = FindDirectory(&mountDir, ParentPath(eapAsset.assetName), true);
+		m_allAssets.push_back(asset);
+
+		AssetDirectory* directory = mountDir.FindDirectory(ParentPath(eapAsset.assetName), true, &m_allocator);
 		asset->next = directory->firstAsset;
 		directory->firstAsset = asset;
 	}
@@ -597,35 +574,40 @@ bool MountEAPAssets(std::span<const EAPAsset> assets, std::string_view mountPath
 	return true;
 }
 
-bool LoadAssets(
-	const std::string& path, std::string_view mountPath, std::span<const std::string_view> enabledSideStreams)
+bool AssetManager::LoadAssets(const LoadArgs& loadArgs)
 {
+	EG_ASSERT(loadArgs.loaderRegistry != nullptr);
+	EG_ASSERT(loadArgs.graphicsLoadContext != nullptr);
+
+	LoadAssetGenLibrary();
+
 	// First, tries to load assets from a YAML list. If that fails, attempts to load from an EAP.
-	if (LoadAssetsYAML(path, mountPath))
+	if (LoadAssetsYAML(loadArgs))
 	{
-		Log(LogLevel::Info, "as", "Loaded asset list '{0}/Assets.yaml'.", path);
+		Log(LogLevel::Info, "as", "Loaded asset list '{0}/Assets.yaml'.", loadArgs.path);
 		return true;
 	}
 
 	LinearAllocator allocator;
 
+	ReadEAPFileArgs readEAPFileArgs = { .allocator = &m_allocator, .loaderRegistry = loadArgs.loaderRegistry };
+
 	std::vector<MemoryMappedFile> mappedFiles;
 	std::optional<std::vector<EAPAsset>> eapAssets;
-	std::string eapPath = path + ".eap";
+	std::string eapPath = Concat({ loadArgs.path, ".eap" });
 	if (auto downloadedPackageData = detail::WebGetDownloadedAssetPackage(eapPath))
 	{
-		ReadEAPFileArgs readArgs;
-		readArgs.eapFileData = *downloadedPackageData;
-		readArgs.openSideStreamCallback = [&](std::string_view sideStreamName) -> std::span<const char>
+		OpenSideStreamFn openSideStream = [&](std::string_view sideStreamName) -> std::span<const char>
 		{ return detail::WebGetDownloadedAssetPackage(eapPath).value_or(std::span<const char>()); };
 
-		eapAssets = ReadEAPFile(readArgs, allocator);
+		eapAssets = ReadEAPFile(*downloadedPackageData, openSideStream, readEAPFileArgs);
 	}
 	else
 	{
-		auto readFromFSResult = ReadEAPFileFromFileSystem(
-			eapPath, [&](std::string_view sideStreamName) { return Contains(enabledSideStreams, sideStreamName); },
-			allocator);
+		ShouldLoadSideStreamFn shouldLoadSideStream = [&](std::string_view sideStreamName)
+		{ return Contains(loadArgs.enabledSideStreams, sideStreamName); };
+
+		auto readFromFSResult = ReadEAPFileFromFileSystem(eapPath, shouldLoadSideStream, readEAPFileArgs);
 
 		if (readFromFSResult.has_value())
 		{
@@ -634,7 +616,8 @@ bool LoadAssets(
 		}
 	}
 
-	if (eapAssets.has_value() && MountEAPAssets(*eapAssets, mountPath))
+	if (eapAssets.has_value() &&
+	    LoadAssetsEAP(*eapAssets, loadArgs.mountPath, *loadArgs.loaderRegistry, *loadArgs.graphicsLoadContext))
 	{
 		Log(LogLevel::Info, "as", "Loaded asset package '{0}'.", eapPath);
 		return true;
@@ -642,7 +625,7 @@ bool LoadAssets(
 	else
 	{
 		Log(LogLevel::Error, "as", "Failed to load assets from '{0}'. Both '{1}' and '{0}/Assets.yaml' failed to load.",
-		    path, eapPath);
+		    loadArgs.path, eapPath);
 		return false;
 	}
 }
@@ -650,11 +633,15 @@ bool LoadAssets(
 #ifdef __EMSCRIPTEN__
 void LoadAssetGenLibrary() {}
 #else
+static std::atomic_bool hasLoadedAssetGenLibrary = false;
+static std::mutex assetGenLibraryLoadMutex;
 static DynamicLibrary assetGenLibrary;
-static bool hasLoadedAssetGenLibrary = false;
 
 void LoadAssetGenLibrary()
 {
+	if (hasLoadedAssetGenLibrary)
+		return;
+	std::unique_lock<std::mutex> lock(assetGenLibraryLoadMutex);
 	if (hasLoadedAssetGenLibrary)
 		return;
 
@@ -673,9 +660,9 @@ void LoadAssetGenLibrary()
 		return;
 	}
 
-	hasLoadedAssetGenLibrary = true;
-
 	reinterpret_cast<void (*)()>(initSym)();
+
+	hasLoadedAssetGenLibrary = true;
 }
 #endif
 
@@ -684,10 +671,10 @@ std::vector<std::string_view> GetDefaultEnabledAssetSideStreams()
 	return {};
 }
 
-const Asset* detail::FindAsset(std::string_view name)
+const Asset* AssetManager::FindAssetImpl(std::string_view name) const
 {
 	std::string cPath = CanonicalPath(name);
-	AssetDirectory* dir = FindDirectory(&assetRootDir, ParentPath(cPath), false);
+	AssetDirectory* dir = const_cast<AssetDirectory&>(m_rootDirectory).FindDirectory(ParentPath(cPath), false, nullptr);
 	if (dir == nullptr)
 		return nullptr;
 
@@ -699,25 +686,6 @@ const Asset* detail::FindAsset(std::string_view name)
 	}
 
 	return nullptr;
-}
-
-static void UnloadAssetsR(AssetDirectory* dir)
-{
-	for (Asset* asset = dir->firstAsset; asset != nullptr; asset = asset->next)
-	{
-		asset->DestroyInstance();
-	}
-
-	for (AssetDirectory* subDir = dir->firstChildDir; subDir != nullptr; subDir = subDir->nextSiblingDir)
-	{
-		UnloadAssetsR(subDir);
-	}
-}
-
-void UnloadAssets()
-{
-	UnloadAssetsR(&assetRootDir);
-	detail::assetAllocator.Reset();
 }
 
 static void IterateAssetsR(const AssetDirectory& dir, const std::function<void(const Asset&)>& callback)
@@ -733,20 +701,14 @@ static void IterateAssetsR(const AssetDirectory& dir, const std::function<void(c
 	}
 }
 
-void IterateAssets(const std::function<void(const Asset&)>& callback)
+void AssetManager::IterateAssets(const std::function<void(const Asset&)>& callback) const
 {
-	IterateAssetsR(assetRootDir, callback);
+	IterateAssetsR(m_rootDirectory, callback);
 }
 
-void AssetCommandCompletionProvider(console::CompletionsList& list, const std::type_index* assetType)
+AssetManager::~AssetManager()
 {
-	IterateAssets(
-		[&](const Asset& asset)
-		{
-			if (assetType == nullptr || asset.assetType == *assetType)
-			{
-				list.Add(asset.fullName);
-			}
-		});
+	for (Asset* asset : m_allAssets)
+		asset->DestroyInstance();
 }
 } // namespace eg

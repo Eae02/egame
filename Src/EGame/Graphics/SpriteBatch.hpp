@@ -13,14 +13,8 @@ enum class SpriteFlags
 	FlipX = 1,
 	FlipY = 2,
 	RedToAlpha = 4,
-	FlipYIfOpenGL = 8
-};
-
-enum class SpriteBlend
-{
-	Alpha = 0,
-	Additive = 1,
-	Overwrite = 2
+	FlipYIfOpenGL = 8,
+	DistanceField = 16,
 };
 
 EG_BIT_FIELD(SpriteFlags)
@@ -29,10 +23,25 @@ enum class TextFlags
 {
 	None = 0,
 	NoPixelAlign = 1,
-	DropShadow = 2
+	DropShadow = 2,
+	DistanceField = 4,
 };
 
 EG_BIT_FIELD(TextFlags)
+
+enum class SpriteBlend
+{
+	Alpha = 0,
+	Additive = 1,
+	Overwrite = 2
+};
+
+enum class SpriteEffects
+{
+	None = 0,
+	RedToAlpha = 1,
+	DistanceField = 2,
+};
 
 class EG_API SpriteBatch
 {
@@ -165,12 +174,12 @@ private:
 	struct Batch
 	{
 		DescriptorSetRef textureDescriptorSet;
-		bool redToAlpha;
 		uint32_t firstIndex;
 		uint32_t numIndices;
 		bool enableScissor;
 		ScissorRectangle scissor;
 		SpriteBlend blend;
+		SpriteEffects effects;
 	};
 
 	std::vector<Batch> m_batches;

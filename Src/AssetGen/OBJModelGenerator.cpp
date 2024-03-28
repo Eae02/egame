@@ -1,3 +1,4 @@
+#include "../EGame/Alloc/LinearAllocator.hpp"
 #include "../EGame/Assets/AssetGenerator.hpp"
 #include "../EGame/Assets/ModelAsset.hpp"
 #include "../EGame/Graphics/NormalTangentGen.hpp"

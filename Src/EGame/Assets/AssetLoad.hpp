@@ -3,8 +3,8 @@
 #include "../API.hpp"
 #include "../Assert.hpp"
 #include "../Utils.hpp"
-#include "Asset.hpp"
 #include "AssetGenerator.hpp"
+#include "AssetManager.hpp"
 #include "DefaultAssetGenerator.hpp"
 #include "EAPFile.hpp"
 
@@ -12,12 +12,16 @@
 
 namespace eg
 {
+class GraphicsLoadContext;
+
 struct AssetLoadArgs
 {
 	Asset* asset;
 	std::string_view assetPath;
 	std::span<const char> generatedData;
 	std::span<const SideStreamData> sideStreamsData;
+	eg::LinearAllocator* allocator;
+	GraphicsLoadContext* graphicsLoadContext;
 };
 
 class EG_API AssetLoadContext
@@ -37,7 +41,9 @@ public:
 	{
 		if (m_asset == nullptr)
 		{
-			m_asset = Asset::Create<T>();
+			m_asset = m_allocator->New<Asset>(std::type_index(typeid(T)));
+			m_asset->instanceDtor = [](void* instance) { reinterpret_cast<T*>(instance)->~T(); };
+			m_asset->instance = m_allocator->Allocate(sizeof(T), alignof(T));
 		}
 		else if (std::type_index(typeid(T)) != m_asset->assetType)
 		{
@@ -65,12 +71,16 @@ public:
 
 	std::optional<std::span<const char>> FindSideStreamData(std::string_view streamName) const;
 
+	GraphicsLoadContext& GetGraphicsLoadContext() const { return *m_graphicsLoadContext; }
+
 private:
 	mutable Asset* m_asset = nullptr;
 	std::string_view m_assetPath;
 	std::string_view m_dirPath;
 	std::span<const char> m_data;
 	std::span<const SideStreamData> m_sideStreamsData;
+	eg::LinearAllocator* m_allocator;
+	GraphicsLoadContext* m_graphicsLoadContext;
 };
 
 using AssetLoaderCallback = std::function<bool(const AssetLoadContext&)>;
@@ -82,17 +92,32 @@ struct AssetLoader
 	AssetLoaderCallback callback;
 };
 
-EG_API const AssetLoader* FindAssetLoader(std::string_view loader);
+struct LoaderGeneratorPair
+{
+	std::string_view loader;
+	std::string_view generator;
+};
+
+class EG_API AssetLoaderRegistry
+{
+public:
+	AssetLoaderRegistry();
+
+	void AddLoader(std::string name, AssetLoaderCallback loader, const AssetFormat& format = DefaultGeneratorFormat);
+
+	const AssetLoader* FindLoader(std::string_view loader) const;
+
+	// Sets an automatic loader and generator for a file extension (without the dot). The AssetLoaderRegistry does not
+	// take ownership of the string views so these need to be valid for as long as the loader registry is used.
+	void SetLoaderAndGeneratorForFileExtension(std::string_view extension, LoaderGeneratorPair loaderAndGenerator);
+
+	std::optional<LoaderGeneratorPair> GetLoaderAndGeneratorForFileExtension(std::string_view extension) const;
+
+private:
+	std::vector<AssetLoader> m_loaders;
+
+	std::unordered_map<std::string_view, LoaderGeneratorPair> m_assetExtensions;
+};
 
 EG_API Asset* LoadAsset(const AssetLoader& loader, const AssetLoadArgs& loadArgs);
-
-EG_API void RegisterAssetLoader(
-	std::string name, AssetLoaderCallback loader, const AssetFormat& format = DefaultGeneratorFormat);
-
-EG_API void SetShouldLoadAssetSideStream(std::string_view sideStreamName, bool shouldLoad);
-
-namespace detail
-{
-EG_API void RegisterAssetLoaders();
-}
 } // namespace eg

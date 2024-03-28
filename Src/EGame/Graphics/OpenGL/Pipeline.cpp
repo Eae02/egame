@@ -19,7 +19,7 @@
 
 namespace eg::graphics_api::gl
 {
-const AbstractPipeline* currentPipeline;
+AbstractPipeline* currentPipeline;
 
 std::vector<uint8_t> satisfiedBindings;
 size_t remainingBindingsUnsatisfied = 0;
@@ -54,7 +54,7 @@ void DestroyPipeline(PipelineHandle handle)
 	MainThreadInvoke(
 		[pipeline = UnwrapPipeline(handle)]
 		{
-			glDeleteProgram(pipeline->program);
+			glDeleteProgram(pipeline->program.MTGet());
 			pipeline->Free();
 		});
 }
@@ -70,7 +70,7 @@ void BindPipeline(CommandContextHandle, PipelineHandle handle)
 	satisfiedBindings.resize(pipeline->bindings.size());
 	std::fill(satisfiedBindings.begin(), satisfiedBindings.end(), 0);
 
-	glUseProgram(pipeline->program);
+	glUseProgram(pipeline->program.MTGet());
 	pipeline->Bind();
 }
 
@@ -146,7 +146,7 @@ void CompileShaderStage(GLuint shader, std::string_view glslCode)
 	}
 }
 
-void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeStages)
+void LinkShaderProgram(GLuint program)
 {
 	glLinkProgram(program);
 
@@ -163,11 +163,6 @@ void LinkShaderProgram(GLuint program, const std::vector<std::string>& glslCodeS
 		infoLog.back() = '\0';
 
 		std::cout << "Shader program failed to link: \n\n --- Info Log --- \n" << infoLog.data();
-
-		for (const std::string& code : glslCodeStages)
-		{
-			std::cout << "\n\n --- GLSL ---\n" << code;
-		}
 
 		std::abort();
 	}
@@ -238,11 +233,26 @@ struct CombinedImageSamplerKey
 	}
 };
 
-void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*, GLuint>> shaderStages)
+static inline GLenum TranslateShaderStage(ShaderStage stage)
+{
+	switch (stage)
+	{
+	case ShaderStage::Vertex: return GL_VERTEX_SHADER;
+	case ShaderStage::Fragment: return GL_FRAGMENT_SHADER;
+	case ShaderStage::Geometry: return GL_GEOMETRY_SHADER;
+	case ShaderStage::TessControl: return GL_TESS_CONTROL_SHADER;
+	case ShaderStage::TessEvaluation: return GL_TESS_EVALUATION_SHADER;
+	case ShaderStage::Compute: return GL_COMPUTE_SHADER;
+	}
+	EG_UNREACHABLE
+}
+
+void AbstractPipeline::Initialize(
+	std::span<std::pair<spirv_cross::CompilerGLSL*, ShaderStage>> stageCompilers, const char* label)
 {
 	// Detects resources used in shaders
 	DescriptorSetBindings dsBindings;
-	for (auto [compiler, _] : shaderStages)
+	for (auto [compiler, stage] : stageCompilers)
 	{
 		const spirv_cross::ShaderResources& resources = compiler->get_shader_resources();
 		dsBindings.AppendFromReflectionInfo({}, *compiler, resources);
@@ -267,7 +277,7 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 		combinedImageSamplersBindingMap;
 
 	uint32_t nextTextureBinding = 0;
-	for (auto [compiler, shader] : shaderStages)
+	for (auto [compiler, stage] : stageCompilers)
 	{
 		spirv_cross::VariableID dummySamplerID = compiler->build_dummy_sampler_for_combined_images();
 
@@ -370,12 +380,22 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 		}
 	}
 
-	program = glCreateProgram();
+	std::string labelCopy;
+	if (label != nullptr)
+		labelCopy = label;
+	program = MainThreadInvokableUnsyncronized<GLuint>::Init(
+		[labelCopy = std::move(labelCopy)]
+		{
+			GLuint p = glCreateProgram();
+			if (!labelCopy.empty())
+				glObjectLabel(GL_PROGRAM, p, -1, labelCopy.c_str());
+			return p;
+		});
 
 	std::vector<std::string> glslCodeStages;
 
 	// Updates the bindings used by resources and uploads code to shader modules
-	for (auto [compiler, shader] : shaderStages)
+	for (auto [compiler, stage] : stageCompilers)
 	{
 		const spirv_cross::ShaderResources& shResources = compiler->get_shader_resources();
 
@@ -422,289 +442,90 @@ void AbstractPipeline::Initialize(std::span<std::pair<spirv_cross::CompilerGLSL*
 		compiler->set_common_options(options);
 		std::string glslCode = compiler->compile();
 
-		CompileShaderStage(shader, glslCode);
-
-		glAttachShader(program, shader);
-		glslCodeStages.push_back(std::move(glslCode));
+		program.OnMainThread(
+			[glslCode = std::move(glslCode), stage](GLuint glProgram)
+			{
+				GLuint shader = glCreateShader(TranslateShaderStage(stage));
+				CompileShaderStage(shader, glslCode);
+				glAttachShader(glProgram, shader);
+			});
 	}
 
 #ifdef __EMSCRIPTEN__
 	// Webgl doesn't seem to support having only a vertex shader, so add a dummy fragment shader
-	if (shaderStages.size() == 1)
+	if (stageCompilers.size() == 1)
 	{
-		static std::optional<GLuint> dummyFragmentShader;
-		if (!dummyFragmentShader.has_value())
-		{
-			dummyFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-			CompileShaderStage(*dummyFragmentShader, "#version 300 es\nvoid main() { }\n");
-		}
-		glAttachShader(program, *dummyFragmentShader);
+		program.OnMainThread(
+			[](GLuint glProgram)
+			{
+				static std::optional<GLuint> dummyFragmentShader;
+				if (!dummyFragmentShader.has_value())
+				{
+					dummyFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+					CompileShaderStage(*dummyFragmentShader, "#version 300 es\nvoid main() { }\n");
+				}
+				glAttachShader(glProgram, *dummyFragmentShader);
+			});
 	}
 #endif
 
-	LinkShaderProgram(program, glslCodeStages);
+	program.OnMainThread([](GLuint glProgram) { LinkShaderProgram(glProgram); });
 
 	// Bindings for textures and uniform blocks cannot be set in the shader code for GLES,
 	//  so they need to be set manually.
 	if (useGLESPath && !usesGL4Resources)
 	{
-		glUseProgram(program);
-		for (auto [compiler, _] : shaderStages)
+		program.OnMainThread([](GLuint glProgram) { glUseProgram(glProgram); });
+
+		for (auto [compiler, _] : stageCompilers)
 		{
 			const spirv_cross::ShaderResources& shResources = compiler->get_shader_resources();
 			for (const spirv_cross::Resource& res : shResources.sampled_images)
 			{
 				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
-				int location = glGetUniformLocation(program, res.name.c_str());
-				if (location == -1)
-				{
-					eg::Log(eg::LogLevel::Warning, "gl", "Texture uniform not found: '{0}'", res.name);
-				}
-				else
-				{
-					glUniform1i(location, static_cast<GLint>(binding));
-				}
+				program.OnMainThread(
+					[name = res.name, binding](GLuint glProgram)
+					{
+						int location = glGetUniformLocation(glProgram, name.c_str());
+						if (location == -1)
+						{
+							eg::Log(eg::LogLevel::Warning, "gl", "Texture uniform not found: '{0}'", name);
+						}
+						else
+						{
+							glUniform1i(location, static_cast<GLint>(binding));
+						}
+					});
 			}
 			for (const spirv_cross::Resource& res : shResources.uniform_buffers)
 			{
 				const uint32_t binding = compiler->get_decoration(res.id, spv::DecorationBinding);
-				GLuint blockIndex = glGetUniformBlockIndex(program, res.name.c_str());
-				if (blockIndex == GL_INVALID_INDEX)
-				{
-					eg::Log(eg::LogLevel::Warning, "gl", "Uniform block not found: '{0}'", res.name);
-				}
-				else
-				{
-					glUniformBlockBinding(program, blockIndex, binding);
-				}
-			}
-		}
-		glUseProgram(currentPipeline ? currentPipeline->program : 0);
-	}
-
-	// Processes push constant blocks
-	for (auto [compiler, _] : shaderStages)
-	{
-		const spirv_cross::ShaderResources& resources = compiler->get_shader_resources();
-
-		for (const spirv_cross::Resource& pcBlock : resources.push_constant_buffers)
-		{
-			const SPIRType& type = compiler->get_type(pcBlock.base_type_id);
-			const uint32_t numMembers = UnsignedNarrow<uint32_t>(type.member_types.size());
-
-			std::string blockName = compiler->get_name(pcBlock.id);
-			if (blockName.empty())
-			{
-				blockName = compiler->get_fallback_name(pcBlock.id);
-			}
-
-			auto activeRanges = compiler->get_active_buffer_ranges(pcBlock.id);
-
-			for (uint32_t i = 0; i < numMembers; i++)
-			{
-				const SPIRType& memberType = compiler->get_type(type.member_types[i]);
-
-				// Only process supported base types
-				static const SPIRType::BaseType supportedBaseTypes[] = { SPIRType::Float, SPIRType::Int, SPIRType::UInt,
-					                                                     SPIRType::Boolean };
-				if (!Contains(supportedBaseTypes, memberType.basetype))
-					continue;
-
-				const uint32_t offset = compiler->type_struct_member_offset(type, i);
-
-				bool active = false;
-				for (const spirv_cross::BufferRange& range : activeRanges)
-				{
-					if (offset >= range.offset && offset < range.offset + range.range)
+				program.OnMainThread(
+					[name = res.name, binding](GLuint glProgram)
 					{
-						active = true;
-						break;
-					}
-				}
-				if (!active)
-					continue;
-
-				// Gets the name and uniform location of this member
-				const std::string& name = compiler->get_member_name(type.self, i);
-				std::string uniformName = Concat({ blockName, ".", name });
-				int location = glGetUniformLocation(program, uniformName.c_str());
-				if (location == -1)
-				{
-					if (DevMode())
-					{
-						std::cout << "Push constant uniform not found: '" << name << "' (expected '" << uniformName
-								  << "'). All uniforms:\n";
-
-						GLint numUniforms;
-						glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &numUniforms);
-						for (int u = 0; u < numUniforms; u++)
+						GLuint blockIndex = glGetUniformBlockIndex(glProgram, name.c_str());
+						if (blockIndex == GL_INVALID_INDEX)
 						{
-							GLsizei uniformNameLen;
-							GLint uniformSize;
-							GLenum uniformType;
-
-							char uniformNameBuffer[512];
-							glGetActiveUniform(
-								program, u, sizeof(uniformNameBuffer), &uniformNameLen, &uniformSize, &uniformType,
-								uniformNameBuffer);
-
-							std::cout << "  " << uniformNameBuffer << "\n";
+							eg::Log(eg::LogLevel::Warning, "gl", "Uniform block not found: '{0}'", name);
 						}
-
-						for (const std::string& code : glslCodeStages)
+						else
 						{
-							std::cout << "\n\n --- GLSL ---\n" << code;
+							glUniformBlockBinding(glProgram, blockIndex, binding);
 						}
-
-						std::cout << std::flush;
-					}
-
-					continue;
-				}
-
-				static const std::pair<uint32_t, uint32_t> SUPPORTED_DIMENSIONS[] = {
-					{ 1, 1 }, { 1, 2 }, { 1, 3 }, { 1, 4 }, { 2, 2 }, { 3, 3 }, { 3, 4 }, { 4, 4 },
-				};
-
-				if (!Contains(SUPPORTED_DIMENSIONS, std::make_pair(memberType.columns, memberType.vecsize)))
-				{
-					Log(LogLevel::Error, "gl", "Unsupported push constant dimensions {0}x{1}", memberType.vecsize,
-					    memberType.columns);
-					continue;
-				}
-
-				PushConstantMember& pushConstant = pushConstants.emplace_back();
-				pushConstant.uniformLocation = location;
-				pushConstant.arraySize = 1;
-				pushConstant.offset = offset;
-				pushConstant.baseType = memberType.basetype;
-				pushConstant.vectorSize = memberType.vecsize;
-				pushConstant.columns = memberType.columns;
-
-				for (uint32_t arraySize : memberType.array)
-					pushConstant.arraySize *= arraySize;
+					});
 			}
 		}
-	}
-}
 
-template <typename T>
-struct SetUniformFunctions
-{
-	void (*Set1)(GLint location, GLsizei count, const T* value);
-	void (*Set2)(GLint location, GLsizei count, const T* value);
-	void (*Set3)(GLint location, GLsizei count, const T* value);
-	void (*Set4)(GLint location, GLsizei count, const T* value);
-	void (*Set2x2)(GLint location, GLsizei count, GLboolean transpose, const T* value);
-	void (*Set3x3)(GLint location, GLsizei count, GLboolean transpose, const T* value);
-	void (*Set3x4)(GLint location, GLsizei count, GLboolean transpose, const T* value);
-	void (*Set4x4)(GLint location, GLsizei count, GLboolean transpose, const T* value);
-};
-
-template <typename T>
-inline void SetPushConstantUniform(
-	const SetUniformFunctions<T>& func, const PushConstantMember& pushConst, uint32_t offset, uint32_t range,
-	const void* data)
-{
-	const T* value = reinterpret_cast<const T*>(reinterpret_cast<const char*>(data) + (pushConst.offset - offset));
-	if (pushConst.columns == 1)
-	{
-		if (pushConst.vectorSize == 1)
-		{
-			func.Set1(pushConst.uniformLocation, pushConst.arraySize, value);
-		}
-		else if (pushConst.vectorSize == 2)
-		{
-			func.Set2(pushConst.uniformLocation, pushConst.arraySize, value);
-		}
-		else if (pushConst.vectorSize == 3)
-		{
-			T* packedValues = reinterpret_cast<T*>(alloca(pushConst.arraySize * sizeof(T) * 3));
-			for (uint32_t i = 0; i < pushConst.arraySize; i++)
-			{
-				std::memcpy(packedValues + (i * 3), value + (i * 4), sizeof(T) * 3);
-			}
-			func.Set3(pushConst.uniformLocation, pushConst.arraySize, packedValues);
-		}
-		else if (pushConst.vectorSize == 4)
-		{
-			func.Set4(pushConst.uniformLocation, pushConst.arraySize, value);
-		}
-	}
-	else if (pushConst.columns == 2 && pushConst.vectorSize == 2)
-	{
-		func.Set2x2(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
-	}
-	else if (pushConst.columns == 3 && pushConst.vectorSize == 3)
-	{
-		T* packedValues = reinterpret_cast<T*>(alloca(pushConst.arraySize * sizeof(T) * 9));
-		for (uint32_t i = 0; i < pushConst.arraySize * 3; i++)
-		{
-			std::memcpy(packedValues + (i * 3), value + (i * 4), sizeof(T) * 3);
-		}
-		func.Set3x3(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, packedValues);
-	}
-	else if (pushConst.columns == 3 && pushConst.vectorSize == 4)
-	{
-		func.Set3x4(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
-	}
-	else if (pushConst.columns == 4)
-	{
-		func.Set4x4(pushConst.uniformLocation, pushConst.arraySize, GL_FALSE, value);
+		program.OnMainThread([](GLuint glProgram)
+		                     { glUseProgram(currentPipeline ? currentPipeline->program.MTGet() : 0); });
 	}
 }
 
 void PushConstants(CommandContextHandle, uint32_t offset, uint32_t range, const void* data)
 {
-	for (const PushConstantMember& pushConst : currentPipeline->pushConstants)
-	{
-		if (pushConst.offset < offset || pushConst.offset >= offset + range)
-			continue;
-
-		switch (pushConst.baseType)
-		{
-		case SPIRType::Float:
-		{
-			SetUniformFunctions<float> func = {
-				.Set1 = glUniform1fv,
-				.Set2 = glUniform2fv,
-				.Set3 = glUniform3fv,
-				.Set4 = glUniform4fv,
-				.Set2x2 = glUniformMatrix2fv,
-				.Set3x3 = glUniformMatrix3fv,
-				.Set3x4 = glUniformMatrix3x4fv,
-				.Set4x4 = glUniformMatrix4fv,
-			};
-			SetPushConstantUniform<float>(func, pushConst, offset, range, data);
-			break;
-		}
-		case SPIRType::Boolean:
-		case SPIRType::Int:
-		{
-			SetUniformFunctions<int32_t> func = {
-				.Set1 = glUniform1iv,
-				.Set2 = glUniform2iv,
-				.Set3 = glUniform3iv,
-				.Set4 = glUniform4iv,
-			};
-			SetPushConstantUniform<int32_t>(func, pushConst, offset, range, data);
-			break;
-		}
-		case SPIRType::UInt:
-		{
-			SetUniformFunctions<uint32_t> func = {
-				.Set1 = glUniform1uiv,
-				.Set2 = glUniform2uiv,
-				.Set3 = glUniform3uiv,
-				.Set4 = glUniform4uiv,
-			};
-			SetPushConstantUniform<uint32_t>(func, pushConst, offset, range, data);
-			break;
-		}
-		default: EG_PANIC("Unknown push constant type.");
-		}
-	}
+	EG_PANIC("Unsupported: PushConstants")
 }
+
 void MappedBinding::PushGLBinding(uint32_t b)
 {
 	if (std::holds_alternative<std::monostate>(glBindings))

@@ -22,7 +22,10 @@ static ShaderModule spriteBatchFS;
 static Buffer flagsUniformBuffer;
 static uint32_t flagsUniformBufferBytesPerFlag;
 
-static constexpr uint32_t NUM_FLAG_COMBINATIONS = 1 << 3;
+static uint32_t GetFlagUniformBufferOffset(uint32_t blendMode, uint32_t effectMode)
+{
+	return flagsUniformBufferBytesPerFlag * (blendMode + effectMode * 3);
+}
 
 static const DescriptorSetBinding bindingsSet0[] = {
 	{
@@ -62,14 +65,18 @@ void SpriteBatch::InitStatic()
 		.label = "SpriteBatch"
 	});
 
-	flagsUniformBufferBytesPerFlag =
-		std::max<uint32_t>(sizeof(uint32_t), GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
-	uint32_t wordsPerFlag = flagsUniformBufferBytesPerFlag / sizeof(uint32_t);
-	std::vector<uint32_t> flagsBufferData(wordsPerFlag * NUM_FLAG_COMBINATIONS);
-	for (uint32_t i = 0; i < NUM_FLAG_COMBINATIONS; i++)
-		flagsBufferData[i * wordsPerFlag] = i;
-	flagsUniformBuffer = eg::Buffer(
-		eg::BufferFlags::UniformBuffer, flagsUniformBufferBytesPerFlag * NUM_FLAG_COMBINATIONS, flagsBufferData.data());
+	flagsUniformBufferBytesPerFlag = std::max<uint32_t>(16, GetGraphicsDeviceInfo().uniformBufferOffsetAlignment);
+
+	std::vector<char> flagsData(flagsUniformBufferBytesPerFlag * 9);
+	for (uint32_t effectMode = 0; effectMode < 3; effectMode++)
+	{
+		for (uint32_t blendMode = 0; blendMode < 3; blendMode++)
+		{
+			uint32_t flags[] = { blendMode, effectMode };
+			std::memcpy(flagsData.data() + GetFlagUniformBufferOffset(blendMode, effectMode), flags, sizeof(flags));
+		}
+	}
+	flagsUniformBuffer = eg::Buffer(eg::BufferFlags::UniformBuffer, flagsData.size(), flagsData.data());
 }
 
 void SpriteBatch::DestroyStatic()
@@ -96,11 +103,17 @@ void SpriteBatch::PopBlendState()
 
 void SpriteBatch::InitBatch(DescriptorSetRef textureDescriptorSet, SpriteFlags flags)
 {
-	bool redToAlpha = HasFlag(flags, SpriteFlags::RedToAlpha);
+	SpriteEffects effects;
+	if (HasFlag(flags, SpriteFlags::DistanceField))
+		effects = SpriteEffects::DistanceField;
+	else if (HasFlag(flags, SpriteFlags::RedToAlpha))
+		effects = SpriteEffects::RedToAlpha;
+	else
+		effects = SpriteEffects::None;
 
 	bool needsNewBatch = true;
 	if (!m_batches.empty() && m_batches.back().textureDescriptorSet.handle == textureDescriptorSet.handle &&
-	    m_batches.back().redToAlpha == redToAlpha && m_batches.back().blend == m_blendStateStack.back())
+	    m_batches.back().effects == effects && m_batches.back().blend == m_blendStateStack.back())
 	{
 		if (!m_batches.back().enableScissor && m_scissorStack.empty())
 		{
@@ -117,7 +130,7 @@ void SpriteBatch::InitBatch(DescriptorSetRef textureDescriptorSet, SpriteFlags f
 	if (needsNewBatch)
 	{
 		Batch& batch = m_batches.emplace_back();
-		batch.redToAlpha = redToAlpha;
+		batch.effects = effects;
 		batch.textureDescriptorSet = textureDescriptorSet;
 		batch.blend = m_blendStateStack.back();
 		batch.firstIndex = UnsignedNarrow<uint32_t>(m_indices.size());
@@ -355,6 +368,9 @@ void SpriteBatch::DrawText(
 	float x = 0;
 	sizeOut->y = 0;
 
+	const SpriteFlags spriteFlags =
+		HasFlag(flags, TextFlags::DistanceField) ? SpriteFlags::DistanceField : SpriteFlags::RedToAlpha;
+
 	bool useSecondColor = false;
 	const ColorLin* currentColor = &color;
 	uint32_t prev = 0;
@@ -398,12 +414,10 @@ void SpriteBatch::DrawText(
 		{
 			Rectangle shadowRectangle = rectangle;
 			shadowRectangle.y -= font.LineHeight() * scale * 0.1f;
-			Draw(
-				font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, currentColor->a * 0.5f), srcRectangle,
-				SpriteFlags::RedToAlpha);
+			Draw(font.Tex(), shadowRectangle, eg::ColorLin(0, 0, 0, currentColor->a * 0.5f), srcRectangle, spriteFlags);
 		}
 
-		Draw(font.Tex(), rectangle, *currentColor, srcRectangle, SpriteFlags::RedToAlpha);
+		Draw(font.Tex(), rectangle, *currentColor, srcRectangle, spriteFlags);
 
 		x += fontChar.xAdvance + static_cast<float>(kerning);
 		sizeOut->y = std::max(sizeOut->y, rectangle.h);
@@ -437,7 +451,7 @@ void SpriteBatch::Upload(const glm::mat3& matrix)
 
 		m_commonDescriptorSet = DescriptorSet(bindingsSet0);
 		m_commonDescriptorSet.BindUniformBuffer(m_transformUniformBuffer, 0);
-		m_commonDescriptorSet.BindUniformBuffer(flagsUniformBuffer, 1, BIND_BUFFER_OFFSET_DYNAMIC, sizeof(uint32_t));
+		m_commonDescriptorSet.BindUniformBuffer(flagsUniformBuffer, 1, BIND_BUFFER_OFFSET_DYNAMIC, 16);
 		m_commonDescriptorSet.BindSampler(
 			GetSampler(eg::SamplerDescription{
 				.wrapU = eg::WrapMode::ClampToEdge,
@@ -521,10 +535,8 @@ void SpriteBatch::Render(const RenderArgs& renderArgs) const
 
 	for (const Batch& batch : m_batches)
 	{
-		uint32_t flags = static_cast<uint32_t>(batch.blend) | (static_cast<uint32_t>(batch.redToAlpha) << 2);
-		EG_ASSERT(flags < NUM_FLAG_COMBINATIONS);
-
-		uint32_t flagsUniformBufferOffset = flags * flagsUniformBufferBytesPerFlag;
+		uint32_t flagsUniformBufferOffset =
+			GetFlagUniformBufferOffset(static_cast<uint32_t>(batch.blend), static_cast<uint32_t>(batch.effects));
 		DC.BindDescriptorSet(m_commonDescriptorSet, 0, { &flagsUniformBufferOffset, 1 });
 
 		if (batch.enableScissor)
@@ -551,7 +563,7 @@ void SpriteBatch::UploadAndRender(
 		{
 			Upload(
 				static_cast<float>(renderArgs.screenWidth.value_or(CurrentResolutionX())),
-				static_cast<float>(renderArgs.screenHeight.value_or(CurrentResolutionX())));
+				static_cast<float>(renderArgs.screenHeight.value_or(CurrentResolutionY())));
 		}
 
 		DC.BeginRenderPass(rpBeginInfo);

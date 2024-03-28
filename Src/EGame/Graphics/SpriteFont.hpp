@@ -8,7 +8,7 @@ namespace eg
 class EG_API SpriteFont : public FontAtlas
 {
 public:
-	explicit SpriteFont(FontAtlas atlas);
+	SpriteFont(FontAtlas atlas, class GraphicsLoadContext& graphicsLoadContext);
 
 	const Texture& Tex() const { return m_texture; }
 
